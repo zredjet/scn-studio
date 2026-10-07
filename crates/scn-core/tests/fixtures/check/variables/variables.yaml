@@ -1,0 +1,19 @@
+flag.書くだけ:
+  type: int
+  default: 0
+  scope: save
+flag.読むだけ:
+  type: bool
+  default: false
+  scope: save
+周回.解放:
+  type: bool
+  default: false
+  scope: persistent
+flag.使わない:
+  type: int
+  default: 0
+  scope: save
+flag.両方:
+  type: int
+  default: 0

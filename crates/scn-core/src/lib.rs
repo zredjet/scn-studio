@@ -6,6 +6,7 @@
 //! - プロジェクトの読み込み：[`load_project`]
 //! - プロジェクト全体の意味解析とIR：[`analyze`]
 //! - 索引（補完、逆引き、検証が使う一覧）：[`index::build_index`]
+//! - 検証の段階1（`scn check`）：[`check::check`]
 //! - 行IDの付与（`scn fmt`）：[`line_id::assign_line_ids`]
 
 // ライブラリのコードでは、パニックしうる書き方を禁じる（`.claude/rules/rust.md`）。
@@ -22,6 +23,7 @@
 )]
 
 pub mod ast;
+pub mod check;
 pub mod diag;
 pub mod expr;
 pub mod index;

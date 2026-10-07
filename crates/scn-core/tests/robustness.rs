@@ -2,7 +2,7 @@
 //!
 //! 行の断片をでたらめに組み合わせた入力、途中で切った入力、任意の文字列を解析し、
 //! パニックしないこと、診断とASTのスパンが範囲内で文字の境界にあることを確かめる。
-//! 構文解析だけでなく、意味解析とIR（`analyze`）も通す。
+//! 構文解析だけでなく、意味解析とIR（`analyze`）、索引、検証の段階1（`check`）も通す。
 //! 行IDの付与（`scn fmt`）も、同じ入力で確かめる（足した部分のほかはバイトが変わらない、など）。
 
 mod support;
@@ -13,8 +13,10 @@ use std::sync::LazyLock;
 
 use proptest::prelude::*;
 use proptest::sample::Index;
+use scn_core::check::check as check_project;
+use scn_core::index::build_index;
 use scn_core::line_id::{LineIdGenerator, assign_line_ids};
-use scn_core::project::{Project, SourceFile};
+use scn_core::project::{MessageWindow, Project, SourceFile};
 use scn_core::{DialogueBracket, ParseOptions, analyze, load_project, parse};
 
 /// 意味系のfixtureで使う共通のプロジェクト。本文だけを差し替えて、意味解析とIRも通す。
@@ -62,6 +64,21 @@ fn check(source: &str) {
         support::assert_span_ok(source, diag.span, diag.code);
     }
     serde_json::to_string(&ir).expect("IRをJSONにできない");
+
+    // 索引と検証の段階1（はみ出しも調べるよう、メッセージウィンドウを決める）。
+    let mut windowed = project.clone();
+    windowed.settings.message_window = Some(MessageWindow {
+        lines: 3,
+        chars_per_line: 24,
+    });
+    let ir = analyze(&windowed);
+    let index = build_index(&windowed, &ir);
+    serde_json::to_string(&index).expect("索引をJSONにできない");
+    for diag in check_project(&windowed, &ir, &index) {
+        if diag.file == "story/a.scn" {
+            support::assert_span_ok(source, diag.span, diag.code);
+        }
+    }
 
     check_line_ids(&project);
 }

@@ -1,0 +1,6 @@
+---
+source: crates/scn-core/tests/check.rs
+expression: "dump(&diagnostics, &dir)"
+---
+story/a.scn:3:1-3:17 W504 シーン s1 には、開始シーン s2 から着けません
+story/a.scn:12:1-12:10 W504 シーン s4 には、開始シーン s2 から着けません

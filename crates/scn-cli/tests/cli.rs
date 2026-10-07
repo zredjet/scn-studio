@@ -285,6 +285,110 @@ fn parse_in_project_runs_semantic_analysis() {
     let _ = fs::remove_dir_all(&dir);
 }
 
+// ---- scn check ----
+
+/// 完了条件：`scn check` の端から端までのテスト。サンプルでは、意図して残した診断だけが出て、
+/// エラーが無いので終了コード0。行IDのある行の診断には、行IDを添える。
+#[test]
+fn check_sample() {
+    let out = scn(&["check", "samples/houkago"], &repo_root());
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    let lines: Vec<&str> = out.stdout.lines().collect();
+    let codes: Vec<&str> = lines.iter().map(|l| l.split(' ').nth(1).unwrap()).collect();
+    assert_eq!(
+        codes,
+        [
+            "I403", "W203", "I302", "I302", "I302", "W503", "I302", "I302", "I403", "W701", "W605",
+            "W605"
+        ]
+    );
+    assert!(lines.contains(
+        &"samples/houkago/story/chapter01.scn:73:1 W203 メッセージウィンドウ（3行×24字）に収まりません（4行になります） ^k3ff"
+    ));
+    assert!(
+        lines
+            .iter()
+            .any(|l| l.starts_with("samples/houkago/concept.md:10:11 W701 "))
+    );
+    assert!(
+        out.stderr.contains("エラー 0件、警告 5件、情報 7件"),
+        "{}",
+        out.stderr
+    );
+}
+
+/// `--json` は、行と列と、あれば行IDを足した診断の配列。プロジェクトのフォルダを省くと今のフォルダ。
+#[test]
+fn check_json_in_current_dir() {
+    let out = scn(&["check", "--json"], &repo_root().join("samples/houkago"));
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    let list: Value = serde_json::from_str(&out.stdout).expect("JSONでない");
+    let w203 = list
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|d| d["code"] == "W203")
+        .unwrap();
+    assert_eq!(w203["file"], "story/chapter01.scn");
+    assert_eq!(w203["line"], 73);
+    assert_eq!(w203["line_id"], "k3ff");
+    let w605 = list
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|d| d["code"] == "W605")
+        .unwrap();
+    assert_eq!(w605["file"], "variables.yaml");
+    assert!(w605.get("line_id").is_none());
+}
+
+/// エラー（E）があれば終了コード1。段階1の検証の診断（W503 など）も出す。
+#[test]
+fn check_with_errors() {
+    let dir = temp_dir(
+        "check-errors",
+        &[
+            ("project.toml", "format_version = 0\nstart_scene = \"s9\"\n"),
+            ("story/a.scn", "## a #s001\n地の文 ^aaaa\n"),
+        ],
+    );
+    let out = scn(&["check", "."], &dir);
+    assert_eq!(out.code, HAS_ERRORS, "{}", out.stderr);
+    assert!(
+        out.stdout.contains("project.toml:2:1 E501 "),
+        "{}",
+        out.stdout
+    );
+    assert!(
+        out.stdout.contains("story/a.scn:1:1 W503 "),
+        "{}",
+        out.stdout
+    );
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// 入れ子の深い本文でもスタックがあふれない（大きなスタックのスレッドで実行する。Windowsのメインスレッドは1MB）。
+#[test]
+fn deep_nesting_does_not_overflow() {
+    let mut source = String::from("## a #s001\n");
+    for _ in 0..3000 {
+        source.push_str("@if a\n");
+    }
+    let dir = temp_dir(
+        "deep",
+        &[
+            ("project.toml", "format_version = 0\n"),
+            ("story/a.scn", &source),
+        ],
+    );
+    // `ir` は整形したJSONを出すので、入れ子が深いと字下げで出力が大きくなる（3000段で約800MB）。ここでは試さない。
+    for args in [&["check", "."][..], &["parse", "story/a.scn"][..]] {
+        let out = scn(args, &dir);
+        assert_eq!(out.code, HAS_ERRORS, "{args:?}：{}", out.stderr);
+    }
+    let _ = fs::remove_dir_all(&dir);
+}
+
 // ---- scn fmt ----
 
 /// `scn fmt` の1行（`ファイル:行:列 ^ID`。`--check` では `ファイル:行:列 行IDがありません`）。

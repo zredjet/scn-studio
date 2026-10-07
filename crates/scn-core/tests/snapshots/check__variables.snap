@@ -1,0 +1,6 @@
+---
+source: crates/scn-core/tests/check.rs
+expression: "dump(&diagnostics, &dir)"
+---
+variables.yaml:1:1-1:10 W605 変数 flag.書くだけ は書き込まれますが、どこでも読まれません
+variables.yaml:5:1-5:10 W606 変数 flag.読むだけ は読まれますが、どこでも書き込まれません（既定値のまま使われます）

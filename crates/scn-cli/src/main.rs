@@ -5,20 +5,29 @@
 //!   設定ファイルの診断（E801〜W804）と、そのファイルの診断を出す（ほかの章の診断は出さない）。
 //!   プロジェクトの外なら、構文解析だけを行う。
 //! - `scn ir <project-dir>`：プロジェクト全体のIRを、標準出力にJSONで出す。
+//! - `scn check [project-dir] [--json]`：プロジェクト全体を検証し（読み込み・構文解析・意味解析の診断と、
+//!   検証の段階1。D043）、診断を `ファイル:行:列 コード メッセージ ^行ID` の形で出す。
 //! - `scn fmt <project-dir> [--check] [--json]`：行IDの無い行に行IDを付ける（仕様書9節、D041）。
 //!   付けた行IDを `ファイル:行:列 ^ID` の形で出す。`--check` では書き換えず、付ける行があれば1で終わる。
 //!   `project.toml` にエラーがあれば、台詞の括弧を書かれたとおりに読めないので、何もせずに2で終わる。
 //!
 //! 終了コードは、成功が0、エラー（E）の診断があれば1、使い方の誤り・`project.toml` の無いフォルダ・
 //! 入出力の誤りは2。`fmt` は本文の診断では1にしない（`--check` で行IDの無い行があるときだけ1）。
+//!
+//! 入れ子の深い本文でもスタックがあふれないよう、コマンドは大きなスタックのスレッドで実行する
+//! （Windowsのメインスレッドは1MB。アプリと同じ64MB）。
 
+use std::collections::BTreeMap;
 use std::fmt;
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::thread;
 
 use clap::{Parser, Subcommand};
+use scn_core::check::check;
+use scn_core::index::build_index;
 use scn_core::ir::IrDiagnostic;
 use scn_core::line_id::{LineIdGenerator, assign_line_ids};
 use scn_core::project::SourceFile;
@@ -48,6 +57,15 @@ enum Command {
     Ir {
         /// プロジェクトのフォルダ（project.toml のあるところ）
         project: PathBuf,
+    },
+    /// プロジェクト全体を検証し、診断を `ファイル:行:列 コード メッセージ ^行ID` の形で出す
+    Check {
+        /// プロジェクトのフォルダ（project.toml のあるところ）。省くと今のフォルダ
+        #[arg(default_value = ".")]
+        project: PathBuf,
+        /// 診断をJSONで出す
+        #[arg(long)]
+        json: bool,
     },
     /// 行IDの無い行に行IDを付け、付けた行IDを `ファイル:行:列 ^ID` の形で出す。整形はしない
     Fmt {
@@ -92,23 +110,40 @@ const SUCCESS: u8 = 0;
 const HAS_ERRORS: u8 = 1;
 const FAILURE: u8 = 2;
 
+/// コマンドを実行するスレッドのスタックの大きさ（アプリの解析のスレッドと同じ）。
+const STACK_SIZE: usize = 64 * 1024 * 1024;
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
-    let result = match cli.command {
-        Command::Parse { file, json } => run_parse(&file, json),
-        Command::Ir { project } => run_ir(&project),
-        Command::Fmt {
-            project,
-            check,
-            json,
-        } => run_fmt(&project, check, json),
-    };
+    let result = thread::Builder::new()
+        .name("scn".into())
+        .stack_size(STACK_SIZE)
+        .spawn(move || run(cli.command))
+        .map_err(|e| CliError::Refused(format!("実行のスレッドを作れません：{e}")))
+        .and_then(|worker| {
+            worker
+                .join()
+                .unwrap_or_else(|_| Err(CliError::Refused("実行が途中で止まりました".into())))
+        });
     match result {
         Ok(code) => ExitCode::from(code),
         Err(e) => {
             eprintln!("scn: {e}");
             ExitCode::from(FAILURE)
         }
+    }
+}
+
+fn run(command: Command) -> Result<u8, CliError> {
+    match command {
+        Command::Parse { file, json } => run_parse(&file, json),
+        Command::Ir { project } => run_ir(&project),
+        Command::Check { project, json } => run_check(&project, json),
+        Command::Fmt {
+            project,
+            check,
+            json,
+        } => run_fmt(&project, check, json),
     }
 }
 
@@ -143,6 +178,9 @@ struct CliDiagnostic<'a> {
     end_column: usize,
     span: scn_core::Span,
     message: &'a str,
+    /// 診断の行の行ID（`scn check` だけ。行IDが無ければ出さない）。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    line_id: Option<&'a str>,
 }
 
 /// 診断を出すファイルと、位置（行と列）を数える本文。
@@ -195,6 +233,7 @@ fn run_parse(file: &Path, json: bool) -> Result<u8, CliError> {
                     end_column,
                     span: d.span,
                     message: &d.message,
+                    line_id: None,
                 });
             }
         }
@@ -466,4 +505,127 @@ fn display_path(dir: &Path, relative: &str) -> String {
     } else {
         dir.join(relative).display().to_string()
     }
+}
+
+// ---- scn check ----
+
+/// プロジェクト全体を検証する。読み込みの診断を先に、続けて本文のファイル（プロジェクトの順）、
+/// ほかのファイル（パスの順）の診断を、位置の順に出す。
+fn run_check(dir: &Path, json: bool) -> Result<u8, CliError> {
+    let project = load_project(dir).map_err(CliError::Project)?;
+    let ir = analyze(&project);
+    let index = build_index(&project, &ir);
+    let loaded = project.load_diagnostics.len();
+    let mut rest: Vec<IrDiagnostic> = ir.diagnostics.iter().skip(loaded).cloned().collect();
+    rest.extend(check(&project, &ir, &index));
+    let rank = |file: &str| {
+        project
+            .files
+            .iter()
+            .position(|f| f.path == file)
+            .map_or((1, usize::MAX), |i| (0, i))
+    };
+    rest.sort_by(|a, b| {
+        (rank(&a.file), &a.file, a.span.start).cmp(&(rank(&b.file), &b.file, b.span.start))
+    });
+    let diagnostics: Vec<IrDiagnostic> = ir
+        .diagnostics
+        .iter()
+        .take(loaded)
+        .cloned()
+        .chain(rest)
+        .collect();
+
+    // 位置を数える本文。本文のファイルは読み込んだもの、ほかはディスクから読む。
+    let mut texts: BTreeMap<String, String> = BTreeMap::new();
+    for d in &diagnostics {
+        if !texts.contains_key(&d.file) {
+            let text = match project.files.iter().find(|f| f.path == d.file) {
+                Some(f) => f.text.clone(),
+                None => fs::read(dir.join(&d.file))
+                    .map(|b| String::from_utf8_lossy(&b).into_owned())
+                    .unwrap_or_default(),
+            };
+            texts.insert(d.file.clone(), text);
+        }
+    }
+    // 行と列は、ファイルごとに1回だけ作った `LineIndex` で数える。
+    let line_indexes: BTreeMap<&str, LineIndex<'_>> = texts
+        .iter()
+        .map(|(file, text)| (file.as_str(), LineIndex::new(text)))
+        .collect();
+    let line_col = |d: &IrDiagnostic, offset: usize| {
+        line_indexes
+            .get(d.file.as_str())
+            .map_or((1, 1), |index| index.line_col(offset))
+    };
+    // 行IDは、ファイルごとに位置の順に並べて、二分探索で引く（行IDの付く行は重ならない）。
+    let mut line_ids: BTreeMap<&str, Vec<(usize, usize, &str)>> = BTreeMap::new();
+    for l in &index.line_ids {
+        line_ids.entry(l.location.file.as_str()).or_default().push((
+            l.location.span.start,
+            l.location.span.end,
+            l.id.as_str(),
+        ));
+    }
+    for list in line_ids.values_mut() {
+        list.sort_unstable();
+    }
+    let line_id = |d: &IrDiagnostic| {
+        let list = line_ids.get(d.file.as_str())?;
+        let at = list.partition_point(|(start, _, _)| *start <= d.span.start);
+        let (start, end, id) = list.get(at.checked_sub(1)?)?;
+        (*start <= d.span.start && d.span.start <= *end).then_some(*id)
+    };
+
+    let code = exit_code(&diagnostics);
+    let mut out = io::stdout().lock();
+    if json {
+        let list: Vec<CliDiagnostic<'_>> = diagnostics
+            .iter()
+            .map(|d| {
+                let (line, column) = line_col(d, d.span.start);
+                let (end_line, end_column) = line_col(d, d.span.end);
+                CliDiagnostic {
+                    code: d.code,
+                    severity: d.severity,
+                    file: display_path(dir, &d.file),
+                    line,
+                    column,
+                    end_line,
+                    end_column,
+                    span: d.span,
+                    message: &d.message,
+                    line_id: line_id(d),
+                }
+            })
+            .collect();
+        let body = serde_json::to_string_pretty(&list).map_err(|e| CliError::Write(e.into()))?;
+        return finish(writeln!(out, "{body}"), code);
+    }
+    let written = diagnostics.iter().try_for_each(|d| {
+        let (line, column) = line_col(d, d.span.start);
+        let shown = display_path(dir, &d.file);
+        match line_id(d) {
+            Some(id) => writeln!(
+                out,
+                "{shown}:{line}:{column} {} {} ^{id}",
+                d.code, d.message
+            ),
+            None => writeln!(out, "{shown}:{line}:{column} {} {}", d.code, d.message),
+        }
+    });
+    let count = |severity: Severity| {
+        diagnostics
+            .iter()
+            .filter(|d| d.severity == severity.as_str())
+            .count()
+    };
+    eprintln!(
+        "エラー {}件、警告 {}件、情報 {}件",
+        count(Severity::Error),
+        count(Severity::Warning),
+        count(Severity::Info)
+    );
+    finish(written, code)
 }

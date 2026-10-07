@@ -1,0 +1,5 @@
+format_version = 0
+
+[message_window]
+lines = 2
+chars_per_line = 10

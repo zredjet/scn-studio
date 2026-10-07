@@ -1,0 +1,15 @@
+// expect: W203
+// メッセージウィンドウ（2行×10字）からのはみ出し。表示する文字だけを数える（話者名と括弧は数えない、ルビは親文字、半角は0.5）
+## a #s1
+灯「一二三四五六七八九十一二三四五六七八九十」 ^aaaa
+灯「一二三四五六七八九十一二三四五六七八九十一」 ^aaab
+　一二三四五六七八九十一二三四五六七八九十 ^aaac
+灯「一二三四五{p}一二三四五六七八九十一二三四五六七八九十」 ^aaad
+灯「一
+二
+三」 ^aaae
+|漢字《かんじかんじかんじかんじかんじ》一二三四五六七八九十一二三四五六七八 ^aaaf
+abcdefghijklmnopqrstuvwxyzabcdefghijklmn ^aaag
+abcdefghijklmnopqrstuvwxyzabcdefghijklmno ^aaah
+灯「{w 0.5}{se 風}{speed 遅}一二三四五六七八九十一二三四五六七八九十」 ^aaai
+@エンディング end1

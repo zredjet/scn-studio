@@ -17,6 +17,10 @@ use crate::line::{
     is_indent, is_space, split_lines,
 };
 
+/// 行頭にあると W406 を出す全角記号（D043）。ディレクティブ（`@`）、ジャンプ（`->`）、シーン見出し（`##`）の
+/// つもりの誤入力に見えるもの。
+const FULLWIDTH_SYMBOLS: [&str; 5] = ["＠", "－＞", "ー＞", "＞", "＃＃"];
+
 /// 台詞に使える括弧と、その表示スタイル（`project.toml` の `[dialogue.brackets]`）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DialogueBracket {
@@ -607,6 +611,22 @@ impl<'a> Parser<'a> {
     // ---- 本文の行 ----
 
     fn narration(&mut self, line: &Line<'_>) {
+        // 行頭の全角記号：ディレクティブ・ジャンプ・見出しのつもりの誤入力に見える（D043）。
+        // 行頭の `\\` で止められる（そのときは `body` が `\\` で始まる）。
+        if !line.body.text.starts_with('\\')
+            && let Some(symbol) = FULLWIDTH_SYMBOLS
+                .iter()
+                .find(|s| line.content.text.starts_with(**s))
+        {
+            let start = line.content.start;
+            self.diag(
+                Code::W406,
+                Span::new(start, start + symbol.len()),
+                format!(
+                    "行頭の全角の {symbol} は地の文として扱います（ディレクティブ・ジャンプ・見出しは半角で書きます。地の文なら行頭に \\ を書くと、この警告を止められます）"
+                ),
+            );
+        }
         let text = parse_text(line.content, &mut self.diags);
         self.push_stmt(Stmt::Narration(Narration {
             span: line.span,

@@ -1,0 +1,5 @@
+---
+source: crates/scn-core/tests/check.rs
+expression: "dump(&diagnostics, &dir)"
+---
+project.toml:2:1-2:12 E501 start_scene のシーン s9 がありません（最初のシーン s1 から数えます）

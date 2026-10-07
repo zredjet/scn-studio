@@ -30,6 +30,8 @@ pub struct Project {
     /// `variables.yaml` を丸ごと読めなかった（E801）。宣言の無い変数（W602）を出さない（D042）。
     pub variables_unreadable: bool,
     pub catalog: AssetCatalog,
+    /// 企画書（`concept.md`）。無ければ `None`。
+    pub concept: Option<Concept>,
     /// `story/*.scn`。パスの辞書順に並べてある。読めなかったファイル（E801）は含まない。
     pub files: Vec<SourceFile>,
     /// 読み込みの診断（E801〜W804）。読んだ順に並べてある。
@@ -41,7 +43,11 @@ pub struct Project {
 pub struct Settings {
     pub format_version: i64,
     pub start_scene: Option<String>,
+    /// `start_scene` の値の位置（`project.toml` の中）。無いシーンを指すときの E501 に使う。
+    pub start_scene_span: Span,
     pub brackets: Vec<DialogueBracket>,
+    /// メッセージウィンドウの大きさ（`[message_window]`）。無ければ、はみ出しを調べない。
+    pub message_window: Option<MessageWindow>,
 }
 
 impl Default for Settings {
@@ -49,9 +55,35 @@ impl Default for Settings {
         Self {
             format_version: FORMAT_VERSION,
             start_scene: None,
+            start_scene_span: Span::new(0, 0),
             brackets: ParseOptions::default().brackets,
+            message_window: None,
         }
     }
+}
+
+/// メッセージウィンドウの大きさ（`project.toml` の `[message_window]`）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MessageWindow {
+    /// 行数。
+    pub lines: u32,
+    /// 1行の字数（全角で数える）。
+    pub chars_per_line: u32,
+}
+
+/// 企画書（`concept.md`）のうち、検証に使うもの。
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Concept {
+    /// フロントマターの `endings`。書かれていなければ `None`（W701・W702 を調べない）。
+    pub endings: Option<Vec<ConceptEnding>>,
+}
+
+/// 企画書のエンディング。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConceptEnding {
+    pub id: String,
+    /// `concept.md` の中の、IDの位置。
+    pub span: Span,
 }
 
 /// 設定DB（`bible/`）。
@@ -96,6 +128,8 @@ pub struct Entry {
     pub path: String,
     /// フロントマターの値。
     pub fields: BTreeMap<String, serde_json::Value>,
+    /// フロントマターのキーの位置（エントリのファイルの中）。診断の位置に使う。
+    pub key_spans: BTreeMap<String, Span>,
     /// フロントマターの後ろの本文（Markdown）。
     pub body: String,
 }
@@ -114,6 +148,10 @@ pub struct VarDecl {
     /// `名前空間.名前`。名前空間を省いた宣言には `flag.` を補ってある。
     pub key: String,
     pub ty: VarType,
+    /// `scope`（`save`・`persistent`）。書かれていなければ `None`。
+    pub scope: Option<String>,
+    /// `variables.yaml` の中の、宣言のキーの位置。
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -213,6 +251,7 @@ pub fn load_project(root: &Path) -> Result<Project, ProjectError> {
     let characters = loader.characters(&bible);
     let (variables, variables_unreadable) = loader.variables();
     let catalog = loader.catalog();
+    let concept = loader.concept();
     let files = loader.story()?;
     Ok(Project {
         settings,
@@ -221,6 +260,7 @@ pub fn load_project(root: &Path) -> Result<Project, ProjectError> {
         variables,
         variables_unreadable,
         catalog,
+        concept,
         files,
         load_diagnostics: loader.diags,
     })
@@ -332,6 +372,28 @@ fn json_scalar(value: &serde_json::Value) -> Option<String> {
         serde_json::Value::Bool(b) => Some(b.to_string()),
         _ => None,
     }
+}
+
+/// `from` から後ろで、`id:` の値として書かれた `id` の位置（引用符は含まない）。
+fn id_value_span(text: &str, from: usize, id: &str) -> Option<Span> {
+    let rest = text.get(from..)?;
+    for (at, _) in rest.match_indices("id:") {
+        let before = rest.get(..at)?.chars().next_back();
+        if before.is_some_and(|c| c.is_alphanumeric() || c == '_') {
+            continue;
+        }
+        let after = rest.get(at + "id:".len()..)?;
+        let value = after.trim_start_matches([' ', '\t', '"', '\'']);
+        let value_at = from + at + "id:".len() + (after.len() - value.len());
+        let ends_here = value
+            .get(id.len()..)
+            .and_then(|tail| tail.chars().next())
+            .is_none_or(|c| !(c.is_alphanumeric() || c == '_'));
+        if value.starts_with(id) && ends_here {
+            return Some(Span::new(value_at, value_at + id.len()));
+        }
+    }
+    None
 }
 
 /// 行（1から数える）と列（1から数える、文字の数）を、バイト位置にする。範囲の外なら終わりにする。
@@ -535,12 +597,45 @@ impl Loader<'_> {
         }
         match table.get("start_scene") {
             None => {}
-            Some(toml::Value::String(id)) => settings.start_scene = Some(id.clone()),
+            Some(toml::Value::String(id)) => {
+                settings.start_scene = Some(id.clone());
+                settings.start_scene_span = key_span(&text, 0, "start_scene");
+            }
             Some(_) => self.diag(
                 file,
                 Code::E802,
                 key_span(&text, 0, "start_scene"),
                 "start_scene はシーンIDの文字列で書きます",
+            ),
+        }
+        match table.get("message_window") {
+            None => {}
+            Some(toml::Value::Table(window)) => {
+                let size = |key: &str| match window.get(key) {
+                    Some(toml::Value::Integer(n)) if *n > 0 => u32::try_from(*n).ok(),
+                    _ => None,
+                };
+                match (size("lines"), size("chars_per_line")) {
+                    (Some(lines), Some(chars_per_line)) => {
+                        settings.message_window = Some(MessageWindow {
+                            lines,
+                            chars_per_line,
+                        });
+                    }
+                    _ => self.diag(
+                        file,
+                        Code::E802,
+                        text.find("[message_window]")
+                            .map_or(Span::new(0, 0), |at| Span::new(at, at + "[message_window]".len())),
+                        "[message_window] の lines と chars_per_line は、正の整数で書きます。はみ出しを調べません",
+                    ),
+                }
+            }
+            Some(_) => self.diag(
+                file,
+                Code::E802,
+                key_span(&text, 0, "message_window"),
+                "message_window は [message_window] の表で書きます。はみ出しを調べません",
             ),
         }
         let brackets = match table.get("dialogue") {
@@ -799,12 +894,17 @@ impl Loader<'_> {
                 return None;
             }
         };
+        let key_spans = fields
+            .keys()
+            .map(|k| (k.clone(), key_span(&text, 0, k)))
+            .collect();
         self.entry_texts.insert(file.clone(), text);
         Some(Entry {
             type_id: type_id.to_owned(),
             id,
             path: file,
             fields,
+            key_spans,
             body,
         })
     }
@@ -970,7 +1070,13 @@ impl Loader<'_> {
                     continue;
                 }
             };
-            decls.push(VarDecl { key, ty });
+            let scope = def.get("scope").and_then(scalar);
+            decls.push(VarDecl {
+                key,
+                ty,
+                scope,
+                span,
+            });
         }
         (decls, false)
     }
@@ -1085,6 +1191,55 @@ impl Loader<'_> {
         }
     }
 
+    // ---- concept.md ----
+
+    /// 企画書のフロントマターから、エンディングの一覧を読む。無ければ `None`。
+    fn concept(&mut self) -> Option<Concept> {
+        let path = self.root.join("concept.md");
+        let file = "concept.md";
+        let text = self.read(&path)?;
+        let Some((yaml, start, _)) = front_matter(&text) else {
+            return Some(Concept::default());
+        };
+        let before = text.get(..start).unwrap_or_default().matches('\n').count();
+        let padded = format!("{}{yaml}", "\n".repeat(before));
+        let front = self.yaml(file, &text, &padded)?;
+        let endings = match front.get("endings") {
+            None | Some(Value::Null) => None,
+            Some(Value::Sequence(items)) => {
+                let mut endings = Vec::new();
+                let fallback = key_span(&text, start, "endings");
+                let mut from = fallback.end.max(start);
+                for item in items {
+                    match item.get("id").and_then(scalar) {
+                        Some(id) => {
+                            let span = id_value_span(&text, from, &id).unwrap_or(fallback);
+                            from = span.end.max(from);
+                            endings.push(ConceptEnding { id, span });
+                        }
+                        None => self.diag(
+                            file,
+                            Code::E802,
+                            key_span(&text, start, "endings"),
+                            "endings の要素は、id を持つ対応表（{ id: …, name: … }）で書きます。その要素を読み飛ばします",
+                        ),
+                    }
+                }
+                Some(endings)
+            }
+            Some(_) => {
+                self.diag(
+                    file,
+                    Code::E802,
+                    key_span(&text, start, "endings"),
+                    "endings はエンディングのリストで書きます",
+                );
+                None
+            }
+        };
+        Some(Concept { endings })
+    }
+
     // ---- story/ ----
 
     /// `story/*.scn` を読み、パスの辞書順に並べる。サブディレクトリは読まない（D036）。
@@ -1127,6 +1282,19 @@ mod tests {
         );
         assert_eq!(front_matter("本文"), None);
         assert_eq!(front_matter("---\nid: a\n"), None);
+    }
+
+    #[test]
+    fn id_values() {
+        let text = "logline: a good story about the end\nendings:\n  - { id: good, name: 良い }\n  - { id: \"end\", name: 終 }\n";
+        let from = key_span(text, 0, "endings").end;
+        let span = id_value_span(text, from, "good").unwrap();
+        assert_eq!(text.get(span.start..span.end), Some("good"));
+        let span = id_value_span(text, span.end, "end").unwrap();
+        assert_eq!(text.get(span.start..span.end), Some("end"));
+        assert!(text[..span.start].ends_with("id: \""));
+        assert_eq!(id_value_span(text, from, "goo"), None);
+        assert_eq!(id_value_span("valid: x\n", 0, "x"), None);
     }
 
     #[test]

@@ -1,0 +1,4 @@
+name: 伏線
+fields:
+  - { key: setup, label: 仕込み, type: list<ref<scene>> }
+  - { key: payoff, label: 回収, type: ref<scene> }

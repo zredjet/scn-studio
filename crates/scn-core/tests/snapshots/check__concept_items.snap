@@ -1,0 +1,8 @@
+---
+source: crates/scn-core/tests/check.rs
+expression: "dump(&diagnostics, &dir)"
+---
+concept.md:2:1-2:8 E802 endings の要素は、id を持つ対応表（{ id: …, name: … }）で書きます。その要素を読み飛ばします
+concept.md:2:1-2:8 E802 endings の要素は、id を持つ対応表（{ id: …, name: … }）で書きます。その要素を読み飛ばします
+concept.md:5:11-5:15 W701 企画書のエンディング end2 が、本文の @エンディング にありません
+story/a.scn:4:1-4:13 W702 エンディング end1 が、企画書（concept.md）の endings にありません

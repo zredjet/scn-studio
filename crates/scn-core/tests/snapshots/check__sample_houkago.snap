@@ -1,0 +1,16 @@
+---
+source: crates/scn-core/tests/check.rs
+expression: "dump(&diagnostics, &dir)"
+---
+story/chapter01.scn:34:5-34:9 I403 素材カタログに無い効果音です：チャイム（仮素材として扱います）
+story/chapter01.scn:105:1-105:16 I302 行IDがありません
+story/chapter01.scn:106:1-106:26 I302 行IDがありません
+story/chapter01.scn:108:1-108:13 I302 行IDがありません
+story/chapter02.scn:22:1-22:21 I302 行IDがありません
+story/chapter02.scn:23:1-23:21 I302 行IDがありません
+story/chapter02.scn:41:5-41:9 I403 素材カタログに無い背景です：駅/夕方（仮素材として扱います）
+concept.md:10:11-10:19 W701 企画書のエンディング true_end が、本文の @エンディング にありません
+story/chapter01.scn:73:1-73:89 W203 メッセージウィンドウ（3行×24字）に収まりません（4行になります）
+story/chapter01.scn:113:1-113:15 W503 シーン s014 の終わりに出口の無い経路があります（-> シーンID・@エンディング・@戻る で終えます）
+variables.yaml:10:1-10:9 W605 変数 flag.ルート は書き込まれますが、どこでも読まれません
+variables.yaml:22:1-22:11 W605 変数 akari.転校済み は書き込まれますが、どこでも読まれません

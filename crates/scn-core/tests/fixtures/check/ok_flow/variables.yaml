@@ -1,0 +1,4 @@
+flag.a:
+  type: int
+  default: 0
+  scope: save

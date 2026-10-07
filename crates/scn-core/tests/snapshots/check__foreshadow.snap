@@ -1,0 +1,7 @@
+---
+source: crates/scn-core/tests/check.rs
+expression: "dump(&diagnostics, &dir)"
+---
+bible/entries/foreshadow/empty_payoff.md:4:1-4:7 W703 伏線 empty_payoff に回収（payoff）がありません
+bible/entries/foreshadow/missing_scene.md:4:1-4:7 W703 伏線 missing_scene の回収のシーン s9 がありません
+bible/entries/foreshadow/no_payoff.md:1:1-1:1 W703 伏線 no_payoff に回収（payoff）がありません

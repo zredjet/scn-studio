@@ -9,9 +9,9 @@ use std::path::{Path, PathBuf};
 use scn_core::{ParseOptions, Severity, parse};
 
 /// 段階0の構文系の診断（計画書 T0-3 の完了条件）。
-const SYNTAX_CODES: [&str; 20] = [
+const SYNTAX_CODES: [&str; 21] = [
     "W101", "E102", "E103", "E104", "E105", "E106", "W107", "I109", "E110", "E111", "W112", "W113",
-    "E114", "E201", "W303", "E304", "W401", "E402", "W405", "E601",
+    "E114", "E201", "W303", "E304", "W401", "E402", "W405", "W406", "E601",
 ];
 
 fn manifest_dir() -> PathBuf {
