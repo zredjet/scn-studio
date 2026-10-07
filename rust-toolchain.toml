@@ -1,0 +1,6 @@
+# 全員が同じRustで書式と静的検査を行うため、安定版の版を固定する。
+# 上げるときは、scripts/check-all が通ることを確かめてから変える。
+[toolchain]
+channel = "1.99.0"
+profile = "minimal"
+components = ["rustfmt", "clippy"]

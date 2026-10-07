@@ -45,14 +45,14 @@ app/                    Tauri＋React（src-tauri/ と src/、T0-7で作る）
 
 ## コマンド
 
-T0-1で土台を作ったら、この節を実際に動くコマンドに更新する。予定は次のとおり。
+ここには実際に動くコマンドだけを書く。コマンドを足したタスク（T0-3のスナップショット更新、T0-5のCLI、T0-7のアプリ起動など）で、この節に追記する。
 
-- Rust：`cargo test --workspace` / `cargo clippy --workspace --all-targets -- -D warnings` / `cargo fmt --all`
-- パーサだけ：`cargo test -p scn-core`、スナップショットの更新は `cargo insta review`
-- CLI：`cargo run -p scn-cli -- ir samples/houkago`、`cargo run -p scn-cli -- parse <file.scn>`
-- フロント：`pnpm install` / `pnpm -r typecheck` / `pnpm -r lint` / `pnpm -r test`
-- アプリ起動：`pnpm -C app tauri dev`
-- まとめて確認：`scripts/check-all`（T0-1で作る。Rustとフロントの検査をすべて走らせる）
+- まとめて確認：`scripts/check-all`（macOS）、`powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-all.ps1`（Windows）。Rustの書式・clippy・テスト、pnpmの依存の導入、Biome、型検査、フロントのテストを順に走らせ、1つでも失敗したらそこで止まる
+- Rust：`cargo test --workspace` / `cargo clippy --workspace --all-targets -- -D warnings` / `cargo fmt --all`（確かめるだけなら `cargo fmt --all -- --check`）
+- パーサだけ：`cargo test -p scn-core`
+- フロント：`pnpm install` / `pnpm lint`（Biomeの書式と静的検査）/ `pnpm fmt`（Biomeで整形と安全な修正）/ `pnpm typecheck` / `pnpm test`
+  - Biomeはルートで全体を一度に検査する（`docs/` と `samples/` は対象外）。各パッケージには `lint` を置かず、`typecheck` と `test` のスクリプトを置く。ルートの `pnpm typecheck` と `pnpm test` が、それを持つパッケージをすべて走らせる
+- 版の固定：Rustは `rust-toolchain.toml`、pnpmとBiomeは `package.json`（`packageManager` と `devDependencies`）
 
 ## 作業の進め方
 

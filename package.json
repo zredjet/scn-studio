@@ -1,0 +1,14 @@
+{
+  "name": "scn-studio",
+  "private": true,
+  "packageManager": "pnpm@12.9.1",
+  "scripts": {
+    "lint": "biome check --error-on-warnings",
+    "fmt": "biome check --write",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "test": "pnpm -r --if-present run test"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15"
+  }
+}

@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Rustとフロントエンドの検査をすべて走らせる（macOS用。Windowsでは check-all.ps1 を使う）。
+# 1つでも失敗したら、そこで止まり、0以外の終了コードを返す。
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+step() {
+  printf '\n==> %s\n' "$1"
+}
+
+step "Rust：書式（cargo fmt --check）"
+cargo fmt --all -- --check
+
+step "Rust：静的検査（clippy）"
+cargo clippy --workspace --all-targets -- -D warnings
+
+step "Rust：テスト"
+cargo test --workspace
+
+step "pnpm：依存の導入（lockfileは変えない）"
+pnpm install --frozen-lockfile
+
+step "フロント：書式と静的検査（Biome）"
+pnpm run lint
+
+step "フロント：型検査（typecheck のあるパッケージ）"
+pnpm run typecheck
+
+step "フロント：テスト（test のあるパッケージ）"
+pnpm run test
+
+printf '\nすべての検査に成功しました。\n'

@@ -1,0 +1,4 @@
+# 書式はrustfmtの既定に従う。ここには、環境によって結果が変わらないようにする設定だけを置く。
+edition = "2024"
+style_edition = "2024"
+newline_style = "Unix"

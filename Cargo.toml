@@ -1,0 +1,10 @@
+[workspace]
+resolver = "3"
+# app/src-tauri はT0-7で加える。
+members = ["crates/scn-core", "crates/scn-cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+publish = false

@@ -1,0 +1,4 @@
+# 中身はT0-6（packages/lezer-scn）とT0-7（app）で作る。
+packages:
+  - "packages/*"
+  - "app"

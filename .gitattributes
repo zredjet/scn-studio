@@ -1,0 +1,4 @@
+# 改行はLFにそろえる。Windowsで取り出しても、rustfmt・Biomeの書式検査と、
+# バイト位置を含むスナップショットの結果を変えないため。
+# CRLFの入力を確かめるfixtureを置くときは、そのファイルだけ `-text` を指定する。
+* text=auto eol=lf
