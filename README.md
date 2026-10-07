@@ -2,16 +2,15 @@
 
 分岐する物語（ADV・ビジュアルノベル）のための執筆ツール。Tauri製のデスクトップアプリで、WindowsとmacOSを対象にする。
 
-このフォルダは、Claude Code（Opus 5.5）で開発を始めるためのリポジトリのひな形。コードはまだ無く、設計・仕様・計画・画面モック・サンプル作品が入っている。
+Claude Code（Opus 5.5）で開発している。フェーズ0（形式を固める：形式仕様v0、パーサとIR、ハイライト、アプリの土台、日本語入力のテスト）を終え、フェーズ1（執筆の核）を進めている。
 
 ## 始め方
 
 1. RustとNode.jsとpnpm、TauriのOS別の前提ソフトを入れる（各公式の最新の安定版）。
-2. このフォルダで `git init` し、最初のコミットを作る。
-3. `claude` を起動し、`/model` でOpus 5.5を選ぶ。
-4. `/phase-task T0-1` と入力する。以降は `docs/plan/phase0.md` の順にタスクを進める。
+2. このフォルダで `claude` を起動し、`/model` でOpus 5.5を選ぶ。
+3. `docs/progress.md` の「次のタスク」を見て、`/phase-task <タスクID>` と入力する（例：`/phase-task T1-2`）。タスクは `docs/plan/phase1.md` の順に進める。
 
-詳しい進め方（1タスク1セッション、確認の入れ方、人の作業）は `docs/plan/phase0.md` にある。
+詳しい進め方（1タスク1セッション、確認の入れ方、人の作業）は `docs/plan/phase0.md` と `docs/plan/phase1.md` にある。
 
 ## 中身
 
@@ -22,10 +21,11 @@
 | `.claude/skills/phase-task/` | `/phase-task <タスクID>` で、調査から記録・コミットまでを一通り進める手順 |
 | `.claude/agents/plan-reviewer.md` | 差分を計画と仕様に照らすレビュー用のサブエージェント |
 | `docs/design.md` | 設計検討書（全体設計） |
-| `docs/spec/scn-format-v0.md` | `.scn` 形式の仕様（ドラフト。T0-2で確定） |
+| `docs/spec/scn-format-v0.md` | `.scn` 形式の仕様（v0。T0-2で確定） |
 | `docs/glossary.md` | 用語集（日本語とコード上の名前の対応） |
 | `docs/decisions.md` | 決定記録 |
-| `docs/plan/phase0.md` | フェーズ0の作業手順 |
+| `docs/plan/phase0.md` | フェーズ0の作業手順（完了） |
+| `docs/plan/phase1.md` | フェーズ1の作業手順 |
 | `docs/plan/ime-test.md` | 日本語入力のテスト表 |
 | `docs/progress.md` | 進捗ログ（Claude Codeが更新する） |
 | `docs/ui/` | 画面の構成、デザイントークン、画面モック（`mockups/index.html`） |
