@@ -53,6 +53,11 @@ app/                    Tauri＋React（src-tauri/ と src/、T0-7で作る）
   - スナップショット（`crates/scn-core/tests/snapshots/`）が合わないと、テストが失敗し、新しい結果が `*.snap.new` に出る。中身を読んで確かめてから、環境変数 `INSTA_UPDATE=always` を付けて `cargo test -p scn-core` を実行すると受け入れる（`*.snap.new` は消してから）
   - パニックしないことの検査（proptest）を多く試す：`PROPTEST_CASES=20000 cargo test -p scn-core --release --test robustness`
   - 解析の速さを測る（1万行の合成データ、`criterion`）：`cargo bench -p scn-core --bench analyze`
+- 開発用CLI `scn`（`crates/scn-cli`）：`cargo run -p scn-cli -- parse <file.scn>`（診断を `ファイル:行:列 コード メッセージ` で出す。`--json` でJSON）／`cargo run -p scn-cli -- ir <project-dir>`（IRをJSONで出す。例：`cargo run -p scn-cli -- ir samples/houkago`）
+  - 終了コードは、成功が0、エラー（E）の診断があれば1、使い方や入出力の誤り（設定ファイルが読めない場合も含む）は2
+  - `parse` は、上のディレクトリに `project.toml` があればプロジェクト全体で意味解析を行い、そのファイルの診断だけを出す。無ければ構文解析だけを行う
+  - CLIのテストだけ：`cargo test -p scn-cli`
+  - `scn` をパスの通った場所（`~/.cargo/bin`）に入れる：`cargo install --path crates/scn-cli`（作品フォルダで `scn` として使うとき）
 - フロント：`pnpm install` / `pnpm lint`（Biomeの書式と静的検査）/ `pnpm fmt`（Biomeで整形と安全な修正）/ `pnpm typecheck` / `pnpm test`
   - Biomeはルートで全体を一度に検査する（`docs/` と `samples/` は対象外）。各パッケージには `lint` を置かず、`typecheck` と `test` のスクリプトを置く。ルートの `pnpm typecheck` と `pnpm test` が、それを持つパッケージをすべて走らせる
 - 版の固定：Rustは `rust-toolchain.toml`、pnpmとBiomeは `package.json`（`packageManager` と `devDependencies`）

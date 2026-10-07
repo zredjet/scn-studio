@@ -34,6 +34,48 @@ impl Serialize for Span {
     }
 }
 
+/// バイト位置から、行と列を求める。行と列は1から数え、列は文字（Unicodeのスカラー値）の数。
+/// 先頭のBOMは列に数えない。
+#[derive(Debug, Clone)]
+pub struct LineIndex<'a> {
+    source: &'a str,
+    /// 各行の先頭のバイト位置。
+    starts: Vec<usize>,
+}
+
+impl<'a> LineIndex<'a> {
+    pub fn new(source: &'a str) -> Self {
+        let mut starts = vec![0];
+        starts.extend(
+            source
+                .bytes()
+                .enumerate()
+                .filter(|&(_, b)| b == b'\n')
+                .map(|(at, _)| at + 1),
+        );
+        Self { source, starts }
+    }
+
+    /// `offset` の行と列。範囲の外の位置は、ファイルの終わりとして扱う。
+    pub fn line_col(&self, offset: usize) -> (usize, usize) {
+        let offset = offset.min(self.source.len());
+        let line = self.starts.partition_point(|&start| start <= offset).max(1);
+        let start = self.starts.get(line - 1).copied().unwrap_or(0);
+        let column = match self.source.get(start..offset) {
+            Some(text) => {
+                let chars = text.chars().count();
+                if start == 0 && text.starts_with('\u{feff}') {
+                    chars - 1
+                } else {
+                    chars
+                }
+            }
+            None => offset - start,
+        };
+        (line, column + 1)
+    }
+}
+
 /// 位置つきの値。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Spanned<T> {
@@ -203,5 +245,27 @@ impl Diagnostic {
 
     pub fn severity(&self) -> Severity {
         self.code.severity()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn line_col() {
+        let index = LineIndex::new("ab\n灯「や」\r\nc");
+        assert_eq!(index.line_col(0), (1, 1));
+        assert_eq!(index.line_col(2), (1, 3));
+        assert_eq!(index.line_col(3), (2, 1));
+        assert_eq!(index.line_col(6), (2, 2));
+        assert_eq!(index.line_col("ab\n灯「や」\r\n".len()), (3, 1));
+        assert_eq!(index.line_col(1000), (3, 2));
+        // 文字の途中の位置でもパニックしない。
+        assert_eq!(index.line_col(4).0, 2);
+
+        let bom = LineIndex::new("\u{feff}ab");
+        assert_eq!(bom.line_col(3), (1, 1));
+        assert_eq!(bom.line_col(4), (1, 2));
     }
 }

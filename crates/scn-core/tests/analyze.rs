@@ -73,11 +73,11 @@ fn dump_diagnostics(ir: &Ir, files: &[SourceFile]) -> String {
             .find(|f| f.path == diag.file)
             .map(|f| f.text.as_str())
             .unwrap_or("");
-        let index = support::LineIndex::new(source);
+        let index = scn_core::LineIndex::new(source);
         out.push_str(&format!(
             "{}:{} {} {}\n",
             diag.file,
-            index.range(diag.span),
+            support::range(&index, diag.span),
             diag.code,
             diag.message
         ));

@@ -12,44 +12,13 @@ use scn_core::ast::{
 };
 use scn_core::expr::{Assignment, Expr, ExprKind, SourceExpr, UnaryOp, VarRef};
 use scn_core::inline::{Inline, Text};
-use scn_core::{Diagnostic, Parsed, Span, Spanned};
+use scn_core::{Diagnostic, LineIndex, Parsed, Span, Spanned};
 
-/// バイト位置から、行（1始まり）と列（文字数、1始まり）を求める。
-pub struct LineIndex<'a> {
-    source: &'a str,
-    starts: Vec<usize>,
-}
-
-impl<'a> LineIndex<'a> {
-    pub fn new(source: &'a str) -> Self {
-        let mut starts = vec![0];
-        for (at, b) in source.bytes().enumerate() {
-            if b == b'\n' {
-                starts.push(at + 1);
-            }
-        }
-        Self { source, starts }
-    }
-
-    pub fn line(&self, offset: usize) -> usize {
-        match self.starts.binary_search(&offset) {
-            Ok(i) => i + 1,
-            Err(i) => i,
-        }
-    }
-
-    pub fn line_col(&self, offset: usize) -> (usize, usize) {
-        let line = self.line(offset);
-        let start = self.starts[line - 1];
-        let col = self.source[start..offset].chars().count() + 1;
-        (line, col)
-    }
-
-    pub fn range(&self, span: Span) -> String {
-        let (l1, c1) = self.line_col(span.start);
-        let (l2, c2) = self.line_col(span.end);
-        format!("{l1}:{c1}-{l2}:{c2}")
-    }
+/// 範囲を `行:列-行:列` の形にする。
+pub fn range(index: &LineIndex<'_>, span: Span) -> String {
+    let (l1, c1) = index.line_col(span.start);
+    let (l2, c2) = index.line_col(span.end);
+    format!("{l1}:{c1}-{l2}:{c2}")
 }
 
 /// 解析結果を書き出す。
@@ -95,13 +64,13 @@ impl Dumper<'_> {
     }
 
     fn at(&self, span: Span) -> String {
-        format!("L{}", self.index.line(span.start))
+        format!("L{}", self.index.line_col(span.start).0)
     }
 
     fn diagnostic(&mut self, diag: &Diagnostic) {
         let line = format!(
             "{} {} {}",
-            self.index.range(diag.span),
+            range(self.index, diag.span),
             diag.code,
             diag.message
         );

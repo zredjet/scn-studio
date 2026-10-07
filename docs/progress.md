@@ -6,7 +6,7 @@ Claude Codeは、作業を始めるときにこのファイルを読み、タス
 
 - フェーズ：0（形式を固める）
 - 作業中のタスク：なし
-- 次のタスク：T0-5 開発用CLI `scn`（T0-6 Lezer文法とハイライトも、並行して始められる）
+- 次のタスク：T0-6 Lezer文法とハイライト（T0-7 は T0-4 と T0-6 の後）
 - 人の判断待ち：なし
 - 別途対応：Windowsで `scripts/check-all.ps1` を実行し、成功するか確かめる（T0-1の完了条件のうち、Windows側）。Windowsの環境を用意しにくいため、T0-1とは切り離して後で行う（2026-10-07、人の判断）
 
@@ -20,6 +20,36 @@ Claude Codeは、作業を始めるときにこのファイルを読み、タス
 - 設定DBのキャラクターを、型定義の `builtin: character` で見分ける。フェーズ0ではディレクトリ名 `character` で見分けている（T0-4）
 
 ## 記録
+
+### 2026-10-07 T0-5 完了
+
+- やったこと
+  - 開発用CLI `scn`（`crates/scn-cli`、clap）を作った
+    - `scn parse <file.scn> [--json]`：上のディレクトリに `project.toml` があればプロジェクト全体で解析してそのファイルの診断だけを、無ければ構文解析の診断を、`ファイル:行:列 コード メッセージ` の形（`--json` ならJSON）で出す。件数のまとめは標準エラーに出す
+    - `scn ir <project-dir>`：プロジェクト全体のIRを、整形したJSONで標準出力に出す
+    - 終了コード：成功が0、エラー（E）の診断があれば1、使い方や入出力の誤り（設定ファイルが読めない場合も含む）は2
+  - 行と列の計算（`LineIndex`）を `scn-core` に移し、CLIと scn-core のテストで同じものを使うようにした（列は文字の数、先頭のBOMは数えない）
+  - CLIの端から端までのテスト9件（`crates/scn-cli/tests/cli.rs`、assert_cmd）：サンプルの `ir`、エラーのあるプロジェクトの `ir`（終了コード1）、サンプルの章の `parse`（その章の診断だけ）、構文系のfixture 58件すべての `parse --json`（診断のコードと終了コード）、行と列、警告だけなら0、プロジェクトの中での意味解析（設定DB・別のファイル・括弧の設定）、使い方と入出力の誤り（終了コード2）、出力先のパイプが閉じても終了コードが診断に従うこと
+  - `CLAUDE.md` のコマンドの節（`parse`・`ir`・CLIのテスト・`cargo install --path crates/scn-cli`）と、`samples/houkago/CLAUDE.template.md` の検証の手順（`scn` の入れ方、ファイルごとの `scn parse`、最後に `scn ir . > /dev/null` で作品全体、終了コード0・1・2）を、実際のコマンドに合わせた
+- 実行したコマンドと結果
+  - `cargo run -p scn-cli -- ir samples/houkago`：JSONを出し、終了コード0
+  - `cargo run -p scn-cli -- parse crates/scn-core/tests/fixtures/if_unclosed.scn`：`…:3:1 E103 @if が @end で閉じていません` を出し、終了コード1
+  - `cargo install --path crates/scn-cli --root <一時フォルダ>` で入れた `scn` を使い、サンプルのフォルダの中で `CLAUDE.template.md` に書いた `scn parse story/chapter03.scn` と `scn ir . > /dev/null` が動き、終了コード0になることを確かめた（人の環境の `~/.cargo/bin` には入れていない）。ビルドした `target/debug/scn` でも `parse`（`--json` も）と `ir .` を確かめた
+  - `cargo test --workspace`：48件成功（scn-cli 9件、scn-core 39件）
+  - `cargo clippy --workspace --all-targets -- -D warnings`：警告0件
+  - `scripts/check-all`：成功（CLIのテストも `cargo test --workspace` に含まれる）
+  - `git diff --check`：指摘なし
+  - `plan-reviewer` で2回確認した。1回目の指摘（出力先のパイプが閉じると、エラーがあっても終了コード0になる）を直し、直す前の動きでは新しいテストが失敗することも確かめた。確認が必要な点（`scn` の入れ方、作品全体の確認の手順）は人に聞いて反映した
+- 人への確認：AskUserQuestionで1回（2問）。どちらも推奨案に決まった
+- 決めたこと（D037）：プロジェクトの見つけ方、`story/*.scn` でないファイルもプロジェクトの本文に加えて解析すること、出力の形（引数のとおりのパス、`行:列`、JSONの形）、終了コードの細部（設定ファイルの誤りは `parse` でも2、パイプが閉じたら黙って書くのをやめ、終了コードは診断に従う）、`scn` の入れ方（`cargo install --path crates/scn-cli`）、作品フォルダの手順に作品全体の確認を入れること
+- 加えた依存
+  - `clap`（`derive`）：引数の解析（計画書のとおり）
+  - `serde`・`serde_json`：診断とIRをJSONで出す（scn-core と同じもの）
+  - `assert_cmd`（開発用）：端から端までのテスト（計画書のとおり）
+- 残った課題
+  - `scn parse` はそのファイルの診断だけを出すので、別のファイルに出るエラーは `scn ir .` の終了コードで確かめる（作品フォルダの手順に書いた）。プロジェクト全体の検証は、フェーズ1の `scn check` で扱う
+  - 配布（`cargo install` 以外の入れ方、Windowsでの確認）はフェーズ1で決める
+- 次のタスク：T0-6（T0-7 は T0-4 と T0-6 の後）
 
 ### 2026-10-07 T0-4 完了
 

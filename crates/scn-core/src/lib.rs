@@ -29,7 +29,7 @@ pub mod project;
 mod sema;
 pub mod syntax;
 
-pub use diag::{Code, Diagnostic, Severity, Span, Spanned};
+pub use diag::{Code, Diagnostic, LineIndex, Severity, Span, Spanned};
 pub use ir::{Ir, analyze};
 pub use project::{Project, ProjectError, load_project};
 pub use syntax::{DialogueBracket, ParseOptions, Parsed, parse};
