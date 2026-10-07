@@ -9,6 +9,7 @@ import { PositionMap } from "../src/core/position.ts";
 import {
   createState,
   editorKeymap,
+  editorThemeSpec,
   matchLineBreaks,
   toEditorDiagnostics,
   usesCrlf,
@@ -112,4 +113,9 @@ test("CRLF の本文に貼り付けた LF の文字列は、CRLF にそろえる
     state("a\nb\n").facet(EditorView.clipboardInputFilter).length,
     0,
   );
+});
+
+test("本文の行の背景は透けさせる（不透明だと、1行の中の選択の色が隠れる）", () => {
+  const activeLine = editorThemeSpec[".cm-activeLine"];
+  assert.match(activeLine.backgroundColor, /transparent/);
 });

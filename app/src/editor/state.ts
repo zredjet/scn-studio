@@ -54,7 +54,8 @@ export function isComposing(view: EditorView): boolean {
   return view.composing || view.compositionStarted;
 }
 
-const theme = EditorView.theme({
+/** エディタの見た目。テストで中身を確かめるので、書き出す。 */
+export const editorThemeSpec = {
   "&": {
     height: "100%",
     backgroundColor: "var(--panel-bg-2)",
@@ -71,13 +72,19 @@ const theme = EditorView.theme({
     color: "var(--line-number)",
     border: "none",
   },
-  ".cm-activeLine, .cm-activeLineGutter": {
-    backgroundColor: "var(--accent-tint-2)",
+  // 選択の色（drawSelection）は本文の後ろの層に描かれるので、本文の行の背景は透けさせる。
+  // 不透明にすると、1行の中の選択（Shift+←など）が隠れて見えなくなる。
+  ".cm-activeLine": {
+    backgroundColor:
+      "color-mix(in srgb, var(--accent-tint-2) 60%, transparent)",
   },
+  ".cm-activeLineGutter": { backgroundColor: "var(--accent-tint-2)" },
   "&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
     backgroundColor: "var(--accent-tint)",
   },
-});
+};
+
+const theme = EditorView.theme(editorThemeSpec);
 
 /** 貼り付けやドロップで入る文字列の改行を、本文の改行（`\r\n` など）にそろえる。 */
 export function matchLineBreaks(text: string, lineBreak: string): string {
