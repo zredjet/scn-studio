@@ -1,0 +1,161 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "snapshot_text(&ir, &project.files)"
+---
+# diagnostics
+var_undeclared.scn:3:5-3:8 W602 宣言されていない変数です：flag.未宣言（variables.yaml に宣言します）
+var_undeclared.scn:5:5-5:11 W602 宣言されていない変数です：flag.未宣言の真偽（variables.yaml に宣言します）
+var_undeclared.scn:6:5-6:11 W602 宣言されていない変数です：flag.未宣言の整数（variables.yaml に宣言します）
+var_undeclared.scn:7:4-7:9 W602 宣言されていない変数です：akari.未宣言（variables.yaml に宣言します）
+
+# ir
+{
+  "ir_version": 1,
+  "start_scene": null,
+  "scenes": [
+    {
+      "id": "s001",
+      "title": "宣言されていない変数",
+      "file": "var_undeclared.scn",
+      "span": [
+        16,
+        55
+      ],
+      "meta": {
+        "summary": null,
+        "status": null,
+        "route": null,
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": false,
+      "ops": [
+        {
+          "kind": "if",
+          "span": [
+            56,
+            74
+          ],
+          "branches": [
+            {
+              "span": [
+                56,
+                74
+              ],
+              "cond_text": "未宣言 >= 1",
+              "cond": {
+                "kind": "binary",
+                "op": ">=",
+                "lhs": {
+                  "kind": "var",
+                  "name": "flag.未宣言"
+                },
+                "rhs": {
+                  "kind": "int",
+                  "value": 1
+                }
+              },
+              "body": []
+            }
+          ],
+          "else": null
+        },
+        {
+          "kind": "set",
+          "span": [
+            80,
+            113
+          ],
+          "var": "flag.未宣言の真偽",
+          "op": "=",
+          "value": {
+            "kind": "bool",
+            "value": true
+          }
+        },
+        {
+          "kind": "set",
+          "span": [
+            114,
+            147
+          ],
+          "var": "flag.未宣言の整数",
+          "op": "+=",
+          "value": {
+            "kind": "string",
+            "value": "a"
+          }
+        },
+        {
+          "kind": "narrate",
+          "span": [
+            148,
+            176
+          ],
+          "line_id": "aaaa",
+          "text": [
+            {
+              "kind": "text",
+              "text": "　"
+            },
+            {
+              "kind": "interpolation",
+              "expr_text": "灯.未宣言",
+              "expr": {
+                "kind": "var",
+                "name": "akari.未宣言"
+              }
+            },
+            {
+              "kind": "text",
+              "text": "。"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "edges": [],
+  "diagnostics": [
+    {
+      "code": "W602",
+      "severity": "warning",
+      "file": "var_undeclared.scn",
+      "span": [
+        60,
+        69
+      ],
+      "message": "宣言されていない変数です：flag.未宣言（variables.yaml に宣言します）"
+    },
+    {
+      "code": "W602",
+      "severity": "warning",
+      "file": "var_undeclared.scn",
+      "span": [
+        88,
+        106
+      ],
+      "message": "宣言されていない変数です：flag.未宣言の真偽（variables.yaml に宣言します）"
+    },
+    {
+      "code": "W602",
+      "severity": "warning",
+      "file": "var_undeclared.scn",
+      "span": [
+        122,
+        140
+      ],
+      "message": "宣言されていない変数です：flag.未宣言の整数（variables.yaml に宣言します）"
+    },
+    {
+      "code": "W602",
+      "severity": "warning",
+      "file": "var_undeclared.scn",
+      "span": [
+        153,
+        166
+      ],
+      "message": "宣言されていない変数です：akari.未宣言（variables.yaml に宣言します）"
+    }
+  ]
+}

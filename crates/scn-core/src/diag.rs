@@ -1,9 +1,11 @@
 //! 診断（コード、重大度、位置、メッセージ）。
 //!
 //! コードは仕様書（`docs/spec/scn-format-v0.md`）16節の診断表と一致させる。
-//! ここには、実装済みの段階で出すコードだけを置く。
+//! ここには、実装済みの段階（段階0）で出すコードだけを置く。
 
 use std::fmt;
+
+use serde::{Serialize, Serializer};
 
 /// ソース中の範囲。UTF-8のバイト位置で、`start` を含み `end` を含まない。
 ///
@@ -22,6 +24,13 @@ impl Span {
     /// 2つの範囲を覆う範囲。
     pub fn cover(self, other: Span) -> Span {
         Span::new(self.start.min(other.start), self.end.max(other.end))
+    }
+}
+
+/// JSONでは `[start, end]` の形にする。
+impl Serialize for Span {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        [self.start, self.end].serialize(serializer)
     }
 }
 
@@ -73,6 +82,8 @@ pub enum Code {
     E106,
     /// シーン見出しにIDが無い
     W107,
+    /// シーンIDの重複
+    E108,
     /// 知らないメタ情報のキー
     I109,
     /// `status` の値が不正
@@ -87,6 +98,12 @@ pub enum Code {
     E114,
     /// 台詞の閉じ括弧が無い
     E201,
+    /// 台詞の形だが、話者を解決できない
+    W202,
+    /// 行IDの重複
+    E301,
+    /// 行IDが無い
+    I302,
     /// 行IDを持てない行に行IDがある
     W303,
     /// 行IDの形が不正
@@ -95,10 +112,24 @@ pub enum Code {
     W401,
     /// ディレクティブの引数の数、または選択肢の形が合わない
     E402,
+    /// 素材カタログに無い意味名
+    I403,
+    /// `@立ち絵`・`@退場` のキャラを解決できない
+    W404,
     /// 知らないインライン命令、または値の合わないインライン命令
     W405,
+    /// 存在しないシーンへのジャンプ・呼び出し
+    E501,
+    /// ジャンプ・`@エンディング`・`@戻る` の後にある、実行されない行
+    W502,
     /// 式の構文エラー
     E601,
+    /// 宣言されていない変数
+    W602,
+    /// 型の不一致
+    E603,
+    /// `+=`・`-=` を整数以外に使った
+    E604,
 }
 
 impl Code {
@@ -111,6 +142,7 @@ impl Code {
             Code::E105 => "E105",
             Code::E106 => "E106",
             Code::W107 => "W107",
+            Code::E108 => "E108",
             Code::I109 => "I109",
             Code::E110 => "E110",
             Code::E111 => "E111",
@@ -118,12 +150,22 @@ impl Code {
             Code::W113 => "W113",
             Code::E114 => "E114",
             Code::E201 => "E201",
+            Code::W202 => "W202",
+            Code::E301 => "E301",
+            Code::I302 => "I302",
             Code::W303 => "W303",
             Code::E304 => "E304",
             Code::W401 => "W401",
             Code::E402 => "E402",
+            Code::I403 => "I403",
+            Code::W404 => "W404",
             Code::W405 => "W405",
+            Code::E501 => "E501",
+            Code::W502 => "W502",
             Code::E601 => "E601",
+            Code::W602 => "W602",
+            Code::E603 => "E603",
+            Code::E604 => "E604",
         }
     }
 

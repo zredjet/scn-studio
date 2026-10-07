@@ -84,7 +84,7 @@ fn fixture_list_matches_files() {
     let section = readme
         .split("## 構文系（T0-3）")
         .nth(1)
-        .and_then(|rest| rest.split("## 意味系（T0-4）").next())
+        .and_then(|rest| rest.split("## 意味系").next())
         .expect("README.md に構文系の節が無い");
 
     let mut listed: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
@@ -114,7 +114,9 @@ fn fixture_list_matches_files() {
 /// サンプル作品の各章を構文解析する。エラー（E）が0件で、スナップショットと一致する。
 #[test]
 fn samples() {
-    let options = support::options_from_project_toml(&read(&sample_dir().join("project.toml")));
+    let options = scn_core::load_project(&sample_dir())
+        .expect("サンプルを読めない")
+        .parse_options();
     insta::glob!("../../../samples/houkago/story", "*.scn", |path| {
         let source = read(path);
         let parsed = parse(&source, &options);

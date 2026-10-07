@@ -1,0 +1,77 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "snapshot_text(&ir, &project.files)"
+---
+# diagnostics
+show_unknown_character.scn:3:6-3:8 W404 キャラ 店員 を設定DBのキャラクターに解決できません
+show_unknown_character.scn:4:5-4:7 W404 キャラ 先輩 は2人以上のキャラクター（minato、tsumugi）に当てはまります
+
+# ir
+{
+  "ir_version": 1,
+  "start_scene": null,
+  "scenes": [
+    {
+      "id": "s001",
+      "title": "解決できないキャラ",
+      "file": "show_unknown_character.scn",
+      "span": [
+        16,
+        52
+      ],
+      "meta": {
+        "summary": null,
+        "status": null,
+        "route": null,
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": true,
+      "ops": [
+        {
+          "kind": "show",
+          "span": [
+            53,
+            77
+          ],
+          "character": "店員",
+          "expression": "笑顔",
+          "position": null,
+          "transition": null
+        },
+        {
+          "kind": "hide",
+          "span": [
+            78,
+            92
+          ],
+          "character": "先輩",
+          "transition": null
+        }
+      ]
+    }
+  ],
+  "edges": [],
+  "diagnostics": [
+    {
+      "code": "W404",
+      "severity": "warning",
+      "file": "show_unknown_character.scn",
+      "span": [
+        64,
+        70
+      ],
+      "message": "キャラ 店員 を設定DBのキャラクターに解決できません"
+    },
+    {
+      "code": "W404",
+      "severity": "warning",
+      "file": "show_unknown_character.scn",
+      "span": [
+        86,
+        92
+      ],
+      "message": "キャラ 先輩 は2人以上のキャラクター（minato、tsumugi）に当てはまります"
+    }
+  ]
+}

@@ -69,6 +69,7 @@
 | 傍点 | emphasis dots | `《《強調》》` |
 | インライン命令 | inline command | `{w 0.5}` など |
 | 変数の埋め込み | interpolation | `{=式}` |
+| 改行（台詞の） | line break | 複数行の台詞の、行の境目。IRの `line_break` |
 
 ## 変数と検証
 

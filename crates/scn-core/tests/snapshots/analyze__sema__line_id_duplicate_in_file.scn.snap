@@ -1,0 +1,80 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "snapshot_text(&ir, &project.files)"
+---
+# diagnostics
+line_id_duplicate_in_file.scn:4:8-4:13 E301 行ID ^aaaa が重複しています（先に line_id_duplicate_in_file.scn にあります）
+
+# ir
+{
+  "ir_version": 1,
+  "start_scene": null,
+  "scenes": [
+    {
+      "id": "s001",
+      "title": "行IDの重複",
+      "file": "line_id_duplicate_in_file.scn",
+      "span": [
+        16,
+        39
+      ],
+      "meta": {
+        "summary": null,
+        "status": null,
+        "route": null,
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": false,
+      "ops": [
+        {
+          "kind": "say",
+          "span": [
+            40,
+            64
+          ],
+          "line_id": "aaaa",
+          "speaker": "akari",
+          "display_name": null,
+          "style": "normal",
+          "text": [
+            {
+              "kind": "text",
+              "text": "先の行"
+            }
+          ]
+        },
+        {
+          "kind": "say",
+          "span": [
+            65,
+            89
+          ],
+          "line_id": "aaaa",
+          "speaker": "akari",
+          "display_name": null,
+          "style": "normal",
+          "text": [
+            {
+              "kind": "text",
+              "text": "後の行"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "edges": [],
+  "diagnostics": [
+    {
+      "code": "E301",
+      "severity": "error",
+      "file": "line_id_duplicate_in_file.scn",
+      "span": [
+        84,
+        89
+      ],
+      "message": "行ID ^aaaa が重複しています（先に line_id_duplicate_in_file.scn にあります）"
+    }
+  ]
+}

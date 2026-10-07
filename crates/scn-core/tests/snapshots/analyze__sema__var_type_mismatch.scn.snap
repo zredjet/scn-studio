@@ -1,0 +1,157 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "snapshot_text(&ir, &project.files)"
+---
+# diagnostics
+var_type_mismatch.scn:3:10-3:11 E603 flag.迷い に代入できません：型が合いません（変数は bool、値は int）
+var_type_mismatch.scn:4:5-4:14 E603 型が合いません：int と string は比べられません
+var_type_mismatch.scn:6:11-6:18 E603 flag.ルート に代入できません："存在しない" は列挙の値にありません（値は 共通・灯・紬）
+var_type_mismatch.scn:7:5-7:7 E603 条件は真偽（true・false）になる式で書きます（この式は int）
+
+# ir
+{
+  "ir_version": 1,
+  "start_scene": null,
+  "scenes": [
+    {
+      "id": "s001",
+      "title": "型の不一致",
+      "file": "var_type_mismatch.scn",
+      "span": [
+        16,
+        40
+      ],
+      "meta": {
+        "summary": null,
+        "status": null,
+        "route": null,
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": true,
+      "ops": [
+        {
+          "kind": "set",
+          "span": [
+            41,
+            59
+          ],
+          "var": "flag.迷い",
+          "op": "=",
+          "value": {
+            "kind": "int",
+            "value": 1
+          }
+        },
+        {
+          "kind": "if",
+          "span": [
+            60,
+            77
+          ],
+          "branches": [
+            {
+              "span": [
+                60,
+                77
+              ],
+              "cond_text": "勇気 == \"a\"",
+              "cond": {
+                "kind": "binary",
+                "op": "==",
+                "lhs": {
+                  "kind": "var",
+                  "name": "flag.勇気"
+                },
+                "rhs": {
+                  "kind": "string",
+                  "value": "a"
+                }
+              },
+              "body": []
+            }
+          ],
+          "else": null
+        },
+        {
+          "kind": "set",
+          "span": [
+            83,
+            120
+          ],
+          "var": "flag.ルート",
+          "op": "=",
+          "value": {
+            "kind": "string",
+            "value": "存在しない"
+          }
+        },
+        {
+          "kind": "if",
+          "span": [
+            121,
+            131
+          ],
+          "branches": [
+            {
+              "span": [
+                121,
+                131
+              ],
+              "cond_text": "勇気",
+              "cond": {
+                "kind": "var",
+                "name": "flag.勇気"
+              },
+              "body": []
+            }
+          ],
+          "else": null
+        }
+      ]
+    }
+  ],
+  "edges": [],
+  "diagnostics": [
+    {
+      "code": "E603",
+      "severity": "error",
+      "file": "var_type_mismatch.scn",
+      "span": [
+        58,
+        59
+      ],
+      "message": "flag.迷い に代入できません：型が合いません（変数は bool、値は int）"
+    },
+    {
+      "code": "E603",
+      "severity": "error",
+      "file": "var_type_mismatch.scn",
+      "span": [
+        64,
+        77
+      ],
+      "message": "型が合いません：int と string は比べられません"
+    },
+    {
+      "code": "E603",
+      "severity": "error",
+      "file": "var_type_mismatch.scn",
+      "span": [
+        103,
+        120
+      ],
+      "message": "flag.ルート に代入できません：\"存在しない\" は列挙の値にありません（値は 共通・灯・紬）"
+    },
+    {
+      "code": "E603",
+      "severity": "error",
+      "file": "var_type_mismatch.scn",
+      "span": [
+        125,
+        131
+      ],
+      "message": "条件は真偽（true・false）になる式で書きます（この式は int）"
+    }
+  ]
+}

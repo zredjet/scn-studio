@@ -12,7 +12,7 @@ use scn_core::ast::{
 };
 use scn_core::expr::{Assignment, Expr, ExprKind, SourceExpr, UnaryOp, VarRef};
 use scn_core::inline::{Inline, Text};
-use scn_core::{Diagnostic, DialogueBracket, ParseOptions, Parsed, Span, Spanned};
+use scn_core::{Diagnostic, Parsed, Span, Spanned};
 
 /// バイト位置から、行（1始まり）と列（文字数、1始まり）を求める。
 pub struct LineIndex<'a> {
@@ -405,34 +405,6 @@ fn assignment(assignment: &Assignment) -> String {
         var(&assignment.target),
         expr(&assignment.value)
     )
-}
-
-/// `project.toml` の `[dialogue.brackets]` だけを読み、構文解析の設定にする。
-/// 設定DBには依存しない（T0-3の申し送り）。プロジェクトの読み込みはT0-4で作る。
-pub fn options_from_project_toml(text: &str) -> ParseOptions {
-    let value: toml::Table = text.parse().expect("project.toml を読めない");
-    let Some(brackets) = value
-        .get("dialogue")
-        .and_then(|d| d.get("brackets"))
-        .and_then(|b| b.as_table())
-    else {
-        return ParseOptions::default();
-    };
-    let brackets = brackets
-        .iter()
-        .map(|(key, style)| {
-            let mut chars = key.chars();
-            let open = chars.next().expect("開き括弧が無い");
-            let close = chars.next().expect("閉じ括弧が無い");
-            assert!(chars.next().is_none(), "括弧のキーは2文字：{key}");
-            DialogueBracket {
-                open,
-                close,
-                style: style.as_str().expect("表示スタイルは文字列").to_owned(),
-            }
-        })
-        .collect();
-    ParseOptions { brackets }
 }
 
 /// fixtureの先頭の `// expect: …` から、期待する診断コードを読む。

@@ -1,0 +1,1549 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "snapshot_text(&ir, &files)"
+---
+# diagnostics
+story/chapter01.scn:34:5-34:9 I403 素材カタログに無い効果音です：チャイム（仮素材として扱います）
+story/chapter01.scn:105:1-105:16 I302 行IDがありません
+story/chapter01.scn:106:1-106:26 I302 行IDがありません
+story/chapter01.scn:108:1-108:13 I302 行IDがありません
+story/chapter02.scn:22:1-22:21 I302 行IDがありません
+story/chapter02.scn:23:1-23:21 I302 行IDがありません
+story/chapter02.scn:41:5-41:9 I403 素材カタログに無い背景です：駅/夕方（仮素材として扱います）
+
+# ir
+{
+  "ir_version": 1,
+  "start_scene": "s010",
+  "scenes": [
+    {
+      "id": "s010",
+      "title": "登校",
+      "file": "story/chapter01.scn",
+      "span": [
+        21,
+        36
+      ],
+      "meta": {
+        "summary": "いつもの朝。灯は明るく振る舞っている",
+        "status": "writing",
+        "route": "共通",
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": false,
+      "ops": [
+        {
+          "kind": "bg",
+          "span": [
+            139,
+            160
+          ],
+          "name": "通学路/朝",
+          "transition": null
+        },
+        {
+          "kind": "bgm",
+          "span": [
+            161,
+            172
+          ],
+          "name": "日常"
+        },
+        {
+          "kind": "narrate",
+          "span": [
+            174,
+            246
+          ],
+          "line_id": "a1b2",
+          "text": [
+            {
+              "kind": "text",
+              "text": "　坂道の途中で、後ろから鞄がぶつかってきた。"
+            }
+          ]
+        },
+        {
+          "kind": "say",
+          "span": [
+            247,
+            304
+          ],
+          "line_id": "a1b3",
+          "speaker": "akari",
+          "display_name": null,
+          "style": "normal",
+          "text": [
+            {
+              "kind": "text",
+              "text": "おはよ、湊。今日も眠そうだね"
+            }
+          ]
+        },
+        {
+          "kind": "say",
+          "span": [
+            305,
+            350
+          ],
+          "line_id": "a1b4",
+          "speaker": "minato",
+          "display_name": null,
+          "style": "normal",
+          "text": [
+            {
+              "kind": "text",
+              "text": "灯が元気すぎるんだよ"
+            }
+          ]
+        },
+        {
+          "kind": "show",
+          "span": [
+            351,
+            376
+          ],
+          "character": "akari",
+          "expression": "笑顔",
+          "position": "center",
+          "transition": null
+        },
+        {
+          "kind": "say",
+          "span": [
+            377,
+            470
+          ],
+          "line_id": "a1b5",
+          "speaker": "akari",
+          "display_name": null,
+          "style": "normal",
+          "text": [
+            {
+              "kind": "text",
+              "text": "ひどいなあ。元気なのは、わたしの数少ない取り柄なのに"
+            }
+          ]
+        },
+        {
+          "kind": "narrate",
+          "span": [
+            471,
+            570
+          ],
+          "line_id": "a1b6",
+          "text": [
+            {
+              "kind": "text",
+              "text": "　そう言って笑う顔に、昨日までと違うところは見つからなかった。"
+            }
+          ]
+        },
+        {
+          "kind": "jump",
+          "span": [
+            572,
+            579
+          ],
+          "target": "s011"
+        }
+      ]
+    },
+    {
+      "id": "s011",
+      "title": "昼休みの教室",
+      "file": "story/chapter01.scn",
+      "span": [
+        581,
+        608
+      ],
+      "meta": {
+        "summary": "紬が灯の様子を気にしている。主人公は放課後の屋上に呼び出される",
+        "status": "writing",
+        "route": "共通",
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": false,
+      "ops": [
+        {
+          "kind": "bg",
+          "span": [
+            750,
+            768
+          ],
+          "name": "教室/昼",
+          "transition": null
+        },
+        {
+          "kind": "show",
+          "span": [
+            769,
+            794
+          ],
+          "character": "tsumugi",
+          "expression": "真顔",
+          "position": "right",
+          "transition": null
+        },
+        {
+          "kind": "say",
+          "span": [
+            796,
+            868
+          ],
+          "line_id": "a1c1",
+          "speaker": "tsumugi",
+          "display_name": null,
+          "style": "normal",
+          "text": [
+            {
+              "kind": "text",
+              "text": "湊くん。灯ちゃん、最近なにか言ってた？"
+            }
+          ]
+        },
+        {
+          "kind": "say",
+          "span": [
+            869,
+            902
+          ],
+          "line_id": "a1c2",
+          "speaker": "minato",
+          "display_name": null,
+          "style": "normal",
+          "text": [
+            {
+              "kind": "text",
+              "text": "なにかって？"
+            }
+          ]
+        },
+        {
+          "kind": "say",
+          "span": [
+            903,
+            954
+          ],
+          "line_id": "a1c3",
+          "speaker": "tsumugi",
+          "display_name": null,
+          "style": "normal",
+          "text": [
+            {
+              "kind": "text",
+              "text": "……ううん、なんでもない"
+            }
+          ]
+        },
+        {
+          "kind": "hide",
+          "span": [
+            955,
+            966
+          ],
+          "character": "tsumugi",
+          "transition": null
+        },
+        {
+          "kind": "se",
+          "span": [
+            967,
+            983
+          ],
+          "name": "チャイム"
+        },
+        {
+          "kind": "narrate",
+          "span": [
+            984,
+            1080
+          ],
+          "line_id": "a1c4",
+          "text": [
+            {
+              "kind": "text",
+              "text": "　五限の予鈴が鳴った。机の中に、二つ折りのメモが入っていた。"
+            }
+          ]
+        },
+        {
+          "kind": "narrate",
+          "span": [
+            1081,
+            1165
+          ],
+          "line_id": "a1c5",
+          "text": [
+            {
+              "kind": "text",
+              "text": "　"
+            },
+            {
+              "kind": "emphasis",
+              "text": "放課後、屋上で"
+            },
+            {
+              "kind": "text",
+              "text": "。丸い字は、灯のものだった。"
+            }
+          ]
+        },
+        {
+          "kind": "choice",
+          "span": [
+            1167,
+            1199
+          ],
+          "line_id": "a1c6",
+          "prompt": [
+            {
+              "kind": "text",
+              "text": "屋上へ行くか"
+            }
+          ],
+          "options": [
+            {
+              "span": [
+                1200,
+                1223
+              ],
+              "line_id": "a1c7",
+              "text": [
+                {
+                  "kind": "text",
+                  "text": "すぐに行く"
+                }
+              ],
+              "cond_text": null,
+              "cond": null,
+              "jump": null,
+              "body": [
+                {
+                  "kind": "set",
+                  "span": [
+                    1224,
+                    1245
+                  ],
+                  "var": "flag.勇気",
+                  "op": "+=",
+                  "value": {
+                    "kind": "int",
+                    "value": 1
+                  }
+                },
+                {
+                  "kind": "set",
+                  "span": [
+                    1246,
+                    1274
+                  ],
+                  "var": "akari.好感度",
+                  "op": "+=",
+                  "value": {
+                    "kind": "int",
+                    "value": 2
+                  }
+                }
+              ]
+            },
+            {
+              "span": [
+                1275,
+                1310
+              ],
+              "line_id": "a1c8",
+              "text": [
+                {
+                  "kind": "text",
+                  "text": "少し迷ってから行く"
+                }
+              ],
+              "cond_text": null,
+              "cond": null,
+              "jump": null,
+              "body": [
+                {
+                  "kind": "set",
+                  "span": [
+                    1311,
+                    1339
+                  ],
+                  "var": "akari.好感度",
+                  "op": "+=",
+                  "value": {
+                    "kind": "int",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "jump",
+          "span": [
+            1346,
+            1353
+          ],
+          "target": "s012"
+        }
+      ]
+    },
+    {
+      "id": "s012",
+      "title": "放課後の屋上",
+      "file": "story/chapter01.scn",
+      "span": [
+        1355,
+        1382
+      ],
+      "meta": {
+        "summary": "灯が転校を打ち明けかける",
+        "status": "draft",
+        "route": "共通",
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": false,
+      "ops": [
+        {
+          "kind": "bg",
+          "span": [
+            1465,
+            1499
+          ],
+          "name": "屋上/夕方",
+          "transition": "フェード"
+        },
+        {
+          "kind": "bgm",
+          "span": [
+            1500,
+            1514
+          ],
+          "name": "切ない"
+        },
+        {
+          "kind": "show",
+          "span": [
+            1515,
+            1540
+          ],
+          "character": "akari",
+          "expression": "笑顔",
+          "position": "left",
+          "transition": null
+        },
+        {
+          "kind": "se",
+          "span": [
+            1541,
+            1548
+          ],
+          "name": "風"
+        },
+        {
+          "kind": "raw",
+          "span": [
+            1549,
+            1559
+          ],
+          "engine": "renpy",
+          "lines": [
+            "$ renpy.music.set_volume(0.6, channel=\"music\")"
+          ]
+        },
+        {
+          "kind": "say",
+          "span": [
+            1615,
+            1657
+          ],
+          "line_id": "k3f9",
+          "speaker": "akari",
+          "display_name": null,
+          "style": "normal",
+          "text": [
+            {
+              "kind": "text",
+              "text": "やっと来た。遅いよ"
+            }
+          ]
+        },
+        {
+          "kind": "narrate",
+          "span": [
+            1658,
+            1728
+          ],
+          "line_id": "k3fa",
+          "text": [
+            {
+              "kind": "text",
+              "text": "　風が強くて、灯の髪が"
+            },
+            {
+              "kind": "ruby",
+              "base": "乱",
+              "reading": "みだ"
+            },
+            {
+              "kind": "text",
+              "text": "れていた。"
+            }
+          ]
+        },
+        {
+          "kind": "say",
+          "span": [
+            1729,
+            1781
+          ],
+          "line_id": "k3fb",
+          "speaker": "akari",
+          "display_name": null,
+          "style": "normal",
+          "text": [
+            {
+              "kind": "text",
+              "text": "あのね、"
+            },
+            {
+              "kind": "wait",
+              "seconds": 0.5
+            },
+            {
+              "kind": "text",
+              "text": "話があるんだ"
+            }
+          ]
+        },
+        {
+          "kind": "show",
+          "span": [
+            1782,
+            1803
+          ],
+          "character": "akari",
+          "expression": "真顔",
+          "position": null,
+          "transition": null
+        },
+        {
+          "kind": "say",
+          "span": [
+            1804,
+            1858
+          ],
+          "line_id": "k3fh",
+          "speaker": "akari",
+          "display_name": null,
+          "style": "thought",
+          "text": [
+            {
+              "kind": "text",
+              "text": "……やっぱり、言えないかも"
+            }
+          ]
+        },
+        {
+          "kind": "choice",
+          "span": [
+            1906,
+            1935
+          ],
+          "line_id": "k3fc",
+          "prompt": [
+            {
+              "kind": "text",
+              "text": "どう答える"
+            }
+          ],
+          "options": [
+            {
+              "span": [
+                1936,
+                1977
+              ],
+              "line_id": "k3fd",
+              "text": [
+                {
+                  "kind": "text",
+                  "text": "「ごめん、遅くなって」"
+                }
+              ],
+              "cond_text": null,
+              "cond": null,
+              "jump": null,
+              "body": [
+                {
+                  "kind": "set",
+                  "span": [
+                    1978,
+                    2006
+                  ],
+                  "var": "akari.好感度",
+                  "op": "+=",
+                  "value": {
+                    "kind": "int",
+                    "value": 1
+                  }
+                }
+              ]
+            },
+            {
+              "span": [
+                2007,
+                2051
+              ],
+              "line_id": "k3fe",
+              "text": [
+                {
+                  "kind": "text",
+                  "text": "黙ってうなずく"
+                }
+              ],
+              "cond_text": "勇気 >= 2",
+              "cond": {
+                "kind": "binary",
+                "op": ">=",
+                "lhs": {
+                  "kind": "var",
+                  "name": "flag.勇気"
+                },
+                "rhs": {
+                  "kind": "int",
+                  "value": 2
+                }
+              },
+              "jump": null,
+              "body": [
+                {
+                  "kind": "say",
+                  "span": [
+                    2052,
+                    2300
+                  ],
+                  "line_id": "k3ff",
+                  "speaker": "akari",
+                  "display_name": null,
+                  "style": "normal",
+                  "text": [
+                    {
+                      "kind": "text",
+                      "text": "……そういうところ、ずるいよね。昔からずっとそうだった。言わなくても分かってくれるって、私が勝手に思ってるだけなのに。だから今日も、言えないまま来ちゃった"
+                    }
+                  ]
+                },
+                {
+                  "kind": "jump",
+                  "span": [
+                    2301,
+                    2310
+                  ],
+                  "target": "s014"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "if",
+          "span": [
+            2317,
+            2339
+          ],
+          "branches": [
+            {
+              "span": [
+                2317,
+                2339
+              ],
+              "cond_text": "灯.好感度 >= 3",
+              "cond": {
+                "kind": "binary",
+                "op": ">=",
+                "lhs": {
+                  "kind": "var",
+                  "name": "akari.好感度"
+                },
+                "rhs": {
+                  "kind": "int",
+                  "value": 3
+                }
+              },
+              "body": [
+                {
+                  "kind": "say",
+                  "span": [
+                    2340,
+                    2396
+                  ],
+                  "line_id": "k3fg",
+                  "speaker": "akari",
+                  "display_name": null,
+                  "style": "normal",
+                  "text": [
+                    {
+                      "kind": "text",
+                      "text": "やっぱり、君には言っておく"
+                    }
+                  ]
+                },
+                {
+                  "kind": "jump",
+                  "span": [
+                    2397,
+                    2407
+                  ],
+                  "target": "s013a"
+                }
+              ]
+            }
+          ],
+          "else": [
+            {
+              "kind": "jump",
+              "span": [
+                2414,
+                2424
+              ],
+              "target": "s013b"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s013a",
+      "title": "打ち明ける",
+      "file": "story/chapter01.scn",
+      "span": [
+        2431,
+        2456
+      ],
+      "meta": {
+        "summary": "灯が転校を打ち明ける。主人公は受け止める",
+        "status": "draft",
+        "route": "灯",
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": false,
+      "ops": [
+        {
+          "kind": "show",
+          "span": [
+            2560,
+            2585
+          ],
+          "character": "akari",
+          "expression": "真顔",
+          "position": "center",
+          "transition": null
+        },
+        {
+          "kind": "bgm_stop",
+          "span": [
+            2586,
+            2597
+          ]
+        },
+        {
+          "kind": "say",
+          "span": [
+            2598,
+            2673
+          ],
+          "line_id": "a2a1",
+          "speaker": "akari",
+          "display_name": null,
+          "style": "normal",
+          "text": [
+            {
+              "kind": "text",
+              "text": "わたし、夏休みが終わったら、転校するんだ"
+            }
+          ]
+        },
+        {
+          "kind": "narrate",
+          "span": [
+            2674,
+            2728
+          ],
+          "line_id": "a2a2",
+          "text": [
+            {
+              "kind": "text",
+              "text": "　風の音だけが、しばらく続いた。"
+            }
+          ]
+        },
+        {
+          "kind": "set",
+          "span": [
+            2729,
+            2759
+          ],
+          "var": "flag.ルート",
+          "op": "=",
+          "value": {
+            "kind": "string",
+            "value": "灯"
+          }
+        },
+        {
+          "kind": "jump",
+          "span": [
+            2760,
+            2767
+          ],
+          "target": "s020"
+        }
+      ]
+    },
+    {
+      "id": "s013b",
+      "title": "帰り道",
+      "file": "story/chapter01.scn",
+      "span": [
+        2769,
+        2788
+      ],
+      "meta": {
+        "summary": "屋上で言葉を交わせないまま、一人で帰る。校門で紬が待っている",
+        "status": "ai-draft",
+        "route": "共通",
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": false,
+      "ops": [
+        {
+          "kind": "bg",
+          "span": [
+            2928,
+            2952
+          ],
+          "name": "帰り道/夕方",
+          "transition": null
+        },
+        {
+          "kind": "bgm",
+          "span": [
+            2953,
+            2967
+          ],
+          "name": "切ない"
+        },
+        {
+          "kind": "narrate",
+          "span": [
+            2968,
+            3013
+          ],
+          "line_id": null,
+          "text": [
+            {
+              "kind": "text",
+              "text": "　結局、灯は何も言わなかった。"
+            }
+          ]
+        },
+        {
+          "kind": "narrate",
+          "span": [
+            3014,
+            3089
+          ],
+          "line_id": null,
+          "text": [
+            {
+              "kind": "text",
+              "text": "　校門を出たところで、見慣れた後ろ姿が待っていた。"
+            }
+          ]
+        },
+        {
+          "kind": "show",
+          "span": [
+            3090,
+            3115
+          ],
+          "character": "tsumugi",
+          "expression": "笑顔",
+          "position": "center",
+          "transition": null
+        },
+        {
+          "kind": "say",
+          "span": [
+            3116,
+            3152
+          ],
+          "line_id": null,
+          "speaker": "tsumugi",
+          "display_name": null,
+          "style": "normal",
+          "text": [
+            {
+              "kind": "text",
+              "text": "湊くん、一緒に帰ろ"
+            }
+          ]
+        },
+        {
+          "kind": "set",
+          "span": [
+            3153,
+            3179
+          ],
+          "var": "tsumugi.好感度",
+          "op": "+=",
+          "value": {
+            "kind": "int",
+            "value": 1
+          }
+        },
+        {
+          "kind": "set",
+          "span": [
+            3180,
+            3210
+          ],
+          "var": "flag.ルート",
+          "op": "=",
+          "value": {
+            "kind": "string",
+            "value": "紬"
+          }
+        },
+        {
+          "kind": "jump",
+          "span": [
+            3211,
+            3218
+          ],
+          "target": "s030"
+        }
+      ]
+    },
+    {
+      "id": "s014",
+      "title": "沈黙のあと",
+      "file": "story/chapter01.scn",
+      "span": [
+        3220,
+        3244
+      ],
+      "meta": {
+        "summary": "黙ってうなずいた主人公の隣に、灯は何も言わずに座る",
+        "status": "draft",
+        "route": "灯",
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": true,
+      "ops": []
+    },
+    {
+      "id": "s020",
+      "title": "灯の家の前",
+      "file": "story/chapter02.scn",
+      "span": [
+        24,
+        48
+      ],
+      "meta": {
+        "summary": "翌朝、灯の家の前で待つ。引っ越しの段ボールが見える",
+        "status": "draft",
+        "route": "灯",
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": false,
+      "ops": [
+        {
+          "kind": "bg",
+          "span": [
+            167,
+            188
+          ],
+          "name": "灯の家/朝",
+          "transition": null
+        },
+        {
+          "kind": "narrate",
+          "span": [
+            189,
+            255
+          ],
+          "line_id": "b0a1",
+          "text": [
+            {
+              "kind": "text",
+              "text": "　灯の家の前に、段ボールが積まれていた。"
+            }
+          ]
+        },
+        {
+          "kind": "say",
+          "span": [
+            256,
+            295
+          ],
+          "line_id": "b0a2",
+          "speaker": "akari",
+          "display_name": null,
+          "style": "normal",
+          "text": [
+            {
+              "kind": "text",
+              "text": "見られちゃったか"
+            }
+          ]
+        },
+        {
+          "kind": "jump",
+          "span": [
+            296,
+            303
+          ],
+          "target": "s021"
+        }
+      ]
+    },
+    {
+      "id": "s021",
+      "title": "屋上の約束",
+      "file": "story/chapter02.scn",
+      "span": [
+        305,
+        329
+      ],
+      "meta": {
+        "summary": "夏休みまで、屋上で毎日会う約束をする",
+        "status": "ai-draft",
+        "route": "灯",
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": false,
+      "ops": [
+        {
+          "kind": "bg",
+          "span": [
+            430,
+            448
+          ],
+          "name": "屋上/夜",
+          "transition": null
+        },
+        {
+          "kind": "show",
+          "span": [
+            449,
+            474
+          ],
+          "character": "akari",
+          "expression": "照れ",
+          "position": "center",
+          "transition": null
+        },
+        {
+          "kind": "say",
+          "span": [
+            475,
+            535
+          ],
+          "line_id": null,
+          "speaker": "akari",
+          "display_name": null,
+          "style": "normal",
+          "text": [
+            {
+              "kind": "text",
+              "text": "じゃあ約束。夏休みまで、毎日ここで"
+            }
+          ]
+        },
+        {
+          "kind": "narrate",
+          "span": [
+            536,
+            596
+          ],
+          "line_id": null,
+          "text": [
+            {
+              "kind": "text",
+              "text": "　灯は髪留めに触れながら、小さく笑った。"
+            }
+          ]
+        },
+        {
+          "kind": "jump",
+          "span": [
+            597,
+            604
+          ],
+          "target": "s022"
+        }
+      ]
+    },
+    {
+      "id": "s022",
+      "title": "雨の図書室",
+      "file": "story/chapter02.scn",
+      "span": [
+        606,
+        630
+      ],
+      "meta": {
+        "summary": "雨で屋上に行けない日、図書室で灯の母の話を聞く",
+        "status": "draft",
+        "route": "灯",
+        "tags": [
+          "雨",
+          "図書室"
+        ],
+        "extra": {}
+      },
+      "is_stub": true,
+      "ops": [
+        {
+          "kind": "jump",
+          "span": [
+            766,
+            773
+          ],
+          "target": "s040"
+        }
+      ]
+    },
+    {
+      "id": "s040",
+      "title": "見送り",
+      "file": "story/chapter02.scn",
+      "span": [
+        775,
+        793
+      ],
+      "meta": {
+        "summary": "終業式の日、駅で灯を見送る",
+        "status": "draft",
+        "route": "灯",
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": false,
+      "ops": [
+        {
+          "kind": "bg",
+          "span": [
+            876,
+            894
+          ],
+          "name": "駅/夕方",
+          "transition": null
+        },
+        {
+          "kind": "bgm",
+          "span": [
+            895,
+            909
+          ],
+          "name": "切ない"
+        },
+        {
+          "kind": "say",
+          "span": [
+            910,
+            961
+          ],
+          "line_id": "b4a1",
+          "speaker": "akari",
+          "display_name": null,
+          "style": "normal",
+          "text": [
+            {
+              "kind": "text",
+              "text": "またね、湊。"
+            },
+            {
+              "kind": "page_break"
+            },
+            {
+              "kind": "text",
+              "text": "……またね"
+            }
+          ]
+        },
+        {
+          "kind": "set",
+          "span": [
+            962,
+            993
+          ],
+          "var": "akari.転校済み",
+          "op": "=",
+          "value": {
+            "kind": "bool",
+            "value": true
+          }
+        },
+        {
+          "kind": "ending",
+          "span": [
+            994,
+            1023
+          ],
+          "id": "akari_end"
+        }
+      ]
+    },
+    {
+      "id": "s030",
+      "title": "紬と帰る",
+      "file": "story/chapter03.scn",
+      "span": [
+        24,
+        45
+      ],
+      "meta": {
+        "summary": "紬と並んで帰る。紬は灯の転校を先に知っていた",
+        "status": "draft",
+        "route": "紬",
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": true,
+      "ops": [
+        {
+          "kind": "if",
+          "span": [
+            155,
+            177
+          ],
+          "branches": [
+            {
+              "span": [
+                155,
+                177
+              ],
+              "cond_text": "紬.好感度 >= 1",
+              "cond": {
+                "kind": "binary",
+                "op": ">=",
+                "lhs": {
+                  "kind": "var",
+                  "name": "tsumugi.好感度"
+                },
+                "rhs": {
+                  "kind": "int",
+                  "value": 1
+                }
+              },
+              "body": [
+                {
+                  "kind": "jump",
+                  "span": [
+                    178,
+                    187
+                  ],
+                  "target": "s060"
+                }
+              ]
+            }
+          ],
+          "else": [
+            {
+              "kind": "jump",
+              "span": [
+                194,
+                203
+              ],
+              "target": "s061"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s060",
+      "title": "紬エンド",
+      "file": "story/chapter03.scn",
+      "span": [
+        210,
+        231
+      ],
+      "meta": {
+        "summary": "灯の不在を経て、紬と向き合う",
+        "status": "draft",
+        "route": "紬",
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": true,
+      "ops": [
+        {
+          "kind": "ending",
+          "span": [
+            317,
+            348
+          ],
+          "id": "tsumugi_end"
+        }
+      ]
+    },
+    {
+      "id": "s061",
+      "title": "すれ違い",
+      "file": "story/chapter03.scn",
+      "span": [
+        350,
+        371
+      ],
+      "meta": {
+        "summary": "誰にも踏み込めないまま、夏が終わる",
+        "status": "draft",
+        "route": "紬",
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": true,
+      "ops": [
+        {
+          "kind": "ending",
+          "span": [
+            466,
+            493
+          ],
+          "id": "bad_end"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "s010",
+      "to": "s011",
+      "kind": "jump",
+      "via": "direct",
+      "label": null,
+      "cond_text": null,
+      "span": [
+        572,
+        579
+      ]
+    },
+    {
+      "from": "s011",
+      "to": "s012",
+      "kind": "jump",
+      "via": "direct",
+      "label": null,
+      "cond_text": null,
+      "span": [
+        1346,
+        1353
+      ]
+    },
+    {
+      "from": "s012",
+      "to": "s014",
+      "kind": "jump",
+      "via": "choice",
+      "label": "黙ってうなずく",
+      "cond_text": "勇気 >= 2",
+      "span": [
+        2301,
+        2310
+      ]
+    },
+    {
+      "from": "s012",
+      "to": "s013a",
+      "kind": "jump",
+      "via": "if",
+      "label": null,
+      "cond_text": "灯.好感度 >= 3",
+      "span": [
+        2397,
+        2407
+      ]
+    },
+    {
+      "from": "s012",
+      "to": "s013b",
+      "kind": "jump",
+      "via": "else",
+      "label": null,
+      "cond_text": null,
+      "span": [
+        2414,
+        2424
+      ]
+    },
+    {
+      "from": "s013a",
+      "to": "s020",
+      "kind": "jump",
+      "via": "direct",
+      "label": null,
+      "cond_text": null,
+      "span": [
+        2760,
+        2767
+      ]
+    },
+    {
+      "from": "s013b",
+      "to": "s030",
+      "kind": "jump",
+      "via": "direct",
+      "label": null,
+      "cond_text": null,
+      "span": [
+        3211,
+        3218
+      ]
+    },
+    {
+      "from": "s020",
+      "to": "s021",
+      "kind": "jump",
+      "via": "direct",
+      "label": null,
+      "cond_text": null,
+      "span": [
+        296,
+        303
+      ]
+    },
+    {
+      "from": "s021",
+      "to": "s022",
+      "kind": "jump",
+      "via": "direct",
+      "label": null,
+      "cond_text": null,
+      "span": [
+        597,
+        604
+      ]
+    },
+    {
+      "from": "s022",
+      "to": "s040",
+      "kind": "jump",
+      "via": "direct",
+      "label": null,
+      "cond_text": null,
+      "span": [
+        766,
+        773
+      ]
+    },
+    {
+      "from": "s030",
+      "to": "s060",
+      "kind": "jump",
+      "via": "if",
+      "label": null,
+      "cond_text": "紬.好感度 >= 1",
+      "span": [
+        178,
+        187
+      ]
+    },
+    {
+      "from": "s030",
+      "to": "s061",
+      "kind": "jump",
+      "via": "else",
+      "label": null,
+      "cond_text": null,
+      "span": [
+        194,
+        203
+      ]
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "I403",
+      "severity": "info",
+      "file": "story/chapter01.scn",
+      "span": [
+        971,
+        983
+      ],
+      "message": "素材カタログに無い効果音です：チャイム（仮素材として扱います）"
+    },
+    {
+      "code": "I302",
+      "severity": "info",
+      "file": "story/chapter01.scn",
+      "span": [
+        2968,
+        3013
+      ],
+      "message": "行IDがありません"
+    },
+    {
+      "code": "I302",
+      "severity": "info",
+      "file": "story/chapter01.scn",
+      "span": [
+        3014,
+        3089
+      ],
+      "message": "行IDがありません"
+    },
+    {
+      "code": "I302",
+      "severity": "info",
+      "file": "story/chapter01.scn",
+      "span": [
+        3116,
+        3152
+      ],
+      "message": "行IDがありません"
+    },
+    {
+      "code": "I302",
+      "severity": "info",
+      "file": "story/chapter02.scn",
+      "span": [
+        475,
+        535
+      ],
+      "message": "行IDがありません"
+    },
+    {
+      "code": "I302",
+      "severity": "info",
+      "file": "story/chapter02.scn",
+      "span": [
+        536,
+        596
+      ],
+      "message": "行IDがありません"
+    },
+    {
+      "code": "I403",
+      "severity": "info",
+      "file": "story/chapter02.scn",
+      "span": [
+        884,
+        894
+      ],
+      "message": "素材カタログに無い背景です：駅/夕方（仮素材として扱います）"
+    }
+  ]
+}

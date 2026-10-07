@@ -49,6 +49,8 @@ pub struct SceneMeta {
 pub struct MetaEntry {
     pub key: Spanned<String>,
     pub value: Spanned<MetaValue>,
+    /// 書かれたとおりの値（`[a, b]` の括弧も含む）。
+    pub raw: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

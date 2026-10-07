@@ -1,0 +1,59 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "snapshot_text(&ir, &project.files)"
+---
+# diagnostics
+
+# ir
+{
+  "ir_version": 1,
+  "start_scene": null,
+  "scenes": [
+    {
+      "id": "s001",
+      "title": "終わり",
+      "file": "ok_ending.scn",
+      "span": [
+        45,
+        63
+      ],
+      "meta": {
+        "summary": null,
+        "status": null,
+        "route": null,
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": false,
+      "ops": [
+        {
+          "kind": "say",
+          "span": [
+            64,
+            88
+          ],
+          "line_id": "aaaa",
+          "speaker": "akari",
+          "display_name": null,
+          "style": "normal",
+          "text": [
+            {
+              "kind": "text",
+              "text": "またね"
+            }
+          ]
+        },
+        {
+          "kind": "ending",
+          "span": [
+            89,
+            117
+          ],
+          "id": "good_end"
+        }
+      ]
+    }
+  ],
+  "edges": [],
+  "diagnostics": []
+}

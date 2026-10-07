@@ -1,0 +1,246 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "snapshot_text(&ir, &project.files)"
+---
+# diagnostics
+
+# ir
+{
+  "ir_version": 1,
+  "start_scene": null,
+  "scenes": [
+    {
+      "id": "s001",
+      "title": "枝の区切り",
+      "file": "ok_jump_branches.scn",
+      "span": [
+        121,
+        145
+      ],
+      "meta": {
+        "summary": null,
+        "status": null,
+        "route": null,
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": true,
+      "ops": [
+        {
+          "kind": "if",
+          "span": [
+            146,
+            161
+          ],
+          "branches": [
+            {
+              "span": [
+                146,
+                161
+              ],
+              "cond_text": "勇気 >= 1",
+              "cond": {
+                "kind": "binary",
+                "op": ">=",
+                "lhs": {
+                  "kind": "var",
+                  "name": "flag.勇気"
+                },
+                "rhs": {
+                  "kind": "int",
+                  "value": 1
+                }
+              },
+              "body": [
+                {
+                  "kind": "jump",
+                  "span": [
+                    162,
+                    171
+                  ],
+                  "target": "s002"
+                }
+              ]
+            }
+          ],
+          "else": [
+            {
+              "kind": "jump",
+              "span": [
+                178,
+                187
+              ],
+              "target": "s002"
+            }
+          ]
+        },
+        {
+          "kind": "choice",
+          "span": [
+            193,
+            219
+          ],
+          "line_id": "aaaa",
+          "prompt": [
+            {
+              "kind": "text",
+              "text": "どうする"
+            }
+          ],
+          "options": [
+            {
+              "span": [
+                220,
+                234
+              ],
+              "line_id": "aaab",
+              "text": [
+                {
+                  "kind": "text",
+                  "text": "行く"
+                }
+              ],
+              "cond_text": null,
+              "cond": null,
+              "jump": null,
+              "body": [
+                {
+                  "kind": "jump",
+                  "span": [
+                    235,
+                    244
+                  ],
+                  "target": "s002"
+                }
+              ]
+            },
+            {
+              "span": [
+                245,
+                259
+              ],
+              "line_id": "aaac",
+              "text": [
+                {
+                  "kind": "text",
+                  "text": "戻る"
+                }
+              ],
+              "cond_text": null,
+              "cond": null,
+              "jump": null,
+              "body": [
+                {
+                  "kind": "jump",
+                  "span": [
+                    260,
+                    269
+                  ],
+                  "target": "s002"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "jump",
+          "span": [
+            303,
+            310
+          ],
+          "target": "s002"
+        }
+      ]
+    },
+    {
+      "id": "s002",
+      "title": "次",
+      "file": "ok_jump_branches.scn",
+      "span": [
+        312,
+        324
+      ],
+      "meta": {
+        "summary": null,
+        "status": null,
+        "route": null,
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": true,
+      "ops": [
+        {
+          "kind": "ending",
+          "span": [
+            325,
+            349
+          ],
+          "id": "end1"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "s001",
+      "to": "s002",
+      "kind": "jump",
+      "via": "if",
+      "label": null,
+      "cond_text": "勇気 >= 1",
+      "span": [
+        162,
+        171
+      ]
+    },
+    {
+      "from": "s001",
+      "to": "s002",
+      "kind": "jump",
+      "via": "else",
+      "label": null,
+      "cond_text": null,
+      "span": [
+        178,
+        187
+      ]
+    },
+    {
+      "from": "s001",
+      "to": "s002",
+      "kind": "jump",
+      "via": "choice",
+      "label": "行く",
+      "cond_text": null,
+      "span": [
+        235,
+        244
+      ]
+    },
+    {
+      "from": "s001",
+      "to": "s002",
+      "kind": "jump",
+      "via": "choice",
+      "label": "戻る",
+      "cond_text": null,
+      "span": [
+        260,
+        269
+      ]
+    },
+    {
+      "from": "s001",
+      "to": "s002",
+      "kind": "jump",
+      "via": "direct",
+      "label": null,
+      "cond_text": null,
+      "span": [
+        303,
+        310
+      ]
+    }
+  ],
+  "diagnostics": []
+}

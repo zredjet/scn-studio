@@ -1,0 +1,119 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "snapshot_text(&ir, &project.files)"
+---
+# diagnostics
+
+# ir
+{
+  "ir_version": 1,
+  "start_scene": null,
+  "scenes": [
+    {
+      "id": "s001",
+      "title": "素材",
+      "file": "ok_assets_known.scn",
+      "span": [
+        136,
+        151
+      ],
+      "meta": {
+        "summary": null,
+        "status": null,
+        "route": null,
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": false,
+      "ops": [
+        {
+          "kind": "bg",
+          "span": [
+            152,
+            186
+          ],
+          "name": "屋上/夕方",
+          "transition": "フェード"
+        },
+        {
+          "kind": "show",
+          "span": [
+            187,
+            228
+          ],
+          "character": "akari",
+          "expression": "笑顔",
+          "position": "left",
+          "transition": "ディゾルブ"
+        },
+        {
+          "kind": "show",
+          "span": [
+            229,
+            256
+          ],
+          "character": "akari",
+          "expression": "真顔",
+          "position": null,
+          "transition": null
+        },
+        {
+          "kind": "bgm",
+          "span": [
+            257,
+            268
+          ],
+          "name": "日常"
+        },
+        {
+          "kind": "bgm_stop",
+          "span": [
+            269,
+            280
+          ]
+        },
+        {
+          "kind": "se",
+          "span": [
+            281,
+            288
+          ],
+          "name": "風"
+        },
+        {
+          "kind": "fx",
+          "span": [
+            289,
+            307
+          ],
+          "name": "揺れ",
+          "seconds": 0.5
+        },
+        {
+          "kind": "narrate",
+          "span": [
+            308,
+            346
+          ],
+          "line_id": "aaaa",
+          "text": [
+            {
+              "kind": "text",
+              "text": "　"
+            },
+            {
+              "kind": "se",
+              "name": "ドア"
+            },
+            {
+              "kind": "text",
+              "text": "扉が開いた。"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "edges": [],
+  "diagnostics": []
+}

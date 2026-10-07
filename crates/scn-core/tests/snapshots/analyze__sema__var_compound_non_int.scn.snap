@@ -1,0 +1,83 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "snapshot_text(&ir, &project.files)"
+---
+# diagnostics
+var_compound_non_int.scn:3:5-3:7 E604 += は整数の変数にだけ使えます（flag.迷い は bool）
+var_compound_non_int.scn:4:5-4:7 E604 -= は整数の変数にだけ使えます（flag.名前 は string）
+
+# ir
+{
+  "ir_version": 1,
+  "start_scene": null,
+  "scenes": [
+    {
+      "id": "s001",
+      "title": "整数でない変数への +=",
+      "file": "var_compound_non_int.scn",
+      "span": [
+        16,
+        55
+      ],
+      "meta": {
+        "summary": null,
+        "status": null,
+        "route": null,
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": true,
+      "ops": [
+        {
+          "kind": "set",
+          "span": [
+            56,
+            75
+          ],
+          "var": "flag.迷い",
+          "op": "+=",
+          "value": {
+            "kind": "int",
+            "value": 1
+          }
+        },
+        {
+          "kind": "set",
+          "span": [
+            76,
+            97
+          ],
+          "var": "flag.名前",
+          "op": "-=",
+          "value": {
+            "kind": "string",
+            "value": "a"
+          }
+        }
+      ]
+    }
+  ],
+  "edges": [],
+  "diagnostics": [
+    {
+      "code": "E604",
+      "severity": "error",
+      "file": "var_compound_non_int.scn",
+      "span": [
+        64,
+        70
+      ],
+      "message": "+= は整数の変数にだけ使えます（flag.迷い は bool）"
+    },
+    {
+      "code": "E604",
+      "severity": "error",
+      "file": "var_compound_non_int.scn",
+      "span": [
+        84,
+        90
+      ],
+      "message": "-= は整数の変数にだけ使えます（flag.名前 は string）"
+    }
+  ]
+}

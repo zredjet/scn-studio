@@ -1,0 +1,4 @@
+name: キャラクター
+builtin: character
+fields:
+  - { key: aliases, label: 呼び名, type: list<text> }

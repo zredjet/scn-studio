@@ -1,0 +1,15 @@
+backgrounds:
+  屋上/夕方: {}
+
+characters:
+  akari:
+    expressions:
+      笑顔: {}
+      真顔: {}
+
+bgm:
+  日常: {}
+
+se:
+  風: {}
+  ドア: {}

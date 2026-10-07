@@ -1,0 +1,102 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "snapshot_text(&ir, &project.files)"
+---
+# diagnostics
+
+# ir
+{
+  "ir_version": 1,
+  "start_scene": null,
+  "scenes": [
+    {
+      "id": "s001",
+      "title": "話者",
+      "file": "ok_speaker_resolution.scn",
+      "span": [
+        101,
+        116
+      ],
+      "meta": {
+        "summary": null,
+        "status": null,
+        "route": null,
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": false,
+      "ops": [
+        {
+          "kind": "say",
+          "span": [
+            117,
+            154
+          ],
+          "line_id": "aaaa",
+          "speaker": "akari",
+          "display_name": null,
+          "style": "normal",
+          "text": [
+            {
+              "kind": "text",
+              "text": "IDで書いた話者"
+            }
+          ]
+        },
+        {
+          "kind": "say",
+          "span": [
+            155,
+            194
+          ],
+          "line_id": "aaab",
+          "speaker": "akari",
+          "display_name": null,
+          "style": "normal",
+          "text": [
+            {
+              "kind": "text",
+              "text": "名前で書いた話者"
+            }
+          ]
+        },
+        {
+          "kind": "say",
+          "span": [
+            195,
+            243
+          ],
+          "line_id": "aaac",
+          "speaker": "akari",
+          "display_name": null,
+          "style": "normal",
+          "text": [
+            {
+              "kind": "text",
+              "text": "呼び名で書いた話者"
+            }
+          ]
+        },
+        {
+          "kind": "say",
+          "span": [
+            244,
+            307
+          ],
+          "line_id": "aaad",
+          "speaker": "akari",
+          "display_name": "？？？",
+          "style": "normal",
+          "text": [
+            {
+              "kind": "text",
+              "text": "表示名を上書きした台詞"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "edges": [],
+  "diagnostics": []
+}

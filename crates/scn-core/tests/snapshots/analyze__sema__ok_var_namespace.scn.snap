@@ -1,0 +1,176 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "snapshot_text(&ir, &project.files)"
+---
+# diagnostics
+
+# ir
+{
+  "ir_version": 1,
+  "start_scene": null,
+  "scenes": [
+    {
+      "id": "s001",
+      "title": "名前空間",
+      "file": "ok_var_namespace.scn",
+      "span": [
+        124,
+        145
+      ],
+      "meta": {
+        "summary": null,
+        "status": null,
+        "route": null,
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": false,
+      "ops": [
+        {
+          "kind": "set",
+          "span": [
+            146,
+            172
+          ],
+          "var": "akari.好感度",
+          "op": "+=",
+          "value": {
+            "kind": "int",
+            "value": 1
+          }
+        },
+        {
+          "kind": "set",
+          "span": [
+            173,
+            205
+          ],
+          "var": "akari.好感度",
+          "op": "+=",
+          "value": {
+            "kind": "int",
+            "value": 1
+          }
+        },
+        {
+          "kind": "set",
+          "span": [
+            206,
+            234
+          ],
+          "var": "akari.好感度",
+          "op": "+=",
+          "value": {
+            "kind": "int",
+            "value": 1
+          }
+        },
+        {
+          "kind": "set",
+          "span": [
+            235,
+            253
+          ],
+          "var": "flag.勇気",
+          "op": "=",
+          "value": {
+            "kind": "int",
+            "value": 2
+          }
+        },
+        {
+          "kind": "if",
+          "span": [
+            254,
+            296
+          ],
+          "branches": [
+            {
+              "span": [
+                254,
+                296
+              ],
+              "cond_text": "flag.勇気 >= 1 and 灯.好感度 > 0",
+              "cond": {
+                "kind": "binary",
+                "op": "and",
+                "lhs": {
+                  "kind": "binary",
+                  "op": ">=",
+                  "lhs": {
+                    "kind": "var",
+                    "name": "flag.勇気"
+                  },
+                  "rhs": {
+                    "kind": "int",
+                    "value": 1
+                  }
+                },
+                "rhs": {
+                  "kind": "binary",
+                  "op": ">",
+                  "lhs": {
+                    "kind": "var",
+                    "name": "akari.好感度"
+                  },
+                  "rhs": {
+                    "kind": "int",
+                    "value": 0
+                  }
+                }
+              },
+              "body": [
+                {
+                  "kind": "say",
+                  "span": [
+                    297,
+                    329
+                  ],
+                  "line_id": "aaaa",
+                  "speaker": "akari",
+                  "display_name": null,
+                  "style": "normal",
+                  "text": [
+                    {
+                      "kind": "text",
+                      "text": "ありがとう"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "else": null
+        },
+        {
+          "kind": "narrate",
+          "span": [
+            335,
+            381
+          ],
+          "line_id": "aaab",
+          "text": [
+            {
+              "kind": "text",
+              "text": "　好感度は"
+            },
+            {
+              "kind": "interpolation",
+              "expr_text": "あかり.好感度",
+              "expr": {
+                "kind": "var",
+                "name": "akari.好感度"
+              }
+            },
+            {
+              "kind": "text",
+              "text": "。"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "edges": [],
+  "diagnostics": []
+}

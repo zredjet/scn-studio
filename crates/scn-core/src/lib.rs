@@ -1,7 +1,10 @@
 //! `.scn` の解析、意味解析、IR、診断を受け持つコア。
 //!
-//! モジュールの構成は `.claude/rules/rust.md` にある。T0-3では構文解析
-//! （`line`、`syntax`、`inline`、`expr`）までを作る。意味解析とIRはT0-4で作る。
+//! モジュールの構成は `.claude/rules/rust.md` にある。
+//!
+//! - 1つのファイルの構文解析：[`parse`]（設定DBは見ない）
+//! - プロジェクトの読み込み：[`load_project`]
+//! - プロジェクト全体の意味解析とIR：[`analyze`]
 
 // ライブラリのコードでは、パニックしうる書き方を禁じる（`.claude/rules/rust.md`）。
 // テスト（`cfg(test)`）では使ってよい。
@@ -20,8 +23,13 @@ pub mod ast;
 pub mod diag;
 pub mod expr;
 pub mod inline;
+pub mod ir;
 mod line;
+pub mod project;
+mod sema;
 pub mod syntax;
 
 pub use diag::{Code, Diagnostic, Severity, Span, Spanned};
+pub use ir::{Ir, analyze};
+pub use project::{Project, ProjectError, load_project};
 pub use syntax::{DialogueBracket, ParseOptions, Parsed, parse};

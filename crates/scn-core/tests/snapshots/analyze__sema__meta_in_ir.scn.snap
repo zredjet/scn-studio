@@ -1,0 +1,69 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "snapshot_text(&ir, &project.files)"
+---
+# diagnostics
+meta_in_ir.scn:6:9-6:17 E110 status の値が不正です：finished（draft・writing・done・ai-draft のどれかを書きます）
+meta_in_ir.scn:8:1-8:5 I109 知らないメタ情報のキーです：mood
+
+# ir
+{
+  "ir_version": 1,
+  "start_scene": null,
+  "scenes": [
+    {
+      "id": "s001",
+      "title": "メタ情報",
+      "file": "meta_in_ir.scn",
+      "span": [
+        171,
+        192
+      ],
+      "meta": {
+        "summary": "要約",
+        "status": null,
+        "route": null,
+        "tags": [
+          "雨"
+        ],
+        "extra": {
+          "mood": "[明るい, 静か]"
+        }
+      },
+      "is_stub": true,
+      "ops": [
+        {
+          "kind": "ending",
+          "span": [
+            270,
+            294
+          ],
+          "id": "end1"
+        }
+      ]
+    }
+  ],
+  "edges": [],
+  "diagnostics": [
+    {
+      "code": "E110",
+      "severity": "error",
+      "file": "meta_in_ir.scn",
+      "span": [
+        221,
+        229
+      ],
+      "message": "status の値が不正です：finished（draft・writing・done・ai-draft のどれかを書きます）"
+    },
+    {
+      "code": "I109",
+      "severity": "info",
+      "file": "meta_in_ir.scn",
+      "span": [
+        240,
+        244
+      ],
+      "message": "知らないメタ情報のキーです：mood"
+    }
+  ]
+}

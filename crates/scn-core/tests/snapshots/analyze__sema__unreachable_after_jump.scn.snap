@@ -1,0 +1,294 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "snapshot_text(&ir, &project.files)"
+---
+# diagnostics
+unreachable_after_jump.scn:5:1-5:18 W502 ジャンプ・@エンディング・@戻る の後ろにあるので、実行されません
+unreachable_after_jump.scn:8:1-8:12 W502 ジャンプ・@エンディング・@戻る の後ろにあるので、実行されません
+unreachable_after_jump.scn:11:1-11:21 W502 ジャンプ・@エンディング・@戻る の後ろにあるので、実行されません
+unreachable_after_jump.scn:19:1-19:15 W502 ジャンプ・@エンディング・@戻る の後ろにあるので、実行されません
+
+# ir
+{
+  "ir_version": 1,
+  "start_scene": null,
+  "scenes": [
+    {
+      "id": "s001",
+      "title": "ジャンプの後",
+      "file": "unreachable_after_jump.scn",
+      "span": [
+        16,
+        43
+      ],
+      "meta": {
+        "summary": null,
+        "status": null,
+        "route": null,
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": false,
+      "ops": [
+        {
+          "kind": "if",
+          "span": [
+            44,
+            59
+          ],
+          "branches": [
+            {
+              "span": [
+                44,
+                59
+              ],
+              "cond_text": "勇気 >= 1",
+              "cond": {
+                "kind": "binary",
+                "op": ">=",
+                "lhs": {
+                  "kind": "var",
+                  "name": "flag.勇気"
+                },
+                "rhs": {
+                  "kind": "int",
+                  "value": 1
+                }
+              },
+              "body": [
+                {
+                  "kind": "jump",
+                  "span": [
+                    60,
+                    69
+                  ],
+                  "target": "s002"
+                },
+                {
+                  "kind": "say",
+                  "span": [
+                    70,
+                    105
+                  ],
+                  "line_id": "aaaa",
+                  "speaker": "akari",
+                  "display_name": null,
+                  "style": "normal",
+                  "text": [
+                    {
+                      "kind": "text",
+                      "text": "実行されない"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "else": [
+            {
+              "kind": "ending",
+              "span": [
+                112,
+                138
+              ],
+              "id": "end1"
+            },
+            {
+              "kind": "bg",
+              "span": [
+                139,
+                162
+              ],
+              "name": "屋上/夕方",
+              "transition": null
+            }
+          ]
+        },
+        {
+          "kind": "jump",
+          "span": [
+            168,
+            175
+          ],
+          "target": "s002"
+        },
+        {
+          "kind": "choice",
+          "span": [
+            176,
+            220
+          ],
+          "line_id": "aaab",
+          "prompt": [
+            {
+              "kind": "text",
+              "text": "実行されないブロック"
+            }
+          ],
+          "options": [
+            {
+              "span": [
+                221,
+                235
+              ],
+              "line_id": "aaac",
+              "text": [
+                {
+                  "kind": "text",
+                  "text": "行く"
+                }
+              ],
+              "cond_text": null,
+              "cond": null,
+              "jump": null,
+              "body": [
+                {
+                  "kind": "jump",
+                  "span": [
+                    236,
+                    245
+                  ],
+                  "target": "s002"
+                },
+                {
+                  "kind": "narrate",
+                  "span": [
+                    246,
+                    338
+                  ],
+                  "line_id": "aaae",
+                  "text": [
+                    {
+                      "kind": "text",
+                      "text": "　ブロックが実行されないので、中の行には W502 を重ねない。"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s002",
+      "title": "呼び出し先",
+      "file": "unreachable_after_jump.scn",
+      "span": [
+        345,
+        369
+      ],
+      "meta": {
+        "summary": null,
+        "status": null,
+        "route": null,
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": false,
+      "ops": [
+        {
+          "kind": "return",
+          "span": [
+            370,
+            377
+          ]
+        },
+        {
+          "kind": "narrate",
+          "span": [
+            378,
+            408
+          ],
+          "line_id": "aaad",
+          "text": [
+            {
+              "kind": "text",
+              "text": "　実行されない。"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "s001",
+      "to": "s002",
+      "kind": "jump",
+      "via": "if",
+      "label": null,
+      "cond_text": "勇気 >= 1",
+      "span": [
+        60,
+        69
+      ]
+    },
+    {
+      "from": "s001",
+      "to": "s002",
+      "kind": "jump",
+      "via": "direct",
+      "label": null,
+      "cond_text": null,
+      "span": [
+        168,
+        175
+      ]
+    },
+    {
+      "from": "s001",
+      "to": "s002",
+      "kind": "jump",
+      "via": "choice",
+      "label": "行く",
+      "cond_text": null,
+      "span": [
+        236,
+        245
+      ]
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "W502",
+      "severity": "warning",
+      "file": "unreachable_after_jump.scn",
+      "span": [
+        70,
+        105
+      ],
+      "message": "ジャンプ・@エンディング・@戻る の後ろにあるので、実行されません"
+    },
+    {
+      "code": "W502",
+      "severity": "warning",
+      "file": "unreachable_after_jump.scn",
+      "span": [
+        139,
+        162
+      ],
+      "message": "ジャンプ・@エンディング・@戻る の後ろにあるので、実行されません"
+    },
+    {
+      "code": "W502",
+      "severity": "warning",
+      "file": "unreachable_after_jump.scn",
+      "span": [
+        176,
+        220
+      ],
+      "message": "ジャンプ・@エンディング・@戻る の後ろにあるので、実行されません"
+    },
+    {
+      "code": "W502",
+      "severity": "warning",
+      "file": "unreachable_after_jump.scn",
+      "span": [
+        378,
+        408
+      ],
+      "message": "ジャンプ・@エンディング・@戻る の後ろにあるので、実行されません"
+    }
+  ]
+}

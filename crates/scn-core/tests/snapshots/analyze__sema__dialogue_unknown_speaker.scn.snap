@@ -1,0 +1,85 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "snapshot_text(&ir, &project.files)"
+---
+# diagnostics
+dialogue_unknown_speaker.scn:3:1-3:3 W202 話者 店員 を設定DBのキャラクターに解決できません。地の文として扱います
+dialogue_unknown_speaker.scn:4:1-4:3 W202 話者 店員 を設定DBのキャラクターに解決できません。地の文として扱います
+
+# ir
+{
+  "ir_version": 1,
+  "start_scene": null,
+  "scenes": [
+    {
+      "id": "s001",
+      "title": "未登録の話者",
+      "file": "dialogue_unknown_speaker.scn",
+      "span": [
+        16,
+        43
+      ],
+      "meta": {
+        "summary": null,
+        "status": null,
+        "route": null,
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": false,
+      "ops": [
+        {
+          "kind": "narrate",
+          "span": [
+            44,
+            86
+          ],
+          "line_id": "aaaa",
+          "text": [
+            {
+              "kind": "text",
+              "text": "店員「いらっしゃいませ」"
+            }
+          ]
+        },
+        {
+          "kind": "narrate",
+          "span": [
+            87,
+            147
+          ],
+          "line_id": "aaab",
+          "text": [
+            {
+              "kind": "text",
+              "text": "店員（？？？）「閉じ括弧で終わる行」"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "edges": [],
+  "diagnostics": [
+    {
+      "code": "W202",
+      "severity": "warning",
+      "file": "dialogue_unknown_speaker.scn",
+      "span": [
+        44,
+        50
+      ],
+      "message": "話者 店員 を設定DBのキャラクターに解決できません。地の文として扱います"
+    },
+    {
+      "code": "W202",
+      "severity": "warning",
+      "file": "dialogue_unknown_speaker.scn",
+      "span": [
+        87,
+        93
+      ],
+      "message": "話者 店員 を設定DBのキャラクターに解決できません。地の文として扱います"
+    }
+  ]
+}

@@ -585,6 +585,7 @@ impl<'a> Parser<'a> {
                 self.diag(Code::I109, key.span(), message);
             }
         }
+        let raw = value.text.to_owned();
         let value = Spanned::new(parsed, value.span());
         if let Some(existing) = entries.iter_mut().find(|e| e.key.value == key.text) {
             let message = format!(
@@ -593,10 +594,12 @@ impl<'a> Parser<'a> {
             );
             self.diag(Code::W113, key.span(), message);
             existing.value = value;
+            existing.raw = raw;
         } else {
             entries.push(MetaEntry {
                 key: spanned(key),
                 value,
+                raw,
             });
         }
     }

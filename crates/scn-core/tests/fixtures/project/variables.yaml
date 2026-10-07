@@ -1,0 +1,25 @@
+flag.勇気:
+  type: int
+  default: 0
+  scope: save
+
+flag.迷い:
+  type: bool
+  default: false
+  scope: save
+
+flag.名前:
+  type: string
+  default: ""
+  scope: save
+
+flag.ルート:
+  type: enum
+  values: [共通, 灯, 紬]
+  default: 共通
+  scope: save
+
+akari.好感度:
+  type: int
+  default: 0
+  scope: save

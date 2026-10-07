@@ -1,0 +1,68 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "snapshot_text(&ir, &project.files)"
+---
+# diagnostics
+
+# ir
+{
+  "ir_version": 1,
+  "start_scene": null,
+  "scenes": [
+    {
+      "id": "s001",
+      "title": "心の声",
+      "file": "ok_dialogue_bracket_style.scn",
+      "span": [
+        70,
+        88
+      ],
+      "meta": {
+        "summary": null,
+        "status": null,
+        "route": null,
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": false,
+      "ops": [
+        {
+          "kind": "say",
+          "span": [
+            89,
+            128
+          ],
+          "line_id": "aaaa",
+          "speaker": "akari",
+          "display_name": null,
+          "style": "thought",
+          "text": [
+            {
+              "kind": "text",
+              "text": "言えるわけないよ"
+            }
+          ]
+        },
+        {
+          "kind": "say",
+          "span": [
+            129,
+            159
+          ],
+          "line_id": "aaab",
+          "speaker": "akari",
+          "display_name": null,
+          "style": "normal",
+          "text": [
+            {
+              "kind": "text",
+              "text": "言ってみる"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "edges": [],
+  "diagnostics": []
+}

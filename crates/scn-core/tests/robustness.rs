@@ -2,12 +2,23 @@
 //!
 //! 行の断片をでたらめに組み合わせた入力、途中で切った入力、任意の文字列を解析し、
 //! パニックしないこと、診断とASTのスパンが範囲内で文字の境界にあることを確かめる。
+//! 構文解析だけでなく、意味解析とIR（`analyze`）も通す。
 
 mod support;
 
+use std::path::PathBuf;
+use std::sync::LazyLock;
+
 use proptest::prelude::*;
 use proptest::sample::Index;
-use scn_core::{DialogueBracket, ParseOptions, parse};
+use scn_core::project::{Project, SourceFile};
+use scn_core::{DialogueBracket, ParseOptions, analyze, load_project, parse};
+
+/// 意味系のfixtureで使う共通のプロジェクト。本文だけを差し替えて、意味解析とIRも通す。
+static PROJECT: LazyLock<Project> = LazyLock::new(|| {
+    load_project(&PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/project"))
+        .expect("共通のプロジェクトを読めない")
+});
 
 fn options() -> ParseOptions {
     ParseOptions {
@@ -36,6 +47,18 @@ fn check(source: &str) {
         // 書き出し（ASTを辿り、診断の位置を行と列にする）でもパニックしない。
         support::dump(source, &parsed);
     }
+
+    // 意味解析とIR。JSONにもできる。
+    let mut project = PROJECT.clone();
+    project.files = vec![SourceFile {
+        path: "story/a.scn".into(),
+        text: source.to_owned(),
+    }];
+    let ir = analyze(&project);
+    for diag in &ir.diagnostics {
+        support::assert_span_ok(source, diag.span, diag.code);
+    }
+    serde_json::to_string(&ir).expect("IRをJSONにできない");
 }
 
 /// `.scn` によく現れる行の断片。

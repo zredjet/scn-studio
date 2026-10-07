@@ -1,0 +1,10 @@
+// expect: I109 E110
+// メタ情報のIRでの形。不正な status は null、リストでない tags は1つだけのリスト、知らないキーは extra（D036）
+## メタ情報 #s001
+---
+summary: 要約
+status: finished
+tags: 雨
+mood: [明るい, 静か]
+---
+@エンディング end1

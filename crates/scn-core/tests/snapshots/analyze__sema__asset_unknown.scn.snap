@@ -1,0 +1,148 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "snapshot_text(&ir, &project.files)"
+---
+# diagnostics
+asset_unknown.scn:3:5-3:8 I403 素材カタログに無い背景です：体育館（仮素材として扱います）
+asset_unknown.scn:4:8-4:10 I403 素材カタログに無い立ち絵の差分です：灯 泣き（仮素材として扱います）
+asset_unknown.scn:5:6-5:11 I403 素材カタログに無いBGMです：未登録の曲（仮素材として扱います）
+asset_unknown.scn:6:5-6:6 I403 素材カタログに無い効果音です：雷（仮素材として扱います）
+asset_unknown.scn:7:2-7:9 I403 素材カタログに無い効果音です：雷鳴（仮素材として扱います）
+
+# ir
+{
+  "ir_version": 1,
+  "start_scene": null,
+  "scenes": [
+    {
+      "id": "s001",
+      "title": "未登録の素材",
+      "file": "asset_unknown.scn",
+      "span": [
+        16,
+        43
+      ],
+      "meta": {
+        "summary": null,
+        "status": null,
+        "route": null,
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": false,
+      "ops": [
+        {
+          "kind": "bg",
+          "span": [
+            44,
+            61
+          ],
+          "name": "体育館",
+          "transition": null
+        },
+        {
+          "kind": "show",
+          "span": [
+            62,
+            83
+          ],
+          "character": "akari",
+          "expression": "泣き",
+          "position": null,
+          "transition": null
+        },
+        {
+          "kind": "bgm",
+          "span": [
+            84,
+            104
+          ],
+          "name": "未登録の曲"
+        },
+        {
+          "kind": "se",
+          "span": [
+            105,
+            112
+          ],
+          "name": "雷"
+        },
+        {
+          "kind": "narrate",
+          "span": [
+            113,
+            148
+          ],
+          "line_id": "aaaa",
+          "text": [
+            {
+              "kind": "text",
+              "text": "　"
+            },
+            {
+              "kind": "se",
+              "name": "雷鳴"
+            },
+            {
+              "kind": "text",
+              "text": "が響いた。"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "edges": [],
+  "diagnostics": [
+    {
+      "code": "I403",
+      "severity": "info",
+      "file": "asset_unknown.scn",
+      "span": [
+        52,
+        61
+      ],
+      "message": "素材カタログに無い背景です：体育館（仮素材として扱います）"
+    },
+    {
+      "code": "I403",
+      "severity": "info",
+      "file": "asset_unknown.scn",
+      "span": [
+        77,
+        83
+      ],
+      "message": "素材カタログに無い立ち絵の差分です：灯 泣き（仮素材として扱います）"
+    },
+    {
+      "code": "I403",
+      "severity": "info",
+      "file": "asset_unknown.scn",
+      "span": [
+        89,
+        104
+      ],
+      "message": "素材カタログに無いBGMです：未登録の曲（仮素材として扱います）"
+    },
+    {
+      "code": "I403",
+      "severity": "info",
+      "file": "asset_unknown.scn",
+      "span": [
+        109,
+        112
+      ],
+      "message": "素材カタログに無い効果音です：雷（仮素材として扱います）"
+    },
+    {
+      "code": "I403",
+      "severity": "info",
+      "file": "asset_unknown.scn",
+      "span": [
+        116,
+        127
+      ],
+      "message": "素材カタログに無い効果音です：雷鳴（仮素材として扱います）"
+    }
+  ]
+}

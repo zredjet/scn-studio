@@ -1,0 +1,154 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "snapshot_text(&ir, &project.files)"
+---
+# diagnostics
+jump_unknown_scene.scn:4:9-4:13 E501 シーン s998 がありません
+jump_unknown_scene.scn:6:5-6:9 E501 シーン s997 がありません
+jump_unknown_scene.scn:7:4-7:8 E501 シーン s999 がありません
+
+# ir
+{
+  "ir_version": 1,
+  "start_scene": null,
+  "scenes": [
+    {
+      "id": "s001",
+      "title": "存在しないシーン",
+      "file": "jump_unknown_scene.scn",
+      "span": [
+        16,
+        49
+      ],
+      "meta": {
+        "summary": null,
+        "status": null,
+        "route": null,
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": true,
+      "ops": [
+        {
+          "kind": "choice",
+          "span": [
+            50,
+            76
+          ],
+          "line_id": "aaaa",
+          "prompt": [
+            {
+              "kind": "text",
+              "text": "どうする"
+            }
+          ],
+          "options": [
+            {
+              "span": [
+                77,
+                99
+              ],
+              "line_id": "aaab",
+              "text": [
+                {
+                  "kind": "text",
+                  "text": "行く"
+                }
+              ],
+              "cond_text": null,
+              "cond": null,
+              "jump": "s998",
+              "body": []
+            }
+          ]
+        },
+        {
+          "kind": "call",
+          "span": [
+            105,
+            117
+          ],
+          "target": "s997"
+        },
+        {
+          "kind": "jump",
+          "span": [
+            118,
+            125
+          ],
+          "target": "s999"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "s001",
+      "to": "s998",
+      "kind": "jump",
+      "via": "choice",
+      "label": "行く",
+      "cond_text": null,
+      "span": [
+        77,
+        99
+      ]
+    },
+    {
+      "from": "s001",
+      "to": "s997",
+      "kind": "call",
+      "via": "direct",
+      "label": null,
+      "cond_text": null,
+      "span": [
+        105,
+        117
+      ]
+    },
+    {
+      "from": "s001",
+      "to": "s999",
+      "kind": "jump",
+      "via": "direct",
+      "label": null,
+      "cond_text": null,
+      "span": [
+        118,
+        125
+      ]
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "E501",
+      "severity": "error",
+      "file": "jump_unknown_scene.scn",
+      "span": [
+        89,
+        93
+      ],
+      "message": "シーン s998 がありません"
+    },
+    {
+      "code": "E501",
+      "severity": "error",
+      "file": "jump_unknown_scene.scn",
+      "span": [
+        113,
+        117
+      ],
+      "message": "シーン s997 がありません"
+    },
+    {
+      "code": "E501",
+      "severity": "error",
+      "file": "jump_unknown_scene.scn",
+      "span": [
+        121,
+        125
+      ],
+      "message": "シーン s999 がありません"
+    }
+  ]
+}

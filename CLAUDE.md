@@ -52,6 +52,7 @@ app/                    Tauri＋React（src-tauri/ と src/、T0-7で作る）
 - パーサだけ：`cargo test -p scn-core`
   - スナップショット（`crates/scn-core/tests/snapshots/`）が合わないと、テストが失敗し、新しい結果が `*.snap.new` に出る。中身を読んで確かめてから、環境変数 `INSTA_UPDATE=always` を付けて `cargo test -p scn-core` を実行すると受け入れる（`*.snap.new` は消してから）
   - パニックしないことの検査（proptest）を多く試す：`PROPTEST_CASES=20000 cargo test -p scn-core --release --test robustness`
+  - 解析の速さを測る（1万行の合成データ、`criterion`）：`cargo bench -p scn-core --bench analyze`
 - フロント：`pnpm install` / `pnpm lint`（Biomeの書式と静的検査）/ `pnpm fmt`（Biomeで整形と安全な修正）/ `pnpm typecheck` / `pnpm test`
   - Biomeはルートで全体を一度に検査する（`docs/` と `samples/` は対象外）。各パッケージには `lint` を置かず、`typecheck` と `test` のスクリプトを置く。ルートの `pnpm typecheck` と `pnpm test` が、それを持つパッケージをすべて走らせる
 - 版の固定：Rustは `rust-toolchain.toml`、pnpmとBiomeは `package.json`（`packageManager` と `devDependencies`）

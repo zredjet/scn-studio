@@ -1,0 +1,7 @@
+# 意味系のfixtureで共通に使う、小さなプロジェクトの設定。
+format_version = 0
+title = "fixture"
+
+[dialogue.brackets]
+"「」" = "normal"
+"『』" = "thought"

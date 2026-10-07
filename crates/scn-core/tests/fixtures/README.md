@@ -9,7 +9,7 @@
 - 期待する診断には、そのfixtureで確かめるコードだけを書く。行IDの付け忘れによる I302 が混ざらないよう、I302 を確かめるもの以外では、台詞・地の文・選択肢・`@選択` の行に行IDを付ける。
 - 行IDは、fixtureの中でも一意にする。`samples/houkago/` の行IDとは重なってもよい（fixtureは1つずつ解析するため）。
 - 構文系のfixtureは、プロジェクトの外の1ファイルとして解析する。台詞の括弧は既定の「」だけになる（仕様書6節）。
-- 意味系のfixtureは、共通の小さなプロジェクト `project/` の設定DB・変数・素材カタログを使って解析する。複数のファイルにまたがるものは、ディレクトリにまとめる。置き方の細部はT0-4で決めてよい。
+- 意味系のfixtureは `sema/` に置き、共通の小さなプロジェクト `project/` の設定DB・変数・素材カタログを使って解析する（D036）。1つのfixtureを、そのプロジェクトの本文の全部として扱う。複数のファイルにまたがるものは、ディレクトリにまとめる（ファイルはパスの辞書順に並べる）。期待する診断は、診断が出るファイルの先頭に書き、ディレクトリ全体で合わせて比べる。
 - CRLFのfixture（`ok_crlf.scn`）は、`.gitattributes` でそのファイルだけ `-text` を指定し、LFに変換されないようにする。
 
 ## 構文系（T0-3）
@@ -82,7 +82,7 @@
 | `expr_syntax_error.scn` | 式の構文エラー（閉じていない括弧、`1日目`、`and` を名前に使う、全角の `”`、全角の数字） | E601 |
 | `option_if_in_text.scn` | 表示文に半角の ` if ` を含む選択肢（`- What if I said no`） | E601 |
 
-## 意味系（T0-4）
+## 意味系（T0-4、`sema/`）
 
 ### 共通のプロジェクト `project/`
 
@@ -96,8 +96,9 @@
 | ファイル | 内容 |
 | --- | --- |
 | `ok_speaker_resolution.scn` | ID、名前、呼び名のそれぞれで書いた話者が、同じキャラクターIDになる |
-| `ok_narration_with_quote.scn` | `彼は「行こう」と言った。` のように、話者を解決できず、閉じ括弧の後に文が続く行が、診断なしで地の文になる |
+| `ok_narration_with_quote.scn` | `彼は「行こう」と言った。` のように、閉じ括弧の後に文が続く行が、話者を解決できてもできなくても、診断なしで地の文になる（D036） |
 | `ok_dialogue_bracket_style.scn` | 『』の台詞が、表示スタイル `thought` の台詞になる |
+| `ok_dialogue_line_break.scn` | 複数行の台詞の行の境目に、IRで改行の要素が入る（D036） |
 | `ok_var_namespace.scn` | `灯.好感度` のようなキャラの名前の名前空間がIDにそろい、名前空間の無い名前に `flag.` が補われる |
 | `ok_enum_value.scn` | 列挙の変数への代入と比較を文字列で書く |
 | `ok_cross_file_jump/` | 別のファイルのシーンへのジャンプと呼び出し |
@@ -116,13 +117,15 @@
 | `line_id_duplicate/` | 2つのファイルに同じ行ID | E301 |
 | `line_id_duplicate_in_file.scn` | 1つのファイルに同じ行ID | E301 |
 | `line_id_missing.scn` | 行IDの無い台詞、地の文、選択肢、`@選択` の行 | I302 |
-| `asset_unknown.scn` | 素材カタログに無い背景・BGM・SEの意味名 | I403 |
+| `asset_unknown.scn` | 素材カタログに無い背景・立ち絵の差分・BGM・SE・`{se}` の意味名 | I403 |
 | `show_unknown_character.scn` | `@立ち絵`・`@退場` のキャラを解決できない（差分の I403 は重ねない） | W404 |
 | `jump_unknown_scene.scn` | 存在しないシーンへのジャンプ、選択肢の行のジャンプ、`@呼出` | E501 |
 | `unreachable_after_jump.scn` | ジャンプ、`@エンディング`、`@戻る` の後ろの、同じ枝の中の行 | W502 |
 | `var_undeclared.scn` | 宣言されていない変数の参照、代入、`+=`（E603・E604 は重ねない） | W602 |
-| `var_type_mismatch.scn` | 型の不一致（`bool` に整数、`int` と文字列の比較、列挙の `values` に無い値） | E603 |
+| `var_type_mismatch.scn` | 型の不一致（`bool` に整数、`int` と文字列の比較、列挙の `values` に無い値、条件に整数） | E603 |
 | `var_compound_non_int.scn` | `+=`・`-=` を整数以外の変数に使う（E603 は重ねない） | E604 |
+| `scene_heading_anonymous.scn` | IDの無いシーンに、IRで仮のIDが付く（D036） | W107 |
+| `meta_in_ir.scn` | メタ情報のIRでの形（不正な `status` は `null`、リストでない `tags`、知らないキーは `extra`。D036） | I109 E110 |
 
 ## 段階0の診断との対応
 
