@@ -644,6 +644,37 @@ function tokenize(
 
 type Accept = (token: Token | null) => void;
 
+/** `{…}` の中身が、コアが読めるインライン命令か（コアの `inline::command`。読めなければ W405 で文字になる）。 */
+function isInlineCommand(inner: string): boolean {
+  const [name, ...args] = inner.split(/[ \t\u3000]/).filter((w) => w !== "");
+  if (name === "p") return args.length === 0;
+  const [arg] = args;
+  if (args.length !== 1 || arg === undefined) return false;
+  if (name === "w") return /^[0-9]+(\.[0-9]+)?$/.test(arg);
+  if (name === "se") return true;
+  if (name === "speed") return arg === "遅" || arg === "普通" || arg === "速";
+  return false;
+}
+
+/**
+ * インライン命令（`{w}`・`{p}`・`{se}`・`{speed}`）と空白だけか。閉じ括弧の後ろがこれだけなら、
+ * 後ろに文は続かない（仕様書6節、D041）。
+ */
+function isCommandsOnly(text: string): boolean {
+  let at = 0;
+  while (at < text.length) {
+    if (isSpace(text[at])) {
+      at += 1;
+      continue;
+    }
+    if (text[at] !== "{" || text[at + 1] === "{") return false;
+    const close = text.indexOf("}", at + 1);
+    if (close < 0 || !isInlineCommand(text.slice(at + 1, close))) return false;
+    at = close + 1;
+  }
+  return true;
+}
+
 /**
  * 台詞候補の閉じ括弧の後ろに文が続くか（仕様書6節：続くなら、話者を解決できても地の文）。
  * 括弧の対応は生の文字で取り、閉じていなければ、コアと同じ規則で次の行以降を読む。
@@ -666,8 +697,7 @@ function closesWithTrailingText(
       const c = text[at];
       if (c === bracket.close) {
         depth -= 1;
-        if (depth === 0)
-          return text.slice(at + 1).replace(/[ \t\u3000]+/g, "") !== "";
+        if (depth === 0) return !isCommandsOnly(text.slice(at + 1));
       } else if (c === bracket.open) {
         depth += 1;
       }

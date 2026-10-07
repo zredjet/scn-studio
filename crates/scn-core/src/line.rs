@@ -270,7 +270,7 @@ fn classify_body<'a>(body: Piece<'a>, brackets: &[DialogueBracket]) -> LineKind<
 }
 
 /// 行末の行IDを切り出す（仕様書9節）。`line` は行末の空白を取り除いたもの。
-fn split_line_id(line: Piece<'_>) -> (Piece<'_>, RawLineId) {
+pub(crate) fn split_line_id(line: Piece<'_>) -> (Piece<'_>, RawLineId) {
     let without_id = line
         .text
         .trim_end_matches(|c: char| c.is_ascii_alphanumeric());

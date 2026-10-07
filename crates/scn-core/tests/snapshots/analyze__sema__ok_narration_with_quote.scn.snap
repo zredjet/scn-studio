@@ -14,8 +14,8 @@ expression: "snapshot_text(&ir, &project.files)"
       "title": "地の文",
       "file": "ok_narration_with_quote.scn",
       "span": [
-        137,
-        155
+        274,
+        292
       ],
       "meta": {
         "summary": null,
@@ -29,8 +29,8 @@ expression: "snapshot_text(&ir, &project.files)"
         {
           "kind": "narrate",
           "span": [
-            156,
-            198
+            293,
+            335
           ],
           "line_id": "aaaa",
           "text": [
@@ -43,14 +43,73 @@ expression: "snapshot_text(&ir, &project.files)"
         {
           "kind": "narrate",
           "span": [
-            199,
-            238
+            336,
+            375
           ],
           "line_id": "aaab",
           "text": [
             {
               "kind": "text",
               "text": "灯「行こう」と言った。"
+            }
+          ]
+        },
+        {
+          "kind": "narrate",
+          "span": [
+            376,
+            414
+          ],
+          "line_id": "aaac",
+          "text": [
+            {
+              "kind": "text",
+              "text": "灯「行こう」"
+            },
+            {
+              "kind": "interpolation",
+              "expr_text": "flag.名前",
+              "expr": {
+                "kind": "var",
+                "name": "flag.名前"
+              }
+            }
+          ]
+        },
+        {
+          "kind": "narrate",
+          "span": [
+            415,
+            457
+          ],
+          "line_id": "aaad",
+          "text": [
+            {
+              "kind": "text",
+              "text": "灯「行こう」"
+            },
+            {
+              "kind": "ruby",
+              "base": "乱",
+              "reading": "みだ"
+            }
+          ]
+        },
+        {
+          "kind": "narrate",
+          "span": [
+            458,
+            500
+          ],
+          "line_id": "aaae",
+          "text": [
+            {
+              "kind": "text",
+              "text": "灯「行こう」"
+            },
+            {
+              "kind": "emphasis",
+              "text": "強く"
             }
           ]
         }

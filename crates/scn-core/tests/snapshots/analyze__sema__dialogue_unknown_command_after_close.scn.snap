@@ -1,0 +1,60 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "snapshot_text(&ir, &project.files)"
+---
+# diagnostics
+dialogue_unknown_command_after_close.scn:4:7-4:14 W405 知らないインライン命令です：{shake}
+
+# ir
+{
+  "ir_version": 1,
+  "start_scene": null,
+  "scenes": [
+    {
+      "id": "s001",
+      "title": "知らない命令",
+      "file": "dialogue_unknown_command_after_close.scn",
+      "span": [
+        171,
+        198
+      ],
+      "meta": {
+        "summary": null,
+        "status": null,
+        "route": null,
+        "tags": [],
+        "extra": {}
+      },
+      "is_stub": false,
+      "ops": [
+        {
+          "kind": "narrate",
+          "span": [
+            199,
+            230
+          ],
+          "line_id": "aaaa",
+          "text": [
+            {
+              "kind": "text",
+              "text": "灯「またね」{shake}"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "edges": [],
+  "diagnostics": [
+    {
+      "code": "W405",
+      "severity": "warning",
+      "file": "dialogue_unknown_command_after_close.scn",
+      "span": [
+        217,
+        224
+      ],
+      "message": "知らないインライン命令です：{shake}"
+    }
+  ]
+}

@@ -101,7 +101,7 @@ impl<'p> Sema<'p> {
     }
 
     pub(crate) fn speaker(&self, dialogue: &Dialogue) -> Speaker<'p> {
-        if dialogue.trailing.is_some() {
+        if dialogue.has_trailing_text() {
             return Speaker::Narration { warn: false };
         }
         match self.character_id(&dialogue.speaker.value) {

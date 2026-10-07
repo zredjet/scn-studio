@@ -124,6 +124,18 @@ test("台詞：話者、表示名、括弧、入れ子、後ろの文", () => {
   assert.deepEqual(lex("灯「行こう」と言った。"), [
     "Text:灯「行こう」と言った。",
   ]);
+  // 後ろがインライン命令と空白だけなら、台詞のまま（D041）。
+  assert.deepEqual(lex("灯「またね」 {p}　{w 0.5} ^aaaa"), [
+    "Speaker:灯",
+    "DialogueOpen:「",
+    "Text:またね",
+    "DialogueClose:」",
+    "Text: ",
+    "InlineCommand:{p}",
+    "Text:　",
+    "InlineCommand:{w 0.5}",
+    "LineId: ^aaaa",
+  ]);
   // 記法は、台詞の括弧の文字をまたがない。
   assert.deepEqual(lex("灯「見て|これ「x」《かの》」"), [
     "Speaker:灯",

@@ -56,6 +56,7 @@ app/                    Tauri＋React（src-tauri/ と src/）
 - 開発用CLI `scn`（`crates/scn-cli`）：`cargo run -p scn-cli -- parse <file.scn>`（診断を `ファイル:行:列 コード メッセージ` で出す。`--json` でJSON）／`cargo run -p scn-cli -- ir <project-dir>`（IRをJSONで出す。例：`cargo run -p scn-cli -- ir samples/houkago`）
   - 終了コードは、成功が0、エラー（E）の診断があれば1、使い方や入出力の誤り（設定ファイルが読めない場合も含む）は2
   - `parse` は、上のディレクトリに `project.toml` があればプロジェクト全体で意味解析を行い、そのファイルの診断だけを出す。無ければ構文解析だけを行う
+  - `cargo run -p scn-cli -- fmt <project-dir>`：行IDの無い行（I302）に行IDを付け、付けた行を `ファイル:行:列 ^ID` で出す（`--json` でJSON）。`--check` は書き換えずに、付ける行があれば終了コード1。本文の診断では1にしない
   - CLIのテストだけ：`cargo test -p scn-cli`
   - `scn` をパスの通った場所（`~/.cargo/bin`）に入れる：`cargo install --path crates/scn-cli`（作品フォルダで `scn` として使うとき）
 - フロント：`pnpm install` / `pnpm lint`（Biomeの書式と静的検査）/ `pnpm fmt`（Biomeで整形と安全な修正）/ `pnpm typecheck` / `pnpm test`

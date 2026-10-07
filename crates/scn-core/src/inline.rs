@@ -14,6 +14,21 @@ pub struct Text {
     pub parts: Vec<Inline>,
 }
 
+impl Text {
+    /// インライン命令（ウェイト・改ページ・効果音・文字速度）と空白だけでできているか。
+    /// 閉じ括弧の後ろがこれだけなら、後ろに文が続かない（仕様書6節、D041）。
+    pub fn is_commands_only(&self) -> bool {
+        self.parts.iter().all(|part| match part {
+            Inline::Wait { .. }
+            | Inline::PageBreak { .. }
+            | Inline::Se { .. }
+            | Inline::Speed { .. } => true,
+            Inline::Text { text, .. } => text.chars().all(is_space),
+            Inline::Ruby { .. } | Inline::Emphasis { .. } | Inline::Interpolation { .. } => false,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Inline {
     /// ただの文字。`{{`・`}}`・`|《` は、`{`・`}`・`《` にしてある。
@@ -391,6 +406,27 @@ mod tests {
         );
         let codes: Vec<_> = diags.iter().map(|d| d.code).collect();
         assert_eq!(codes, [Code::W405, Code::W405]);
+    }
+
+    #[test]
+    fn commands_only() {
+        let cases = [
+            ("{p}", true),
+            (" {w 0.5}　{se ドア}\t{speed 遅} ", true),
+            ("{shake}", false),
+            ("{w 長め}", false),
+            ("{=x}", false),
+            ("｜乱《みだ》", false),
+            ("《《強く》》", false),
+            ("{{p}}", false),
+            ("{p", false),
+            ("{p}と言った。", false),
+        ];
+        for (text, expected) in cases {
+            let mut diags = Vec::new();
+            let parsed = parse_text(Piece::new(text, 0), &mut diags);
+            assert_eq!(parsed.is_commands_only(), expected, "{text}");
+        }
     }
 
     #[test]

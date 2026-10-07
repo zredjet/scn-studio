@@ -357,6 +357,7 @@ fn project_load_errors() {
         let error = load_project(&dir).expect_err(name);
         let path = match &error {
             ProjectError::Io { path, .. } | ProjectError::Invalid { path, .. } => path,
+            ProjectError::Write { .. } => panic!("{name}：読み込みで書き込みのエラーになった"),
         };
         assert!(
             path.ends_with(expected_path),

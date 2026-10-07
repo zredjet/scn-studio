@@ -3,14 +3,17 @@
 //! 行の断片をでたらめに組み合わせた入力、途中で切った入力、任意の文字列を解析し、
 //! パニックしないこと、診断とASTのスパンが範囲内で文字の境界にあることを確かめる。
 //! 構文解析だけでなく、意味解析とIR（`analyze`）も通す。
+//! 行IDの付与（`scn fmt`）も、同じ入力で確かめる（足した部分のほかはバイトが変わらない、など）。
 
 mod support;
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::LazyLock;
 
 use proptest::prelude::*;
 use proptest::sample::Index;
+use scn_core::line_id::{LineIdGenerator, assign_line_ids};
 use scn_core::project::{Project, SourceFile};
 use scn_core::{DialogueBracket, ParseOptions, analyze, load_project, parse};
 
@@ -59,6 +62,67 @@ fn check(source: &str) {
         support::assert_span_ok(source, diag.span, diag.code);
     }
     serde_json::to_string(&ir).expect("IRをJSONにできない");
+
+    check_line_ids(&project);
+}
+
+/// I302 のほかの診断のコードと件数。
+fn codes_without_i302(project: &Project) -> BTreeMap<&'static str, usize> {
+    let mut counts = BTreeMap::new();
+    for diag in analyze(project).diagnostics {
+        if diag.code != "I302" {
+            *counts.entry(diag.code).or_default() += 1;
+        }
+    }
+    counts
+}
+
+/// 行IDの付与（仕様書9節、D041）。I302 の出る行にだけ付け、足した ` ^ID` のほかはバイトが変わらない。
+/// 付けた後は I302 が無くなり、ほかの診断は変わらず、もう一度付けても何も変えない。
+fn check_line_ids(project: &Project) {
+    let source = &project.files[0].text;
+    let results = assign_line_ids(project, &mut LineIdGenerator::with_seed(0));
+    let i302_ends: Vec<usize> = analyze(project)
+        .diagnostics
+        .iter()
+        .filter(|d| d.code == "I302")
+        .map(|d| d.span.end)
+        .collect();
+    let Some(result) = results.first() else {
+        assert!(i302_ends.is_empty(), "I302 があるのに付けなかった");
+        return;
+    };
+    let mut offsets: Vec<usize> = result.assigned.iter().map(|a| a.offset).collect();
+    let mut expected_offsets = i302_ends;
+    expected_offsets.sort_unstable();
+    offsets.sort_unstable();
+    assert_eq!(
+        offsets, expected_offsets,
+        "付けた位置が I302 の行と合わない"
+    );
+
+    let mut rebuilt = String::new();
+    let mut from = 0;
+    for a in &result.assigned {
+        rebuilt.push_str(&source[from..a.offset]);
+        rebuilt.push_str(" ^");
+        rebuilt.push_str(&a.id);
+        from = a.offset;
+    }
+    rebuilt.push_str(&source[from..]);
+    assert_eq!(result.text, rebuilt, "足した部分のほかのバイトが変わった");
+
+    let mut after = project.clone();
+    after.files[0].text.clone_from(&result.text);
+    assert!(
+        analyze(&after).diagnostics.iter().all(|d| d.code != "I302"),
+        "付けた後に I302 が残る"
+    );
+    assert_eq!(codes_without_i302(&after), codes_without_i302(project));
+    assert!(
+        assign_line_ids(&after, &mut LineIdGenerator::with_seed(1)).is_empty(),
+        "2回目に何かを変えた"
+    );
 }
 
 /// `.scn` によく現れる行の断片。

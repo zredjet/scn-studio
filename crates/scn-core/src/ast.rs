@@ -106,9 +106,20 @@ pub struct Dialogue {
     pub lines: Vec<Text>,
     /// 閉じ括弧があったか（無ければ E201）。
     pub closed: bool,
-    /// 閉じ括弧の後ろに続く文（`彼は「行こう」と言った。` の `と言った。`）。
+    /// 閉じ括弧の後ろ（`彼は「行こう」と言った。` の `と言った。`、`灯「またね」{p}` の `{p}`）。
+    /// 空白だけなら `None`。
     pub trailing: Option<Text>,
     pub line_id: LineIdSlot,
+}
+
+impl Dialogue {
+    /// 閉じ括弧の後ろに文が続くか（仕様書6節）。続くなら、話者を解決できても地の文にする。
+    /// インライン命令と空白だけなら、文は続かない（D041）。
+    pub fn has_trailing_text(&self) -> bool {
+        self.trailing
+            .as_ref()
+            .is_some_and(|t| !t.is_commands_only())
+    }
 }
 
 /// 地の文。

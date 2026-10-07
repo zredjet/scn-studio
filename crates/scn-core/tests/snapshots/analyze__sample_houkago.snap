@@ -1163,7 +1163,7 @@ story/chapter02.scn:41:5-41:9 I403 素材カタログに無い背景です：駅
           "kind": "say",
           "span": [
             910,
-            961
+            966
           ],
           "line_id": "b4a1",
           "speaker": "akari",
@@ -1180,14 +1180,18 @@ story/chapter02.scn:41:5-41:9 I403 素材カタログに無い背景です：駅
             {
               "kind": "text",
               "text": "……またね"
+            },
+            {
+              "kind": "wait",
+              "seconds": 1.0
             }
           ]
         },
         {
           "kind": "set",
           "span": [
-            962,
-            993
+            967,
+            998
           ],
           "var": "akari.転校済み",
           "op": "=",
@@ -1199,8 +1203,8 @@ story/chapter02.scn:41:5-41:9 I403 素材カタログに無い背景です：駅
         {
           "kind": "ending",
           "span": [
-            994,
-            1023
+            999,
+            1028
           ],
           "id": "akari_end"
         }

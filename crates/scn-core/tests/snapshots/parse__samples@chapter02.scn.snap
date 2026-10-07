@@ -41,6 +41,7 @@ scene L35 #s040 "見送り"
   @BGM L42 bgm name="切ない"
   dialogue L43 ^b4a1 灯 「」(normal)
     | ["またね、湊。", page, "……またね"]
+    trailing [wait(1)]
   @設定 L44 set (= 灯.転校済み true)
   @エンディング L45 ending id="akari_end"
 

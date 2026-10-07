@@ -7,3 +7,4 @@
 crates/scn-core/tests/fixtures/ok_crlf.scn -text -whitespace
 crates/scn-core/tests/fixtures/ok_trailing_whitespace.scn -whitespace
 crates/scn-core/tests/fixtures/ok_raw_dedent.scn -whitespace
+crates/scn-core/tests/fixtures/fmt/* -text -whitespace

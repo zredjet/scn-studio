@@ -6,7 +6,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::io;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
@@ -78,7 +78,7 @@ pub struct SourceFile {
     pub text: String,
 }
 
-/// プロジェクトの読み込みのエラー。
+/// プロジェクトの読み込みと、本文の書き換え（[`write_source`]）のエラー。
 #[derive(Debug, thiserror::Error)]
 pub enum ProjectError {
     #[error("{path} を読めません：{source}")]
@@ -89,6 +89,12 @@ pub enum ProjectError {
     },
     #[error("{path} の形が不正です：{message}")]
     Invalid { path: PathBuf, message: String },
+    #[error("{path} に書けません：{source}")]
+    Write {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
 }
 
 impl ProjectError {
@@ -118,6 +124,60 @@ pub fn load_project(root: &Path) -> Result<Project, ProjectError> {
         catalog: load_catalog(&root.join("assets").join("catalog.yaml"))?,
         files: load_story(root)?,
     })
+}
+
+/// 本文のファイルを書き換える（`scn fmt`、保存）。`file` はプロジェクトの根からの相対パス
+/// （`SourceFile::path`）。中身は渡したバイトのまま書く。
+///
+/// 同じフォルダに一時ファイルを書き、ディスクへ書き出してから置き換えるので、途中でプロセスが
+/// 止まっても、元のファイルは壊れない。読み取り専用のファイルは書き換えない（OSによらず）。
+/// シンボリックリンクは、リンクを残したまま、リンク先を書き換える。
+pub fn write_source(root: &Path, file: &str, text: &str) -> Result<(), ProjectError> {
+    let path = root.join(file);
+    let error = |path: &Path, source| ProjectError::Write {
+        path: path.to_owned(),
+        source,
+    };
+    let target = match fs::symlink_metadata(&path) {
+        Ok(meta) if meta.file_type().is_symlink() => {
+            fs::canonicalize(&path).map_err(|e| error(&path, e))?
+        }
+        _ => path.clone(),
+    };
+    let permissions = match fs::metadata(&target) {
+        Ok(meta) if meta.permissions().readonly() => {
+            let denied = io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "読み取り専用のファイルです",
+            );
+            return Err(error(&path, denied));
+        }
+        Ok(meta) => Some(meta.permissions()),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => None,
+        Err(e) => return Err(error(&path, e)),
+    };
+    let name = target
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let temp = target.with_file_name(format!(".{name}.{}.tmp", std::process::id()));
+    let result = write_synced(&temp, text).and_then(|()| {
+        if let Some(permissions) = permissions {
+            fs::set_permissions(&temp, permissions)?;
+        }
+        fs::rename(&temp, &target)
+    });
+    if result.is_err() {
+        let _ = fs::remove_file(&temp);
+    }
+    result.map_err(|e| error(&path, e))
+}
+
+/// ファイルを作って書き、ディスクへ書き出す。
+fn write_synced(path: &Path, text: &str) -> io::Result<()> {
+    let mut file = fs::File::create(path)?;
+    file.write_all(text.as_bytes())?;
+    file.sync_all()
 }
 
 fn read(path: &Path) -> Result<String, ProjectError> {

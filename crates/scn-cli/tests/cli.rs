@@ -285,6 +285,259 @@ fn parse_in_project_runs_semantic_analysis() {
     let _ = fs::remove_dir_all(&dir);
 }
 
+// ---- scn fmt ----
+
+/// `scn fmt` の1行（`ファイル:行:列 ^ID`。`--check` では `ファイル:行:列 行IDがありません`）。
+struct FmtLine {
+    file: String,
+    line: usize,
+    id: Option<String>,
+}
+
+fn fmt_lines(stdout: &str) -> Vec<FmtLine> {
+    stdout
+        .lines()
+        .map(|l| {
+            let (place, rest) = l.split_once(' ').expect("空白が無い");
+            let mut parts = place.split(':');
+            let file = parts.next().unwrap().to_owned();
+            let line = parts.next().unwrap().parse().unwrap();
+            parts.next().unwrap().parse::<usize>().unwrap();
+            let id = rest.strip_prefix('^').map(str::to_owned);
+            FmtLine { file, line, id }
+        })
+        .collect()
+}
+
+/// ディレクトリの中のファイルと中身（バイト列）。
+fn snapshot_dir(dir: &Path) -> std::collections::BTreeMap<PathBuf, Vec<u8>> {
+    let mut files = std::collections::BTreeMap::new();
+    let mut stack = vec![dir.to_path_buf()];
+    while let Some(d) = stack.pop() {
+        for entry in fs::read_dir(&d).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                stack.push(path);
+            } else {
+                let bytes = fs::read(&path).unwrap();
+                files.insert(path.strip_prefix(dir).unwrap().to_path_buf(), bytes);
+            }
+        }
+    }
+    files
+}
+
+/// 完了条件：サンプルの写しに `scn fmt` を実行すると、I302 の5行にだけ行IDが付き、
+/// ほかのバイトは変わらない。2回目は何も変えない。
+#[test]
+fn fmt_sample_copy() {
+    let dir = temp_dir("fmt-sample", &[]);
+    copy_dir(&repo_root().join("samples/houkago"), &dir);
+    let before = snapshot_dir(&dir);
+
+    let out = scn(&["fmt", "."], &dir);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    let lines = fmt_lines(&out.stdout);
+    assert_eq!(lines.len(), 5, "{}", out.stdout);
+    assert!(out.stderr.contains("5件"), "{}", out.stderr);
+
+    let after = snapshot_dir(&dir);
+    assert_eq!(
+        after.keys().collect::<Vec<_>>(),
+        before.keys().collect::<Vec<_>>()
+    );
+    let changed: Vec<String> = after
+        .iter()
+        .filter(|(path, bytes)| before[*path] != **bytes)
+        .map(|(path, _)| path.to_string_lossy().replace('\\', "/"))
+        .collect();
+    assert_eq!(changed, ["story/chapter01.scn", "story/chapter02.scn"]);
+
+    // 出力した行の末尾に ` ^ID` が付き、それを除けば元の本文に戻る。
+    for file in &changed {
+        let old = String::from_utf8(before[Path::new(file)].clone()).unwrap();
+        let new = String::from_utf8(after[Path::new(file)].clone()).unwrap();
+        let mut restored = new.clone();
+        for l in lines.iter().filter(|l| &l.file == file) {
+            let id = l.id.as_ref().expect("IDが無い");
+            let text = new.lines().nth(l.line - 1).unwrap();
+            assert!(
+                text.ends_with(&format!(" ^{id}")),
+                "{file}:{}：{text}",
+                l.line
+            );
+            restored = restored.replacen(&format!(" ^{id}"), "", 1);
+        }
+        assert_eq!(restored, old, "{file}");
+    }
+
+    let again = scn(&["fmt", "."], &dir);
+    assert_eq!(again.code, SUCCESS, "{}", again.stderr);
+    assert!(again.stdout.is_empty(), "{}", again.stdout);
+    assert_eq!(snapshot_dir(&dir), after);
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// `--check` は書き換えず、行IDの無い行があれば終了コード1。無ければ0。
+#[test]
+fn fmt_check() {
+    let dir = temp_dir("fmt-check", &[]);
+    copy_dir(&repo_root().join("samples/houkago"), &dir);
+    let before = snapshot_dir(&dir);
+
+    let out = scn(&["fmt", "--check", "."], &dir);
+    assert_eq!(out.code, HAS_ERRORS, "{}", out.stderr);
+    let lines = fmt_lines(&out.stdout);
+    assert_eq!(lines.len(), 5, "{}", out.stdout);
+    assert!(lines.iter().all(|l| l.id.is_none()), "{}", out.stdout);
+    assert_eq!(snapshot_dir(&dir), before);
+
+    assert_eq!(scn(&["fmt", "."], &dir).code, SUCCESS);
+    let out = scn(&["fmt", "--check", "."], &dir);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    assert!(out.stdout.is_empty(), "{}", out.stdout);
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// `--json` は、付けた行IDを、ファイル・行・列と一緒にJSONで出す（AIの出自の記録に使う。D041）。
+#[test]
+fn fmt_json() {
+    let dir = temp_dir("fmt-json", &[]);
+    copy_dir(&repo_root().join("samples/houkago"), &dir);
+    let out = scn(&["fmt", "--json", "."], &dir);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    let list: Value = serde_json::from_str(&out.stdout).expect("JSONでない");
+    let list = list.as_array().unwrap();
+    assert_eq!(list.len(), 5);
+    for item in list {
+        let file = item["file"].as_str().unwrap();
+        let line = item["line"].as_u64().unwrap() as usize;
+        let id = item["id"].as_str().unwrap();
+        assert!(item["column"].as_u64().unwrap() >= 1);
+        let text = fs::read_to_string(dir.join(file)).unwrap();
+        assert!(
+            text.lines()
+                .nth(line - 1)
+                .unwrap()
+                .ends_with(&format!(" ^{id}"))
+        );
+    }
+
+    let out = scn(&["fmt", "--check", "--json", "."], &dir);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    assert_eq!(
+        serde_json::from_str::<Value>(&out.stdout).unwrap(),
+        Value::Array(vec![])
+    );
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// BOM、CRLF、全角空白、エラー（E）を含む本文でも付け、足した部分のほかのバイトは変えない。
+/// 本文のエラーで止めない（壊れたまま書ける）。
+#[test]
+fn fmt_keeps_bytes() {
+    let source = "\u{feff}## a #s001\r\n　地の文　\r\n@if (\r\n灯「台詞」\r\n";
+    let dir = temp_dir(
+        "fmt-bytes",
+        &[
+            ("project.toml", "format_version = 0\n"),
+            ("story/a.scn", source),
+        ],
+    );
+    let out = scn(&["fmt", "--json", "."], &dir);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    let list: Value = serde_json::from_str(&out.stdout).unwrap();
+    let ids: Vec<&str> = list
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|i| i["id"].as_str().unwrap())
+        .collect();
+    let [a, b] = ids.as_slice() else {
+        panic!("2行に付くはず：{ids:?}");
+    };
+    let expected = format!("\u{feff}## a #s001\r\n　地の文　 ^{a}\r\n@if (\r\n灯「台詞」 ^{b}\r\n");
+    assert_eq!(
+        fs::read_to_string(dir.join("story/a.scn")).unwrap(),
+        expected
+    );
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// 途中のファイルで書き込みに失敗しても、書き終えたファイルの行IDは出してから、終了コード2で終える。
+/// 読み取り専用のファイルは書き換えない。
+#[test]
+fn fmt_write_failure_reports_written_files() {
+    for json in [false, true] {
+        let dir = temp_dir(
+            &format!("fmt-fail-{json}"),
+            &[
+                ("project.toml", "format_version = 0\n"),
+                ("story/a.scn", "## a #s001\n地の文\n"),
+                ("story/b.scn", "## b #s002\n地の文\n"),
+            ],
+        );
+        let locked = dir.join("story/b.scn");
+        let mut permissions = fs::metadata(&locked).unwrap().permissions();
+        permissions.set_readonly(true);
+        fs::set_permissions(&locked, permissions.clone()).unwrap();
+
+        let args: &[&str] = if json {
+            &["fmt", "--json", "."]
+        } else {
+            &["fmt", "."]
+        };
+        let out = scn(args, &dir);
+        assert_eq!(out.code, FAILURE, "{}", out.stderr);
+        assert!(out.stderr.contains("b.scn"), "{}", out.stderr);
+        let id = if json {
+            let list: Value = serde_json::from_str(&out.stdout).expect("JSONでない");
+            let list = list.as_array().unwrap();
+            assert_eq!(list.len(), 1, "{}", out.stdout);
+            assert_eq!(list[0]["file"], "story/a.scn");
+            list[0]["id"].as_str().unwrap().to_owned()
+        } else {
+            let lines = fmt_lines(&out.stdout);
+            assert_eq!(lines.len(), 1, "{}", out.stdout);
+            assert_eq!(lines[0].file, "story/a.scn");
+            lines[0].id.clone().unwrap()
+        };
+        assert_eq!(
+            fs::read_to_string(dir.join("story/a.scn")).unwrap(),
+            format!("## a #s001\n地の文 ^{id}\n")
+        );
+        assert_eq!(fs::read_to_string(&locked).unwrap(), "## b #s002\n地の文\n");
+
+        #[allow(clippy::permissions_set_readonly_false)]
+        permissions.set_readonly(false);
+        fs::set_permissions(&locked, permissions).unwrap();
+        let _ = fs::remove_dir_all(&dir);
+    }
+}
+
+/// 出力するパスは、引数のフォルダにプロジェクトの中の相対パスをつなげたもの（`parse` と同じく、
+/// 実行した場所から開ける）。引数が `.` なら、相対パスだけ。
+#[test]
+fn fmt_paths_follow_argument() {
+    let dir = temp_dir(
+        "fmt-paths",
+        &[
+            ("work/project.toml", "format_version = 0\n"),
+            ("work/story/a.scn", "## a #s001\n地の文\n"),
+        ],
+    );
+    let out = scn(&["fmt", "--check", "work"], &dir);
+    assert_eq!(out.code, HAS_ERRORS, "{}", out.stderr);
+    let lines = fmt_lines(&out.stdout);
+    assert_eq!(
+        Path::new(&lines[0].file),
+        Path::new("work").join("story/a.scn")
+    );
+    let out = scn(&["fmt", "--check", "."], &dir.join("work"));
+    assert_eq!(fmt_lines(&out.stdout)[0].file, "story/a.scn");
+    let _ = fs::remove_dir_all(&dir);
+}
+
 // ---- 使い方や入出力の誤り ----
 
 /// 使い方の誤り、無いファイル、プロジェクトでないフォルダ、壊れた設定ファイルは、終了コード2。
@@ -297,6 +550,8 @@ fn usage_and_io_errors() {
         &["parse"][..],
         &["parse", "no-such-file.scn"][..],
         &["ir", "crates"][..],
+        &["fmt"][..],
+        &["fmt", "crates"][..],
     ] {
         let out = scn(args, &root);
         assert_eq!(out.code, FAILURE, "{args:?}");
@@ -312,7 +567,11 @@ fn usage_and_io_errors() {
             ("story/a.scn", "## a #s001\n"),
         ],
     );
-    for args in [&["ir", "."][..], &["parse", "story/a.scn"][..]] {
+    for args in [
+        &["ir", "."][..],
+        &["parse", "story/a.scn"][..],
+        &["fmt", "."][..],
+    ] {
         let out = scn(args, &dir);
         assert_eq!(out.code, FAILURE, "{args:?}");
         assert!(out.stderr.contains("variables.yaml"), "{}", out.stderr);

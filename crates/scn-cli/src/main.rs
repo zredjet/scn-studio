@@ -4,8 +4,11 @@
 //!   （上のディレクトリに `project.toml` がある）なら、プロジェクト全体で意味解析を行い、
 //!   そのファイルの診断だけを出す。プロジェクトの外なら、構文解析だけを行う。
 //! - `scn ir <project-dir>`：プロジェクト全体のIRを、標準出力にJSONで出す。
+//! - `scn fmt <project-dir> [--check] [--json]`：行IDの無い行に行IDを付ける（仕様書9節、D041）。
+//!   付けた行IDを `ファイル:行:列 ^ID` の形で出す。`--check` では書き換えず、付ける行があれば1で終わる。
 //!
 //! 終了コードは、成功が0、エラー（E）の診断があれば1、使い方や入出力の誤りは2。
+//! `fmt` は本文の診断では1にしない（`--check` で行IDの無い行があるときだけ1）。
 
 use std::fmt;
 use std::fs;
@@ -15,8 +18,11 @@ use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 use scn_core::ir::IrDiagnostic;
+use scn_core::line_id::{LineIdGenerator, assign_line_ids};
 use scn_core::project::SourceFile;
-use scn_core::{LineIndex, ParseOptions, ProjectError, Severity, analyze, load_project, parse};
+use scn_core::{
+    LineIndex, ParseOptions, ProjectError, Severity, analyze, load_project, parse, write_source,
+};
 use serde::Serialize;
 
 #[derive(Parser)]
@@ -40,6 +46,17 @@ enum Command {
     Ir {
         /// プロジェクトのフォルダ（project.toml のあるところ）
         project: PathBuf,
+    },
+    /// 行IDの無い行に行IDを付け、付けた行IDを `ファイル:行:列 ^ID` の形で出す。整形はしない
+    Fmt {
+        /// プロジェクトのフォルダ（project.toml のあるところ）
+        project: PathBuf,
+        /// 書き換えずに、行IDの無い行を出す。あれば終了コード1
+        #[arg(long)]
+        check: bool,
+        /// JSONで出す
+        #[arg(long)]
+        json: bool,
     },
 }
 
@@ -72,6 +89,11 @@ fn main() -> ExitCode {
     let result = match cli.command {
         Command::Parse { file, json } => run_parse(&file, json),
         Command::Ir { project } => run_ir(&project),
+        Command::Fmt {
+            project,
+            check,
+            json,
+        } => run_fmt(&project, check, json),
     };
     match result {
         Ok(code) => ExitCode::from(code),
@@ -250,4 +272,111 @@ fn run_ir(dir: &Path) -> Result<u8, CliError> {
         writeln!(io::stdout().lock(), "{body}"),
         exit_code(&ir.diagnostics),
     )
+}
+
+// ---- scn fmt ----
+
+/// 行IDを付けた（`--check` では、付ける）行。行と列は1から数える（列は文字の数）。
+#[derive(Serialize)]
+struct FmtEntry {
+    /// 引数のフォルダにプロジェクトの根からの相対パスをつなげたもの（`.` なら相対パスだけ）。
+    file: String,
+    line: usize,
+    column: usize,
+    /// 付けた行ID。`--check` では無い。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    id: Option<String>,
+}
+
+/// 付けた行IDは、ファイルを1つ書くたびに、その分を出す。途中のファイルで書き込みに失敗しても、
+/// 書き終えたファイルの行IDは出してから終了コード2で終える（AIの出自の記録に使うため。D041）。
+fn run_fmt(dir: &Path, check: bool, json: bool) -> Result<u8, CliError> {
+    let project = load_project(dir).map_err(CliError::Project)?;
+    let results = assign_line_ids(&project, &mut LineIdGenerator::new());
+    let mut out = io::stdout().lock();
+    let mut done: Vec<FmtEntry> = Vec::new();
+    let mut failure = None;
+    for result in &results {
+        if !check && let Err(e) = write_source(dir, &result.path, &result.text) {
+            failure = Some(CliError::Project(e));
+            break;
+        }
+        let original = project
+            .files
+            .iter()
+            .find(|f| f.path == result.path)
+            .map(|f| f.text.as_str())
+            .unwrap_or_default();
+        let index = LineIndex::new(original);
+        let shown = display_path(dir, &result.path);
+        let entries: Vec<FmtEntry> = result
+            .assigned
+            .iter()
+            .map(|assigned| {
+                let (line, column) = index.line_col(assigned.offset);
+                FmtEntry {
+                    file: shown.clone(),
+                    line,
+                    column,
+                    id: (!check).then(|| assigned.id.clone()),
+                }
+            })
+            .collect();
+        if !json {
+            let written = entries.iter().try_for_each(|e| match &e.id {
+                Some(id) => writeln!(out, "{}:{}:{} ^{id}", e.file, e.line, e.column),
+                None => writeln!(out, "{}:{}:{} 行IDがありません", e.file, e.line, e.column),
+            });
+            if let Err(e) = written
+                && e.kind() != io::ErrorKind::BrokenPipe
+            {
+                return Err(CliError::Write(e));
+            }
+        }
+        done.extend(entries);
+    }
+
+    if json {
+        let body = serde_json::to_string_pretty(&done).map_err(|e| CliError::Write(e.into()))?;
+        let written = writeln!(out, "{body}");
+        if let Err(e) = written
+            && e.kind() != io::ErrorKind::BrokenPipe
+        {
+            return Err(CliError::Write(e));
+        }
+    }
+    if let Some(e) = failure {
+        if !done.is_empty() {
+            eprintln!(
+                "scn: 書き終えたファイルには行IDを付けました：{}件",
+                done.len()
+            );
+        }
+        return Err(e);
+    }
+    if done.is_empty() {
+        eprintln!("行IDの無い行はありません");
+    } else if check {
+        eprintln!("行IDの無い行：{}件", done.len());
+    } else {
+        eprintln!(
+            "行IDを付けました：{}件（{}ファイル）",
+            done.len(),
+            results.len()
+        );
+    }
+    Ok(if check && !done.is_empty() {
+        HAS_ERRORS
+    } else {
+        SUCCESS
+    })
+}
+
+/// 出力するパス。引数のフォルダに、プロジェクトの根からの相対パスをつなげる（`.` なら相対パスだけ）。
+fn display_path(dir: &Path, relative: &str) -> String {
+    if dir == Path::new(".") {
+        relative.to_owned()
+    } else {
+        dir.join(relative).display().to_string()
+    }
 }

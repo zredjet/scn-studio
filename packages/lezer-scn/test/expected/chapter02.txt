@@ -40,6 +40,6 @@
  40 MetaDelimiter ---
  41 Directive     @背景 駅/夕方
  42 Directive     @BGM 切ない
- 43 Dialogue      灯「またね、湊。{p}……またね」 ^b4a1
+ 43 Dialogue      灯「またね、湊。{p}……またね」{w 1} ^b4a1
  44 Directive     @設定 灯.転校済み = true
  45 Directive     @エンディング akari_end

@@ -519,14 +519,24 @@ impl Builder<'_, '_> {
             body.extend(self.text(line));
         }
         match self.sema.speaker(dialogue) {
-            Speaker::Character(id) => Op::Say {
-                span: dialogue.span,
-                line_id: line_id(&dialogue.line_id),
-                speaker: id.to_owned(),
-                display_name: dialogue.display_name.as_ref().map(|n| n.value.clone()),
-                style: dialogue.style.clone(),
-                text: body,
-            },
+            Speaker::Character(id) => {
+                // 閉じ括弧の後ろのインライン命令は、本文の末尾に付ける。間の空白は捨てる（D041）。
+                if let Some(trailing) = &dialogue.trailing {
+                    body.extend(
+                        self.text(trailing)
+                            .into_iter()
+                            .filter(|inline| !matches!(inline, IrInline::Text { .. })),
+                    );
+                }
+                Op::Say {
+                    span: dialogue.span,
+                    line_id: line_id(&dialogue.line_id),
+                    speaker: id.to_owned(),
+                    display_name: dialogue.display_name.as_ref().map(|n| n.value.clone()),
+                    style: dialogue.style.clone(),
+                    text: body,
+                }
+            }
             Speaker::Narration { .. } => {
                 // 書かれたとおりに並べ直して、地の文にする（仕様書6節）。
                 let mut head = dialogue.speaker.value.clone();

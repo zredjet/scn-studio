@@ -301,6 +301,26 @@ const trailingCases: { name: string; source: string; expected: string[] }[] = [
     source: "灯「一行目\n\n　地の文」と言った。\n",
     expected: ["Dialogue", "Blank", "Narration"],
   },
+  {
+    name: "閉じ括弧の後ろがインライン命令と空白だけなら、台詞に見せる（D041）",
+    source:
+      "灯「またね」{p} ^aaaa\n灯「……」 {w 0.5}　{se ドア}{speed 遅}\n灯「一行目\n二行目」{p}\n",
+    expected: ["Dialogue", "Dialogue", "Dialogue", "Dialogue"],
+  },
+  {
+    name: "閉じ括弧の後ろの記法が文を作るか、命令として読めなければ、地の文に見せる（D041）",
+    source:
+      "灯「行こう」{=flag.名前}\n灯「行こう」｜乱《みだ》\n灯「行こう」《《強く》》\n灯「またね」{shake}\n灯「またね」{w 長め}\n灯「またね」{{p}}\n灯「またね」{p\n",
+    expected: [
+      "Narration",
+      "Narration",
+      "Narration",
+      "Narration",
+      "Narration",
+      "Narration",
+      "Narration",
+    ],
+  },
 ];
 
 for (const { name, source, expected } of trailingCases) {
