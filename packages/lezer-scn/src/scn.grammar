@@ -1,0 +1,131 @@
+// .scn のハイライト用の文法（仕様書 docs/spec/scn-format-v0.md）。
+//
+// 字句はすべて外部の字句解析（tokens.ts）で作る。行の種類は行頭で決め、行をまたぐもの
+// （メタ情報、@raw の中身、複数行の台詞）だけをこの文法の状態で表す。壊れた入力でも、
+// 次の行から正しい状態に戻るよう、ブロック（@選択・@if）の対応はここでは取らない。
+// 意味の判断（台詞かどうか、参照が正しいか）はコアに任せる。
+
+@context dialogueContext from "./tokens.ts"
+
+@external tokens scnTokens from "./tokens.ts" {
+  space,
+  newline,
+  endOfFile,
+  Comment,
+  metaComment[@name=Comment],
+  continueComment[@name=Comment],
+  ChapterMark,
+  ChapterTitle,
+  HeadingMark,
+  SceneTitle,
+  SceneId,
+  MetaDelimiter,
+  MetaKey,
+  MetaValue,
+  MetaBlank,
+  MetaInvalid,
+  DirectiveName,
+  choiceKeyword[@name=DirectiveName],
+  exprKeyword[@name=DirectiveName],
+  rawKeyword[@name=DirectiveName],
+  Argument,
+  RawLine,
+  RawEnd,
+  OptionMark,
+  IfKeyword,
+  JumpArrow,
+  optionArrow[@name=JumpArrow],
+  SceneRef,
+  Speaker,
+  DisplayName,
+  DialogueOpen,
+  DialogueClose,
+  NestedOpen,
+  NestedClose,
+  ContinueLine,
+  Text,
+  Escape,
+  RubyMark,
+  RubyBase,
+  RubyReading,
+  EmphasisDots,
+  InlineCommand,
+  Interpolation,
+  LineId,
+  metaLineId[@name=LineId],
+  VariableName,
+  Number,
+  String,
+  Boolean,
+  LogicOperator,
+  CompareOperator,
+  ArithmeticOperator,
+  AssignOperator,
+  Paren,
+  InvalidChar
+}
+
+@external propSource scnHighlighting from "./highlight.ts"
+
+@skip { space }
+
+@top Document { line* }
+
+// 行の終わり。ファイルが改行で終わらないときは、長さ0の endOfFile で終える。
+eol { newline | endOfFile }
+
+line {
+  newline |
+  Comment eol |
+  LineId eol |
+  ChapterHeading eol |
+  SceneHeading eol SceneMeta? |
+  Directive eol |
+  RawBlock |
+  ChoiceOption eol |
+  Jump eol |
+  Dialogue eol |
+  Narration eol
+}
+
+ChapterHeading { ChapterMark ChapterTitle? LineId? }
+
+SceneHeading { HeadingMark SceneTitle? SceneId? LineId? }
+
+SceneMeta { MetaDelimiter LineId? eol metaLine* (MetaDelimiter LineId? eol)? }
+
+metaLine { MetaEntry eol | metaComment eol | MetaBlank | MetaInvalid LineId? eol | metaLineId eol }
+
+MetaEntry { MetaKey MetaValue? LineId? }
+
+Directive {
+  DirectiveName Argument* LineId? |
+  choiceKeyword inline* LineId? |
+  exprKeyword exprToken* LineId?
+}
+
+RawBlock { RawStart eol RawLine* RawEnd? }
+
+RawStart { rawKeyword Argument* LineId? }
+
+ChoiceOption { OptionMark inline* (IfKeyword exprToken*)? (optionArrow SceneRef?)? LineId? }
+
+Jump { JumpArrow SceneRef? LineId? }
+
+Dialogue {
+  Speaker DisplayName? DialogueOpen dialogueContent* (DialogueClose inline* LineId?)?
+}
+
+dialogueContent { inline | NestedOpen | NestedClose | LineId | ContinueLine | continueComment }
+
+Narration { inline+ LineId? }
+
+inline { Text | Escape | Ruby | EmphasisDots | InlineCommand | Interpolation }
+
+Ruby { RubyMark? RubyBase RubyReading }
+
+exprToken {
+  VariableName | Number | String | Boolean |
+  LogicOperator | CompareOperator | ArithmeticOperator | AssignOperator |
+  Paren | InvalidChar
+}

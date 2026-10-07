@@ -1,0 +1,118 @@
+  1 ChapterHeading # 第1章 放課後
+  2 Blank
+  3 SceneHeading  ## 登校 #s010
+  4 MetaDelimiter ---
+  5 MetaEntry     summary: いつもの朝。灯は明るく振る舞っている
+  6 MetaEntry     status: writing
+  7 MetaEntry     route: 共通
+  8 MetaDelimiter ---
+  9 Directive     @背景 通学路/朝
+ 10 Directive     @BGM 日常
+ 11 Blank
+ 12 Narration     　坂道の途中で、後ろから鞄がぶつかってきた。 ^a1b2
+ 13 Dialogue      灯「おはよ、湊。今日も眠そうだね」 ^a1b3
+ 14 Dialogue      湊「灯が元気すぎるんだよ」 ^a1b4
+ 15 Directive     @立ち絵 灯 笑顔 中
+ 16 Dialogue      灯「ひどいなあ。元気なのは、わたしの数少ない取り柄なのに」 ^a1b5
+ 17 Narration     　そう言って笑う顔に、昨日までと違うところは見つからなかった。 ^a1b6
+ 18 Blank
+ 19 Jump          -> s011
+ 20 Blank
+ 21 SceneHeading  ## 昼休みの教室 #s011
+ 22 MetaDelimiter ---
+ 23 MetaEntry     summary: 紬が灯の様子を気にしている。主人公は放課後の屋上に呼び出される
+ 24 MetaEntry     status: writing
+ 25 MetaEntry     route: 共通
+ 26 MetaDelimiter ---
+ 27 Directive     @背景 教室/昼
+ 28 Directive     @立ち絵 紬 真顔 右
+ 29 Blank
+ 30 Dialogue      紬「湊くん。灯ちゃん、最近なにか言ってた？」 ^a1c1
+ 31 Dialogue      湊「なにかって？」 ^a1c2
+ 32 Dialogue      紬「……ううん、なんでもない」 ^a1c3
+ 33 Directive     @退場 紬
+ 34 Directive     @SE チャイム
+ 35 Narration     　五限の予鈴が鳴った。机の中に、二つ折りのメモが入っていた。 ^a1c4
+ 36 Narration     　《《放課後、屋上で》》。丸い字は、灯のものだった。 ^a1c5
+ 37 Blank
+ 38 Directive     @選択 屋上へ行くか ^a1c6
+ 39 ChoiceOption  - すぐに行く ^a1c7
+ 40 Directive       @設定 勇気 += 1
+ 41 Directive       @設定 灯.好感度 += 2
+ 42 ChoiceOption  - 少し迷ってから行く ^a1c8
+ 43 Directive       @設定 灯.好感度 += 1
+ 44 Directive     @end
+ 45 Blank
+ 46 Jump          -> s012
+ 47 Blank
+ 48 SceneHeading  ## 放課後の屋上 #s012
+ 49 MetaDelimiter ---
+ 50 MetaEntry     summary: 灯が転校を打ち明けかける
+ 51 MetaEntry     status: draft
+ 52 MetaEntry     route: 共通
+ 53 MetaDelimiter ---
+ 54 Directive     @背景 屋上/夕方 フェード
+ 55 Directive     @BGM 切ない
+ 56 Directive     @立ち絵 灯 笑顔 左
+ 57 Directive     @SE 風
+ 58 RawStart      @raw renpy
+ 59 RawLine         $ renpy.music.set_volume(0.6, channel="music")
+ 60 RawEnd        @end
+ 61 Blank
+ 62 Dialogue      灯「やっと来た。遅いよ」 ^k3f9
+ 63 Narration     　風が強くて、灯の髪が|乱《みだ》れていた。 ^k3fa
+ 64 Dialogue      灯「あのね、{w 0.5}話があるんだ」 ^k3fb
+ 65 Directive     @立ち絵 灯 真顔
+ 66 Dialogue      灯『……やっぱり、言えないかも』 ^k3fh
+ 67 Blank
+ 68 Comment       // ここで転校の話を出すか要検討
+ 69 Directive     @選択 どう答える ^k3fc
+ 70 ChoiceOption  - 「ごめん、遅くなって」 ^k3fd
+ 71 Directive       @設定 灯.好感度 += 1
+ 72 ChoiceOption  - 黙ってうなずく if 勇気 >= 2 ^k3fe
+ 73 Dialogue        灯「……そういうところ、ずるいよね。昔からずっとそうだった。言わなくても分かってくれるって、私が勝手に思ってるだけなのに。だから今日も、言えないまま来ちゃった」 ^k3ff
+ 74 Jump            -> s014
+ 75 Directive     @end
+ 76 Blank
+ 77 Directive     @if 灯.好感度 >= 3
+ 78 Dialogue        灯「やっぱり、君には言っておく」 ^k3fg
+ 79 Jump            -> s013a
+ 80 Directive     @else
+ 81 Jump            -> s013b
+ 82 Directive     @end
+ 83 Blank
+ 84 SceneHeading  ## 打ち明ける #s013a
+ 85 MetaDelimiter ---
+ 86 MetaEntry     summary: 灯が転校を打ち明ける。主人公は受け止める
+ 87 MetaEntry     status: draft
+ 88 MetaEntry     route: 灯
+ 89 MetaDelimiter ---
+ 90 Directive     @立ち絵 灯 真顔 中
+ 91 Directive     @BGM 停止
+ 92 Dialogue      灯「わたし、夏休みが終わったら、転校するんだ」 ^a2a1
+ 93 Narration     　風の音だけが、しばらく続いた。 ^a2a2
+ 94 Directive     @設定 flag.ルート = "灯"
+ 95 Jump          -> s020
+ 96 Blank
+ 97 SceneHeading  ## 帰り道 #s013b
+ 98 MetaDelimiter ---
+ 99 MetaEntry     summary: 屋上で言葉を交わせないまま、一人で帰る。校門で紬が待っている
+100 MetaEntry     status: ai-draft
+101 MetaEntry     route: 共通
+102 MetaDelimiter ---
+103 Directive     @背景 帰り道/夕方
+104 Directive     @BGM 切ない
+105 Narration     　結局、灯は何も言わなかった。
+106 Narration     　校門を出たところで、見慣れた後ろ姿が待っていた。
+107 Directive     @立ち絵 紬 笑顔 中
+108 Dialogue      紬「湊くん、一緒に帰ろ」
+109 Directive     @設定 紬.好感度 += 1
+110 Directive     @設定 flag.ルート = "紬"
+111 Jump          -> s030
+112 Blank
+113 SceneHeading  ## 沈黙のあと #s014
+114 MetaDelimiter ---
+115 MetaEntry     summary: 黙ってうなずいた主人公の隣に、灯は何も言わずに座る
+116 MetaEntry     status: draft
+117 MetaEntry     route: 灯
+118 MetaDelimiter ---

@@ -25,3 +25,7 @@ CLAUDE.local.md
 # OS
 .DS_Store
 Thumbs.db
+
+# lezer-generator が作るファイル（pnpm run build で作り直す）
+packages/lezer-scn/src/parser.ts
+packages/lezer-scn/src/parser.terms.ts

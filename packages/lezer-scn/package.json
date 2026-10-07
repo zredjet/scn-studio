@@ -1,0 +1,27 @@
+{
+  "name": "@scn-studio/lezer-scn",
+  "version": "0.1.0",
+  "private": true,
+  "description": ".scn のハイライト用のLezer文法と、CodeMirror 6の言語サポート",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "lezer-generator --typeScript src/scn.grammar -o src/parser.ts",
+    "typecheck": "pnpm run build && tsc --noEmit",
+    "test": "pnpm run build && node --test --test-reporter=spec \"test/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/state": "^6.7.6",
+    "@lezer/common": "^1.5.3",
+    "@lezer/highlight": "^1.2.5",
+    "@lezer/lr": "^1.4.10"
+  },
+  "devDependencies": {
+    "@lezer/generator": "^1.8.1",
+    "@types/node": "^24.19.1",
+    "typescript": "^7.0.2"
+  }
+}

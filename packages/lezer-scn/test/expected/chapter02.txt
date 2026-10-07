@@ -1,0 +1,45 @@
+  1 ChapterHeading # 第2章 灯ルート
+  2 Blank
+  3 SceneHeading  ## 灯の家の前 #s020
+  4 MetaDelimiter ---
+  5 MetaEntry     summary: 翌朝、灯の家の前で待つ。引っ越しの段ボールが見える
+  6 MetaEntry     status: draft
+  7 MetaEntry     route: 灯
+  8 MetaDelimiter ---
+  9 Directive     @背景 灯の家/朝
+ 10 Narration     　灯の家の前に、段ボールが積まれていた。 ^b0a1
+ 11 Dialogue      灯「見られちゃったか」 ^b0a2
+ 12 Jump          -> s021
+ 13 Blank
+ 14 SceneHeading  ## 屋上の約束 #s021
+ 15 MetaDelimiter ---
+ 16 MetaEntry     summary: 夏休みまで、屋上で毎日会う約束をする
+ 17 MetaEntry     status: ai-draft
+ 18 MetaEntry     route: 灯
+ 19 MetaDelimiter ---
+ 20 Directive     @背景 屋上/夜
+ 21 Directive     @立ち絵 灯 照れ 中
+ 22 Dialogue      灯「じゃあ約束。夏休みまで、毎日ここで」
+ 23 Narration     　灯は髪留めに触れながら、小さく笑った。
+ 24 Jump          -> s022
+ 25 Blank
+ 26 SceneHeading  ## 雨の図書室 #s022
+ 27 MetaDelimiter ---
+ 28 MetaEntry     summary: 雨で屋上に行けない日、図書室で灯の母の話を聞く
+ 29 MetaEntry     status: draft
+ 30 MetaEntry     route: 灯
+ 31 MetaEntry     tags: [雨, 図書室]
+ 32 MetaDelimiter ---
+ 33 Jump          -> s040
+ 34 Blank
+ 35 SceneHeading  ## 見送り #s040
+ 36 MetaDelimiter ---
+ 37 MetaEntry     summary: 終業式の日、駅で灯を見送る
+ 38 MetaEntry     status: draft
+ 39 MetaEntry     route: 灯
+ 40 MetaDelimiter ---
+ 41 Directive     @背景 駅/夕方
+ 42 Directive     @BGM 切ない
+ 43 Dialogue      灯「またね、湊。{p}……またね」 ^b4a1
+ 44 Directive     @設定 灯.転校済み = true
+ 45 Directive     @エンディング akari_end

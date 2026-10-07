@@ -1,0 +1,29 @@
+  1 ChapterHeading # 第3章 紬ルート
+  2 Blank
+  3 SceneHeading  ## 紬と帰る #s030
+  4 MetaDelimiter ---
+  5 MetaEntry     summary: 紬と並んで帰る。紬は灯の転校を先に知っていた
+  6 MetaEntry     status: draft
+  7 MetaEntry     route: 紬
+  8 MetaDelimiter ---
+  9 Directive     @if 紬.好感度 >= 1
+ 10 Jump            -> s060
+ 11 Directive     @else
+ 12 Jump            -> s061
+ 13 Directive     @end
+ 14 Blank
+ 15 SceneHeading  ## 紬エンド #s060
+ 16 MetaDelimiter ---
+ 17 MetaEntry     summary: 灯の不在を経て、紬と向き合う
+ 18 MetaEntry     status: draft
+ 19 MetaEntry     route: 紬
+ 20 MetaDelimiter ---
+ 21 Directive     @エンディング tsumugi_end
+ 22 Blank
+ 23 SceneHeading  ## すれ違い #s061
+ 24 MetaDelimiter ---
+ 25 MetaEntry     summary: 誰にも踏み込めないまま、夏が終わる
+ 26 MetaEntry     status: draft
+ 27 MetaEntry     route: 紬
+ 28 MetaDelimiter ---
+ 29 Directive     @エンディング bad_end
