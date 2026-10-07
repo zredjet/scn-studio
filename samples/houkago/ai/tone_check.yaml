@@ -1,0 +1,8 @@
+name: 口調チェック
+level: review
+model: local
+context: [scene, characters.speech, characters.first_person]
+output: findings
+prompt: |
+  以下のシーンの台詞が、各キャラの口調メモと一人称に沿っているか確認し、
+  外れている行を行IDつきで指摘してください。

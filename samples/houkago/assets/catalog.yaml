@@ -1,0 +1,39 @@
+# 素材カタログ：意味名からファイルへの対応。
+# 値が {} の項目は、登録済みだがファイルの無い仮素材。
+# 本文で使われているのにここに無い意味名（例：SE チャイム、背景 駅/夕方）は、未登録として扱われる。
+
+backgrounds:
+  通学路/朝:     { file: files/bg/street_morning.png }
+  教室/昼:       { file: files/bg/classroom_day.png }
+  屋上/夕方:     { file: files/bg/rooftop_evening.png }
+  屋上/夜:       {}
+  帰り道/夕方:   {}
+  灯の家/朝:     {}
+
+characters:
+  akari:
+    dir: files/chara/akari/
+    expressions:
+      笑顔: smile.png
+      真顔: neutral.png
+      照れ: {}
+      泣き: {}
+  tsumugi:
+    dir: files/chara/tsumugi/
+    expressions:
+      笑顔: smile.png
+      真顔: {}
+      怒り: {}
+  miura:
+    dir: files/chara/miura/
+    expressions:
+      笑顔: smile.png
+      真顔: neutral.png
+
+bgm:
+  日常:   { file: files/bgm/nichijo.ogg, loop: true }
+  切ない: { file: files/bgm/setsunai.ogg, loop: true }
+
+se:
+  風:     {}
+  ドア:   {}

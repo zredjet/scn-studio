@@ -1,0 +1,23 @@
+# Rust
+/target/
+**/target/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Tauri
+app/src-tauri/target/
+app/src-tauri/gen/
+
+# 作品フォルダのキャッシュ
+.cache/
+
+# Claude Code の個人設定
+CLAUDE.local.md
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db

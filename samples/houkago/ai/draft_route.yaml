@@ -1,0 +1,13 @@
+name: ルートを下書きまで仕上げる
+level: auto
+model: cloud
+context: [concept, style, route_summaries, characters, variables]
+scope: empty_only        # スタブと空きにだけ書き込む
+branch: ai/{task}-{date}
+checks: [check, tone_check, setting_check]
+max_iterations: 3
+budget: { tokens: 400000 }
+prompt: |
+  指定したルートのスタブシーンを、企画書・文体・ルート要約に沿って本文まで書いてください。
+  上から順に、展開メモ → 本文の順で進め、各段で検証を通してください。
+  人が書いた行は変更しないでください。

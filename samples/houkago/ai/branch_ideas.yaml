@@ -1,0 +1,8 @@
+name: 分岐案を出す
+level: propose
+model: cloud
+context: [concept, route_summaries, scene, variables]
+output: proposals
+prompt: |
+  企画書のエンディングとキャラの葛藤を踏まえ、指定シーンの後に置く選択肢と
+  その先のスタブシーンを2〜3通り提案してください。

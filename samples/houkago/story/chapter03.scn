@@ -1,0 +1,29 @@
+# 第3章 紬ルート
+
+## 紬と帰る #s030
+---
+summary: 紬と並んで帰る。紬は灯の転校を先に知っていた
+status: draft
+route: 紬
+---
+@if 紬.好感度 >= 1
+  -> s060
+@else
+  -> s061
+@end
+
+## 紬エンド #s060
+---
+summary: 灯の不在を経て、紬と向き合う
+status: draft
+route: 紬
+---
+@エンディング tsumugi_end
+
+## すれ違い #s061
+---
+summary: 誰にも踏み込めないまま、夏が終わる
+status: draft
+route: 紬
+---
+@エンディング bad_end

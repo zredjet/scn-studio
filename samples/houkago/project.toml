@@ -1,0 +1,31 @@
+# 放課後の灯（サンプル作品）
+format_version = 0
+title = "放課後の灯"
+start_scene = "s010"
+
+[screen]
+width = 1280
+height = 720
+
+[message_window]
+lines = 3
+chars_per_line = 24
+
+# 台詞に使える括弧と、表示スタイル
+[dialogue.brackets]
+"「」" = "normal"
+"『』" = "thought"   # 心の声
+
+[editor]
+normalize_ellipsis = true      # 「...」を「……」に、「--」を「――」にする
+indent_narration = true        # 地の文の段落頭に全角空白を入れる
+
+# AIの接続先（フェーズ3で使う。値は仮）
+[ai.local]
+provider = "openai-compatible"
+base_url = "http://localhost:11434/v1"
+model = "[ローカルモデル名]"
+
+[ai.cloud]
+provider = "anthropic"
+model = "[クラウドモデル名]"

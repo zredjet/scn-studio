@@ -1,0 +1,38 @@
+# 変数の定義。キーは「名前空間.名前」。名前空間を省略した変数は flag に入る。
+# キャラクターに紐づく変数は、キャラクターIDを名前空間にする（本文では表示名でも書ける）。
+
+flag.勇気:
+  type: int
+  default: 0
+  scope: save
+  desc: 主人公が踏み込む勇気。屋上での選択肢の条件に使う
+
+flag.ルート:
+  type: enum
+  values: [共通, 灯, 紬]
+  default: 共通
+  scope: save
+
+akari.好感度:
+  type: int
+  default: 0
+  range: [0, 10]
+  scope: save
+
+akari.転校済み:
+  type: bool
+  default: false
+  scope: save
+  desc: 灯の転校が済んだか。エンディングで立つ
+
+tsumugi.好感度:
+  type: int
+  default: 0
+  range: [0, 10]
+  scope: save
+
+周回.トゥルー解放:
+  type: bool
+  default: false
+  scope: persistent
+  desc: 灯と紬の両ルートをクリアすると立つ

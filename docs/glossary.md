@@ -1,0 +1,120 @@
+# 用語集
+
+日本語の用語と、コード・ファイル・JSONで使う英語名の対応。型名は `PascalCase`、フィールドや関数は `snake_case`（Rust）または `camelCase`（TypeScript）にする。新しい概念を足したら、ここにも足す。
+
+## プロジェクトと企画
+
+| 日本語 | 英語名 | 説明 |
+| --- | --- | --- |
+| プロジェクト | project | 1作品のフォルダ。`project.toml` を持つ |
+| 企画書 | concept | `concept.md`。ログライン、テーマ、エンディング一覧 |
+| ログライン | logline | 作品を一文で言ったもの |
+| 文体 | style | `style.md`。文体の方針と文体見本 |
+| 文体見本 | style sample | 自分で書いた見本の文章。AI生成の文脈に入れる |
+| アイデアメモ | idea | `ideas/` の1ファイル |
+| 昇格 | promote | メモから設定エントリ・スタブシーン・伏線を作ること |
+
+## 設定DB
+
+| 日本語 | 英語名 | 説明 |
+| --- | --- | --- |
+| 設定DB | bible | 設定の型とエントリの集まり（`bible/`） |
+| 型 | entry type | `bible/types/*.yaml`。項目の定義 |
+| エントリ | entry | `bible/entries/<型>/<id>.md`。1つの設定 |
+| 項目 | field | 型が定める入力欄 |
+| 参照 | ref | 他のエントリやシーンを指す項目の値 |
+| キャラクター | character | 組み込みの型。話者の解決に使う |
+| 呼び名 | alias | キャラクターの別名。話者の解決に使う |
+| 欲求・葛藤 | want / conflict | キャラクターの項目。プロット系AIの文脈 |
+| 伏線 | foreshadow | 型の1つ。仕込み（setup）と回収（payoff） |
+
+## 構造と本文
+
+| 日本語 | 英語名 | 説明 |
+| --- | --- | --- |
+| 章 | chapter | 1つの `.scn` ファイル |
+| 章見出し | chapter heading | `# ` の行 |
+| シーン | scene | `## タイトル #id` で始まる単位 |
+| シーンID | scene id | `s012` など |
+| メタ情報 | scene meta | 見出し直後の `---` ブロック |
+| 状態 | status | `draft` / `writing` / `done` / `ai-draft` |
+| スタブ | stub | 本文に台詞・地の文が無いシーン（プロットカード） |
+| ルート | route | シーンのまとまり（`route:`） |
+| 構造グラフ | story graph | シーンをノード、ジャンプなどを辺にしたグラフ |
+| 辺 | edge | シーン間のつながり |
+| 本文 | body | シーンの中の行の並び |
+| 行 | line | `.scn` の1行 |
+| 行ID | line id | `^k3f9`。行の不変の識別子 |
+| 台詞 | dialogue | `話者「本文」` |
+| 台詞候補 | dialogue candidate | 構文解析の段階で台詞の形に見える行 |
+| 話者 | speaker | 台詞を話すキャラクター（IDに解決する） |
+| 表示名 | display name | `灯（？？？）` の上書き名 |
+| 地の文 | narration | 台詞でも命令でもない本文 |
+| 段落の区切り | break | 空行から作る区切り |
+| ディレクティブ | directive | `@` で始まる行 |
+| ブロック | block | `@選択`・`@if`・`@raw` から `@end` まで |
+| 選択ブロック | choice | `@選択` のブロック |
+| 問いかけ文 | prompt | `@選択` の後ろの文 |
+| 選択肢 | option | `- ` の行 |
+| 条件分岐 | conditional (if) | `@if` のブロック |
+| 条件 | cond | 選択肢や分岐の式 |
+| ジャンプ | jump | `-> id` |
+| 呼び出し・戻る | call / return | `@呼出` と `@戻る` |
+| エンディング | ending | `@エンディング id` |
+| 生コード | raw | `@raw` のブロック |
+| 文中の記法 | inline markup | ルビ、傍点、インライン命令など |
+| ルビ | ruby | `\|親文字《るび》`（base / reading） |
+| 傍点 | emphasis dots | `《《強調》》` |
+| インライン命令 | inline command | `{w 0.5}` など |
+| 変数の埋め込み | interpolation | `{=式}` |
+
+## 変数と検証
+
+| 日本語 | 英語名 | 説明 |
+| --- | --- | --- |
+| 変数 | variable | `variables.yaml` で宣言する |
+| 名前空間 | namespace | `akari.好感度` の `akari` |
+| スコープ | scope | `save`（セーブ単位）/ `persistent`（周回をまたぐ） |
+| 式 | expr | 条件式 |
+| 代入 | assignment | `@設定` |
+| 構文木 | AST | パーサの出力 |
+| 中間表現 | IR | 全機能の共通入力 |
+| 診断 | diagnostic | コード、重大度、位置、メッセージ |
+| 重大度 | severity | `error` / `warning` / `info` |
+| 位置 | span | UTF-8のバイト位置の範囲 |
+| 検証 | check | プロジェクト全体の検査（CLIの `check`） |
+| 到達性 | reachability | 開始シーンからたどり着けるか |
+| 行き止まり | dead end | 出口の無い経路 |
+| 自動巡回 | auto playthrough | 選択肢の組み合わせを実際に実行する検証 |
+
+## 素材・プレビュー・出力
+
+| 日本語 | 英語名 | 説明 |
+| --- | --- | --- |
+| 素材 | asset | 背景、立ち絵、BGM、SE |
+| 素材カタログ | asset catalog | `assets/catalog.yaml` |
+| 意味名 | semantic name | `屋上/夕方` のような素材の名前 |
+| 仮素材 | placeholder asset | ファイルの無い意味名 |
+| 差分 | expression | 立ち絵の表情の違い |
+| 位置 | position | `left` / `center` / `right` |
+| 発注リスト | asset order list | 仮素材の一覧（CSV） |
+| プレビュー | preview | ADVプレイヤーと縦書きビュー |
+| 執筆表示 | writing view | 記号を畳んだ表示 |
+| ソース表示 | source view | 生のテキストの表示 |
+| エクスポート | export | エンジン用ファイルなどへの書き出し |
+| 出力プロファイル | export profile | `export/*.yaml` |
+| 台本 | script sheet | 収録・校正用の表 |
+
+## AI
+
+| 日本語 | 英語名 | 説明 |
+| --- | --- | --- |
+| AIタスク | ai task | `ai/*.yaml` の1定義 |
+| 関わり方の段階 | level | `review` / `propose` / `generate` / `auto` |
+| 指摘・提案・生成・自律 | review / propose / generate / auto | 段階の名前 |
+| 提案ノード | proposal node | フロー図上の未採用の仮ノード |
+| AI下書き | ai draft | 状態が `ai-draft` のシーン |
+| 出自 | provenance | `ai` / `ai-edited` / `human` |
+| 展開メモ | beats | シーンの流れのメモ。スタブと本文の間の段 |
+| 書き込む範囲 | scope | `empty_only` など。AIが書いてよい範囲 |
+| AI実行 | ai run | 1回のタスク実行 |

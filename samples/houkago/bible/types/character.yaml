@@ -1,0 +1,10 @@
+name: キャラクター
+builtin: character        # 組み込みの型。話者の解決に使う
+fields:
+  - { key: aliases,      label: 呼び名,   type: list<text> }
+  - { key: first_person, label: 一人称,   type: text }
+  - { key: speech,       label: 口調メモ, type: longtext }
+  - { key: want,         label: 欲求,     type: text }
+  - { key: conflict,     label: 葛藤,     type: text }
+  - { key: org,          label: 所属,     type: ref<organization> }
+  - { key: voice,        label: 声優,     type: text }

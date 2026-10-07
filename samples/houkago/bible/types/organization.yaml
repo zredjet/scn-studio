@@ -1,0 +1,4 @@
+name: 組織
+fields:
+  - { key: kind,    label: 種類, type: select, options: [学校, 部活, 店, その他] }
+  - { key: members, label: 主な人物, type: list<ref<character>> }
