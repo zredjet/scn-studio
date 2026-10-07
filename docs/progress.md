@@ -6,9 +6,10 @@ Claude Codeは、作業を始めるときにこのファイルを読み、タス
 
 - フェーズ：0（形式を固める）
 - 作業中のタスク：なし
-- 次のタスク：T0-7 Tauri＋Reactの土台（人の作業：2OSで起動を確認）
+- 次のタスク：T0-8 IMEテストと修正（人の作業：`docs/plan/ime-test.md` に沿って2OSでテスト）
 - 人の判断待ち：閉じ括弧の後ろが記法だけの台詞（`灯「またね」{p}`）を、台詞にするか地の文にするか。仕様書6節の「閉じ括弧の後に文が続く」に記法だけの場合を含めるかが決まっていない。今はコア（T0-4）もLezer（T0-6）も、後ろの文があるとみなして地の文にする（T0-6のレビューで気づいた）
 - 別途対応：Windowsで `scripts/check-all.ps1` を実行し、成功するか確かめる（T0-1の完了条件のうち、Windows側）。Windowsの環境を用意しにくいため、T0-1とは切り離して後で行う（2026-10-07、人の判断）
+- 別途対応：Windowsで `pnpm -C app tauri dev` を起動し、サンプルを開けることと、編集すると入力が止まってから診断とグラフが更新されることを確かめる（T0-7の完了条件のうち、Windows側。macOSは確認済み）
 
 ## フェーズ1へ（フェーズ0では作らないが、気づいたこと）
 
@@ -20,6 +21,43 @@ Claude Codeは、作業を始めるときにこのファイルを読み、タス
 - 設定DBのキャラクターを、型定義の `builtin: character` で見分ける。フェーズ0ではディレクトリ名 `character` で見分けている（T0-4）
 
 ## 記録
+
+### 2026-10-07 T0-7 完了（Windowsでの起動の確認を除く）
+
+- やったこと
+  - `app/` に、Tauri 2（2.12）・React 19・Vite 8・TypeScript の構成を作った。Tauri公式のひな形（create-tauri-app の react-ts）を元にし、使わないプラグインを外した。`app/src-tauri`（パッケージ名 `scn-app`）をCargoのワークスペースに加えた
+  - Tauriのコマンド：`open_project(path)`（本文・台詞の括弧・IR）、`parse_buffer(file, text)`（保存していない本文で全体を解析し直し、IRを返す）、`dev_project_path()`（デバッグビルドでだけ `samples/houkago` を返す。起動時に開く）
+  - 画面：左にシーンの一覧（IRから）、中央にCodeMirrorのエディタ（`lezer-scn` のハイライト、診断の下線）、右にxyflowのシーンのグラフ（開始シーンからの深さで並べる自動配置）、下にステータスバー（診断の件数）
+  - 日本語入力：補完と括弧の自動補完を入れない。入力が止まって200ミリ秒たち、変換中でないときだけ解析を依頼する。変換中に届いた結果は、変換が終わってから診断・グラフ・一覧に反映し、本文が変わっていれば診断は捨てる
+  - 本文を黙って変えない：Enter で全角空白を消さない。改行が `\r\n` の本文はそのまま保つ（貼り付けた文字列の改行もそろえる）
+  - 解析とJSONへの直列化は、スタックを64MBにした専用のスレッドで行う（深い入れ子でアプリが落ちないように。スタックが1MBの呼び出し元から `@if` 1000段を通すテストを足した）
+  - 位置の変換 `PositionMap`（`app/src/core/position.ts`。`\r\n` はエディタと同じく1つに数える）と、全角文字・サロゲートペア・BOM・CRLF を含むテスト。エディタの状態のテスト（Enter、CRLF）、グラフの配置のテスト
+  - デザイントークンをCSS変数にした（`app/src/styles/tokens.css`）
+  - `CLAUDE.md` のコマンドの節に、アプリの起動・テスト・ビルドを足した
+- 人への確認
+  - AskUserQuestionで4回（macOSでの確認、レビューの後に2問：アプリの識別子は `io.github.zredjet.scnstudio`、Windowsでの確認は別途対応にしてT0-7を閉じる、直した後の再確認）。どれも推奨案に決まった
+  - レビューの指摘を直した後に、人がmacOSで再び起動し、同じ2点を確かめた（「問題ない」）。起動のログに出る `error messaging the mach port for IMKCFRunLoopWakeUpReliable` は、macOSの入力メソッドがWebViewで出す既知のログで、動作には影響しない。T0-8で気にかける
+  - 人がmacOSで `pnpm -C app tauri dev` を起動し、サンプルを開けることと、編集すると入力が止まってから診断（下線）とグラフが更新されることを確かめた（「両方とも問題ない」）
+  - Windowsでの確認は、別途対応にした（「現在の状態」に書いた）
+- 実行したコマンドと結果
+  - `pnpm -C app tauri dev`：macOSで起動し、サンプルが開いた（ログにエラー無し）
+  - `pnpm -C app test`：16件成功（位置の変換8件、エディタの状態5件、グラフの配置3件）
+  - `cargo test -p scn-app`：1件成功（深い入れ子）
+  - `pnpm -C app build`：成功（Viteの「500kBを超えるかたまりがある」という案内が出る。手元で読むデスクトップアプリなので、分割はしていない）
+  - `cargo clippy -p scn-app --all-targets -- -D warnings`：警告0件
+  - `scripts/check-all`：成功（Rustのテスト49件、lezer-scn 41件、app 16件、Biomeの指摘0件）
+  - `plan-reviewer` で3回確認した。2回目の指摘（CRLF の本文に LF の文字列を貼り付けると行の中に `\n` が入る、IRの直列化がメインスレッドで行われ Windows で深い入れ子のまま落ちる）も直した。1回目の指摘（Enter で全角空白が消える、200ミリ秒以内にファイルを切り替えると最後の編集が失われる、同じパスのファイルを持つ別のプロジェクトを開くと前の本文が残る、CRLF のファイルで診断と移動位置がずれる）を直した。確認が必要な点（Windowsでのスタックの大きさ、変換中のグラフの更新、知らないパスの `parse_buffer`、アプリの識別子、Windowsでの確認）は、人に聞くか、直して D039 に書いた
+- 決めたこと（D039）：ひな形の扱い、コマンドの形と同期で動かすこと、エディタの日本語入力の扱い、位置の変換をまとめる場所、配置のライブラリを使わない簡単な配置、デザイントークン、テストに `node --test` を使うこと
+- 加えた依存
+  - `app/`：`react`・`react-dom`、`@tauri-apps/api`、`@xyflow/react`、`@codemirror/view`・`state`・`language`・`lint`・`commands`（D002・D003、計画書のとおり）。開発用に `@tauri-apps/cli`、`vite`・`@vitejs/plugin-react`、`typescript`、`@types/react`・`@types/react-dom`・`@types/node`
+  - `app/src-tauri`：`tauri`・`tauri-build`（2系）、`serde`
+  - 配置のライブラリ（dagre など）は入れていない
+- 残った課題
+  - Windowsでの起動の確認（別途対応）
+  - フェーズ1で決めること：保存、ファイル監視、配置の保存（`layout.json`）、CSP、書体の同梱、`scn` とアプリの配布
+  - `pnpm -C app tauri dev` は、Rustのソースや文法が変わると作り直して起動し直す（開発用の動き）
+  - CLI（`scn`）は、メインスレッドで解析する。Windowsのメインスレッドのスタックは1MBで、レビューの測定では `@if` の入れ子が200段ほどであふれる（macOSの8MBでは1200段まで成功）。実際の作品では起きにくいので、アプリと同じ大きなスタックのスレッドにするかを、フェーズ1かWindowsでの確認のときに決める
+- 次のタスク：T0-8（IMEテスト。人が `docs/plan/ime-test.md` に沿って2OSでテストし、結果を記入する）
 
 ### 2026-10-07 T0-6 完了
 

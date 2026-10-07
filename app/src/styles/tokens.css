@@ -1,0 +1,55 @@
+/* デザイントークン（docs/ui/README.md の「デザイントークン」）。値を変えるときは README と一緒に変える。 */
+:root {
+  --chrome-bg: #1c2027; /* タイトルバー、左端のバー */
+  --chrome-bg-2: #2a3039; /* コマンドパレットの入力欄 */
+  --chrome-active: #343b48; /* 左端のバーの選択中の項目 */
+  --chrome-text: #e6e9ee; /* 暗い面の文字 */
+  --chrome-text-muted: #aeb6c1; /* 暗い面の控えめな文字 */
+  --app-bg: #eef0f3; /* 全体の背景 */
+  --panel-bg: #f5f6f8; /* 一覧パネル */
+  --panel-bg-2: #fafbfc; /* 文脈パネル、ソース表示 */
+  --paper: #ffffff; /* 作業領域 */
+  --statusbar-bg: #e4e7ec; /* ステータスバー */
+  --border: #dde1e6; /* 区切り線 */
+  --border-soft: #eceef2; /* 内側の区切り線 */
+  --border-control: #d5d9e0; /* 入力欄とボタンの枠 */
+  --ink: #1b1f24; /* 本文の文字 */
+  --text-2: #3d4550; /* 補助の文字 */
+  --text-muted: #4e5662; /* 見出しラベル、控えめな文字 */
+  --text-faint: #5e6672; /* ID、件数 */
+  --line-number: #6f7782; /* 行番号、行ID、コメント */
+  --accent: #3343b8; /* 選択、主要な操作、話者名、記法の色分け */
+  --accent-strong: #1f2a8a; /* 濃い面のアクセントの文字 */
+  --accent-tint: #e1e4fa; /* 選択中の行の背景 */
+  --accent-tint-2: #f3f4fd; /* 編集中の行、選択肢カードの背景 */
+  --accent-border: #c9cef2; /* 選択肢カードの枠 */
+  --ai: #0e7268; /* AIの主要な操作（採用、自律） */
+  --ai-text: #0b5d57; /* AIに関する文字 */
+  --ai-line: #2e9c90; /* AI下書きの枠、提案ノードの点線 */
+  --ai-tint: #e6f5f2; /* AIの目印の背景 */
+  --ai-tint-2: #f1faf8; /* AI下書き・提案の面 */
+  --ai-border: #a9dcd4; /* AIのカードの枠 */
+  --warn: #b26a00; /* 警告のアイコン、はみ出しの波線 */
+  --warn-text: #6b3d00; /* 仮素材の文字 */
+  --warn-tint: #fff4e0; /* 仮素材の背景 */
+  --warn-border: #d19a3f; /* 仮素材の点線の枠 */
+  --warn-strong: #8a4f00; /* 未登録の素材の札 */
+  --stub-line: #8a93a3; /* スタブの点線の枠 */
+  --danger-text: #8a1f1f; /* 中止など、取り消せない操作 */
+
+  /* 文字（docs/ui/README.md「文字」）。書体は同梱せず、OSの書体を後ろに並べる。 */
+  --font-ui:
+    "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic UI", "Yu Gothic",
+    "Meiryo", sans-serif;
+  --font-body: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --font-mono:
+    "JetBrains Mono", "Menlo", "Consolas", "Zen Kaku Gothic New",
+    "Hiragino Sans", "Yu Gothic", monospace;
+
+  /* 形（docs/ui/README.md「形」） */
+  --radius-control: 6px;
+  --radius-card: 10px;
+  --radius-item: 8px;
+  --titlebar-height: 44px;
+  --statusbar-height: 28px;
+}

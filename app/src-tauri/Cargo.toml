@@ -1,0 +1,21 @@
+[package]
+name = "scn-app"
+description = "scn-studio のデスクトップアプリ（Tauri）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+# 実行ファイル名とぶつからないよう、ライブラリ名に _lib を付ける（Tauriの手順どおり）。
+name = "scn_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+scn-core = { path = "../../crates/scn-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1.0.151"
+tauri = { version = "2", features = [] }

@@ -1,0 +1,209 @@
+/* フェーズ0の最小の画面の配置。色と形は tokens.css の変数だけを使う。 */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--app-bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.titlebar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: var(--titlebar-height);
+  padding: 0 12px;
+  background: var(--chrome-bg);
+  color: var(--chrome-text);
+}
+
+.app-name {
+  font-weight: 700;
+}
+
+.open-form {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  max-width: 640px;
+}
+
+.open-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--chrome-bg-2);
+  color: var(--chrome-text);
+  font: inherit;
+}
+
+.open-form button {
+  padding: 4px 14px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--accent);
+  color: #ffffff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.error {
+  margin: 0;
+  padding: 6px 12px;
+  background: var(--warn-tint);
+  color: var(--warn-text);
+}
+
+.workspace {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.scene-list {
+  flex: 0 0 240px;
+  overflow: auto;
+  padding: 8px;
+  background: var(--panel-bg);
+  border-right: 1px solid var(--border);
+}
+
+.panel-heading {
+  margin: 4px 8px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.file-name {
+  margin: 12px 8px 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-faint);
+}
+
+.file.current .file-name {
+  color: var(--accent);
+}
+
+.scene-list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.scene {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.scene:hover {
+  background: var(--accent-tint-2);
+}
+
+.scene.stub {
+  border-style: dashed;
+  border-color: var(--stub-line);
+}
+
+.scene-id {
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.editor-pane {
+  flex: 1;
+  min-width: 0;
+  background: var(--panel-bg-2);
+}
+
+.editor {
+  height: 100%;
+}
+
+.placeholder {
+  margin: 24px;
+  color: var(--text-muted);
+}
+
+.scene-graph {
+  flex: 0 0 420px;
+  background: var(--paper);
+  border-left: 1px solid var(--border);
+}
+
+/* xyflow の既定のノードの見た目（.react-flow__node-default）より、詳しい選択子で上書きする。 */
+.react-flow__node.scene-node {
+  white-space: pre-line;
+  font-size: 12px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-card);
+}
+
+.react-flow__node.scene-node.current {
+  border-color: var(--accent);
+}
+
+.react-flow__node.scene-node.stub {
+  border-style: dashed;
+  border-color: var(--stub-line);
+}
+
+.react-flow__node.scene-node.ai-draft {
+  border-color: var(--ai-line);
+  background: var(--ai-tint-2);
+}
+
+.react-flow__node.scene-node.missing {
+  border-style: dashed;
+  border-color: var(--warn-border);
+  background: var(--warn-tint);
+  color: var(--warn-text);
+}
+
+.statusbar {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  height: var(--statusbar-height);
+  padding: 0 12px;
+  background: var(--statusbar-bg);
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.statusbar span:last-child {
+  margin-left: auto;
+}

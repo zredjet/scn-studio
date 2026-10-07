@@ -63,6 +63,9 @@ app/                    Tauri＋React（src-tauri/ と src/、T0-7で作る）
 - Lezer文法（`packages/lezer-scn`）：`pnpm -C packages/lezer-scn test`（文法から構文解析器を作り直してから、`node --test` でテスト）／`pnpm -C packages/lezer-scn build`（構文解析器を作るだけ）
   - 作った `src/parser.ts`・`src/parser.terms.ts` はコミットしない（`typecheck` と `test` が先に作る）
   - サンプルの行の種類の期待値（`test/expected/*.txt`）を作り直す：`UPDATE_EXPECTED=1 pnpm -C packages/lezer-scn test`。差分を読んで確かめてから受け入れる
+- アプリ（`app/`、Tauri＋React）：`pnpm -C app tauri dev`（開発用に起動する。デバッグビルドでは起動時に `samples/houkago` を開く）／`pnpm -C app test`（位置の変換とグラフの配置のテスト）／`pnpm -C app build`（フロントのビルド）
+  - Rust側（`app/src-tauri`、パッケージ名 `scn-app`）はCargoのワークスペースに入っているので、`cargo test --workspace`・`cargo clippy --workspace` の対象になる
+  - フロントの `dev`・`build`・`typecheck` は、先に `packages/lezer-scn` の文法から構文解析器を作る
 - 版の固定：Rustは `rust-toolchain.toml`、pnpmとBiomeは `package.json`（`packageManager` と `devDependencies`）
 
 ## 作業の進め方

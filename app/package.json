@@ -1,0 +1,36 @@
+{
+  "name": "@scn-studio/app",
+  "private": true,
+  "version": "0.1.0",
+  "description": "scn-studio のデスクトップアプリ（Tauri＋React）",
+  "type": "module",
+  "scripts": {
+    "grammar": "pnpm -C ../packages/lezer-scn build",
+    "dev": "pnpm run grammar && vite",
+    "build": "pnpm run grammar && tsc --noEmit && vite build",
+    "typecheck": "pnpm run grammar && tsc --noEmit",
+    "test": "node --test --test-reporter=spec \"test/**/*.test.ts\"",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/lint": "^6.9.7",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.13",
+    "@scn-studio/lezer-scn": "workspace:*",
+    "@tauri-apps/api": "^2.12.1",
+    "@xyflow/react": "^12.12.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.1",
+    "@types/node": "^24.19.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.3"
+  }
+}
