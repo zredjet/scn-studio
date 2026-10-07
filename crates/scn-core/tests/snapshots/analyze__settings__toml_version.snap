@@ -1,0 +1,5 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "dump_with_disk(&ir, &dir)"
+---
+project.toml:1:1-1:15 E803 format_version 1 には対応していません（対応しているのは 0）。v0として読みます

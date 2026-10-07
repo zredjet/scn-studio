@@ -1,0 +1,7 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "dump_with_disk(&ir, &dir)"
+---
+project.toml:1:1-1:15 E802 format_version は整数で書きます。v0として読みます
+project.toml:2:1-2:12 E802 start_scene はシーンIDの文字列で書きます
+project.toml:5:1-5:4 E802 [dialogue.brackets] のキー "「" は、互いに違う開き括弧と閉じ括弧の2文字で書きます

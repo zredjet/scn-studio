@@ -1,31 +1,39 @@
 //! プロジェクトフォルダの読み込み。
 //!
 //! `project.toml`、設定DB（`bible/`）、`variables.yaml`、`assets/catalog.yaml`、
-//! `story/*.scn` を読む。設定ファイルが読めなければ、パスと理由つきのエラーにして止める
-//! （D036。診断コードはフェーズ1で足す）。無いファイルは空として扱う。
+//! `story/*.scn` を読む。設定ファイルの誤りは、読み込みのエラーで止めずに診断にし（E801〜W804）、
+//! 読めた部分で解析を続ける（D042）。無いファイルは空として扱う。`project.toml` の無いフォルダは
+//! プロジェクトではないので、エラーにする。
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
-use serde::Deserialize;
 use yaml_serde::Value;
 
+use crate::diag::{Code, Diagnostic, Span};
 use crate::syntax::{DialogueBracket, ParseOptions};
 
 /// 対応している形式のバージョン（`project.toml` の `format_version`）。
 pub const FORMAT_VERSION: i64 = 0;
 
 /// 読み込んだプロジェクト。
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Project {
     pub settings: Settings,
+    /// 設定DBの型とエントリ。
+    pub bible: Bible,
+    /// 設定DBのキャラクター（型定義に `builtin: character` のある型のエントリ）。
     pub characters: Vec<Character>,
     pub variables: Vec<VarDecl>,
+    /// `variables.yaml` を丸ごと読めなかった（E801）。宣言の無い変数（W602）を出さない（D042）。
+    pub variables_unreadable: bool,
     pub catalog: AssetCatalog,
-    /// `story/*.scn`。パスの辞書順に並べてある。
+    /// `story/*.scn`。パスの辞書順に並べてある。読めなかったファイル（E801）は含まない。
     pub files: Vec<SourceFile>,
+    /// 読み込みの診断（E801〜W804）。読んだ順に並べてある。
+    pub load_diagnostics: Vec<LoadDiagnostic>,
 }
 
 /// `project.toml` のうち、解析に使う設定。
@@ -34,6 +42,62 @@ pub struct Settings {
     pub format_version: i64,
     pub start_scene: Option<String>,
     pub brackets: Vec<DialogueBracket>,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            format_version: FORMAT_VERSION,
+            start_scene: None,
+            brackets: ParseOptions::default().brackets,
+        }
+    }
+}
+
+/// 設定DB（`bible/`）。
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Bible {
+    /// 型（`types/*.yaml`）。ファイル名の順。
+    pub types: Vec<EntryType>,
+    /// エントリ（`entries/<型>/*.md`）。パスの順。
+    pub entries: Vec<Entry>,
+}
+
+/// 設定DBの型（`bible/types/<型>.yaml`）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EntryType {
+    /// ファイル名から拡張子を除いたもの。エントリのフォルダ名と同じ。
+    pub id: String,
+    pub name: String,
+    /// 組み込みの型（`character`）。
+    pub builtin: Option<String>,
+    pub fields: Vec<FieldDef>,
+}
+
+/// 型の項目の定義（`fields` の1つ）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FieldDef {
+    pub key: String,
+    pub label: String,
+    /// 書かれたとおりの型（`text`、`list<ref<scene>>` など）。値の検査はT1-10で行う。
+    pub ty: String,
+    /// `select` の選択肢。
+    pub options: Vec<String>,
+}
+
+/// 設定DBのエントリ（`bible/entries/<型>/<ID>.md`）。
+#[derive(Debug, Clone, PartialEq)]
+pub struct Entry {
+    /// 型（エントリのフォルダ名）。
+    pub type_id: String,
+    /// フロントマターの `id`。無ければファイル名から拡張子を除いたもの。
+    pub id: String,
+    /// プロジェクトの根からの相対パス。
+    pub path: String,
+    /// フロントマターの値。
+    pub fields: BTreeMap<String, serde_json::Value>,
+    /// フロントマターの後ろの本文（Markdown）。
+    pub body: String,
 }
 
 /// 設定DBのキャラクター。
@@ -60,6 +124,17 @@ pub enum VarType {
     Enum(Vec<String>),
 }
 
+impl VarType {
+    pub fn name(&self) -> &'static str {
+        match self {
+            VarType::Bool => "bool",
+            VarType::Int => "int",
+            VarType::String => "string",
+            VarType::Enum(_) => "enum",
+        }
+    }
+}
+
 /// 素材カタログに登録された意味名。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct AssetCatalog {
@@ -78,7 +153,15 @@ pub struct SourceFile {
     pub text: String,
 }
 
-/// プロジェクトの読み込みと、本文の書き換え（[`write_source`]）のエラー。
+/// 読み込みの診断。`file` はプロジェクトの根からの相対パス、`diag.span` はそのファイルの中の位置。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LoadDiagnostic {
+    pub file: String,
+    pub diag: Diagnostic,
+}
+
+/// プロジェクトを読み込めない（`project.toml` が無いなど）ときと、本文の書き換え（[`write_source`]）の
+/// エラー。設定ファイルの中身の誤りはエラーにせず、診断にする（[`Project::load_diagnostics`]）。
 #[derive(Debug, thiserror::Error)]
 pub enum ProjectError {
     #[error("{path} を読めません：{source}")]
@@ -87,23 +170,12 @@ pub enum ProjectError {
         #[source]
         source: io::Error,
     },
-    #[error("{path} の形が不正です：{message}")]
-    Invalid { path: PathBuf, message: String },
     #[error("{path} に書けません：{source}")]
     Write {
         path: PathBuf,
         #[source]
         source: io::Error,
     },
-}
-
-impl ProjectError {
-    fn invalid(path: &Path, message: impl Into<String>) -> Self {
-        ProjectError::Invalid {
-            path: path.to_owned(),
-            message: message.into(),
-        }
-    }
 }
 
 impl Project {
@@ -113,16 +185,44 @@ impl Project {
             brackets: self.settings.brackets.clone(),
         }
     }
+
+    /// `project.toml` にエラー（E801〜E803）があるか。あれば、台詞の括弧などが書かれたとおりに
+    /// 読めていないかもしれないので、本文を書き換える処理（行IDの付与）はしない（D042）。
+    pub fn has_project_toml_errors(&self) -> bool {
+        self.load_diagnostics
+            .iter()
+            .any(|d| d.file == "project.toml" && d.diag.severity() == crate::diag::Severity::Error)
+    }
 }
 
-/// プロジェクトフォルダを読み込む。
+/// プロジェクトフォルダを読み込む。`project.toml` が無ければ（読めなければ）エラーにする。
+/// 設定ファイルの中身の誤りは、診断にして読み込みを続ける。
 pub fn load_project(root: &Path) -> Result<Project, ProjectError> {
+    let toml_path = root.join("project.toml");
+    let toml_text = fs::read(&toml_path).map_err(|source| ProjectError::Io {
+        path: toml_path,
+        source,
+    })?;
+    let mut loader = Loader {
+        root,
+        diags: Vec::new(),
+        entry_texts: BTreeMap::new(),
+    };
+    let settings = loader.settings(&toml_text);
+    let bible = loader.bible()?;
+    let characters = loader.characters(&bible);
+    let (variables, variables_unreadable) = loader.variables();
+    let catalog = loader.catalog();
+    let files = loader.story()?;
     Ok(Project {
-        settings: load_settings(&root.join("project.toml"))?,
-        characters: load_bible(&root.join("bible"))?,
-        variables: load_variables(&root.join("variables.yaml"))?,
-        catalog: load_catalog(&root.join("assets").join("catalog.yaml"))?,
-        files: load_story(root)?,
+        settings,
+        bible,
+        characters,
+        variables,
+        variables_unreadable,
+        catalog,
+        files,
+        load_diagnostics: loader.diags,
     })
 }
 
@@ -180,29 +280,6 @@ fn write_synced(path: &Path, text: &str) -> io::Result<()> {
     file.sync_all()
 }
 
-fn read(path: &Path) -> Result<String, ProjectError> {
-    fs::read_to_string(path).map_err(|source| ProjectError::Io {
-        path: path.to_owned(),
-        source,
-    })
-}
-
-/// ファイルがあれば読む。無ければ `None`。
-fn read_optional(path: &Path) -> Result<Option<String>, ProjectError> {
-    match fs::read_to_string(path) {
-        Ok(text) => Ok(Some(text)),
-        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
-        Err(source) => Err(ProjectError::Io {
-            path: path.to_owned(),
-            source,
-        }),
-    }
-}
-
-fn parse_yaml(path: &Path, text: &str) -> Result<Value, ProjectError> {
-    yaml_serde::from_str(text).map_err(|e| ProjectError::invalid(path, e.to_string()))
-}
-
 /// ディレクトリの中身を、名前の順に返す。ディレクトリが無ければ空。
 fn read_dir_sorted(dir: &Path) -> Result<Vec<PathBuf>, ProjectError> {
     let entries = match fs::read_dir(dir) {
@@ -237,185 +314,6 @@ fn file_stem(path: &Path) -> String {
         .unwrap_or_default()
 }
 
-// ---- project.toml ----
-
-#[derive(Deserialize)]
-struct ProjectToml {
-    format_version: i64,
-    start_scene: Option<String>,
-    #[serde(default)]
-    dialogue: DialogueToml,
-}
-
-#[derive(Deserialize, Default)]
-struct DialogueToml {
-    brackets: Option<BTreeMap<String, String>>,
-}
-
-fn load_settings(path: &Path) -> Result<Settings, ProjectError> {
-    let text = read(path)?;
-    let parsed: ProjectToml =
-        toml::from_str(&text).map_err(|e| ProjectError::invalid(path, e.to_string()))?;
-    if parsed.format_version != FORMAT_VERSION {
-        return Err(ProjectError::invalid(
-            path,
-            format!(
-                "format_version {} には対応していません（対応しているのは {FORMAT_VERSION}）",
-                parsed.format_version
-            ),
-        ));
-    }
-    let brackets = match parsed.dialogue.brackets {
-        None => ParseOptions::default().brackets,
-        Some(table) => parse_brackets(path, &table)?,
-    };
-    Ok(Settings {
-        format_version: parsed.format_version,
-        start_scene: parsed.start_scene,
-        brackets,
-    })
-}
-
-/// `[dialogue.brackets]` を読む（仕様書6節）。キーは互いに違う開き括弧と閉じ括弧の2文字、
-/// 値は英字で始まる表示スタイルの名前。
-fn parse_brackets(
-    path: &Path,
-    table: &BTreeMap<String, String>,
-) -> Result<Vec<DialogueBracket>, ProjectError> {
-    let mut brackets: Vec<DialogueBracket> = Vec::new();
-    for (key, style) in table {
-        let chars: Vec<char> = key.chars().collect();
-        let (open, close) = match chars.as_slice() {
-            [open, close] if open != close => (*open, *close),
-            _ => {
-                return Err(ProjectError::invalid(
-                    path,
-                    format!(
-                        "[dialogue.brackets] のキー \"{key}\" は、互いに違う開き括弧と閉じ括弧の2文字で書きます"
-                    ),
-                ));
-            }
-        };
-        let valid_style = style
-            .chars()
-            .next()
-            .is_some_and(|c| c.is_ascii_alphabetic())
-            && style
-                .chars()
-                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-');
-        if !valid_style {
-            return Err(ProjectError::invalid(
-                path,
-                format!("[dialogue.brackets] の表示スタイル \"{style}\" は英字の名前で書きます"),
-            ));
-        }
-        if brackets
-            .iter()
-            .any(|b| [b.open, b.close].contains(&open) || [b.open, b.close].contains(&close))
-        {
-            return Err(ProjectError::invalid(
-                path,
-                format!("[dialogue.brackets] の \"{key}\" の括弧が、ほかのキーと重なっています"),
-            ));
-        }
-        brackets.push(DialogueBracket {
-            open,
-            close,
-            style: style.clone(),
-        });
-    }
-    Ok(brackets)
-}
-
-// ---- 設定DB ----
-
-/// 設定DBを読む。型（`types/*.yaml`）とエントリ（`entries/<型>/*.md`）がすべて読めることを確かめ、
-/// キャラクター（`entries/character/`）を返す。
-fn load_bible(dir: &Path) -> Result<Vec<Character>, ProjectError> {
-    for path in read_dir_sorted(&dir.join("types"))? {
-        if has_extension(&path, "yaml") {
-            parse_yaml(&path, &read(&path)?)?;
-        }
-    }
-    let mut characters = Vec::new();
-    for type_dir in read_dir_sorted(&dir.join("entries"))? {
-        if !type_dir.is_dir() {
-            continue;
-        }
-        let is_character = type_dir.file_name().is_some_and(|n| n == "character");
-        for path in read_dir_sorted(&type_dir)? {
-            if !has_extension(&path, "md") {
-                continue;
-            }
-            let text = read(&path)?;
-            let front = match front_matter(&text) {
-                Some(yaml) => parse_yaml(&path, yaml)?,
-                None if is_character => {
-                    return Err(ProjectError::invalid(
-                        &path,
-                        "キャラクターのエントリには、--- で囲んだフロントマターが要ります",
-                    ));
-                }
-                None => continue,
-            };
-            if is_character {
-                characters.push(character(&path, &front)?);
-            }
-        }
-    }
-    Ok(characters)
-}
-
-/// 先頭の `---` の行から、次の `---` の行までを取り出す。
-fn front_matter(text: &str) -> Option<&str> {
-    let text = text.strip_prefix('\u{feff}').unwrap_or(text);
-    let mut lines = text.split_inclusive('\n');
-    let first = lines.next()?;
-    if first.trim_end() != "---" {
-        return None;
-    }
-    let start = first.len();
-    let mut end = start;
-    for line in lines {
-        if line.trim_end() == "---" {
-            return text.get(start..end);
-        }
-        end += line.len();
-    }
-    None
-}
-
-fn character(path: &Path, front: &Value) -> Result<Character, ProjectError> {
-    let id = match front.get("id") {
-        None => file_stem(path),
-        Some(value) => {
-            scalar(value).ok_or_else(|| ProjectError::invalid(path, "id は文字列で書きます"))?
-        }
-    };
-    let name = front
-        .get("name")
-        .and_then(scalar)
-        .ok_or_else(|| ProjectError::invalid(path, "キャラクターに name がありません"))?;
-    let aliases = match front.get("aliases") {
-        None | Some(Value::Null) => Vec::new(),
-        Some(Value::Sequence(items)) => items
-            .iter()
-            .map(|item| {
-                scalar(item).ok_or_else(|| {
-                    ProjectError::invalid(path, "aliases は文字列のリストで書きます")
-                })
-            })
-            .collect::<Result<_, _>>()?,
-        Some(_) => {
-            return Err(ProjectError::invalid(
-                path,
-                "aliases は文字列のリストで書きます",
-            ));
-        }
-    };
-    Ok(Character { id, name, aliases })
-}
-
 /// 文字列・数・真偽の値を、文字列にする。
 fn scalar(value: &Value) -> Option<String> {
     match value {
@@ -426,174 +324,787 @@ fn scalar(value: &Value) -> Option<String> {
     }
 }
 
-// ---- variables.yaml ----
+/// フロントマターの値（文字列・数・真偽）を、文字列にする。
+fn json_scalar(value: &serde_json::Value) -> Option<String> {
+    match value {
+        serde_json::Value::String(s) => Some(s.clone()),
+        serde_json::Value::Number(n) => Some(n.to_string()),
+        serde_json::Value::Bool(b) => Some(b.to_string()),
+        _ => None,
+    }
+}
 
-fn load_variables(path: &Path) -> Result<Vec<VarDecl>, ProjectError> {
-    let Some(text) = read_optional(path)? else {
-        return Ok(Vec::new());
-    };
-    let root = parse_yaml(path, &text)?;
-    let map = match &root {
-        Value::Null => return Ok(Vec::new()),
-        Value::Mapping(map) => map,
-        _ => {
-            return Err(ProjectError::invalid(
-                path,
-                "変数名をキーにした対応表で書きます",
-            ));
+/// 行（1から数える）と列（1から数える、文字の数）を、バイト位置にする。範囲の外なら終わりにする。
+fn offset_of(text: &str, line: usize, column: usize) -> usize {
+    let mut offset = 0;
+    for (i, l) in text.split_inclusive('\n').enumerate() {
+        if i + 1 == line {
+            let in_line: usize = l
+                .chars()
+                .take(column.saturating_sub(1))
+                .map(char::len_utf8)
+                .sum();
+            return offset + in_line.min(l.len());
         }
-    };
-    let mut decls = Vec::new();
-    for (key, def) in map {
-        let Some(key) = scalar(key) else {
-            return Err(ProjectError::invalid(path, "変数名は文字列で書きます"));
-        };
-        let key = match key.split_once('.') {
-            Some((namespace, name))
-                if !namespace.is_empty() && !name.is_empty() && !name.contains('.') =>
+        offset += l.len();
+    }
+    text.len()
+}
+
+/// `キー:` で始まる最初の行（行頭の空白と `- ` を除く）の、キーの位置。見つからなければ先頭。
+/// 設定ファイルの項目の誤り（E802）の位置に使う。
+fn key_span(text: &str, from: usize, key: &str) -> Span {
+    let mut offset = 0;
+    for line in text.split_inclusive('\n') {
+        let start = offset;
+        offset += line.len();
+        if start < from {
+            continue;
+        }
+        let trimmed = line.trim_start_matches([' ', '\t']);
+        let trimmed = trimmed.strip_prefix("- ").unwrap_or(trimmed);
+        let at = start + (line.len() - trimmed.len());
+        for quoted in [key.to_owned(), format!("\"{key}\""), format!("'{key}'")] {
+            if let Some(after) = trimmed.strip_prefix(quoted.as_str())
+                && after
+                    .trim_start_matches([' ', '\t'])
+                    .starts_with([':', '='])
             {
-                key.clone()
+                return Span::new(at, at + quoted.len());
             }
-            None if !key.is_empty() => format!("flag.{key}"),
-            _ => {
-                return Err(ProjectError::invalid(
-                    path,
-                    format!("変数名 {key} は「名前空間.名前」か「名前」で書きます"),
-                ));
+        }
+    }
+    Span::new(0, 0)
+}
+
+/// 先頭の `---` の行から、次の `---` の行までを取り出す。中身と、中身の始まりの位置と、
+/// 閉じの `---` の行の後ろの位置を返す。
+fn front_matter(text: &str) -> Option<(&str, usize, usize)> {
+    let bom = if text.starts_with('\u{feff}') { 3 } else { 0 };
+    let body = text.get(bom..)?;
+    let mut lines = body.split_inclusive('\n');
+    let first = lines.next()?;
+    if first.trim_end() != "---" {
+        return None;
+    }
+    let start = bom + first.len();
+    let mut end = start;
+    for line in lines {
+        if line.trim_end() == "---" {
+            return Some((text.get(start..end)?, start, end + line.len()));
+        }
+        end += line.len();
+    }
+    None
+}
+
+/// 読み込みの途中の状態。診断を集める。
+struct Loader<'a> {
+    root: &'a Path,
+    diags: Vec<LoadDiagnostic>,
+    /// 読んだエントリの本文（パスごと）。キャラクターの項目の誤りの位置を求めるのに使う。
+    entry_texts: BTreeMap<String, String>,
+}
+
+impl Loader<'_> {
+    /// プロジェクトの根からの相対パス（区切りは `/`）。
+    fn relative(&self, path: &Path) -> String {
+        path.strip_prefix(self.root)
+            .unwrap_or(path)
+            .components()
+            .map(|c| c.as_os_str().to_string_lossy())
+            .collect::<Vec<_>>()
+            .join("/")
+    }
+
+    fn entry_text(&self, path: &str) -> &str {
+        self.entry_texts.get(path).map_or("", String::as_str)
+    }
+
+    fn diag(&mut self, file: &str, code: Code, span: Span, message: impl Into<String>) {
+        self.diags.push(LoadDiagnostic {
+            file: file.to_owned(),
+            diag: Diagnostic::new(code, span, message),
+        });
+    }
+
+    /// ファイルを読む。無ければ `None`。読めなければ（UTF-8でないなど）E801 を出して `None`。
+    fn read(&mut self, path: &Path) -> Option<String> {
+        match fs::read(path) {
+            Ok(bytes) => self.decode(path, bytes),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => None,
+            Err(e) => {
+                let file = self.relative(path);
+                self.diag(
+                    &file,
+                    Code::E801,
+                    Span::new(0, 0),
+                    format!("{file} を読めません：{e}"),
+                );
+                None
             }
+        }
+    }
+
+    fn decode(&mut self, path: &Path, bytes: Vec<u8>) -> Option<String> {
+        match String::from_utf8(bytes) {
+            Ok(text) => Some(text),
+            Err(e) => {
+                let file = self.relative(path);
+                let at = e.utf8_error().valid_up_to();
+                self.diag(
+                    &file,
+                    Code::E801,
+                    Span::new(at, at),
+                    format!("{file} はUTF-8で書かれていません。このファイルを読み飛ばします"),
+                );
+                None
+            }
+        }
+    }
+
+    /// YAMLを読む。構文が崩れていれば E801 を出して `None`。`text` は、ファイル（`whole`）の行と
+    /// 行の番号がそろうようにしたもの（フロントマターは、前の行を空行で埋める）。
+    fn yaml(&mut self, file: &str, whole: &str, text: &str) -> Option<Value> {
+        match yaml_serde::from_str(text) {
+            Ok(value) => Some(value),
+            Err(e) => {
+                let at = e
+                    .location()
+                    .map_or(0, |l| offset_of(whole, l.line(), l.column()));
+                self.diag(
+                    file,
+                    Code::E801,
+                    Span::new(at, at),
+                    format!("{file} のYAMLを読めません：{e}。このファイルを読み飛ばします"),
+                );
+                None
+            }
+        }
+    }
+
+    // ---- project.toml ----
+
+    fn settings(&mut self, bytes: &[u8]) -> Settings {
+        let path = self.root.join("project.toml");
+        let file = "project.toml";
+        let mut settings = Settings::default();
+        let Some(text) = self.decode(&path, bytes.to_vec()) else {
+            return settings;
         };
-        let ty = match def.get("type").and_then(scalar).as_deref() {
-            Some("bool") => VarType::Bool,
-            Some("int") => VarType::Int,
-            Some("string") => VarType::String,
-            Some("enum") => {
-                let values = match def.get("values") {
-                    Some(Value::Sequence(items)) if !items.is_empty() => items
-                        .iter()
-                        .map(|v| {
-                            scalar(v).ok_or_else(|| {
-                                ProjectError::invalid(
-                                    path,
-                                    format!("{key} の values は文字列で書きます"),
-                                )
-                            })
-                        })
-                        .collect::<Result<_, _>>()?,
-                    _ => {
-                        return Err(ProjectError::invalid(
-                            path,
-                            format!("列挙の変数 {key} には values（値のリスト）が要ります"),
-                        ));
-                    }
-                };
-                VarType::Enum(values)
-            }
-            other => {
-                return Err(ProjectError::invalid(
-                    path,
+        let table: toml::Table = match toml::from_str(&text) {
+            Ok(table) => table,
+            Err(e) => {
+                let span = e
+                    .span()
+                    .map_or(Span::new(0, 0), |r| Span::new(r.start, r.end));
+                self.diag(
+                    file,
+                    Code::E801,
+                    span,
                     format!(
-                        "{key} の type が不正です：{}（bool・int・string・enum のどれか）",
-                        other.unwrap_or("なし")
+                        "project.toml を読めません：{}。既定の設定で読みます",
+                        e.message()
                     ),
-                ));
+                );
+                return settings;
             }
         };
-        decls.push(VarDecl { key, ty });
-    }
-    Ok(decls)
-}
-
-// ---- assets/catalog.yaml ----
-
-fn load_catalog(path: &Path) -> Result<AssetCatalog, ProjectError> {
-    let Some(text) = read_optional(path)? else {
-        return Ok(AssetCatalog::default());
-    };
-    let root = parse_yaml(path, &text)?;
-    if root.is_null() {
-        return Ok(AssetCatalog::default());
-    }
-    let names = |section: &str| -> Result<BTreeSet<String>, ProjectError> {
-        match root.get(section) {
-            None | Some(Value::Null) => Ok(BTreeSet::new()),
-            Some(Value::Mapping(map)) => map
-                .keys()
-                .map(|k| {
-                    scalar(k).ok_or_else(|| {
-                        ProjectError::invalid(path, format!("{section} の意味名は文字列で書きます"))
-                    })
-                })
-                .collect(),
-            Some(_) => Err(ProjectError::invalid(
-                path,
-                format!("{section} は意味名をキーにした対応表で書きます"),
-            )),
+        match table.get("format_version") {
+            Some(toml::Value::Integer(v)) if *v == FORMAT_VERSION => {}
+            Some(toml::Value::Integer(v)) => self.diag(
+                file,
+                Code::E803,
+                key_span(&text, 0, "format_version"),
+                format!(
+                    "format_version {v} には対応していません（対応しているのは {FORMAT_VERSION}）。v0として読みます"
+                ),
+            ),
+            Some(_) => self.diag(
+                file,
+                Code::E802,
+                key_span(&text, 0, "format_version"),
+                "format_version は整数で書きます。v0として読みます",
+            ),
+            None => self.diag(
+                file,
+                Code::E802,
+                Span::new(0, 0),
+                "format_version がありません。v0として読みます",
+            ),
         }
-    };
-    let mut characters = BTreeMap::new();
-    match root.get("characters") {
-        None | Some(Value::Null) => {}
-        Some(Value::Mapping(map)) => {
-            for (id, entry) in map {
-                let id = scalar(id).ok_or_else(|| {
-                    ProjectError::invalid(path, "characters のキーはキャラクターIDで書きます")
-                })?;
-                let expressions = match entry.get("expressions") {
-                    None | Some(Value::Null) => BTreeSet::new(),
-                    Some(Value::Mapping(map)) => map
-                        .keys()
-                        .map(|k| {
-                            scalar(k).ok_or_else(|| {
-                                ProjectError::invalid(path, "立ち絵の差分の名前は文字列で書きます")
-                            })
-                        })
-                        .collect::<Result<_, _>>()?,
-                    Some(_) => {
-                        return Err(ProjectError::invalid(
-                            path,
-                            format!(
-                                "characters.{id}.expressions は差分の名前をキーにした対応表で書きます"
-                            ),
-                        ));
-                    }
-                };
-                characters.insert(id, expressions);
+        match table.get("start_scene") {
+            None => {}
+            Some(toml::Value::String(id)) => settings.start_scene = Some(id.clone()),
+            Some(_) => self.diag(
+                file,
+                Code::E802,
+                key_span(&text, 0, "start_scene"),
+                "start_scene はシーンIDの文字列で書きます",
+            ),
+        }
+        let brackets = match table.get("dialogue") {
+            None => None,
+            Some(toml::Value::Table(dialogue)) => dialogue.get("brackets"),
+            Some(_) => {
+                self.diag(
+                    file,
+                    Code::E802,
+                    key_span(&text, 0, "dialogue"),
+                    "dialogue は [dialogue] の表で書きます。既定の「」を使います",
+                );
+                None
             }
+        };
+        match brackets {
+            None => {}
+            Some(toml::Value::Table(brackets)) => {
+                let parsed = self.brackets(&text, brackets);
+                if !parsed.is_empty() {
+                    settings.brackets = parsed;
+                }
+            }
+            Some(_) => self.diag(
+                file,
+                Code::E802,
+                key_span(&text, 0, "brackets"),
+                "[dialogue.brackets] は、括弧をキーにした表で書きます。既定の「」を使います",
+            ),
         }
-        Some(_) => {
-            return Err(ProjectError::invalid(
-                path,
-                "characters はキャラクターIDをキーにした対応表で書きます",
-            ));
-        }
+        settings
     }
-    Ok(AssetCatalog {
-        backgrounds: names("backgrounds")?,
-        characters,
-        bgm: names("bgm")?,
-        se: names("se")?,
-    })
-}
 
-// ---- story/ ----
-
-/// `story/*.scn` を読み、パスの辞書順に並べる。サブディレクトリは読まない（D036）。
-fn load_story(root: &Path) -> Result<Vec<SourceFile>, ProjectError> {
-    let mut files = Vec::new();
-    for path in read_dir_sorted(&root.join("story"))? {
-        if path.is_file() && has_extension(&path, "scn") {
-            let name = path
-                .file_name()
-                .map(|n| n.to_string_lossy().into_owned())
-                .unwrap_or_default();
-            files.push(SourceFile {
-                path: format!("story/{name}"),
-                text: read(&path)?,
+    /// `[dialogue.brackets]` を読む（仕様書6節）。キーは互いに違う開き括弧と閉じ括弧の2文字、
+    /// 値は英字で始まる表示スタイルの名前。合わない組は E802 を出して読み飛ばす。
+    fn brackets(&mut self, text: &str, table: &toml::Table) -> Vec<DialogueBracket> {
+        let file = "project.toml";
+        let mut brackets: Vec<DialogueBracket> = Vec::new();
+        for (key, style) in table {
+            let span = key_span(text, 0, key);
+            let chars: Vec<char> = key.chars().collect();
+            let (open, close) = match chars.as_slice() {
+                [open, close] if open != close => (*open, *close),
+                _ => {
+                    self.diag(
+                        file,
+                        Code::E802,
+                        span,
+                        format!(
+                            "[dialogue.brackets] のキー \"{key}\" は、互いに違う開き括弧と閉じ括弧の2文字で書きます"
+                        ),
+                    );
+                    continue;
+                }
+            };
+            let style = style.as_str().unwrap_or_default();
+            let valid_style = style
+                .chars()
+                .next()
+                .is_some_and(|c| c.is_ascii_alphabetic())
+                && style
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-');
+            if !valid_style {
+                self.diag(
+                    file,
+                    Code::E802,
+                    span,
+                    format!(
+                        "[dialogue.brackets] の \"{key}\" の表示スタイルは英字の名前で書きます"
+                    ),
+                );
+                continue;
+            }
+            if brackets
+                .iter()
+                .any(|b| [b.open, b.close].contains(&open) || [b.open, b.close].contains(&close))
+            {
+                self.diag(
+                    file,
+                    Code::E802,
+                    span,
+                    format!(
+                        "[dialogue.brackets] の \"{key}\" の括弧が、ほかのキーと重なっています"
+                    ),
+                );
+                continue;
+            }
+            brackets.push(DialogueBracket {
+                open,
+                close,
+                style: style.to_owned(),
             });
         }
+        brackets
     }
-    files.sort_by(|a, b| a.path.cmp(&b.path));
-    Ok(files)
+
+    // ---- 設定DB ----
+
+    /// 設定DBを読む。型（`types/*.yaml`）とエントリ（`entries/<型>/*.md`）。
+    fn bible(&mut self) -> Result<Bible, ProjectError> {
+        let dir = self.root.join("bible");
+        let mut bible = Bible::default();
+        let mut type_files = BTreeSet::new();
+        for path in read_dir_sorted(&dir.join("types"))? {
+            if !has_extension(&path, "yaml") {
+                continue;
+            }
+            type_files.insert(file_stem(&path));
+            if let Some(entry_type) = self.entry_type(&path) {
+                bible.types.push(entry_type);
+            }
+        }
+        for type_dir in read_dir_sorted(&dir.join("entries"))? {
+            if !type_dir.is_dir() {
+                continue;
+            }
+            let type_id = file_stem(&type_dir);
+            if !type_files.contains(&type_id) {
+                let folder = self.relative(&type_dir);
+                self.diag(
+                    &folder,
+                    Code::W804,
+                    Span::new(0, 0),
+                    format!("{folder} の型の定義（bible/types/{type_id}.yaml）がありません"),
+                );
+            }
+            for path in read_dir_sorted(&type_dir)? {
+                if has_extension(&path, "md")
+                    && let Some(entry) = self.entry(&type_id, &path)
+                {
+                    bible.entries.push(entry);
+                }
+            }
+        }
+        Ok(bible)
+    }
+
+    fn entry_type(&mut self, path: &Path) -> Option<EntryType> {
+        let text = self.read(path)?;
+        let file = self.relative(path);
+        let root = self.yaml(&file, &text, &text)?;
+        let id = file_stem(path);
+        let name = root
+            .get("name")
+            .and_then(scalar)
+            .unwrap_or_else(|| id.clone());
+        let builtin = match root.get("builtin") {
+            None | Some(Value::Null) => None,
+            Some(value) => match scalar(value).as_deref() {
+                Some("character") => Some("character".to_owned()),
+                _ => {
+                    self.diag(
+                        &file,
+                        Code::E802,
+                        key_span(&text, 0, "builtin"),
+                        "builtin に書けるのは character だけです。組み込みの型として扱いません",
+                    );
+                    None
+                }
+            },
+        };
+        let mut fields = Vec::new();
+        match root.get("fields") {
+            None | Some(Value::Null) => {}
+            Some(Value::Sequence(items)) => {
+                for item in items {
+                    let key = item.get("key").and_then(scalar);
+                    let ty = item.get("type").and_then(scalar);
+                    let (Some(key), Some(ty)) = (key, ty) else {
+                        self.diag(
+                            &file,
+                            Code::E802,
+                            key_span(&text, 0, "fields"),
+                            "fields の項目には key と type が要ります。その項目を読み飛ばします",
+                        );
+                        continue;
+                    };
+                    let label = item
+                        .get("label")
+                        .and_then(scalar)
+                        .unwrap_or_else(|| key.clone());
+                    let options = match item.get("options") {
+                        Some(Value::Sequence(options)) => {
+                            options.iter().filter_map(scalar).collect()
+                        }
+                        _ => Vec::new(),
+                    };
+                    fields.push(FieldDef {
+                        key,
+                        label,
+                        ty,
+                        options,
+                    });
+                }
+            }
+            Some(_) => self.diag(
+                &file,
+                Code::E802,
+                key_span(&text, 0, "fields"),
+                "fields は項目の定義のリストで書きます",
+            ),
+        }
+        Some(EntryType {
+            id,
+            name,
+            builtin,
+            fields,
+        })
+    }
+
+    fn entry(&mut self, type_id: &str, path: &Path) -> Option<Entry> {
+        let text = self.read(path)?;
+        let file = self.relative(path);
+        let (fields, body) = match front_matter(&text) {
+            None => (
+                BTreeMap::new(),
+                text.trim_start_matches('\u{feff}').to_owned(),
+            ),
+            Some((yaml, start, end)) => {
+                // 前の行（開きの `---`）を空行で埋め、誤りの行の番号をファイルとそろえる。
+                let before = text.get(..start).unwrap_or_default().matches('\n').count();
+                let padded = format!("{}{yaml}", "\n".repeat(before));
+                let front = self.yaml(&file, &text, &padded)?;
+                let fields = match front {
+                    Value::Null => BTreeMap::new(),
+                    Value::Mapping(map) => map
+                        .into_iter()
+                        .filter_map(|(k, v)| {
+                            Some((scalar(&k)?, serde_json::to_value(&v).unwrap_or_default()))
+                        })
+                        .collect(),
+                    _ => {
+                        self.diag(
+                            &file,
+                            Code::E802,
+                            Span::new(start, start),
+                            "フロントマターは「キー: 値」の対応表で書きます。このエントリを読み飛ばします",
+                        );
+                        return None;
+                    }
+                };
+                (fields, text.get(end..).unwrap_or_default().to_owned())
+            }
+        };
+        let id = match fields.get("id") {
+            None => file_stem(path),
+            Some(value) if json_scalar(value).is_some() => json_scalar(value).unwrap_or_default(),
+            Some(_) => {
+                self.diag(
+                    &file,
+                    Code::E802,
+                    key_span(&text, 0, "id"),
+                    "id は文字列で書きます。このエントリを読み飛ばします",
+                );
+                return None;
+            }
+        };
+        self.entry_texts.insert(file.clone(), text);
+        Some(Entry {
+            type_id: type_id.to_owned(),
+            id,
+            path: file,
+            fields,
+            body,
+        })
+    }
+
+    /// キャラクターの型（`builtin: character`）のエントリを、キャラクターにする。
+    /// そういう型が無ければ（型定義が読めないときも）、フォルダ名 `character` の型を使う。
+    fn characters(&mut self, bible: &Bible) -> Vec<Character> {
+        let builtin: Vec<&EntryType> = bible
+            .types
+            .iter()
+            .filter(|t| t.builtin.as_deref() == Some("character"))
+            .collect();
+        let type_id = match builtin.as_slice() {
+            [] => "character".to_owned(),
+            [first, rest @ ..] => {
+                for extra in rest {
+                    let file = format!("bible/types/{}.yaml", extra.id);
+                    self.diag(
+                        &file,
+                        Code::E802,
+                        Span::new(0, 0),
+                        format!(
+                            "builtin: character は1つの型にだけ書きます（{} の型を使います）",
+                            first.id
+                        ),
+                    );
+                }
+                first.id.clone()
+            }
+        };
+        let mut characters = Vec::new();
+        for entry in bible.entries.iter().filter(|e| e.type_id == type_id) {
+            let Some(name) = entry.fields.get("name").and_then(json_scalar) else {
+                let span = key_span(self.entry_text(&entry.path), 0, "name");
+                self.diag(
+                    &entry.path,
+                    Code::E802,
+                    span,
+                    "キャラクターには、フロントマターに文字列の name が要ります。このキャラクターを読み飛ばします",
+                );
+                continue;
+            };
+            let aliases = match entry.fields.get("aliases") {
+                None | Some(serde_json::Value::Null) => Vec::new(),
+                Some(serde_json::Value::Array(items))
+                    if items.iter().all(|i| json_scalar(i).is_some()) =>
+                {
+                    items.iter().filter_map(json_scalar).collect()
+                }
+                Some(_) => {
+                    let span = key_span(self.entry_text(&entry.path), 0, "aliases");
+                    self.diag(
+                        &entry.path,
+                        Code::E802,
+                        span,
+                        "aliases は文字列のリストで書きます。呼び名を読み飛ばします",
+                    );
+                    Vec::new()
+                }
+            };
+            characters.push(Character {
+                id: entry.id.clone(),
+                name,
+                aliases,
+            });
+        }
+        characters
+    }
+
+    // ---- variables.yaml ----
+
+    /// 変数の宣言を読む。丸ごと読めなければ、2つ目を `true` にする（W602 を出さないため）。
+    fn variables(&mut self) -> (Vec<VarDecl>, bool) {
+        let path = self.root.join("variables.yaml");
+        let file = "variables.yaml";
+        if !path.exists() {
+            return (Vec::new(), false);
+        }
+        let Some(text) = self.read(&path) else {
+            return (Vec::new(), true);
+        };
+        let Some(root) = self.yaml(file, &text, &text) else {
+            return (Vec::new(), true);
+        };
+        let map = match &root {
+            Value::Null => return (Vec::new(), false),
+            Value::Mapping(map) => map,
+            _ => {
+                self.diag(
+                    file,
+                    Code::E802,
+                    Span::new(0, 0),
+                    "variables.yaml は、変数名をキーにした対応表で書きます。宣言を読み飛ばします",
+                );
+                return (Vec::new(), true);
+            }
+        };
+        let mut decls = Vec::new();
+        for (key, def) in map {
+            let Some(written) = scalar(key) else {
+                self.diag(
+                    file,
+                    Code::E802,
+                    Span::new(0, 0),
+                    "変数名は文字列で書きます",
+                );
+                continue;
+            };
+            let span = key_span(&text, 0, &written);
+            let key = match written.split_once('.') {
+                Some((namespace, name))
+                    if !namespace.is_empty() && !name.is_empty() && !name.contains('.') =>
+                {
+                    written.clone()
+                }
+                None if !written.is_empty() => format!("flag.{written}"),
+                _ => {
+                    self.diag(
+                        file,
+                        Code::E802,
+                        span,
+                        format!("変数名 {written} は「名前空間.名前」か「名前」で書きます。この変数を読み飛ばします"),
+                    );
+                    continue;
+                }
+            };
+            let ty = match def.get("type").and_then(scalar).as_deref() {
+                Some("bool") => VarType::Bool,
+                Some("int") => VarType::Int,
+                Some("string") => VarType::String,
+                Some("enum") => {
+                    let values: Option<Vec<String>> = match def.get("values") {
+                        Some(Value::Sequence(items)) if !items.is_empty() => {
+                            items.iter().map(scalar).collect()
+                        }
+                        _ => None,
+                    };
+                    match values {
+                        Some(values) => VarType::Enum(values),
+                        None => {
+                            self.diag(
+                                file,
+                                Code::E802,
+                                span,
+                                format!(
+                                    "列挙の変数 {written} には values（文字列の値のリスト）が要ります。この変数を読み飛ばします"
+                                ),
+                            );
+                            continue;
+                        }
+                    }
+                }
+                other => {
+                    self.diag(
+                        file,
+                        Code::E802,
+                        span,
+                        format!(
+                            "{written} の type が不正です：{}（bool・int・string・enum のどれか）。この変数を読み飛ばします",
+                            other.unwrap_or("なし")
+                        ),
+                    );
+                    continue;
+                }
+            };
+            decls.push(VarDecl { key, ty });
+        }
+        (decls, false)
+    }
+
+    // ---- assets/catalog.yaml ----
+
+    fn catalog(&mut self) -> AssetCatalog {
+        let path = self.root.join("assets").join("catalog.yaml");
+        let file = "assets/catalog.yaml";
+        let Some(text) = self.read(&path) else {
+            return AssetCatalog::default();
+        };
+        let Some(root) = self.yaml(file, &text, &text) else {
+            return AssetCatalog::default();
+        };
+        if root.is_null() {
+            return AssetCatalog::default();
+        }
+        if !root.is_mapping() {
+            self.diag(
+                file,
+                Code::E802,
+                Span::new(0, 0),
+                "素材カタログは、backgrounds・characters・bgm・se の節で書きます。カタログを読み飛ばします",
+            );
+            return AssetCatalog::default();
+        }
+        let mut catalog = AssetCatalog {
+            backgrounds: self.names(&text, &root, "backgrounds"),
+            characters: BTreeMap::new(),
+            bgm: self.names(&text, &root, "bgm"),
+            se: self.names(&text, &root, "se"),
+        };
+        match root.get("characters") {
+            None | Some(Value::Null) => {}
+            Some(Value::Mapping(map)) => {
+                for (id, entry) in map {
+                    let Some(id) = scalar(id) else {
+                        self.diag(
+                            file,
+                            Code::E802,
+                            key_span(&text, 0, "characters"),
+                            "characters のキーはキャラクターIDで書きます",
+                        );
+                        continue;
+                    };
+                    let expressions = match entry.get("expressions") {
+                        None | Some(Value::Null) => BTreeSet::new(),
+                        Some(Value::Mapping(map)) => {
+                            self.keys(&text, map, &format!("characters.{id}.expressions"))
+                        }
+                        Some(_) => {
+                            self.diag(
+                                file,
+                                Code::E802,
+                                key_span(&text, 0, &id),
+                                format!(
+                                    "characters.{id}.expressions は差分の名前をキーにした対応表で書きます。差分を読み飛ばします"
+                                ),
+                            );
+                            BTreeSet::new()
+                        }
+                    };
+                    catalog.characters.insert(id, expressions);
+                }
+            }
+            Some(_) => self.diag(
+                file,
+                Code::E802,
+                key_span(&text, 0, "characters"),
+                "characters はキャラクターIDをキーにした対応表で書きます。この節を読み飛ばします",
+            ),
+        }
+        catalog
+    }
+
+    /// 対応表のキー（意味名）。文字列にできないキーは E802 を出して読み飛ばす。
+    fn keys(&mut self, text: &str, map: &yaml_serde::Mapping, section: &str) -> BTreeSet<String> {
+        let mut names = BTreeSet::new();
+        for key in map.keys() {
+            match scalar(key) {
+                Some(name) => {
+                    names.insert(name);
+                }
+                None => self.diag(
+                    "assets/catalog.yaml",
+                    Code::E802,
+                    key_span(text, 0, section.rsplit('.').next().unwrap_or(section)),
+                    format!("{section} の意味名は文字列で書きます。その意味名を読み飛ばします"),
+                ),
+            }
+        }
+        names
+    }
+
+    /// カタログの節（意味名をキーにした対応表）の意味名。合わなければ E802 を出して空にする。
+    fn names(&mut self, text: &str, root: &Value, section: &str) -> BTreeSet<String> {
+        match root.get(section) {
+            None | Some(Value::Null) => BTreeSet::new(),
+            Some(Value::Mapping(map)) => self.keys(text, map, section),
+            Some(_) => {
+                self.diag(
+                    "assets/catalog.yaml",
+                    Code::E802,
+                    key_span(text, 0, section),
+                    format!(
+                        "{section} は意味名をキーにした対応表で書きます。この節を読み飛ばします"
+                    ),
+                );
+                BTreeSet::new()
+            }
+        }
+    }
+
+    // ---- story/ ----
+
+    /// `story/*.scn` を読み、パスの辞書順に並べる。サブディレクトリは読まない（D036）。
+    /// 読めないファイル（UTF-8でないなど）は E801 を出して読み飛ばす。
+    fn story(&mut self) -> Result<Vec<SourceFile>, ProjectError> {
+        let mut files = Vec::new();
+        for path in read_dir_sorted(&self.root.join("story"))? {
+            if path.is_file()
+                && has_extension(&path, "scn")
+                && let Some(text) = self.read(&path)
+            {
+                files.push(SourceFile {
+                    path: self.relative(&path),
+                    text,
+                });
+            }
+        }
+        files.sort_by(|a, b| a.path.cmp(&b.path));
+        Ok(files)
+    }
 }
 
 #[cfg(test)]
@@ -602,30 +1113,33 @@ mod tests {
 
     #[test]
     fn front_matter_lines() {
-        assert_eq!(front_matter("---\nid: a\n---\n本文"), Some("id: a\n"));
-        assert_eq!(front_matter("---\r\nid: a\r\n---\r\n"), Some("id: a\r\n"));
+        assert_eq!(
+            front_matter("---\nid: a\n---\n本文"),
+            Some(("id: a\n", 4, 14))
+        );
+        assert_eq!(
+            front_matter("---\r\nid: a\r\n---\r\n"),
+            Some(("id: a\r\n", 5, 17))
+        );
+        assert_eq!(
+            front_matter("\u{feff}---\nid: a\n---\n"),
+            Some(("id: a\n", 7, 17))
+        );
         assert_eq!(front_matter("本文"), None);
         assert_eq!(front_matter("---\nid: a\n"), None);
     }
 
     #[test]
-    fn brackets_are_validated() {
-        let path = Path::new("project.toml");
-        let ok = BTreeMap::from([("「」".to_owned(), "normal".to_owned())]);
-        assert_eq!(parse_brackets(path, &ok).unwrap().len(), 1);
-        for (key, style) in [
-            ("「", "normal"),
-            ("「「", "normal"),
-            ("「」", "心の声"),
-            ("「」", ""),
-        ] {
-            let table = BTreeMap::from([(key.to_owned(), style.to_owned())]);
-            assert!(parse_brackets(path, &table).is_err(), "{key} = {style}");
-        }
-        let overlap = BTreeMap::from([
-            ("「」".to_owned(), "normal".to_owned()),
-            ("「』".to_owned(), "thought".to_owned()),
-        ]);
-        assert!(parse_brackets(path, &overlap).is_err());
+    fn offsets_and_key_spans() {
+        let text = "あ: 1\nいう: [\n  - x\n";
+        assert_eq!(offset_of(text, 1, 1), 0);
+        assert_eq!(offset_of(text, 2, 2), "あ: 1\n".len() + "い".len());
+        assert_eq!(offset_of(text, 9, 1), text.len());
+        let span = key_span(text, 0, "いう");
+        assert_eq!(text.get(span.start..span.end), Some("いう"));
+        assert_eq!(key_span(text, 0, "x"), Span::new(0, 0));
+        let toml = "[dialogue.brackets]\n\"「」\" = \"normal\"\n";
+        let span = key_span(toml, 0, "「」");
+        assert_eq!(toml.get(span.start..span.end), Some("\"「」\""));
     }
 }

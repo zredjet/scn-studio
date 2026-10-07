@@ -1,0 +1,5 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "dump_with_disk(&ir, &dir)"
+---
+variables.yaml:1:1-1:1 E802 variables.yaml は、変数名をキーにした対応表で書きます。宣言を読み飛ばします

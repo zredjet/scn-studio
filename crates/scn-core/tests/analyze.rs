@@ -289,6 +289,46 @@ fn loads_shared_fixture_project() {
     assert_eq!(project.settings.brackets.len(), 2);
 }
 
+/// サンプル作品の設定DBを、型定義にもとづいて読む（D042）。キャラクターは `builtin: character` の型のエントリ。
+#[test]
+fn loads_sample_bible() {
+    let project = load_project(&sample_dir()).unwrap();
+    assert!(project.load_diagnostics.is_empty());
+    let types: Vec<(&str, Option<&str>)> = project
+        .bible
+        .types
+        .iter()
+        .map(|t| (t.id.as_str(), t.builtin.as_deref()))
+        .collect();
+    assert_eq!(
+        types,
+        [
+            ("character", Some("character")),
+            ("foreshadow", None),
+            ("organization", None)
+        ]
+    );
+    let organization = &project.bible.types[2];
+    assert_eq!(organization.fields[0].ty, "select");
+    assert_eq!(
+        organization.fields[0].options,
+        ["学校", "部活", "店", "その他"]
+    );
+    let hairpin = project
+        .bible
+        .entries
+        .iter()
+        .find(|e| e.id == "hairpin")
+        .unwrap();
+    assert_eq!(hairpin.type_id, "foreshadow");
+    assert_eq!(hairpin.path, "bible/entries/foreshadow/hairpin.md");
+    assert_eq!(hairpin.fields["payoff"], "s040");
+    assert_eq!(hairpin.fields["setup"], serde_json::json!(["s021"]));
+    assert!(hairpin.body.starts_with("灯がいつも着けている髪留め"));
+    let ids: Vec<&str> = project.characters.iter().map(|c| c.id.as_str()).collect();
+    assert_eq!(ids, ["akari", "minato", "miura", "tsumugi"]);
+}
+
 /// 一時ディレクトリにプロジェクトを作る。
 fn temp_project(name: &str, files: &[(&str, &str)]) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("scn-core-{}-{name}", std::process::id()));
@@ -301,72 +341,131 @@ fn temp_project(name: &str, files: &[(&str, &str)]) -> PathBuf {
     dir
 }
 
-/// 名前、置くファイル（パスと中身）、エラーになるはずのファイル。
-type LoadErrorCase<'a> = (&'a str, &'a [(&'a str, &'a str)], &'a str);
-
-/// 設定ファイルが読めなければ、パスつきの読み込みのエラーになる（D036）。無いファイルは空として扱う。
+/// `project.toml` の無いフォルダは、プロジェクトではないので読み込みのエラーになる。
+/// 無い設定ファイルは空として扱い、診断も出さない。
 #[test]
-fn project_load_errors() {
-    let toml = "format_version = 0\n";
-
-    let dir = temp_project("minimal", &[("project.toml", toml)]);
+fn project_without_toml() {
+    let dir = temp_project("minimal", &[("project.toml", "format_version = 0\n")]);
     let project = load_project(&dir).unwrap();
     assert!(
         project.variables.is_empty() && project.characters.is_empty() && project.files.is_empty()
     );
+    assert!(project.load_diagnostics.is_empty());
+    let _ = fs::remove_dir_all(&dir);
 
-    let cases: [LoadErrorCase<'_>; 6] = [
-        ("no_toml", &[], "project.toml"),
-        (
-            "bad_version",
-            &[("project.toml", "format_version = 1\n")],
-            "project.toml",
-        ),
-        (
-            "bad_brackets",
-            &[(
-                "project.toml",
-                "format_version = 0\n[dialogue.brackets]\n\"「\" = \"normal\"\n",
-            )],
-            "project.toml",
-        ),
-        (
-            "bad_yaml",
-            &[("project.toml", toml), ("variables.yaml", "flag.a: [\n")],
-            "variables.yaml",
-        ),
-        (
-            "bad_type",
-            &[
-                ("project.toml", toml),
-                ("variables.yaml", "flag.a:\n  type: float\n"),
-            ],
-            "variables.yaml",
-        ),
-        (
-            "character_without_name",
-            &[
-                ("project.toml", toml),
-                ("bible/entries/character/a.md", "---\nid: a\n---\n"),
-            ],
-            "a.md",
-        ),
-    ];
-    for (name, files, expected_path) in cases {
-        let dir = temp_project(name, files);
-        let error = load_project(&dir).expect_err(name);
-        let path = match &error {
-            ProjectError::Io { path, .. } | ProjectError::Invalid { path, .. } => path,
-            ProjectError::Write { .. } => panic!("{name}：読み込みで書き込みのエラーになった"),
-        };
-        assert!(
-            path.ends_with(expected_path),
-            "{name}：{} ではなく {} のエラーになった（{error}）",
-            expected_path,
-            path.display()
-        );
-        let _ = fs::remove_dir_all(&dir);
+    let dir = temp_project("no_toml", &[("story/a.scn", "## a #s1\n")]);
+    let error = load_project(&dir).expect_err("project.toml が無い");
+    assert!(
+        matches!(&error, ProjectError::Io { path, .. } if path.ends_with("project.toml")),
+        "{error}"
+    );
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// 設定ファイルの診断（E801〜W804）。
+const SETTINGS_CODES: [&str; 4] = ["E801", "E802", "E803", "W804"];
+
+/// 設定ファイルのfixture（`settings/<名前>/`。それぞれが1つのプロジェクト）。
+fn settings_fixtures() -> Vec<(String, PathBuf)> {
+    sorted_entries(&fixtures_dir().join("settings"))
+        .into_iter()
+        .filter(|p| p.is_dir())
+        .map(|p| (p.file_name().unwrap().to_string_lossy().into_owned(), p))
+        .collect()
+}
+
+/// 期待する診断（`story/a.scn` の1行目の `// expect:`）。
+fn settings_expected(dir: &Path) -> BTreeSet<String> {
+    support::expected_codes(&read(&dir.join("story/a.scn")))
+        .into_iter()
+        .collect()
+}
+
+/// 診断を `ファイル:行:列 コード メッセージ` の形で書き出す。位置は、ディスクのファイルで数える。
+fn dump_with_disk(ir: &Ir, dir: &Path) -> String {
+    let mut out = String::new();
+    for diag in &ir.diagnostics {
+        let text = fs::read(dir.join(&diag.file))
+            .map(|b| String::from_utf8_lossy(&b).into_owned())
+            .unwrap_or_default();
+        let index = scn_core::LineIndex::new(&text);
+        out.push_str(&format!(
+            "{}:{} {} {}\n",
+            diag.file,
+            support::range(&index, diag.span),
+            diag.code,
+            diag.message
+        ));
     }
+    if out.is_empty() {
+        out.push_str("診断なし\n");
+    }
+    out
+}
+
+/// 設定ファイルの誤りは、読み込みで止めずに診断にし、本文の解析を続ける（D042）。
+/// 出た診断のコードの集まりが `// expect:` と一致し、診断がスナップショットと一致する。
+#[test]
+fn settings_fixtures_report_diagnostics() {
+    let mut failures = Vec::new();
+    for (name, dir) in settings_fixtures() {
+        let project = load_project(&dir).unwrap_or_else(|e| panic!("{name}：{e}"));
+        assert!(
+            project.files.iter().any(|f| f.path == "story/a.scn"),
+            "{name}：本文が読まれていない"
+        );
+        let ir = analyze(&project);
+        let expected = settings_expected(&dir);
+        let actual: BTreeSet<String> = ir.diagnostics.iter().map(|d| d.code.to_owned()).collect();
+        if actual != expected {
+            failures.push(format!(
+                "{name}：期待 {expected:?}、実際 {actual:?}\n{}",
+                dump_with_disk(&ir, &dir)
+            ));
+        }
+        insta::assert_snapshot!(format!("settings__{name}"), dump_with_disk(&ir, &dir));
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+/// 設定ファイルの診断それぞれに、それを期待するfixtureがある。
+#[test]
+fn every_settings_code_has_a_fixture() {
+    let covered: BTreeSet<String> = settings_fixtures()
+        .iter()
+        .flat_map(|(_, dir)| settings_expected(dir))
+        .collect();
+    let missing: Vec<_> = SETTINGS_CODES
+        .iter()
+        .filter(|code| !covered.contains(**code))
+        .collect();
+    assert!(missing.is_empty(), "fixtureの無い診断：{missing:?}");
+}
+
+/// fixtureの一覧（README.md）の設定ファイルの表と、`settings/` に置いてあるものと、`// expect:` が一致する。
+#[test]
+fn settings_fixture_list_matches_files() {
+    let readme = read(&fixtures_dir().join("README.md"));
+    let section = readme
+        .split("## 設定ファイル（T1-3、`settings/`）")
+        .nth(1)
+        .and_then(|rest| rest.split("\n## ").next())
+        .expect("README.md に設定ファイルの節が無い");
+    let mut listed: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    for row in section.lines().filter(|l| l.starts_with("| `")) {
+        let cells: Vec<&str> = row.split('|').map(str::trim).collect();
+        let name = cells[1].trim_matches('`').trim_end_matches('/').to_owned();
+        let codes = cells[3].split_whitespace().map(str::to_owned).collect();
+        listed.insert(name, codes);
+    }
+    let actual: BTreeMap<String, BTreeSet<String>> = settings_fixtures()
+        .into_iter()
+        .map(|(name, dir)| (name, settings_expected(&dir)))
+        .collect();
+    assert_eq!(
+        listed, actual,
+        "README.md の一覧と設定ファイルのfixtureが合わない"
+    );
 }
 
 /// キャラクターのIDは、フロントマターに無ければファイル名（D036）。本文は `story/*.scn` だけを読む。

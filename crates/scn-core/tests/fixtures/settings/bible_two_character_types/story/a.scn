@@ -1,0 +1,5 @@
+// expect: E802 W202
+// builtin: character を2つの型に書くと、最初の型（ファイル名の順）を使う
+## a #s001
+灯「最初の型」 ^aaaa
+人「後の型」 ^aaab

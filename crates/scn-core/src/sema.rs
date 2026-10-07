@@ -537,11 +537,14 @@ impl<'p> Checker<'_, 'p> {
             Some(VarType::String) => Ty::Str,
             Some(VarType::Enum(values)) => Ty::Enum(values.as_slice()),
             None => {
-                self.diag(
-                    Code::W602,
-                    var.span,
-                    format!("宣言されていない変数です：{key}（variables.yaml に宣言します）"),
-                );
+                // 宣言を丸ごと読めないときは、宣言の無い変数を警告しない（E801 を埋もれさせない。D042）。
+                if !self.sema.project.variables_unreadable {
+                    self.diag(
+                        Code::W602,
+                        var.span,
+                        format!("宣言されていない変数です：{key}（variables.yaml に宣言します）"),
+                    );
+                }
                 Ty::Unknown
             }
         }
@@ -617,11 +620,13 @@ impl<'p> Checker<'_, 'p> {
     fn assignment(&mut self, assignment: &Assignment) {
         let key = self.sema.var_key(&assignment.target);
         let Some(declared) = self.sema.vars.get(key.as_str()).copied() else {
-            self.diag(
-                Code::W602,
-                assignment.target.span,
-                format!("宣言されていない変数です：{key}（variables.yaml に宣言します）"),
-            );
+            if !self.sema.project.variables_unreadable {
+                self.diag(
+                    Code::W602,
+                    assignment.target.span,
+                    format!("宣言されていない変数です：{key}（variables.yaml に宣言します）"),
+                );
+            }
             // 代入先の型は分からないので、式の中だけを確かめる。
             self.expr_type(&assignment.value);
             return;

@@ -1,0 +1,6 @@
+format_version = 0
+
+[dialogue.brackets]
+"『」" = "thought"
+"「」" = "normal"
+"『』" = "心の声"

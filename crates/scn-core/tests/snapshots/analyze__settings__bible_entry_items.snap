@@ -1,0 +1,7 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "dump_with_disk(&ir, &dir)"
+---
+bible/entries/character/akari.md:4:1-4:8 E802 aliases は文字列のリストで書きます。呼び名を読み飛ばします
+bible/entries/character/noname.md:1:1-1:1 E802 キャラクターには、フロントマターに文字列の name が要ります。このキャラクターを読み飛ばします
+story/a.scn:5:1-5:4 W202 話者 あかり を設定DBのキャラクターに解決できません。地の文として扱います

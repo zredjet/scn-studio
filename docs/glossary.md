@@ -86,6 +86,7 @@
 | 重大度 | severity | `error` / `warning` / `info` |
 | 位置 | span | UTF-8のバイト位置の範囲 |
 | 検証 | check | プロジェクト全体の検査（CLIの `check`） |
+| 索引 | index | IRから導く一覧。シーン、キャラクターの出現、変数の読み書き、素材の使用、行ID |
 | 到達性 | reachability | 開始シーンからたどり着けるか |
 | 行き止まり | dead end | 出口の無い経路 |
 | 自動巡回 | auto playthrough | 選択肢の組み合わせを実際に実行する検証 |

@@ -1,0 +1,3 @@
+// 型定義に builtin: character のある型（フォルダ名が character でなくてよい）のエントリが、話者になる
+## a #s001
+人「やあ」 ^aaaa

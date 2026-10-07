@@ -1,0 +1,5 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "dump_with_disk(&ir, &dir)"
+---
+project.toml:2:1-2:9 E802 dialogue は [dialogue] の表で書きます。既定の「」を使います

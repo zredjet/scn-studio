@@ -1,0 +1,9 @@
+flag.a:
+  type: float
+flag.b:
+  type: int
+  default: 0
+flag.c:
+  type: enum
+a.b.c:
+  type: bool

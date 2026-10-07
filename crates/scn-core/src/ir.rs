@@ -324,18 +324,29 @@ pub fn analyze(project: &Project) -> Ir {
         start_scene: project.settings.start_scene.clone(),
         scenes,
         edges: builder.edges,
-        diagnostics: diags
-            .into_iter()
+        // 読み込みの診断（設定ファイル。E801〜W804）を先に、本文の診断をファイルと位置の順に並べる。
+        diagnostics: project
+            .load_diagnostics
+            .iter()
             .map(|d| IrDiagnostic {
                 code: d.diag.code.as_str(),
                 severity: d.diag.severity().as_str(),
-                file: files
-                    .get(d.file)
-                    .map(|f| f.path.to_owned())
-                    .unwrap_or_default(),
+                file: d.file.clone(),
                 span: d.diag.span,
-                message: d.diag.message,
+                message: d.diag.message.clone(),
             })
+            .chain(diags.into_iter().map(|d| {
+                IrDiagnostic {
+                    code: d.diag.code.as_str(),
+                    severity: d.diag.severity().as_str(),
+                    file: files
+                        .get(d.file)
+                        .map(|f| f.path.to_owned())
+                        .unwrap_or_default(),
+                    span: d.diag.span,
+                    message: d.diag.message,
+                }
+            }))
             .collect(),
     }
 }

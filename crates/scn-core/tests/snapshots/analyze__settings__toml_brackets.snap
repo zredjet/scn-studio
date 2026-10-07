@@ -1,0 +1,6 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "dump_with_disk(&ir, &dir)"
+---
+project.toml:4:1-4:5 E802 [dialogue.brackets] の "『」" の括弧が、ほかのキーと重なっています
+project.toml:6:1-6:5 E802 [dialogue.brackets] の "『』" の表示スタイルは英字の名前で書きます

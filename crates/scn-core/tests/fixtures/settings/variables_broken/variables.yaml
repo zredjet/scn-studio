@@ -1,0 +1,3 @@
+flag.a:
+  type: int
+flag.b: [

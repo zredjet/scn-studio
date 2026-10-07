@@ -1,0 +1,6 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "dump_with_disk(&ir, &dir)"
+---
+bible/entries/charcter:1:1-1:1 W804 bible/entries/charcter の型の定義（bible/types/charcter.yaml）がありません
+story/a.scn:4:1-4:2 W202 話者 灯 を設定DBのキャラクターに解決できません。地の文として扱います

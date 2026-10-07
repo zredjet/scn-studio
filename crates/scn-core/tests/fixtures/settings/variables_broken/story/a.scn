@@ -1,0 +1,7 @@
+// expect: E801
+// variables.yaml を丸ごと読めなければ、宣言の無い変数（W602）を出さない（D042）
+## a #s001
+@設定 flag.a = 1
+@if flag.b
+地の文 ^aaaa
+@end

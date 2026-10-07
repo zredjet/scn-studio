@@ -1,0 +1,8 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "dump_with_disk(&ir, &dir)"
+---
+variables.yaml:1:1-1:7 E802 flag.a の type が不正です：float（bool・int・string・enum のどれか）。この変数を読み飛ばします
+variables.yaml:6:1-6:7 E802 列挙の変数 flag.c には values（文字列の値のリスト）が要ります。この変数を読み飛ばします
+variables.yaml:8:1-8:6 E802 変数名 a.b.c は「名前空間.名前」か「名前」で書きます。この変数を読み飛ばします
+story/a.scn:4:5-4:11 W602 宣言されていない変数です：flag.a（variables.yaml に宣言します）

@@ -1,0 +1,6 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "dump_with_disk(&ir, &dir)"
+---
+assets/catalog.yaml:4:1-4:1 E801 assets/catalog.yaml のYAMLを読めません：did not find expected node content at line 4 column 1, while parsing a flow node。このファイルを読み飛ばします
+story/a.scn:4:5-4:7 I403 素材カタログに無い背景です：屋上（仮素材として扱います）

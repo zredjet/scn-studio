@@ -1,0 +1,7 @@
+backgrounds: [屋上, 教室]
+se:
+  ドア: {}
+  ~: {}
+characters:
+  akari:
+    expressions: [笑顔]

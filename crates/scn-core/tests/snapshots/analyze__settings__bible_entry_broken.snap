@@ -1,0 +1,6 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "dump_with_disk(&ir, &dir)"
+---
+bible/entries/character/akari.md:4:1-4:1 E801 bible/entries/character/akari.md のYAMLを読めません：did not find expected ',' or ']' at line 4 column 1, while parsing a flow sequence at line 3 column 7。このファイルを読み飛ばします
+story/a.scn:4:1-4:2 W202 話者 灯 を設定DBのキャラクターに解決できません。地の文として扱います

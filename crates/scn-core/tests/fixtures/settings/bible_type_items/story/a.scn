@@ -1,0 +1,4 @@
+// expect: E802
+// 型定義の builtin・fields の誤りは、その項目だけを読み飛ばす
+## a #s001
+灯「やあ」 ^aaaa

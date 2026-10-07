@@ -197,17 +197,7 @@ mod tests {
     use crate::project::SourceFile;
 
     fn project(text: &str) -> Project {
-        let mut project = Project {
-            settings: crate::project::Settings {
-                format_version: 0,
-                start_scene: None,
-                brackets: Vec::new(),
-            },
-            characters: Vec::new(),
-            variables: Vec::new(),
-            catalog: Default::default(),
-            files: Vec::new(),
-        };
+        let mut project = Project::default();
         project.files.push(SourceFile {
             path: "story/a.scn".into(),
             text: text.into(),

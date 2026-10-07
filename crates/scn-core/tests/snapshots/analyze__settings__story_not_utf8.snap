@@ -1,0 +1,5 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "dump_with_disk(&ir, &dir)"
+---
+story/b.scn:2:1-2:1 E801 story/b.scn はUTF-8で書かれていません。このファイルを読み飛ばします

@@ -1,0 +1,7 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "dump_with_disk(&ir, &dir)"
+---
+bible/types/item.yaml:2:1-2:8 E802 builtin に書けるのは character だけです。組み込みの型として扱いません
+bible/types/item.yaml:3:1-3:7 E802 fields は項目の定義のリストで書きます
+bible/types/place.yaml:2:1-2:7 E802 fields の項目には key と type が要ります。その項目を読み飛ばします

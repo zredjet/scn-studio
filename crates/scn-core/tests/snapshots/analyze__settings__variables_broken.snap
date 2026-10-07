@@ -1,0 +1,5 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "dump_with_disk(&ir, &dir)"
+---
+variables.yaml:4:1-4:1 E801 variables.yaml のYAMLを読めません：did not find expected node content at line 4 column 1, while parsing a flow node。このファイルを読み飛ばします

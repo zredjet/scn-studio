@@ -540,7 +540,7 @@ fn fmt_paths_follow_argument() {
 
 // ---- 使い方や入出力の誤り ----
 
-/// 使い方の誤り、無いファイル、プロジェクトでないフォルダ、壊れた設定ファイルは、終了コード2。
+/// 使い方の誤り、無いファイル、プロジェクトでない（`project.toml` の無い）フォルダは、終了コード2。
 #[test]
 fn usage_and_io_errors() {
     let root = repo_root();
@@ -558,24 +558,96 @@ fn usage_and_io_errors() {
         assert!(out.stdout.is_empty(), "{args:?}");
         assert!(!out.stderr.is_empty(), "{args:?}");
     }
+}
 
+/// 壊れた設定ファイルは、読み込みのエラーで止めずに診断（E801）にして解析を続ける（D042）。
+/// エラー（E）の診断なので終了コード1。`parse` は、そのファイルの診断に加えて、設定ファイルの診断を出す。
+/// 位置は設定ファイルの中で数え、パスは引数と同じ書き方でプロジェクトの根からつなげる。
+#[test]
+fn broken_settings_are_diagnostics() {
     let dir = temp_dir(
         "broken",
         &[
-            ("project.toml", "format_version = 0\n"),
-            ("variables.yaml", "flag.a: [\n"),
-            ("story/a.scn", "## a #s001\n"),
+            ("work/project.toml", "format_version = 0\n"),
+            ("work/variables.yaml", "flag.a:\n  type: int\nflag.b: [\n"),
+            ("work/story/a.scn", "## a #s001\n@設定 flag.zz = 1\n"),
         ],
     );
-    for args in [
-        &["ir", "."][..],
-        &["parse", "story/a.scn"][..],
-        &["fmt", "."][..],
-    ] {
+    let work = dir.join("work");
+
+    let out = scn(&["ir", "."], &work);
+    assert_eq!(out.code, HAS_ERRORS, "{}", out.stderr);
+    let ir: Value = serde_json::from_str(&out.stdout).expect("JSONでない");
+    let codes: Vec<(&str, &str)> = ir["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|d| (d["code"].as_str().unwrap(), d["file"].as_str().unwrap()))
+        .collect();
+    // 宣言を丸ごと読めないので、宣言の無い変数（W602）は出さない。
+    assert_eq!(codes, [("E801", "variables.yaml")]);
+
+    let out = scn(&["parse", "story/a.scn"], &work);
+    assert_eq!(out.code, HAS_ERRORS, "{}", out.stderr);
+    assert!(
+        out.stdout.starts_with("variables.yaml:4:1 E801 "),
+        "{}",
+        out.stdout
+    );
+
+    let out = scn(&["parse", "work/story/a.scn"], &dir);
+    assert_eq!(out.code, HAS_ERRORS, "{}", out.stderr);
+    let expected = Path::new("work").join("variables.yaml");
+    assert!(
+        out.stdout
+            .starts_with(&format!("{}:4:1 E801 ", expected.display())),
+        "{}",
+        out.stdout
+    );
+
+    let out = scn(&["parse", "--json", "story/a.scn"], &work);
+    let list: Value = serde_json::from_str(&out.stdout).unwrap();
+    assert_eq!(list[0]["code"], "E801");
+    assert_eq!(list[0]["line"], 4);
+
+    // 行IDの付与は、診断では止めない。
+    assert_eq!(scn(&["fmt", "."], &work).code, SUCCESS);
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// `project.toml` にエラーがあれば、台詞の括弧を書かれたとおりに読めないので、`fmt` は何も書かずに
+/// 終了コード2で終える（D042）。`--check` も同じ。
+#[test]
+fn fmt_refuses_broken_project_toml() {
+    let source = "## a #s001\n灯『一行目\n二行目』\n";
+    let dir = temp_dir(
+        "fmt-refuse",
+        &[
+            ("project.toml", "format_version = 0\n[dialogue\n"),
+            ("story/a.scn", source),
+        ],
+    );
+    for args in [&["fmt", "."][..], &["fmt", "--check", "."][..]] {
         let out = scn(args, &dir);
         assert_eq!(out.code, FAILURE, "{args:?}");
-        assert!(out.stderr.contains("variables.yaml"), "{}", out.stderr);
+        assert!(out.stdout.is_empty(), "{}", out.stdout);
+        assert!(out.stderr.contains("project.toml:2:"), "{}", out.stderr);
+        assert!(out.stderr.contains("E801"), "{}", out.stderr);
     }
+    assert_eq!(fs::read_to_string(dir.join("story/a.scn")).unwrap(), source);
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// `parse` は、設定ファイルの診断を出すが、ほかの章の診断は、読み込みの診断（UTF-8でない章の E801）も出さない。
+#[test]
+fn parse_does_not_show_other_chapters() {
+    let dir = temp_dir("other-chapters", &[]);
+    copy_dir(&fixtures_dir().join("settings/story_not_utf8"), &dir);
+    let out = scn(&["parse", "story/a.scn"], &dir);
+    assert_eq!(out.code, SUCCESS, "{}{}", out.stdout, out.stderr);
+    assert!(out.stdout.is_empty(), "{}", out.stdout);
+    let out = scn(&["ir", "."], &dir);
+    assert_eq!(out.code, HAS_ERRORS, "{}", out.stderr);
     let _ = fs::remove_dir_all(&dir);
 }
 

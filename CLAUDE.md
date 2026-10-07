@@ -52,11 +52,11 @@ app/                    Tauri＋React（src-tauri/ と src/）
 - パーサだけ：`cargo test -p scn-core`
   - スナップショット（`crates/scn-core/tests/snapshots/`）が合わないと、テストが失敗し、新しい結果が `*.snap.new` に出る。中身を読んで確かめてから、環境変数 `INSTA_UPDATE=always` を付けて `cargo test -p scn-core` を実行すると受け入れる（`*.snap.new` は消してから）
   - パニックしないことの検査（proptest）を多く試す：`PROPTEST_CASES=20000 cargo test -p scn-core --release --test robustness`
-  - 解析の速さを測る（1万行の合成データ、`criterion`）：`cargo bench -p scn-core --bench analyze`
+  - 解析の速さを測る（1万行と10万行の合成データ、`criterion`。10万行のIRのJSONを `target/tmp/ir-100k.json` に書き出す）：`cargo bench -p scn-core --bench analyze`
 - 開発用CLI `scn`（`crates/scn-cli`）：`cargo run -p scn-cli -- parse <file.scn>`（診断を `ファイル:行:列 コード メッセージ` で出す。`--json` でJSON）／`cargo run -p scn-cli -- ir <project-dir>`（IRをJSONで出す。例：`cargo run -p scn-cli -- ir samples/houkago`）
-  - 終了コードは、成功が0、エラー（E）の診断があれば1、使い方や入出力の誤り（設定ファイルが読めない場合も含む）は2
-  - `parse` は、上のディレクトリに `project.toml` があればプロジェクト全体で意味解析を行い、そのファイルの診断だけを出す。無ければ構文解析だけを行う
-  - `cargo run -p scn-cli -- fmt <project-dir>`：行IDの無い行（I302）に行IDを付け、付けた行を `ファイル:行:列 ^ID` で出す（`--json` でJSON）。`--check` は書き換えずに、付ける行があれば終了コード1。本文の診断では1にしない
+  - 終了コードは、成功が0、エラー（E）の診断があれば1、使い方の誤り・`project.toml` の無いフォルダ・フォルダを読めないなどの入出力の誤りは2。設定ファイルの誤り（読めないものを含む）はエラーの診断（E801〜E803）になるので1
+  - `parse` は、上のディレクトリに `project.toml` があればプロジェクト全体で意味解析を行い、設定ファイルの診断と、そのファイルの診断を出す（ほかの章の診断は出さない）。無ければ構文解析だけを行う
+  - `cargo run -p scn-cli -- fmt <project-dir>`：行IDの無い行（I302）に行IDを付け、付けた行を `ファイル:行:列 ^ID` で出す（`--json` でJSON）。`--check` は書き換えずに、付ける行があれば終了コード1。本文の診断では1にしない。`project.toml` にエラーがあれば、何もせずに終了コード2
   - CLIのテストだけ：`cargo test -p scn-cli`
   - `scn` をパスの通った場所（`~/.cargo/bin`）に入れる：`cargo install --path crates/scn-cli`（作品フォルダで `scn` として使うとき）
 - フロント：`pnpm install` / `pnpm lint`（Biomeの書式と静的検査）/ `pnpm fmt`（Biomeで整形と安全な修正）/ `pnpm typecheck` / `pnpm test`

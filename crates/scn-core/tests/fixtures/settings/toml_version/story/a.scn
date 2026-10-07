@@ -1,0 +1,4 @@
+// expect: E803
+// 対応していない format_version は、v0として読む
+## a #s001
+地の文 ^aaaa

@@ -1,0 +1,1140 @@
+---
+source: crates/scn-core/tests/index.rs
+expression: "serde_json::to_string_pretty(&index).unwrap()"
+---
+{
+  "index_version": 1,
+  "scenes": [
+    {
+      "id": "s010",
+      "title": "登校",
+      "file": "story/chapter01.scn",
+      "span": [
+        21,
+        36
+      ],
+      "route": "共通",
+      "status": "writing",
+      "is_stub": false
+    },
+    {
+      "id": "s011",
+      "title": "昼休みの教室",
+      "file": "story/chapter01.scn",
+      "span": [
+        581,
+        608
+      ],
+      "route": "共通",
+      "status": "writing",
+      "is_stub": false
+    },
+    {
+      "id": "s012",
+      "title": "放課後の屋上",
+      "file": "story/chapter01.scn",
+      "span": [
+        1355,
+        1382
+      ],
+      "route": "共通",
+      "status": "draft",
+      "is_stub": false
+    },
+    {
+      "id": "s013a",
+      "title": "打ち明ける",
+      "file": "story/chapter01.scn",
+      "span": [
+        2431,
+        2456
+      ],
+      "route": "灯",
+      "status": "draft",
+      "is_stub": false
+    },
+    {
+      "id": "s013b",
+      "title": "帰り道",
+      "file": "story/chapter01.scn",
+      "span": [
+        2769,
+        2788
+      ],
+      "route": "共通",
+      "status": "ai-draft",
+      "is_stub": false
+    },
+    {
+      "id": "s014",
+      "title": "沈黙のあと",
+      "file": "story/chapter01.scn",
+      "span": [
+        3220,
+        3244
+      ],
+      "route": "灯",
+      "status": "draft",
+      "is_stub": true
+    },
+    {
+      "id": "s020",
+      "title": "灯の家の前",
+      "file": "story/chapter02.scn",
+      "span": [
+        24,
+        48
+      ],
+      "route": "灯",
+      "status": "draft",
+      "is_stub": false
+    },
+    {
+      "id": "s021",
+      "title": "屋上の約束",
+      "file": "story/chapter02.scn",
+      "span": [
+        305,
+        329
+      ],
+      "route": "灯",
+      "status": "ai-draft",
+      "is_stub": false
+    },
+    {
+      "id": "s022",
+      "title": "雨の図書室",
+      "file": "story/chapter02.scn",
+      "span": [
+        606,
+        630
+      ],
+      "route": "灯",
+      "status": "draft",
+      "is_stub": true
+    },
+    {
+      "id": "s040",
+      "title": "見送り",
+      "file": "story/chapter02.scn",
+      "span": [
+        775,
+        793
+      ],
+      "route": "灯",
+      "status": "draft",
+      "is_stub": false
+    },
+    {
+      "id": "s030",
+      "title": "紬と帰る",
+      "file": "story/chapter03.scn",
+      "span": [
+        24,
+        45
+      ],
+      "route": "紬",
+      "status": "draft",
+      "is_stub": true
+    },
+    {
+      "id": "s060",
+      "title": "紬エンド",
+      "file": "story/chapter03.scn",
+      "span": [
+        210,
+        231
+      ],
+      "route": "紬",
+      "status": "draft",
+      "is_stub": true
+    },
+    {
+      "id": "s061",
+      "title": "すれ違い",
+      "file": "story/chapter03.scn",
+      "span": [
+        350,
+        371
+      ],
+      "route": "紬",
+      "status": "draft",
+      "is_stub": true
+    }
+  ],
+  "characters": [
+    {
+      "id": "akari",
+      "name": "灯",
+      "aliases": [
+        "あかり",
+        "灯ちゃん"
+      ],
+      "uses": [
+        {
+          "kind": "speaker",
+          "scene": "s010",
+          "file": "story/chapter01.scn",
+          "span": [
+            247,
+            304
+          ]
+        },
+        {
+          "kind": "show",
+          "scene": "s010",
+          "file": "story/chapter01.scn",
+          "span": [
+            351,
+            376
+          ]
+        },
+        {
+          "kind": "speaker",
+          "scene": "s010",
+          "file": "story/chapter01.scn",
+          "span": [
+            377,
+            470
+          ]
+        },
+        {
+          "kind": "show",
+          "scene": "s012",
+          "file": "story/chapter01.scn",
+          "span": [
+            1515,
+            1540
+          ]
+        },
+        {
+          "kind": "speaker",
+          "scene": "s012",
+          "file": "story/chapter01.scn",
+          "span": [
+            1615,
+            1657
+          ]
+        },
+        {
+          "kind": "speaker",
+          "scene": "s012",
+          "file": "story/chapter01.scn",
+          "span": [
+            1729,
+            1781
+          ]
+        },
+        {
+          "kind": "show",
+          "scene": "s012",
+          "file": "story/chapter01.scn",
+          "span": [
+            1782,
+            1803
+          ]
+        },
+        {
+          "kind": "speaker",
+          "scene": "s012",
+          "file": "story/chapter01.scn",
+          "span": [
+            1804,
+            1858
+          ]
+        },
+        {
+          "kind": "speaker",
+          "scene": "s012",
+          "file": "story/chapter01.scn",
+          "span": [
+            2052,
+            2300
+          ]
+        },
+        {
+          "kind": "speaker",
+          "scene": "s012",
+          "file": "story/chapter01.scn",
+          "span": [
+            2340,
+            2396
+          ]
+        },
+        {
+          "kind": "show",
+          "scene": "s013a",
+          "file": "story/chapter01.scn",
+          "span": [
+            2560,
+            2585
+          ]
+        },
+        {
+          "kind": "speaker",
+          "scene": "s013a",
+          "file": "story/chapter01.scn",
+          "span": [
+            2598,
+            2673
+          ]
+        },
+        {
+          "kind": "speaker",
+          "scene": "s020",
+          "file": "story/chapter02.scn",
+          "span": [
+            256,
+            295
+          ]
+        },
+        {
+          "kind": "show",
+          "scene": "s021",
+          "file": "story/chapter02.scn",
+          "span": [
+            449,
+            474
+          ]
+        },
+        {
+          "kind": "speaker",
+          "scene": "s021",
+          "file": "story/chapter02.scn",
+          "span": [
+            475,
+            535
+          ]
+        },
+        {
+          "kind": "speaker",
+          "scene": "s040",
+          "file": "story/chapter02.scn",
+          "span": [
+            910,
+            966
+          ]
+        }
+      ]
+    },
+    {
+      "id": "minato",
+      "name": "湊",
+      "aliases": [
+        "主人公"
+      ],
+      "uses": [
+        {
+          "kind": "speaker",
+          "scene": "s010",
+          "file": "story/chapter01.scn",
+          "span": [
+            305,
+            350
+          ]
+        },
+        {
+          "kind": "speaker",
+          "scene": "s011",
+          "file": "story/chapter01.scn",
+          "span": [
+            869,
+            902
+          ]
+        }
+      ]
+    },
+    {
+      "id": "miura",
+      "name": "三浦先生",
+      "aliases": [
+        "先生",
+        "三浦"
+      ],
+      "uses": []
+    },
+    {
+      "id": "tsumugi",
+      "name": "紬",
+      "aliases": [
+        "つむぎ"
+      ],
+      "uses": [
+        {
+          "kind": "show",
+          "scene": "s011",
+          "file": "story/chapter01.scn",
+          "span": [
+            769,
+            794
+          ]
+        },
+        {
+          "kind": "speaker",
+          "scene": "s011",
+          "file": "story/chapter01.scn",
+          "span": [
+            796,
+            868
+          ]
+        },
+        {
+          "kind": "speaker",
+          "scene": "s011",
+          "file": "story/chapter01.scn",
+          "span": [
+            903,
+            954
+          ]
+        },
+        {
+          "kind": "hide",
+          "scene": "s011",
+          "file": "story/chapter01.scn",
+          "span": [
+            955,
+            966
+          ]
+        },
+        {
+          "kind": "show",
+          "scene": "s013b",
+          "file": "story/chapter01.scn",
+          "span": [
+            3090,
+            3115
+          ]
+        },
+        {
+          "kind": "speaker",
+          "scene": "s013b",
+          "file": "story/chapter01.scn",
+          "span": [
+            3116,
+            3152
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": [
+    {
+      "key": "akari.好感度",
+      "declared": true,
+      "type": "int",
+      "values": [],
+      "reads": [
+        {
+          "scene": "s012",
+          "file": "story/chapter01.scn",
+          "span": [
+            2317,
+            2339
+          ]
+        }
+      ],
+      "writes": [
+        {
+          "scene": "s011",
+          "file": "story/chapter01.scn",
+          "span": [
+            1246,
+            1274
+          ]
+        },
+        {
+          "scene": "s011",
+          "file": "story/chapter01.scn",
+          "span": [
+            1311,
+            1339
+          ]
+        },
+        {
+          "scene": "s012",
+          "file": "story/chapter01.scn",
+          "span": [
+            1978,
+            2006
+          ]
+        }
+      ]
+    },
+    {
+      "key": "akari.転校済み",
+      "declared": true,
+      "type": "bool",
+      "values": [],
+      "reads": [],
+      "writes": [
+        {
+          "scene": "s040",
+          "file": "story/chapter02.scn",
+          "span": [
+            967,
+            998
+          ]
+        }
+      ]
+    },
+    {
+      "key": "flag.ルート",
+      "declared": true,
+      "type": "enum",
+      "values": [
+        "共通",
+        "灯",
+        "紬"
+      ],
+      "reads": [],
+      "writes": [
+        {
+          "scene": "s013a",
+          "file": "story/chapter01.scn",
+          "span": [
+            2729,
+            2759
+          ]
+        },
+        {
+          "scene": "s013b",
+          "file": "story/chapter01.scn",
+          "span": [
+            3180,
+            3210
+          ]
+        }
+      ]
+    },
+    {
+      "key": "flag.勇気",
+      "declared": true,
+      "type": "int",
+      "values": [],
+      "reads": [
+        {
+          "scene": "s012",
+          "file": "story/chapter01.scn",
+          "span": [
+            2007,
+            2051
+          ]
+        }
+      ],
+      "writes": [
+        {
+          "scene": "s011",
+          "file": "story/chapter01.scn",
+          "span": [
+            1224,
+            1245
+          ]
+        }
+      ]
+    },
+    {
+      "key": "tsumugi.好感度",
+      "declared": true,
+      "type": "int",
+      "values": [],
+      "reads": [
+        {
+          "scene": "s030",
+          "file": "story/chapter03.scn",
+          "span": [
+            155,
+            177
+          ]
+        }
+      ],
+      "writes": [
+        {
+          "scene": "s013b",
+          "file": "story/chapter01.scn",
+          "span": [
+            3153,
+            3179
+          ]
+        }
+      ]
+    },
+    {
+      "key": "周回.トゥルー解放",
+      "declared": true,
+      "type": "bool",
+      "values": [],
+      "reads": [],
+      "writes": []
+    }
+  ],
+  "assets": [
+    {
+      "kind": "background",
+      "character": null,
+      "name": "屋上/夕方",
+      "registered": true,
+      "uses": [
+        {
+          "scene": "s012",
+          "file": "story/chapter01.scn",
+          "span": [
+            1465,
+            1499
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "background",
+      "character": null,
+      "name": "屋上/夜",
+      "registered": true,
+      "uses": [
+        {
+          "scene": "s021",
+          "file": "story/chapter02.scn",
+          "span": [
+            430,
+            448
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "background",
+      "character": null,
+      "name": "帰り道/夕方",
+      "registered": true,
+      "uses": [
+        {
+          "scene": "s013b",
+          "file": "story/chapter01.scn",
+          "span": [
+            2928,
+            2952
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "background",
+      "character": null,
+      "name": "教室/昼",
+      "registered": true,
+      "uses": [
+        {
+          "scene": "s011",
+          "file": "story/chapter01.scn",
+          "span": [
+            750,
+            768
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "background",
+      "character": null,
+      "name": "灯の家/朝",
+      "registered": true,
+      "uses": [
+        {
+          "scene": "s020",
+          "file": "story/chapter02.scn",
+          "span": [
+            167,
+            188
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "background",
+      "character": null,
+      "name": "通学路/朝",
+      "registered": true,
+      "uses": [
+        {
+          "scene": "s010",
+          "file": "story/chapter01.scn",
+          "span": [
+            139,
+            160
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "background",
+      "character": null,
+      "name": "駅/夕方",
+      "registered": false,
+      "uses": [
+        {
+          "scene": "s040",
+          "file": "story/chapter02.scn",
+          "span": [
+            876,
+            894
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "expression",
+      "character": "akari",
+      "name": "泣き",
+      "registered": true,
+      "uses": []
+    },
+    {
+      "kind": "expression",
+      "character": "akari",
+      "name": "照れ",
+      "registered": true,
+      "uses": [
+        {
+          "scene": "s021",
+          "file": "story/chapter02.scn",
+          "span": [
+            449,
+            474
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "expression",
+      "character": "akari",
+      "name": "真顔",
+      "registered": true,
+      "uses": [
+        {
+          "scene": "s012",
+          "file": "story/chapter01.scn",
+          "span": [
+            1782,
+            1803
+          ]
+        },
+        {
+          "scene": "s013a",
+          "file": "story/chapter01.scn",
+          "span": [
+            2560,
+            2585
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "expression",
+      "character": "akari",
+      "name": "笑顔",
+      "registered": true,
+      "uses": [
+        {
+          "scene": "s010",
+          "file": "story/chapter01.scn",
+          "span": [
+            351,
+            376
+          ]
+        },
+        {
+          "scene": "s012",
+          "file": "story/chapter01.scn",
+          "span": [
+            1515,
+            1540
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "expression",
+      "character": "miura",
+      "name": "真顔",
+      "registered": true,
+      "uses": []
+    },
+    {
+      "kind": "expression",
+      "character": "miura",
+      "name": "笑顔",
+      "registered": true,
+      "uses": []
+    },
+    {
+      "kind": "expression",
+      "character": "tsumugi",
+      "name": "怒り",
+      "registered": true,
+      "uses": []
+    },
+    {
+      "kind": "expression",
+      "character": "tsumugi",
+      "name": "真顔",
+      "registered": true,
+      "uses": [
+        {
+          "scene": "s011",
+          "file": "story/chapter01.scn",
+          "span": [
+            769,
+            794
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "expression",
+      "character": "tsumugi",
+      "name": "笑顔",
+      "registered": true,
+      "uses": [
+        {
+          "scene": "s013b",
+          "file": "story/chapter01.scn",
+          "span": [
+            3090,
+            3115
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "bgm",
+      "character": null,
+      "name": "切ない",
+      "registered": true,
+      "uses": [
+        {
+          "scene": "s012",
+          "file": "story/chapter01.scn",
+          "span": [
+            1500,
+            1514
+          ]
+        },
+        {
+          "scene": "s013b",
+          "file": "story/chapter01.scn",
+          "span": [
+            2953,
+            2967
+          ]
+        },
+        {
+          "scene": "s040",
+          "file": "story/chapter02.scn",
+          "span": [
+            895,
+            909
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "bgm",
+      "character": null,
+      "name": "日常",
+      "registered": true,
+      "uses": [
+        {
+          "scene": "s010",
+          "file": "story/chapter01.scn",
+          "span": [
+            161,
+            172
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "se",
+      "character": null,
+      "name": "チャイム",
+      "registered": false,
+      "uses": [
+        {
+          "scene": "s011",
+          "file": "story/chapter01.scn",
+          "span": [
+            967,
+            983
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "se",
+      "character": null,
+      "name": "ドア",
+      "registered": true,
+      "uses": []
+    },
+    {
+      "kind": "se",
+      "character": null,
+      "name": "風",
+      "registered": true,
+      "uses": [
+        {
+          "scene": "s012",
+          "file": "story/chapter01.scn",
+          "span": [
+            1541,
+            1548
+          ]
+        }
+      ]
+    }
+  ],
+  "line_ids": [
+    {
+      "id": "a1b2",
+      "scene": "s010",
+      "file": "story/chapter01.scn",
+      "span": [
+        174,
+        246
+      ]
+    },
+    {
+      "id": "a1b3",
+      "scene": "s010",
+      "file": "story/chapter01.scn",
+      "span": [
+        247,
+        304
+      ]
+    },
+    {
+      "id": "a1b4",
+      "scene": "s010",
+      "file": "story/chapter01.scn",
+      "span": [
+        305,
+        350
+      ]
+    },
+    {
+      "id": "a1b5",
+      "scene": "s010",
+      "file": "story/chapter01.scn",
+      "span": [
+        377,
+        470
+      ]
+    },
+    {
+      "id": "a1b6",
+      "scene": "s010",
+      "file": "story/chapter01.scn",
+      "span": [
+        471,
+        570
+      ]
+    },
+    {
+      "id": "a1c1",
+      "scene": "s011",
+      "file": "story/chapter01.scn",
+      "span": [
+        796,
+        868
+      ]
+    },
+    {
+      "id": "a1c2",
+      "scene": "s011",
+      "file": "story/chapter01.scn",
+      "span": [
+        869,
+        902
+      ]
+    },
+    {
+      "id": "a1c3",
+      "scene": "s011",
+      "file": "story/chapter01.scn",
+      "span": [
+        903,
+        954
+      ]
+    },
+    {
+      "id": "a1c4",
+      "scene": "s011",
+      "file": "story/chapter01.scn",
+      "span": [
+        984,
+        1080
+      ]
+    },
+    {
+      "id": "a1c5",
+      "scene": "s011",
+      "file": "story/chapter01.scn",
+      "span": [
+        1081,
+        1165
+      ]
+    },
+    {
+      "id": "a1c6",
+      "scene": "s011",
+      "file": "story/chapter01.scn",
+      "span": [
+        1167,
+        1199
+      ]
+    },
+    {
+      "id": "a1c7",
+      "scene": "s011",
+      "file": "story/chapter01.scn",
+      "span": [
+        1200,
+        1223
+      ]
+    },
+    {
+      "id": "a1c8",
+      "scene": "s011",
+      "file": "story/chapter01.scn",
+      "span": [
+        1275,
+        1310
+      ]
+    },
+    {
+      "id": "k3f9",
+      "scene": "s012",
+      "file": "story/chapter01.scn",
+      "span": [
+        1615,
+        1657
+      ]
+    },
+    {
+      "id": "k3fa",
+      "scene": "s012",
+      "file": "story/chapter01.scn",
+      "span": [
+        1658,
+        1728
+      ]
+    },
+    {
+      "id": "k3fb",
+      "scene": "s012",
+      "file": "story/chapter01.scn",
+      "span": [
+        1729,
+        1781
+      ]
+    },
+    {
+      "id": "k3fh",
+      "scene": "s012",
+      "file": "story/chapter01.scn",
+      "span": [
+        1804,
+        1858
+      ]
+    },
+    {
+      "id": "k3fc",
+      "scene": "s012",
+      "file": "story/chapter01.scn",
+      "span": [
+        1906,
+        1935
+      ]
+    },
+    {
+      "id": "k3fd",
+      "scene": "s012",
+      "file": "story/chapter01.scn",
+      "span": [
+        1936,
+        1977
+      ]
+    },
+    {
+      "id": "k3fe",
+      "scene": "s012",
+      "file": "story/chapter01.scn",
+      "span": [
+        2007,
+        2051
+      ]
+    },
+    {
+      "id": "k3ff",
+      "scene": "s012",
+      "file": "story/chapter01.scn",
+      "span": [
+        2052,
+        2300
+      ]
+    },
+    {
+      "id": "k3fg",
+      "scene": "s012",
+      "file": "story/chapter01.scn",
+      "span": [
+        2340,
+        2396
+      ]
+    },
+    {
+      "id": "a2a1",
+      "scene": "s013a",
+      "file": "story/chapter01.scn",
+      "span": [
+        2598,
+        2673
+      ]
+    },
+    {
+      "id": "a2a2",
+      "scene": "s013a",
+      "file": "story/chapter01.scn",
+      "span": [
+        2674,
+        2728
+      ]
+    },
+    {
+      "id": "b0a1",
+      "scene": "s020",
+      "file": "story/chapter02.scn",
+      "span": [
+        189,
+        255
+      ]
+    },
+    {
+      "id": "b0a2",
+      "scene": "s020",
+      "file": "story/chapter02.scn",
+      "span": [
+        256,
+        295
+      ]
+    },
+    {
+      "id": "b4a1",
+      "scene": "s040",
+      "file": "story/chapter02.scn",
+      "span": [
+        910,
+        966
+      ]
+    }
+  ]
+}

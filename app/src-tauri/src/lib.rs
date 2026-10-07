@@ -168,18 +168,11 @@ mod tests {
             text.push_str("@if a\n");
         }
         let project = Project {
-            settings: scn_core::project::Settings {
-                format_version: 0,
-                start_scene: None,
-                brackets: Vec::new(),
-            },
-            characters: Vec::new(),
-            variables: Vec::new(),
-            catalog: Default::default(),
             files: vec![scn_core::project::SourceFile {
                 path: "story/a.scn".into(),
                 text,
             }],
+            ..Project::default()
         };
         let (_, json) = thread::Builder::new()
             .stack_size(1024 * 1024)

@@ -2,13 +2,15 @@
 //!
 //! - `scn parse <file.scn> [--json]`：1つのファイルを解析し、診断を出す。ファイルがプロジェクトの中
 //!   （上のディレクトリに `project.toml` がある）なら、プロジェクト全体で意味解析を行い、
-//!   そのファイルの診断だけを出す。プロジェクトの外なら、構文解析だけを行う。
+//!   設定ファイルの診断（E801〜W804）と、そのファイルの診断を出す（ほかの章の診断は出さない）。
+//!   プロジェクトの外なら、構文解析だけを行う。
 //! - `scn ir <project-dir>`：プロジェクト全体のIRを、標準出力にJSONで出す。
 //! - `scn fmt <project-dir> [--check] [--json]`：行IDの無い行に行IDを付ける（仕様書9節、D041）。
 //!   付けた行IDを `ファイル:行:列 ^ID` の形で出す。`--check` では書き換えず、付ける行があれば1で終わる。
+//!   `project.toml` にエラーがあれば、台詞の括弧を書かれたとおりに読めないので、何もせずに2で終わる。
 //!
-//! 終了コードは、成功が0、エラー（E）の診断があれば1、使い方や入出力の誤りは2。
-//! `fmt` は本文の診断では1にしない（`--check` で行IDの無い行があるときだけ1）。
+//! 終了コードは、成功が0、エラー（E）の診断があれば1、使い方の誤り・`project.toml` の無いフォルダ・
+//! 入出力の誤りは2。`fmt` は本文の診断では1にしない（`--check` で行IDの無い行があるときだけ1）。
 
 use std::fmt;
 use std::fs;
@@ -62,9 +64,14 @@ enum Command {
 
 /// 使い方や入出力の誤り（終了コード2）。
 enum CliError {
-    Read { path: PathBuf, source: io::Error },
+    Read {
+        path: PathBuf,
+        source: io::Error,
+    },
     Project(ProjectError),
     Write(io::Error),
+    /// 安全に実行できない（`project.toml` のエラーのときの `fmt`）。
+    Refused(String),
 }
 
 impl fmt::Display for CliError {
@@ -75,6 +82,7 @@ impl fmt::Display for CliError {
             }
             CliError::Project(e) => write!(f, "{e}"),
             CliError::Write(e) => write!(f, "出力に書けません：{e}"),
+            CliError::Refused(message) => write!(f, "{message}"),
         }
     }
 }
@@ -137,52 +145,75 @@ struct CliDiagnostic<'a> {
     message: &'a str,
 }
 
+/// 診断を出すファイルと、位置（行と列）を数える本文。
+struct Shown {
+    /// 出力するパス。
+    file: String,
+    text: String,
+    diagnostics: Vec<IrDiagnostic>,
+}
+
 fn run_parse(file: &Path, json: bool) -> Result<u8, CliError> {
     let text = fs::read_to_string(file).map_err(|source| CliError::Read {
         path: file.to_owned(),
         source,
     })?;
-    let (text, diagnostics) = match find_project_root(file) {
+    let shown = file.display().to_string();
+    let groups = match find_project_root(file) {
         Some(root) => analyze_in_project(&root, file, text)?,
         None => {
             let diagnostics = parse_alone(&text);
-            (text, diagnostics)
+            vec![Shown {
+                file: shown.clone(),
+                text,
+                diagnostics,
+            }]
         }
     };
 
-    let index = LineIndex::new(&text);
-    let shown = file.display().to_string();
-    let code = exit_code(&diagnostics);
+    let all: Vec<&IrDiagnostic> = groups.iter().flat_map(|g| &g.diagnostics).collect();
+    let code = if all.iter().any(|d| d.severity == Severity::Error.as_str()) {
+        HAS_ERRORS
+    } else {
+        SUCCESS
+    };
     let mut out = io::stdout().lock();
     if json {
-        let list: Vec<CliDiagnostic<'_>> = diagnostics
-            .iter()
-            .map(|d| {
+        let mut list: Vec<CliDiagnostic<'_>> = Vec::new();
+        for group in &groups {
+            let index = LineIndex::new(&group.text);
+            for d in &group.diagnostics {
                 let (line, column) = index.line_col(d.span.start);
                 let (end_line, end_column) = index.line_col(d.span.end);
-                CliDiagnostic {
+                list.push(CliDiagnostic {
                     code: d.code,
                     severity: d.severity,
-                    file: shown.clone(),
+                    file: group.file.clone(),
                     line,
                     column,
                     end_line,
                     end_column,
                     span: d.span,
                     message: &d.message,
-                }
-            })
-            .collect();
+                });
+            }
+        }
         let body = serde_json::to_string_pretty(&list).map_err(|e| CliError::Write(e.into()))?;
         finish(writeln!(out, "{body}"), code)
     } else {
-        let written = diagnostics.iter().try_for_each(|d| {
-            let (line, column) = index.line_col(d.span.start);
-            writeln!(out, "{shown}:{line}:{column} {} {}", d.code, d.message)
+        let written = groups.iter().try_for_each(|group| {
+            let index = LineIndex::new(&group.text);
+            group.diagnostics.iter().try_for_each(|d| {
+                let (line, column) = index.line_col(d.span.start);
+                writeln!(
+                    out,
+                    "{}:{line}:{column} {} {}",
+                    group.file, d.code, d.message
+                )
+            })
         });
         let count = |severity: Severity| {
-            diagnostics
-                .iter()
+            all.iter()
                 .filter(|d| d.severity == severity.as_str())
                 .count()
         };
@@ -220,13 +251,10 @@ fn parse_alone(text: &str) -> Vec<IrDiagnostic> {
         .collect()
 }
 
-/// プロジェクトの中：プロジェクト全体で解析し、そのファイルの診断だけを返す。
-/// ファイルが `story/*.scn` でなくても、プロジェクトの本文に加えて解析する。
-fn analyze_in_project(
-    root: &Path,
-    file: &Path,
-    text: String,
-) -> Result<(String, Vec<IrDiagnostic>), CliError> {
+/// プロジェクトの中：プロジェクト全体で解析し、設定ファイルの読み込みの診断（E801〜W804。どの本文の
+/// 解析にも響くため）と、そのファイルの診断を返す。ファイルが `story/*.scn` でなくても、
+/// プロジェクトの本文に加えて解析する。
+fn analyze_in_project(root: &Path, file: &Path, text: String) -> Result<Vec<Shown>, CliError> {
     let mut project = load_project(root).map_err(CliError::Project)?;
     let relative = fs::canonicalize(file)
         .ok()
@@ -239,27 +267,63 @@ fn analyze_in_project(
         })
         .unwrap_or_default();
     // 読み込んだあとで中身が変わっていても、表示と解析に同じ中身を使う。
-    let text = match project.files.iter_mut().find(|f| f.path == relative) {
-        Some(existing) => {
-            existing.text.clone_from(&text);
-            text
-        }
+    match project.files.iter_mut().find(|f| f.path == relative) {
+        Some(existing) => existing.text.clone_from(&text),
         None => {
             project.files.push(SourceFile {
                 path: relative.clone(),
                 text: text.clone(),
             });
             project.files.sort_by(|a, b| a.path.cmp(&b.path));
-            text
         }
-    };
+    }
+    let loaded = project.load_diagnostics.len();
     let ir = analyze(&project);
-    let diagnostics = ir
-        .diagnostics
-        .into_iter()
-        .filter(|d| d.file == relative)
-        .collect();
-    Ok((text, diagnostics))
+    let shown_root = typed_root(file, &relative).unwrap_or_else(|| root.to_path_buf());
+
+    // IRの診断は、読み込みの診断が先に並ぶ（`analyze`）。
+    let mut groups: Vec<Shown> = Vec::new();
+    let mut own = Vec::new();
+    for (i, d) in ir.diagnostics.into_iter().enumerate() {
+        if i < loaded && (d.file == relative || !d.file.starts_with("story/")) {
+            match groups.iter_mut().find(|g| g.file == d.file) {
+                Some(group) => group.diagnostics.push(d),
+                None => groups.push(Shown {
+                    file: d.file.clone(),
+                    text: fs::read(root.join(&d.file))
+                        .map(|b| String::from_utf8_lossy(&b).into_owned())
+                        .unwrap_or_default(),
+                    diagnostics: vec![d],
+                }),
+            }
+            continue;
+        }
+        if i >= loaded && d.file == relative {
+            own.push(d);
+        }
+    }
+    for group in &mut groups {
+        group.file = shown_root.join(&group.file).display().to_string();
+    }
+    groups.push(Shown {
+        file: file.display().to_string(),
+        text,
+        diagnostics: own,
+    });
+    Ok(groups)
+}
+
+/// 引数のパスから、プロジェクトの根を、引数と同じ書き方で求める
+/// （`samples/houkago/story/a.scn` と `story/a.scn` なら `samples/houkago`）。求められなければ `None`。
+fn typed_root(file: &Path, relative: &str) -> Option<PathBuf> {
+    let mut root = file.to_path_buf();
+    for part in relative.rsplit('/') {
+        if root.file_name()? != part {
+            return None;
+        }
+        root.pop();
+    }
+    Some(root)
 }
 
 // ---- scn ir ----
@@ -292,6 +356,29 @@ struct FmtEntry {
 /// 書き終えたファイルの行IDは出してから終了コード2で終える（AIの出自の記録に使うため。D041）。
 fn run_fmt(dir: &Path, check: bool, json: bool) -> Result<u8, CliError> {
     let project = load_project(dir).map_err(CliError::Project)?;
+    // 台詞の括弧が既定に戻っていると、複数行の台詞の途中の行にも行IDを付けてしまう（D042）。
+    if project.has_project_toml_errors() {
+        let text = fs::read(dir.join("project.toml"))
+            .map(|b| String::from_utf8_lossy(&b).into_owned())
+            .unwrap_or_default();
+        let index = LineIndex::new(&text);
+        let shown = display_path(dir, "project.toml");
+        for d in project
+            .load_diagnostics
+            .iter()
+            .filter(|d| d.file == "project.toml")
+        {
+            let (line, column) = index.line_col(d.diag.span.start);
+            eprintln!(
+                "{shown}:{line}:{column} {} {}",
+                d.diag.code.as_str(),
+                d.diag.message
+            );
+        }
+        return Err(CliError::Refused(
+            "project.toml にエラーがあるので、行IDを付けません（台詞の括弧を書かれたとおりに読めないため）".into(),
+        ));
+    }
     let results = assign_line_ids(&project, &mut LineIdGenerator::new());
     let mut out = io::stdout().lock();
     let mut done: Vec<FmtEntry> = Vec::new();

@@ -137,6 +137,33 @@
 | --- | --- |
 | 構文系（T0-3） | W101、E102、E103、E104、E105、E106、W107、I109、E110、E111、W112、W113、E114、E201、W303、E304、W401、E402、W405、E601 |
 | 意味系（T0-4） | E108、W202、E301、I302、I403、W404、E501、W502、W602、E603、E604 |
+| 設定ファイル（T1-3） | E801、E802、E803、W804 |
+
+## 設定ファイル（T1-3、`settings/`）
+
+設定ファイル（`project.toml`、`variables.yaml`、`assets/catalog.yaml`、設定DB）と本文のファイルの読み込みの診断（仕様書16節、D042）。fixtureは1つずつが小さなプロジェクトで、期待する診断は `story/a.scn` の1行目の `// expect:` に書く。`expect` の無いものは正常系。
+
+| フォルダ | 内容 | 期待する診断 |
+| --- | --- | --- |
+| `ok_builtin_type/` | 型定義に `builtin: character` のある型（フォルダ名が `character` でない）のエントリが話者になる | |
+| `ok_brackets_empty/` | 空の `[dialogue.brackets]` は、既定の「」を使う | |
+| `toml_broken/` | `project.toml` の構文の誤り。既定の設定（括弧は「」）で読む | E801 |
+| `toml_version/` | 対応していない `format_version`。v0として読む | E803 |
+| `toml_items/` | `format_version`・`start_scene`・`[dialogue.brackets]` の形の誤り。括弧が1組も読めなければ既定の「」 | E802 |
+| `toml_brackets/` | 表示スタイルが英字でない組と、括弧が重なる組を読み飛ばし、読めた組を使う | E802 |
+| `toml_dialogue_scalar/` | `dialogue` が表でない。既定の「」を使う | E802 |
+| `variables_broken/` | `variables.yaml` の構文の誤り。宣言の無い変数（W602）を出さない | E801 |
+| `variables_not_map/` | `variables.yaml` が対応表でない。W602 を出さない | E802 |
+| `variables_items/` | 形の合わない変数（型、列挙の値、名前）だけを読み飛ばす。読み飛ばした変数への参照は W602 | E802 W602 |
+| `catalog_broken/` | 素材カタログの構文の誤り。カタログを空として扱う | E801 I403 |
+| `catalog_sections/` | 形の合わない節（背景の節、差分）と、文字列にできない意味名だけを読み飛ばす | E802 I403 |
+| `bible_type_broken/` | キャラクターの型定義を読めない。フォルダ名 `character` でキャラクターを見分ける | E801 |
+| `bible_type_items/` | 型定義の `builtin`・`fields` の誤り | E802 |
+| `bible_two_character_types/` | `builtin: character` を2つの型に書くと、最初の型を使う | E802 W202 |
+| `bible_entry_broken/` | エントリのフロントマターを読めない。そのエントリを読み飛ばす | E801 W202 |
+| `bible_entry_items/` | `name` の無いキャラクターを読み飛ばし、形の合わない `aliases` は呼び名だけを読み飛ばす | E802 W202 |
+| `bible_untyped_folder/` | 型定義の無いエントリのフォルダ（`character` の打ち間違い） | W804 W202 |
+| `story_not_utf8/` | UTF-8でない本文のファイル（`story/b.scn`）を読み飛ばす | E801 |
 
 ## 行IDの付与（T1-2、`fmt/`）
 
