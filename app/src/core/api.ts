@@ -14,6 +14,7 @@ import type {
   ReloadedFile,
   SavedFile,
   Summary,
+  ViewMode,
   WorkspaceChanged,
 } from "./types.ts";
 
@@ -67,6 +68,16 @@ export function keepMine(file: string, text: string): Promise<KeptFile> {
 /** `story/` に章を足す。 */
 export function addChapter(name: string): Promise<AddedChapter> {
   return invoke<AddedChapter>("add_chapter", { name });
+}
+
+/** 開いている作品フォルダの、ファイルごとの表示（覚えていないファイルは含まない）。 */
+export function viewModes(): Promise<Record<string, ViewMode>> {
+  return invoke<Record<string, ViewMode>>("view_modes");
+}
+
+/** ファイルの表示を覚える（アプリの設定のフォルダに。作品フォルダには書かない。D046）。 */
+export function setViewMode(file: string, mode: ViewMode): Promise<void> {
+  return invoke<void>("set_view_mode", { file, mode });
 }
 
 /** 最近開いた作品フォルダ（新しい順）。 */

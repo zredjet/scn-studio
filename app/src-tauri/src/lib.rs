@@ -6,7 +6,7 @@
 //! 入力が止まるたびに渡すのは、表示に要る分（診断、シーンの一覧、辺）だけにする（D042）。命令列（IR全体）は
 //! 渡さない。検証の段階1は、開いたとき・保存したとき・外部の変更を取り込んだときに行う。
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Mutex, MutexGuard};
@@ -427,6 +427,79 @@ fn recent_projects(app: AppHandle) -> Vec<RecentProject> {
     read_recent(&app)
 }
 
+// ---- ファイルごとの表示 ----
+
+/// 表示の名前（フロントの `ViewMode`）。
+const VIEW_MODES: [&str; 2] = ["writing", "source"];
+
+/// ファイルごとの表示（執筆表示かソース表示か）。アプリの設定のフォルダの `view-modes.json` に、
+/// 作品フォルダの実際のパスごとに覚える。作品フォルダには書かない（D046）。
+type ViewModes = BTreeMap<String, BTreeMap<String, String>>;
+
+fn view_modes_file(app: &AppHandle) -> Option<PathBuf> {
+    app.path()
+        .app_config_dir()
+        .ok()
+        .map(|d| d.join("view-modes.json"))
+}
+
+fn read_view_modes(app: &AppHandle) -> ViewModes {
+    view_modes_file(app)
+        .and_then(|path| std::fs::read_to_string(path).ok())
+        .and_then(|text| serde_json::from_str(&text).ok())
+        .unwrap_or_default()
+}
+
+/// 開いている作品フォルダの、覚えるときの名前（実際のパス）。
+fn project_key(workspace: &Workspace) -> String {
+    std::fs::canonicalize(workspace.root())
+        .unwrap_or_else(|_| workspace.root().to_owned())
+        .display()
+        .to_string()
+}
+
+/// 開いている作品フォルダの、ファイルごとの表示。覚えていないファイルは含めない（フロントで執筆表示にする）。
+#[tauri::command]
+fn view_modes(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<BTreeMap<String, String>, String> {
+    let mut guard = locked(&state.workspace)?;
+    let key = project_key(open_workspace(&mut guard)?);
+    Ok(read_view_modes(&app).remove(&key).unwrap_or_default())
+}
+
+/// ファイルの表示を覚える。書けなくても、表示の切り替えは止めない（エラーは返す）。
+#[tauri::command]
+fn set_view_mode(
+    file: String,
+    mode: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    if !VIEW_MODES.contains(&mode.as_str()) {
+        return Err(format!("知らない表示です：{mode}"));
+    }
+    let key = {
+        let mut guard = locked(&state.workspace)?;
+        let workspace = open_workspace(&mut guard)?;
+        if workspace.text(&file).is_none() {
+            return Err(format!("作品フォルダに無いファイルです：{file}"));
+        }
+        project_key(workspace)
+    };
+    let Some(path) = view_modes_file(&app) else {
+        return Err("アプリの設定のフォルダが分かりません".to_owned());
+    };
+    let mut all = read_view_modes(&app);
+    all.entry(key).or_default().insert(file, mode);
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    let text = serde_json::to_string_pretty(&all).map_err(|e| e.to_string())?;
+    std::fs::write(&path, text).map_err(|e| format!("{} に書けません：{e}", path.display()))
+}
+
 // ---- 開発用 ----
 
 /// 受け渡しの時間を測っているか（環境変数 `SCN_MEASURE_IPC`。D045）。
@@ -477,6 +550,8 @@ pub fn run() {
             keep_mine,
             add_chapter,
             recent_projects,
+            view_modes,
+            set_view_mode,
             dev_settings,
             dev_report
         ])

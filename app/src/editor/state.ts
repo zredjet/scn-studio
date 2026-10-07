@@ -4,6 +4,7 @@
 // 改行の種類が混ざった本文だけは、エディタが1種類しか持てないので、多いほうにそろえて読み込み、
 // 画面で知らせる（保存するとそろう。D045）。
 // 補完と括弧の自動補完は入れない（basicSetup を使わず、拡張を1つずつ選ぶ。.claude/rules/frontend.md）。
+// 表示は2つ：執筆表示（writing.ts。記号を畳む）とソース表示（生のテキストと行番号）。Mod-/ で切り替える（D046）。
 
 import {
   defaultKeymap,
@@ -13,10 +14,10 @@ import {
 } from "@codemirror/commands";
 import type { Diagnostic } from "@codemirror/lint";
 import {
-  Annotation,
   type ChangeSet,
   type Compartment,
   EditorState,
+  type Extension,
 } from "@codemirror/state";
 import {
   drawSelection,
@@ -28,7 +29,9 @@ import {
 } from "@codemirror/view";
 import { scn, scnSyntaxHighlighting } from "@scn-studio/lezer-scn";
 import { PositionMap } from "../core/position.ts";
-import type { Bracket, IrDiagnostic } from "../core/types.ts";
+import type { Bracket, IrDiagnostic, ViewMode } from "../core/types.ts";
+import { programmatic } from "./flags.ts";
+import { sceneTitles, writingView } from "./writing.ts";
 
 /** 改行の数（`\r\n`、`\n` だけ、`\r` だけ）。 */
 export function countLineBreaks(text: string): {
@@ -85,11 +88,6 @@ export function toEditorDiagnostics(
   });
 }
 
-/** 変換中か。`composing` は最初の変更が入るまで false なので、変換の始まりも見る。 */
-export function isComposing(view: EditorView): boolean {
-  return view.composing || view.compositionStarted;
-}
-
 /** エディタの見た目。テストで中身を確かめるので、書き出す。 */
 export const editorThemeSpec = {
   "&": {
@@ -115,9 +113,9 @@ export const editorThemeSpec = {
       "color-mix(in srgb, var(--accent-tint-2) 60%, transparent)",
   },
   ".cm-activeLineGutter": { backgroundColor: "var(--accent-tint-2)" },
-  "&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
-    backgroundColor: "var(--accent-tint)",
-  },
+  // フォーカス中の選択は、CodeMirror の基本テーマ（クラス5つ）より詳細度を上げないと、基本テーマの色になる。
+  ".cm-selectionBackground, &.cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground":
+    { backgroundColor: "var(--accent-tint)" },
 };
 
 const theme = EditorView.theme(editorThemeSpec);
@@ -129,16 +127,34 @@ export function matchLineBreaks(text: string, lineBreak: string): string {
 
 /**
  * キーの割り当て。Enter は改行を入れるだけにする。既定の insertNewlineAndIndent は、
- * カーソルの前後の空白（全角空白を含む）を消してしまう。
+ * カーソルの前後の空白（全角空白を含む）を消してしまう。Mod-/ は表示の切り替えに使うので、
+ * 既定のコメントの切り替え（toggleComment）は外す（D046）。
  */
 export const editorKeymap = [
   { key: "Enter", run: insertNewline },
-  ...defaultKeymap,
+  ...defaultKeymap.filter((binding) => binding.key !== "Mod-/"),
   ...historyKeymap,
 ];
 
-/** 人の編集でない変更（保存で付いた行ID、外部の変更の読み込み直し）に付ける印。 */
-export const programmatic = Annotation.define<boolean>();
+export { isComposing, programmatic } from "./flags.ts";
+
+export type { ViewMode };
+
+/** 表示ごとの拡張。ソース表示は行番号を出す。執筆表示は writing.ts。 */
+export function modeExtension(mode: ViewMode): Extension {
+  return mode === "writing"
+    ? writingView()
+    : [lineNumbers(), highlightActiveLineGutter()];
+}
+
+/** 表示の設定（エディタが切り替えに使う入れ物と、今の値）。 */
+export interface ViewOptions {
+  readonly mode: ViewMode;
+  readonly modeCompartment: Compartment;
+  /** シーンIDと題名（執筆表示で、ジャンプに題名を添える）。 */
+  readonly titles: ReadonlyMap<string, string>;
+  readonly titlesCompartment: Compartment;
+}
 
 export interface Hooks {
   /** 本文が変わった。`byUser` は人の編集か（`programmatic` の印の無い変更）。`changes` はその変更。 */
@@ -149,14 +165,20 @@ export interface Hooks {
   readonly compositionStarted: () => void;
   /** 変換が終わった。 */
   readonly compositionEnded: () => void;
+  /** 表示の切り替えのキー（Ctrl+/／Cmd+/）が押された。 */
+  readonly toggleView: () => void;
 }
 
-/** エディタの状態を作る。改行の種類が混ざっていれば、多いほうにそろえる。テストからも使う。 */
+/**
+ * エディタの状態を作る。改行の種類が混ざっていれば、多いほうにそろえる。`view` を省くとソース表示。
+ * テストからも使う。
+ */
 export function createState(
   doc: string,
   brackets: readonly Bracket[],
   language: Compartment,
   hooks: Hooks,
+  view?: ViewOptions,
 ): EditorState {
   const lineBreak = lineBreakOf(doc);
   return EditorState.create({
@@ -171,8 +193,12 @@ export function createState(
             ),
           ]
         : [],
-      lineNumbers(),
-      highlightActiveLineGutter(),
+      view === undefined
+        ? modeExtension("source")
+        : view.modeCompartment.of(modeExtension(view.mode)),
+      view === undefined
+        ? []
+        : view.titlesCompartment.of(sceneTitles.of(view.titles)),
       history(),
       drawSelection(),
       highlightActiveLine(),
@@ -183,6 +209,14 @@ export function createState(
           preventDefault: true,
           run: () => {
             hooks.save();
+            return true;
+          },
+        },
+        {
+          key: "Mod-/",
+          preventDefault: true,
+          run: () => {
+            hooks.toggleView();
             return true;
           },
         },

@@ -345,6 +345,59 @@ body {
   background: var(--panel-bg-2);
 }
 
+.mode-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--paper);
+}
+
+.mode-bar-file {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mode-switch {
+  display: inline-flex;
+  gap: 2px;
+  min-width: 0;
+  margin: 0;
+  padding: 3px;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: var(--app-bg);
+}
+
+.mode-switch button {
+  min-height: 28px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.mode-switch button[aria-pressed="true"] {
+  border-color: var(--border-control);
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.mode-shortcut {
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
 .conflict-bar,
 .notice-bar {
   display: flex;
@@ -454,6 +507,10 @@ body {
   background: var(--statusbar-bg);
   color: var(--text-2);
   font-size: 12px;
+}
+
+.statusbar-mode {
+  font-weight: 500;
 }
 
 .statusbar-notice {

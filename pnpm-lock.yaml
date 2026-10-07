@@ -187,6 +187,9 @@ importers:
       '@codemirror/view':
         specifier: ^6.43.13
         version: 6.43.13
+      '@lezer/common':
+        specifier: ^1.5.3
+        version: 1.5.3
       '@scn-studio/lezer-scn':
         specifier: workspace:*
         version: link:../packages/lezer-scn

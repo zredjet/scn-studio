@@ -135,6 +135,9 @@ export interface WorkspaceChanged {
   readonly checks: readonly IrDiagnostic[];
 }
 
+/** エディタの表示：執筆表示（記号を畳む）か、ソース表示（生のテキスト）か（D046）。 */
+export type ViewMode = "writing" | "source";
+
 export interface RecentProject {
   readonly path: string;
   readonly title: string;

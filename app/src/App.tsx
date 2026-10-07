@@ -24,6 +24,8 @@ import {
   recentProjects,
   reloadFile,
   saveFile,
+  setViewMode,
+  viewModes,
 } from "./core/api.ts";
 import { PositionMap } from "./core/position.ts";
 import type {
@@ -33,6 +35,7 @@ import type {
   RecentProject,
   SceneSummary,
   Summary,
+  ViewMode,
   WorkspaceChanged,
 } from "./core/types.ts";
 import { ConflictBar } from "./editor/ConflictBar.tsx";
@@ -43,6 +46,7 @@ import {
   type Replace,
 } from "./editor/Editor.tsx";
 import { LineBreakBar } from "./editor/LineBreakBar.tsx";
+import { ModeBar } from "./editor/ModeBar.tsx";
 import { hasMixedLineBreaks, lineBreakOf } from "./editor/state.ts";
 import { SceneGraph } from "./graph/SceneGraph.tsx";
 import { SceneList } from "./scenes/SceneList.tsx";
@@ -110,6 +114,8 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [recent, setRecent] = useState<RecentProject[]>([]);
+  /** ファイルごとの表示（覚えていないファイルは執筆表示。D046）。 */
+  const [modes, setModes] = useState<ReadonlyMap<string, ViewMode>>(new Map());
   /** ディスクの中身が変わった回数（エディタに渡す savedText を作り直すため）。 */
   const [savedVersion, setSavedVersion] = useState(0);
   /** プロジェクトを開いた回数。開くたびにエディタを作り直す。 */
@@ -128,8 +134,8 @@ export function App() {
   /** 変換が終わってから行う、表示の更新。 */
   const afterComposition = useRef<(() => void)[]>([]);
   // 知らせの受け取りや、閉じる前の確認の中では、最新の値を読む。
-  const latest = useRef({ project, currentFile, dirty, conflicts });
-  latest.current = { project, currentFile, dirty, conflicts };
+  const latest = useRef({ project, currentFile, dirty, conflicts, modes });
+  latest.current = { project, currentFile, dirty, conflicts, modes };
 
   const replaceText = useCallback(
     (file: string, text: string, expected: string | null) => {
@@ -206,8 +212,31 @@ export function App() {
     setScreen("text");
     setError(null);
     setNotice(`${opened.title} を開きました`);
+    setModes(new Map());
+    void viewModes()
+      .then((m) => setModes(new Map(Object.entries(m))))
+      .catch(() => {});
     void recentProjects().then(setRecent);
   }, []);
+
+  /** ファイルの表示を変え、覚える。 */
+  const selectMode = useCallback(
+    (file: string, mode: ViewMode) => {
+      setModes((map) => new Map(map).set(file, mode));
+      void setViewMode(file, mode).catch((e: unknown) =>
+        whenIdle(() => setError(`表示を覚えられません：${String(e)}`)),
+      );
+    },
+    [whenIdle],
+  );
+
+  const toggleMode = useCallback(
+    (file: string) => {
+      const now = latest.current.modes.get(file) ?? "writing";
+      selectMode(file, now === "writing" ? "source" : "writing");
+    },
+    [selectMode],
+  );
 
   /** 保存していない変更があれば、捨ててよいかを聞く。 */
   const confirmDiscard = useCallback(async () => {
@@ -549,6 +578,15 @@ export function App() {
     currentFile === null ? "" : (saved.current.get(currentFile) ?? "");
   // savedVersion が変わるたびに、エディタへ渡すディスクの中身を読み直す。
   void savedVersion;
+  const mode: ViewMode =
+    currentFile === null ? "writing" : (modes.get(currentFile) ?? "writing");
+  const titles = useMemo(
+    () =>
+      new Map(
+        (project?.summary.scenes ?? []).map((scene) => [scene.id, scene.title]),
+      ),
+    [project?.summary.scenes],
+  );
   const mixedLineBreak = useMemo(
     () => (hasMixedLineBreaks(savedText) ? lineBreakOf(savedText) : null),
     [savedText],
@@ -601,6 +639,13 @@ export function App() {
                   onAddChapter={onAddChapter}
                 />
                 <section className="editor-pane" aria-label="エディタ">
+                  {currentFile !== null && (
+                    <ModeBar
+                      file={currentFile}
+                      mode={mode}
+                      onSelect={(m) => selectMode(currentFile, m)}
+                    />
+                  )}
                   {currentFile !== null && conflict !== undefined && (
                     <ConflictBar
                       file={currentFile}
@@ -619,6 +664,8 @@ export function App() {
                       text={buffers.current.get(currentFile) ?? ""}
                       savedText={savedText}
                       brackets={project.brackets}
+                      viewMode={mode}
+                      titles={titles}
                       analysis={analysis}
                       focus={focus}
                       replace={replace}
@@ -627,6 +674,7 @@ export function App() {
                       onDirty={onDirty}
                       onSave={onSave}
                       onReplaceSkipped={onReplaceSkipped}
+                      onToggleView={toggleMode}
                     />
                   ) : (
                     <p className="placeholder">
@@ -672,6 +720,7 @@ export function App() {
         </main>
       </div>
       <StatusBar
+        mode={currentFile === null ? null : mode}
         file={currentFile}
         unsaved={dirty.size}
         counts={counts}

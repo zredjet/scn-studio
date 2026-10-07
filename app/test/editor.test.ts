@@ -23,6 +23,7 @@ const HOOKS = {
   save: () => {},
   compositionStarted: () => {},
   compositionEnded: () => {},
+  toggleView: () => {},
 };
 
 function state(doc: string): EditorState {

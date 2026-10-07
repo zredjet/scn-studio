@@ -10,6 +10,8 @@
 //
 // 保存は1つずつ行う。保存を待つ間の編集は消さず、保存で付いた行IDをその後の本文に入れる（replace.ts の
 // savedChanges）。保存を待つ間にもう一度保存のキーが押されたら、終わってからもう一度保存する。
+//
+// 表示は、執筆表示とソース表示を切り替える（D046）。切り替えても本文は変わらない（飾りと行番号が変わるだけ）。
 
 import { setDiagnostics } from "@codemirror/lint";
 import { ChangeSet, Compartment, type Text } from "@codemirror/state";
@@ -24,9 +26,12 @@ import {
   isComposing,
   lineBreakOf,
   matchLineBreaks,
+  modeExtension,
   programmatic,
   toEditorDiagnostics,
+  type ViewMode,
 } from "./state.ts";
+import { refreshWriting, sceneTitles } from "./writing.ts";
 
 /** 入力が止まってから解析を依頼するまでの時間（ミリ秒）。 */
 export const ANALYZE_DELAY_MS = 200;
@@ -81,6 +86,10 @@ interface Props {
   /** ディスクの中身。これと違えば、保存していない変更がある（改行の種類はエディタにそろえて比べる）。 */
   readonly savedText: string;
   readonly brackets: readonly Bracket[];
+  /** 表示（執筆表示かソース表示か）。 */
+  readonly viewMode: ViewMode;
+  /** シーンIDと題名（執筆表示で、ジャンプに題名を添える）。 */
+  readonly titles: ReadonlyMap<string, string>;
   readonly analysis: Analysis | null;
   readonly focus: Focus | null;
   readonly replace: Replace | null;
@@ -94,6 +103,8 @@ interface Props {
   readonly onSave: (file: string, text: string) => Promise<string | null>;
   /** 読み込み直しの知らせが届いてから置き換えるまでに編集していたので、置き換えなかった。 */
   readonly onReplaceSkipped: (file: string, text: string) => void;
+  /** 表示の切り替えのキーが押された。 */
+  readonly onToggleView: (file: string) => void;
 }
 
 export function Editor({
@@ -101,6 +112,8 @@ export function Editor({
   text,
   savedText,
   brackets,
+  viewMode,
+  titles,
   analysis,
   focus,
   replace,
@@ -109,10 +122,13 @@ export function Editor({
   onDirty,
   onSave,
   onReplaceSkipped,
+  onToggleView,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const language = useRef(new Compartment());
+  const mode = useRef(new Compartment());
+  const titleSet = useRef(new Compartment());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** 変換中に届いて、まだ反映していない診断。 */
   const deferred = useRef<Analysis | null>(null);
@@ -133,23 +149,44 @@ export function Editor({
     text,
     savedText,
     brackets,
+    viewMode,
+    titles,
     onIdle,
     onComposingChange,
     onDirty,
     onSave,
     onReplaceSkipped,
+    onToggleView,
   });
   props.current = {
     file,
     text,
     savedText,
     brackets,
+    viewMode,
+    titles,
     onIdle,
     onComposingChange,
     onDirty,
     onSave,
     onReplaceSkipped,
+    onToggleView,
   };
+
+  /** 今の設定で、エディタの状態を作る。 */
+  const makeState = (doc: string) =>
+    createState(
+      doc,
+      props.current.brackets,
+      language.current,
+      stableHooks.current,
+      {
+        mode: props.current.viewMode,
+        modeCompartment: mode.current,
+        titles: props.current.titles,
+        titlesCompartment: titleSet.current,
+      },
+    );
 
   /** 保存していない変更があるかを、本文とディスクの中身を比べて知らせる。 */
   const reportDirty = () => {
@@ -218,14 +255,7 @@ export function Editor({
       }
     } else {
       // 改行の種類が変わった。エディタは1種類しか持てないので、状態を作り直す。
-      v.setState(
-        createState(
-          r.text,
-          props.current.brackets,
-          language.current,
-          stableHooks.current,
-        ),
-      );
+      v.setState(makeState(r.text));
     }
     current.sent = v.state.sliceDoc();
     reportDirty();
@@ -324,6 +354,7 @@ export function Editor({
     save: () => {},
     compositionStarted: () => {},
     compositionEnded: () => {},
+    toggleView: () => {},
   });
   hooks.current = {
     changed: (byUser, changes) => {
@@ -345,6 +376,8 @@ export function Editor({
       // 変換中に止めていた解析の依頼、診断の反映、本文の置き換え、保存を、変換が終わってから行う。
       schedule();
       setTimeout(() => {
+        // 変換中に見送った執筆表示の飾りを作り直す。
+        view.current?.dispatch({ effects: refreshWriting.of(null) });
         const pending = deferred.current;
         if (pending !== null) apply(pending);
         const waiting = deferredReplace.current;
@@ -356,6 +389,10 @@ export function Editor({
         }
       }, 0);
     },
+    toggleView: () => {
+      const current = loaded.current;
+      if (current !== null) props.current.onToggleView(current.file);
+    },
   };
   // 状態に渡すのは、いつも最新の hooks.current を呼ぶ関数。
   const stableHooks = useRef<Hooks>({
@@ -363,6 +400,7 @@ export function Editor({
     save: () => hooks.current.save(),
     compositionStarted: () => hooks.current.compositionStarted(),
     compositionEnded: () => hooks.current.compositionEnded(),
+    toggleView: () => hooks.current.toggleView(),
   });
 
   // エディタを作る。本文は下のファイルの効果で入れる。
@@ -379,6 +417,8 @@ export function Editor({
   }, []);
 
   // ファイルを切り替えたら、本文を入れ替える。まだ送っていない編集があれば、先に送る。
+  const makeStateRef = useRef(makeState);
+  makeStateRef.current = makeState;
   const sendRef = useRef(send);
   sendRef.current = send;
   const reportRef = useRef(reportDirty);
@@ -398,14 +438,7 @@ export function Editor({
     deferred.current = null;
     deferredReplace.current = null;
     saveAfterComposition.current = false;
-    v.setState(
-      createState(
-        props.current.text,
-        props.current.brackets,
-        language.current,
-        stableHooks.current,
-      ),
-    );
+    v.setState(makeStateRef.current(props.current.text));
     loaded.current = { file, sent: v.state.sliceDoc() };
     // 保存を待つ間に、そのファイルへ戻ってきた。本文が離れたときのままなら、続けて編集を追う。
     if (s !== null && s.detached !== null && s.file === file) {
@@ -419,6 +452,20 @@ export function Editor({
   useEffect(() => {
     if (savedText !== undefined) reportRef.current();
   }, [savedText]);
+
+  // 表示を切り替える。本文は変わらない。
+  useEffect(() => {
+    view.current?.dispatch({
+      effects: mode.current.reconfigure(modeExtension(viewMode)),
+    });
+  }, [viewMode]);
+
+  // シーンの題名が変わったら、入れ替える。
+  useEffect(() => {
+    view.current?.dispatch({
+      effects: titleSet.current.reconfigure(sceneTitles.of(titles)),
+    });
+  }, [titles]);
 
   // 括弧の設定が変わったら、言語を入れ替える。
   useEffect(() => {
