@@ -1,0 +1,22 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/ok_expr.scn
+---
+scene L2 #s001 "式"
+  @設定 L3 set (= 勇気 (- (+ 1 (* 2 3)) (/ 4 2)))
+  @設定 L4 set (+= 灯.好感度 (* (+ 1 2) 3))
+  @設定 L5 set (= flag.名前 "灯の\"髪\"留め")
+  @設定 L6 set (= 周回.済み true)
+  @設定 L7 set (-= _内部 (neg 1))
+  if L8 (or (and (not (>= 勇気 2)) (< 灯.好感度 3)) (== flag.名前 "灯"))
+    narration L9 ^aaaa ["\u{3000}一つ目。"]
+  elif L10 (and (!= (neg 勇気) (neg 1)) false)
+    narration L11 ^aaab ["\u{3000}二つ目。"]
+  elif L12 (>= 勇気 2)
+    narration L13 ^aaac ["\u{3000}全角空白で区切った式。"]
+  end L14
+  narration L15 ^aaad ["\u{3000}埋め込み", interp((* 勇気 2)), "。"]
+  @エンディング L16 ending id="end1"
+
+# diagnostics

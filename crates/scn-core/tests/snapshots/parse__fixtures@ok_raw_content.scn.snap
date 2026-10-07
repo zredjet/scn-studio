@@ -1,0 +1,15 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/ok_raw_content.scn
+---
+scene L2 #s001 "生コードの中身"
+  raw L3 engine="renpy" end=L10
+    | "## Ren'Pyのコメント"
+    | "$ x = y ^mask"
+    | "@選択 これは命令ではない"
+    | "- これも選択肢ではない"
+    | "// コメントでもない"
+    | "@end の後に文字がある行は閉じではない"
+
+# diagnostics

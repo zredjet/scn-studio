@@ -1,0 +1,10 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/ok_chapter_heading.scn
+---
+chapter-heading L3 "第1章 はじまり"
+scene L5 #s001 "始まり"
+  narration L6 ^aaaa ["\u{3000}朝だった。"]
+
+# diagnostics

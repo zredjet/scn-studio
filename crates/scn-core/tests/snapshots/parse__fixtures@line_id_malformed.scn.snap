@@ -1,0 +1,14 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/line_id_malformed.scn
+---
+scene L2 #s001 "形の崩れた行ID"
+  narration L3 ^(malformed) ["\u{3000}大文字を含む。"]
+  narration L4 ^(malformed) ["\u{3000}短い。"]
+  narration L5 ^(malformed) ["\u{3000}長い。"]
+
+# diagnostics
+3:10-3:15 E304 行IDの形が不正です：^K3F9（[0-9a-z] の4〜12文字で書きます）
+4:6-4:9 E304 行IDの形が不正です：^k3（[0-9a-z] の4〜12文字で書きます）
+5:6-5:20 E304 行IDの形が不正です：^abcdefghijklm（[0-9a-z] の4〜12文字で書きます）

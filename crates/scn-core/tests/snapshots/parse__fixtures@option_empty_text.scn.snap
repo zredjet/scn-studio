@@ -1,0 +1,19 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/option_empty_text.scn
+---
+scene L2 #s001 "表示文が空"
+  choice L3 ^aaaa prompt=["どうする"] end=L8
+    option L4 []
+    option L5 ^aaab [] -> "s002"
+    option L6 ^aaac [] if (>= 勇気 2)
+    option L7 ^abcd []
+scene L10 #s002 "次"
+  narration L11 ^aaad ["\u{3000}本文。"]
+
+# diagnostics
+4:1-4:2 E402 選択肢の表示文がありません
+5:1-5:16 E402 選択肢の表示文がありません
+6:1-6:19 E402 選択肢の表示文がありません
+7:1-7:8 E402 選択肢の表示文がありません

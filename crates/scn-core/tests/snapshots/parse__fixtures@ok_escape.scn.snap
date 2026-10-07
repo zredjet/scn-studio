@@ -1,0 +1,16 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/ok_escape.scn
+---
+scene L2 #s001 "エスケープ"
+  narration L3 ^aaaa ["@背景 は命令ではない"]
+  narration L4 ^aaab ["- 選択肢ではない"]
+  narration L5 ^aaac ["// コメントではない"]
+  narration L6 ^aaad ["# 章見出しではない"]
+  narration L7 ^aaae ["## シーン見出しではない"]
+  narration L8 ^aaaf ["\\で始まる地の文"]
+  narration L9 ^aaag ["灯「台詞の形をした地の文」"]
+  narration L10 ^aaah ["-> ジャンプではない"]
+
+# diagnostics

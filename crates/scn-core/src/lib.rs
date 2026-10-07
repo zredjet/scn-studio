@@ -1,6 +1,7 @@
 //! `.scn` の解析、意味解析、IR、診断を受け持つコア。
 //!
-//! モジュールの構成は `.claude/rules/rust.md` にある。中身はT0-3とT0-4で作る。
+//! モジュールの構成は `.claude/rules/rust.md` にある。T0-3では構文解析
+//! （`line`、`syntax`、`inline`、`expr`）までを作る。意味解析とIRはT0-4で作る。
 
 // ライブラリのコードでは、パニックしうる書き方を禁じる（`.claude/rules/rust.md`）。
 // テスト（`cfg(test)`）では使ってよい。
@@ -14,3 +15,13 @@
         clippy::string_slice
     )
 )]
+
+pub mod ast;
+pub mod diag;
+pub mod expr;
+pub mod inline;
+mod line;
+pub mod syntax;
+
+pub use diag::{Code, Diagnostic, Severity, Span, Spanned};
+pub use syntax::{DialogueBracket, ParseOptions, Parsed, parse};

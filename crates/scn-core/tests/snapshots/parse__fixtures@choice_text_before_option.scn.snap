@@ -1,0 +1,11 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/choice_text_before_option.scn
+---
+scene L2 #s001 "最初の選択肢の前の行"
+  choice L3 ^aaaa prompt=["どうする"] end=L6
+    option L5 ^aaac ["行く"]
+
+# diagnostics
+4:1-4:19 E402 @選択 と最初の選択肢の間に置けるのは、空行とコメントだけです

@@ -1,0 +1,10 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/directive_arg_count.scn
+---
+scene L2 #s001 "引数の数"
+
+# diagnostics
+3:1-3:4 E402 @背景 の引数の数が合いません（背景名 [トランジション]）
+4:1-4:8 E402 @待機 の引数の数が合いません（秒）

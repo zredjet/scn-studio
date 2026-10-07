@@ -1,0 +1,11 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/chapter_heading_not_at_top.scn
+---
+scene L2 #s001 "最初のシーン"
+  narration L3 ^aaaa ["\u{3000}本文。"]
+  narration L4 ^aaab ["# 第2章 途中の章見出し"]
+
+# diagnostics
+4:1-4:20 W112 章見出し（# ）はファイルの先頭にだけ置けます。地の文として扱います

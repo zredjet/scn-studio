@@ -1,0 +1,5 @@
+// expect: E601
+## 表示文の中の if #s001
+@選択 What do you say? ^aaaa
+- What if I said no ^aaab
+@end

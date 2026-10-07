@@ -1,0 +1,30 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: samples/houkago/story/chapter03.scn
+---
+chapter-heading L1 "第3章 紬ルート"
+scene L3 #s030 "紬と帰る"
+  meta L4 closed
+    summary: "紬と並んで帰る。紬は灯の転校を先に知っていた"
+    status: "draft"
+    route: "紬"
+  if L9 (>= 紬.好感度 1)
+    jump L10 -> "s060"
+  else L11
+    jump L12 -> "s061"
+  end L13
+scene L15 #s060 "紬エンド"
+  meta L16 closed
+    summary: "灯の不在を経て、紬と向き合う"
+    status: "draft"
+    route: "紬"
+  @エンディング L21 ending id="tsumugi_end"
+scene L23 #s061 "すれ違い"
+  meta L24 closed
+    summary: "誰にも踏み込めないまま、夏が終わる"
+    status: "draft"
+    route: "紬"
+  @エンディング L29 ending id="bad_end"
+
+# diagnostics

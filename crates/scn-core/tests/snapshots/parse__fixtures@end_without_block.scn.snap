@@ -1,0 +1,11 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/end_without_block.scn
+---
+scene L2 #s001 "対応の無い end"
+  narration L3 ^aaaa ["\u{3000}本文。"]
+  narration L7 ^aaab ["\u{3000}無視した行の前後の空行は、段落の区切りにならない。"]
+
+# diagnostics
+5:1-5:5 E104 @end に対応するブロックがありません

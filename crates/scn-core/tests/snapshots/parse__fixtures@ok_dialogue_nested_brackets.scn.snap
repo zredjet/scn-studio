@@ -1,0 +1,13 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/ok_dialogue_nested_brackets.scn
+---
+scene L2 #s001 "入れ子の括弧"
+  dialogue L3 ^aaaa 灯 「」(normal)
+    | ["あの人、「またね」って言ったんだ"]
+  dialogue L4 ^aaab 灯 「」(normal)
+    | ["彼が「行こう"]
+    | ["」と言ったの"]
+
+# diagnostics

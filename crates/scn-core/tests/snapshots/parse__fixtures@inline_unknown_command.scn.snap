@@ -1,0 +1,11 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/inline_unknown_command.scn
+---
+scene L2 #s001 "知らないインライン命令"
+  dialogue L3 ^aaaa 灯 「」(normal)
+    | ["わっ{shake}"]
+
+# diagnostics
+3:5-3:12 W405 知らないインライン命令です：{shake}

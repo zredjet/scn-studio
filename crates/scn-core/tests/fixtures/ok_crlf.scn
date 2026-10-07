@@ -1,0 +1,13 @@
+// 改行がCRLFのファイル
+## CRLF #s001
+---
+summary: 改行がCRLF
+---
+灯「一行目
+二行目」 ^aaaa
+　地の文。 ^aaab
+
+　次の段落。 ^aaac
+@raw renpy
+  $ a = 1
+@end

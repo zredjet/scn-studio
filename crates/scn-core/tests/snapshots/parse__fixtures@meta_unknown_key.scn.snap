@@ -1,0 +1,12 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/meta_unknown_key.scn
+---
+scene L2 #s001 "知らないキー"
+  meta L3 closed
+    summary: "要約"
+    mood: "明るい"
+
+# diagnostics
+5:1-5:5 I109 知らないメタ情報のキーです：mood

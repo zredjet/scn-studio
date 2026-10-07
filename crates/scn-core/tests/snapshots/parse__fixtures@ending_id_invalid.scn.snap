@@ -1,0 +1,10 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/ending_id_invalid.scn
+---
+scene L2 #s001 "エンディング"
+  @エンディング L3 ending id=-
+
+# diagnostics
+3:9-3:13 E111 エンディングIDは英数字と _ で書きます：灯エンド

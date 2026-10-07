@@ -1,0 +1,14 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/ok_trailing_whitespace.scn
+---
+scene L2 #s001 "行末の空白"
+  dialogue L3 ^aaaa 灯 「」(normal)
+    | ["行IDの後ろに空白"]
+  narration L4 ^aaab ["\u{3000}行IDの後ろにタブ。"]
+  @背景 L5 bg name="屋上/夕方" transition=-
+  narration L6 ^aaac ["\u{3000}全角空白は残す。\u{3000}"]
+  jump L7 -> "s001"
+
+# diagnostics

@@ -1,0 +1,14 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/dialogue_unclosed_option.scn
+---
+scene L2 #s001 "閉じていない台詞"
+  choice L3 ^aaaa prompt=["どうする"] end=L7
+    option L4 ^aaab ["行く"]
+      dialogue L5 ^aaac 灯 「」(normal) unclosed
+        | ["閉じ括弧を忘れた"]
+    option L6 ^aaad ["待つ"]
+
+# diagnostics
+5:1-5:19 E201 台詞の閉じ括弧 」 がありません

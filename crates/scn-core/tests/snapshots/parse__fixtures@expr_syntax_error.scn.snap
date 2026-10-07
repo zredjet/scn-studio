@@ -1,0 +1,22 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/expr_syntax_error.scn
+---
+scene L2 #s001 "式の構文エラー"
+  if L3 (error "(勇気 >= 2")
+  end L4
+  if L5 (error "1日目 == true")
+  end L6
+  if L7 (error "and == 1")
+  end L8
+  @設定 L9 set (error) "flag.ルート = ”灯”"
+  if L10 (error "勇気 >= ２")
+  end L11
+
+# diagnostics
+3:5-3:6 E601 式の構文エラー：( に対応する ) がありません
+5:5-5:8 E601 式の構文エラー：名前は数字で始められません
+7:5-7:8 E601 式の構文エラー：and は名前に使えません
+9:16-9:17 E601 式の構文エラー：式に使えない文字です：”（演算子と記号は半角で書きます）
+10:11-10:12 E601 式の構文エラー：式に使えない文字です：２（演算子と記号は半角で書きます）

@@ -1,0 +1,14 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/inline_invalid_value.scn
+---
+scene L2 #s001 "値の合わないインライン命令"
+  dialogue L3 ^aaaa 灯 「」(normal)
+    | ["ちょっと{w 長め}待って"]
+  dialogue L4 ^aaab 灯 「」(normal)
+    | ["{speed 速すぎ}早口"]
+
+# diagnostics
+3:7-3:13 W405 インライン命令の値が合いません：{w 長め}
+4:3-4:14 W405 インライン命令の値が合いません：{speed 速すぎ}

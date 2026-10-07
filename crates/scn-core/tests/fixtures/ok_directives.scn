@@ -1,0 +1,43 @@
+// 10節のディレクティブを日本語名と英語名で。引数のキーワードの日英、"…" で囲んだ引数、全角空白の区切り、位置を省いた @立ち絵、小数の秒
+## 日本語名 #s001
+@背景 屋上/夕方 フェード
+@立ち絵 灯 笑顔 左 フェード
+@立ち絵 灯 真顔 フェード
+@立ち絵　灯　笑顔　right
+@退場 灯 フェード
+@BGM 日常
+@BGM 停止
+@BGM stop
+@SE 風
+@効果 揺れ 0.5
+@効果 暗転
+@待機 1
+@設定 勇気 += 1
+@選択 どうする ^aaaa
+- 進む ^aaab
+@end
+@呼出 s003
+@エンディング good_end
+
+## 英語名 #s002
+@bg "屋上 夕方" fade
+@show akari smile 中
+@show akari smile center fade
+@hide akari
+@bgm daily
+@bgm 停止
+@se wind
+@fx shake 2
+@wait 0.25
+@set 勇気 = 0
+@choice ^aaac
+- 進む ^aaad
+@end
+@call s003
+@ending bad_end
+
+## 呼び出し先 #s003
+@戻る
+
+## 呼び出し先2 #s004
+@return

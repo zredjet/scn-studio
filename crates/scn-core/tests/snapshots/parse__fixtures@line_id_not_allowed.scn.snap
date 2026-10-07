@@ -1,0 +1,19 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/line_id_not_allowed.scn
+---
+scene L2 #s001 "行IDを持てない行"
+  @背景 L3 bg name="屋上/夕方" transition=-
+  jump L5 -> "s002"
+scene L7 #s002 "複数行の台詞"
+  dialogue L8 ^aaae 灯 「」(normal)
+    | ["一行目"]
+    | ["二行目"]
+
+# diagnostics
+2:20-2:25 W303 この行には行IDを付けられません
+3:11-3:16 W303 この行には行IDを付けられません
+4:2-4:7 W303 この行には行IDを付けられません
+5:9-5:14 W303 この行には行IDを付けられません
+8:7-8:12 W303 複数行の台詞では、行IDは最後の行に付けます

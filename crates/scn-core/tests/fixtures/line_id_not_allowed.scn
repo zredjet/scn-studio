@@ -1,0 +1,9 @@
+// expect: W303
+## 行IDを持てない行 #s001 ^aaaa
+@背景 屋上/夕方 ^aaab
+ ^aaaf
+-> s002 ^aaac
+
+## 複数行の台詞 #s002
+灯「一行目 ^aaad
+二行目」 ^aaae

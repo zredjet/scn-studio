@@ -1,0 +1,13 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/scene_id_invalid.scn
+---
+scene L2 (no id) "日本語のID"
+scene L3 (no id) "記号を含むID"
+scene L4 (no id) "IDが空"
+
+# diagnostics
+2:11-2:15 E111 シーンIDは英数字と _ で書きます：#帰り道
+3:12-3:16 E111 シーンIDは英数字と _ で書きます：#s-1
+4:9-4:10 E111 シーンIDは英数字と _ で書きます：#

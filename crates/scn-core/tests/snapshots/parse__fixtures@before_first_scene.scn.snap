@@ -1,0 +1,10 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/before_first_scene.scn
+---
+scene L4 #s001 "最初のシーン"
+  narration L5 ^aaab ["\u{3000}本文。"]
+
+# diagnostics
+2:1-2:19 W101 最初のシーン見出しより前の行です。この行は無視します

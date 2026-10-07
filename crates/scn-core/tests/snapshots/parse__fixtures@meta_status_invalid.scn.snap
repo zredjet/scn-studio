@@ -1,0 +1,11 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/meta_status_invalid.scn
+---
+scene L2 #s001 "不正な状態"
+  meta L3 closed
+    status: "finished"
+
+# diagnostics
+4:9-4:17 E110 status の値が不正です：finished（draft・writing・done・ai-draft のどれかを書きます）

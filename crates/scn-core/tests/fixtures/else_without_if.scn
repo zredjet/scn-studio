@@ -1,0 +1,5 @@
+// expect: E104
+## if の無い elif と else #s001
+@elif 勇気 >= 2
+@else
+　本文。 ^aaaa

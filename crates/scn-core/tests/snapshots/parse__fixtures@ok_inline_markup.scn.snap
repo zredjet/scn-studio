@@ -1,0 +1,18 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/ok_inline_markup.scn
+---
+scene L2 #s001 "文中の記法"
+  narration L3 ^aaaa ["\u{3000}風で", ruby("乱", "みだ"), "れた髪を、", ruby("灯", "あかり"), "が押さえた。"]
+  narration L4 ^aaab ["\u{3000}", ruby("漢字", "かんじ"), "と、", ruby("佐々木", "ささき"), "さん。"]
+  narration L5 ^aaac ["\u{3000}", emph("強調"), "する。"]
+  dialogue L6 ^aaad 灯 「」(normal)
+    | ["待って。", wait(0.5), "やっぱり", page, "なんでもない"]
+  narration L7 ^aaae ["\u{3000}", se("ドア"), "扉が開いた。", speed(slow), "ゆっくりと。", speed(normal), speed(fast)]
+  dialogue L8 ^aaaf 湊 「」(normal)
+    | ["好感度は", interp(灯.好感度), "だよ"]
+  narration L9 ^aaag ["\u{3000}波括弧は{と}で書く。《と《は山括弧そのもの》。"]
+  narration L10 ^aaah ["\u{3000}閉じていない{は文字のまま。"]
+
+# diagnostics

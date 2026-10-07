@@ -1,0 +1,20 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/ok_choice.scn
+---
+scene L2 #s001 "選択"
+  choice L3 ^aaaa prompt=["どうする？", wait(0.5), "早く決めて"] end=L13
+    option L4 ^aaab ["行く"] if (>= 勇気 2) -> "s002"
+      @設定 L5 set (+= 勇気 1)
+    option L6 ^aaac ["待つ"]
+    option L7 ^aaad ["迷う"] -> "s002"
+      choice L8 ^aaae end=L12
+        option L9 ^aaaf ["はい"]
+          jump L10 -> "s002"
+        option L11 ^aaag ["いいえ"]
+  jump L14 -> "s002"
+scene L16 #s002 "次"
+  narration L17 ^aaah ["\u{3000}終わり。"]
+
+# diagnostics

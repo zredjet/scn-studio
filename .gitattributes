@@ -2,3 +2,8 @@
 # バイト位置を含むスナップショットの結果を変えないため。
 # CRLFの入力を確かめるfixtureを置くときは、そのファイルだけ `-text` を指定する。
 * text=auto eol=lf
+
+# 改行や行末の空白そのものを確かめるfixtureは、変換も空白の検査もしない。
+crates/scn-core/tests/fixtures/ok_crlf.scn -text -whitespace
+crates/scn-core/tests/fixtures/ok_trailing_whitespace.scn -whitespace
+crates/scn-core/tests/fixtures/ok_raw_dedent.scn -whitespace

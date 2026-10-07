@@ -1,0 +1,11 @@
+// expect: E402
+## 表示文が空 #s001
+@選択 どうする ^aaaa
+-
+- -> s002 ^aaab
+- if 勇気 >= 2 ^aaac
+- ^abcd
+@end
+
+## 次 #s002
+　本文。 ^aaad

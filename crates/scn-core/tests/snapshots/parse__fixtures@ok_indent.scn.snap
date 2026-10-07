@@ -1,0 +1,16 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/ok_indent.scn
+---
+scene L2 #s001 "字下げ"
+  dialogue L3 ^aaaa 灯 「」(normal)
+    | ["半角空白で字下げした台詞"]
+  dialogue L4 ^aaab 灯 「」(normal)
+    | ["タブで字下げした台詞"]
+  narration L5 ^aaac ["\u{3000}全角空白で始まる地の文。"]
+  narration L6 ^aaad ["\u{3000}半角空白の後に全角空白がある地の文。"]
+  @背景 L7 bg name="屋上/夕方" transition=-
+  jump L8 -> "s001"
+
+# diagnostics

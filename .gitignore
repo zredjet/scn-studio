@@ -2,6 +2,10 @@
 /target/
 **/target/
 
+# insta の未確認のスナップショット
+*.snap.new
+*.pending-snap
+
 # Node
 node_modules/
 dist/

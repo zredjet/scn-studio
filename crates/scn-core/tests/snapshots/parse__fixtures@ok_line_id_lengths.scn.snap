@@ -1,0 +1,12 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/ok_line_id_lengths.scn
+---
+scene L2 #s001 "行IDの長さ"
+  narration L3 ^abcd ["\u{3000}4文字の行ID。"]
+  narration L4 ^abcdef012345 ["\u{3000}12文字の行ID。"]
+  narration L5 ^abce ["\u{3000}顔文字 ^_^"]
+  narration L6 ^abcf ["\u{3000}空白の無い^abcd"]
+
+# diagnostics

@@ -1,0 +1,5 @@
+// expect: E304
+## 形の崩れた行ID #s001
+　大文字を含む。 ^K3F9
+　短い。 ^k3
+　長い。 ^abcdefghijklm

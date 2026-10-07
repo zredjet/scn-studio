@@ -1,0 +1,10 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/ok_bom.scn
+---
+scene L2 #s001 "BOM"
+  dialogue L3 ^aaaa 灯 「」(normal)
+    | ["BOMは読み飛ばす"]
+
+# diagnostics

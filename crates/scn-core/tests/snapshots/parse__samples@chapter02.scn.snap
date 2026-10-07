@@ -1,0 +1,47 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: samples/houkago/story/chapter02.scn
+---
+chapter-heading L1 "第2章 灯ルート"
+scene L3 #s020 "灯の家の前"
+  meta L4 closed
+    summary: "翌朝、灯の家の前で待つ。引っ越しの段ボールが見える"
+    status: "draft"
+    route: "灯"
+  @背景 L9 bg name="灯の家/朝" transition=-
+  narration L10 ^b0a1 ["\u{3000}灯の家の前に、段ボールが積まれていた。"]
+  dialogue L11 ^b0a2 灯 「」(normal)
+    | ["見られちゃったか"]
+  jump L12 -> "s021"
+scene L14 #s021 "屋上の約束"
+  meta L15 closed
+    summary: "夏休みまで、屋上で毎日会う約束をする"
+    status: "ai-draft"
+    route: "灯"
+  @背景 L20 bg name="屋上/夜" transition=-
+  @立ち絵 L21 show character="灯" expression="照れ" position=center transition=-
+  dialogue L22 灯 「」(normal)
+    | ["じゃあ約束。夏休みまで、毎日ここで"]
+  narration L23 ["\u{3000}灯は髪留めに触れながら、小さく笑った。"]
+  jump L24 -> "s022"
+scene L26 #s022 "雨の図書室"
+  meta L27 closed
+    summary: "雨で屋上に行けない日、図書室で灯の母の話を聞く"
+    status: "draft"
+    route: "灯"
+    tags: ["雨", "図書室"]
+  jump L33 -> "s040"
+scene L35 #s040 "見送り"
+  meta L36 closed
+    summary: "終業式の日、駅で灯を見送る"
+    status: "draft"
+    route: "灯"
+  @背景 L41 bg name="駅/夕方" transition=-
+  @BGM L42 bgm name="切ない"
+  dialogue L43 ^b4a1 灯 「」(normal)
+    | ["またね、湊。", page, "……またね"]
+  @設定 L44 set (= 灯.転校済み true)
+  @エンディング L45 ending id="akari_end"
+
+# diagnostics

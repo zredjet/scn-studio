@@ -1,0 +1,11 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/meta_duplicate_key.scn
+---
+scene L2 #s001 "キーの重複"
+  meta L3 closed
+    summary: "二つ目（こちらを使う）"
+
+# diagnostics
+5:1-5:8 W113 メタ情報のキー summary が重複しています。後の値を使います

@@ -1,0 +1,11 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/meta_malformed_line.scn
+---
+scene L2 #s001 "形の崩れた行"
+  meta L3 closed
+    status: "draft"
+
+# diagnostics
+4:1-4:21 E114 メタ情報の行は `キー: 値` の形で書きます

@@ -1,0 +1,19 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/meta_unclosed.scn
+---
+scene L2 #s001 "閉じていないメタ情報"
+  meta L3 unclosed
+    summary: "閉じ忘れ"
+    status: "draft"
+  dialogue L7 ^aaaa 灯 「」(normal)
+    | ["この行から本文になる"]
+  jump L8 -> "s002"
+scene L10 #s002 "次のシーン"
+  meta L11 closed
+    summary: "このシーンの開きの --- を、前のシーンの閉じと取り違えない"
+  narration L14 ^aaab ["\u{3000}本文。"]
+
+# diagnostics
+3:1-3:4 E102 メタ情報の --- が閉じていません

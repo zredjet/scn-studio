@@ -1,0 +1,11 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/option_if_in_text.scn
+---
+scene L2 #s001 "表示文の中の if"
+  choice L3 ^aaaa prompt=["What do you say?"] end=L5
+    option L4 ^aaab ["What"] if (error "I said no")
+
+# diagnostics
+4:13-4:17 E601 式の構文エラー：式の後ろに余分な said があります

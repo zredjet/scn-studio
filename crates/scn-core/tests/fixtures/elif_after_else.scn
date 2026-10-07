@@ -1,0 +1,9 @@
+// expect: E104
+## else の後の elif #s001
+@if 勇気 >= 2
+  　一つ目。 ^aaaa
+@else
+  　二つ目。 ^aaab
+@elif 勇気 >= 1
+  　三つ目。 ^aaac
+@end

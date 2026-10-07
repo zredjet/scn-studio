@@ -1,0 +1,18 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/ok_minimal_scene.scn
+---
+scene L2 #s001 "最小のシーン"
+  meta L3 closed
+    summary: "最小の例"
+    status: "draft"
+  dialogue L7 ^aaaa 灯 「」(normal)
+    | ["こんにちは"]
+  narration L8 ^aaab ["\u{3000}風が吹いた。"]
+  jump L9 -> "s002"
+scene L11 #s002 "次のシーン"
+  dialogue L12 ^aaac 灯 「」(normal)
+    | ["さようなら"]
+
+# diagnostics

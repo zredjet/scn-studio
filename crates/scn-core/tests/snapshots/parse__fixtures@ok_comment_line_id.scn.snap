@@ -1,0 +1,9 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/ok_comment_line_id.scn
+---
+scene L2 #s001 "コメントアウト"
+  narration L5 ^aaaa ["\u{3000}本文。"]
+
+# diagnostics

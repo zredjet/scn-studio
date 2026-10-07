@@ -1,0 +1,12 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/directive_unknown.scn
+---
+scene L2 #s001 "知らないディレクティブ"
+  @回想開始 L3 unknown args=[]
+  @Bgm L4 unknown args=["日常"]
+
+# diagnostics
+3:1-3:6 W401 知らないディレクティブです：@回想開始
+4:1-4:8 W401 知らないディレクティブです：@Bgm

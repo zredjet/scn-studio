@@ -1,0 +1,12 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/ok_meta_comment.scn
+---
+scene L2 #s001 "メタ情報のコメント"
+  meta L3 closed
+    summary: "要約"
+    status: "draft"
+  narration L8 ^aaaa ["\u{3000}本文。"]
+
+# diagnostics

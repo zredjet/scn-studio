@@ -1,0 +1,11 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/raw_unclosed_eof.scn
+---
+scene L2 #s001 "閉じていない生コード"
+  raw L3 engine="renpy" unclosed
+    | "$ a = 1"
+
+# diagnostics
+3:1-3:11 E103 @raw が @end で閉じていません

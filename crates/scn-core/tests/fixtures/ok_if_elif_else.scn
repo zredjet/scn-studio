@@ -1,0 +1,12 @@
+// @if、複数の @elif、@else、@end
+## 分岐 #s001
+@if 灯.好感度 >= 3
+  灯「一つ目」 ^aaaa
+@elif 勇気 >= 2
+  灯「二つ目」 ^aaab
+@elif not 迷い
+  灯「三つ目」 ^aaac
+@else
+  灯「それ以外」 ^aaad
+@end
+@エンディング end1

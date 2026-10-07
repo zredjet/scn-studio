@@ -1,0 +1,9 @@
+// expect: E104
+## 2つ目の else #s001
+@if 勇気 >= 2
+  　一つ目。 ^aaaa
+@else
+  　二つ目。 ^aaab
+@else
+  　三つ目。 ^aaac
+@end

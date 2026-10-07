@@ -1,0 +1,114 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: samples/houkago/story/chapter01.scn
+---
+chapter-heading L1 "第1章 放課後"
+scene L3 #s010 "登校"
+  meta L4 closed
+    summary: "いつもの朝。灯は明るく振る舞っている"
+    status: "writing"
+    route: "共通"
+  @背景 L9 bg name="通学路/朝" transition=-
+  @BGM L10 bgm name="日常"
+  narration L12 ^a1b2 ["\u{3000}坂道の途中で、後ろから鞄がぶつかってきた。"]
+  dialogue L13 ^a1b3 灯 「」(normal)
+    | ["おはよ、湊。今日も眠そうだね"]
+  dialogue L14 ^a1b4 湊 「」(normal)
+    | ["灯が元気すぎるんだよ"]
+  @立ち絵 L15 show character="灯" expression="笑顔" position=center transition=-
+  dialogue L16 ^a1b5 灯 「」(normal)
+    | ["ひどいなあ。元気なのは、わたしの数少ない取り柄なのに"]
+  narration L17 ^a1b6 ["\u{3000}そう言って笑う顔に、昨日までと違うところは見つからなかった。"]
+  jump L19 -> "s011"
+scene L21 #s011 "昼休みの教室"
+  meta L22 closed
+    summary: "紬が灯の様子を気にしている。主人公は放課後の屋上に呼び出される"
+    status: "writing"
+    route: "共通"
+  @背景 L27 bg name="教室/昼" transition=-
+  @立ち絵 L28 show character="紬" expression="真顔" position=right transition=-
+  dialogue L30 ^a1c1 紬 「」(normal)
+    | ["湊くん。灯ちゃん、最近なにか言ってた？"]
+  dialogue L31 ^a1c2 湊 「」(normal)
+    | ["なにかって？"]
+  dialogue L32 ^a1c3 紬 「」(normal)
+    | ["……ううん、なんでもない"]
+  @退場 L33 hide character="紬" transition=-
+  @SE L34 se name="チャイム"
+  narration L35 ^a1c4 ["\u{3000}五限の予鈴が鳴った。机の中に、二つ折りのメモが入っていた。"]
+  narration L36 ^a1c5 ["\u{3000}", emph("放課後、屋上で"), "。丸い字は、灯のものだった。"]
+  choice L38 ^a1c6 prompt=["屋上へ行くか"] end=L44
+    option L39 ^a1c7 ["すぐに行く"]
+      @設定 L40 set (+= 勇気 1)
+      @設定 L41 set (+= 灯.好感度 2)
+    option L42 ^a1c8 ["少し迷ってから行く"]
+      @設定 L43 set (+= 灯.好感度 1)
+  jump L46 -> "s012"
+scene L48 #s012 "放課後の屋上"
+  meta L49 closed
+    summary: "灯が転校を打ち明けかける"
+    status: "draft"
+    route: "共通"
+  @背景 L54 bg name="屋上/夕方" transition="フェード"
+  @BGM L55 bgm name="切ない"
+  @立ち絵 L56 show character="灯" expression="笑顔" position=left transition=-
+  @SE L57 se name="風"
+  raw L58 engine="renpy" end=L60
+    | "$ renpy.music.set_volume(0.6, channel=\"music\")"
+  dialogue L62 ^k3f9 灯 「」(normal)
+    | ["やっと来た。遅いよ"]
+  narration L63 ^k3fa ["\u{3000}風が強くて、灯の髪が", ruby("乱", "みだ"), "れていた。"]
+  dialogue L64 ^k3fb 灯 「」(normal)
+    | ["あのね、", wait(0.5), "話があるんだ"]
+  @立ち絵 L65 show character="灯" expression="真顔" position=- transition=-
+  dialogue L66 ^k3fh 灯 『』(thought)
+    | ["……やっぱり、言えないかも"]
+  choice L69 ^k3fc prompt=["どう答える"] end=L75
+    option L70 ^k3fd ["「ごめん、遅くなって」"]
+      @設定 L71 set (+= 灯.好感度 1)
+    option L72 ^k3fe ["黙ってうなずく"] if (>= 勇気 2)
+      dialogue L73 ^k3ff 灯 「」(normal)
+        | ["……そういうところ、ずるいよね。昔からずっとそうだった。言わなくても分かってくれるって、私が勝手に思ってるだけなのに。だから今日も、言えないまま来ちゃった"]
+      jump L74 -> "s014"
+  if L77 (>= 灯.好感度 3)
+    dialogue L78 ^k3fg 灯 「」(normal)
+      | ["やっぱり、君には言っておく"]
+    jump L79 -> "s013a"
+  else L80
+    jump L81 -> "s013b"
+  end L82
+scene L84 #s013a "打ち明ける"
+  meta L85 closed
+    summary: "灯が転校を打ち明ける。主人公は受け止める"
+    status: "draft"
+    route: "灯"
+  @立ち絵 L90 show character="灯" expression="真顔" position=center transition=-
+  @BGM L91 bgm_stop
+  dialogue L92 ^a2a1 灯 「」(normal)
+    | ["わたし、夏休みが終わったら、転校するんだ"]
+  narration L93 ^a2a2 ["\u{3000}風の音だけが、しばらく続いた。"]
+  @設定 L94 set (= flag.ルート "灯")
+  jump L95 -> "s020"
+scene L97 #s013b "帰り道"
+  meta L98 closed
+    summary: "屋上で言葉を交わせないまま、一人で帰る。校門で紬が待っている"
+    status: "ai-draft"
+    route: "共通"
+  @背景 L103 bg name="帰り道/夕方" transition=-
+  @BGM L104 bgm name="切ない"
+  narration L105 ["\u{3000}結局、灯は何も言わなかった。"]
+  narration L106 ["\u{3000}校門を出たところで、見慣れた後ろ姿が待っていた。"]
+  @立ち絵 L107 show character="紬" expression="笑顔" position=center transition=-
+  dialogue L108 紬 「」(normal)
+    | ["湊くん、一緒に帰ろ"]
+  @設定 L109 set (+= 紬.好感度 1)
+  @設定 L110 set (= flag.ルート "紬")
+  jump L111 -> "s030"
+scene L113 #s014 "沈黙のあと"
+  meta L114 closed
+    summary: "黙ってうなずいた主人公の隣に、灯は何も言わずに座る"
+    status: "draft"
+    route: "灯"
+
+# diagnostics

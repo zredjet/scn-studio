@@ -1,0 +1,22 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/ok_if_elif_else.scn
+---
+scene L2 #s001 "分岐"
+  if L3 (>= 灯.好感度 3)
+    dialogue L4 ^aaaa 灯 「」(normal)
+      | ["一つ目"]
+  elif L5 (>= 勇気 2)
+    dialogue L6 ^aaab 灯 「」(normal)
+      | ["二つ目"]
+  elif L7 (not 迷い)
+    dialogue L8 ^aaac 灯 「」(normal)
+      | ["三つ目"]
+  else L9
+    dialogue L10 ^aaad 灯 「」(normal)
+      | ["それ以外"]
+  end L11
+  @エンディング L12 ending id="end1"
+
+# diagnostics

@@ -1,0 +1,11 @@
+// expect: E601
+## 式の構文エラー #s001
+@if (勇気 >= 2
+@end
+@if 1日目 == true
+@end
+@if and == 1
+@end
+@設定 flag.ルート = ”灯”
+@if 勇気 >= ２
+@end

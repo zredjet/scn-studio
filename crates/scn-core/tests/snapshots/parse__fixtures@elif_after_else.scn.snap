@@ -1,0 +1,15 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/elif_after_else.scn
+---
+scene L2 #s001 "else の後の elif"
+  if L3 (>= 勇気 2)
+    narration L4 ^aaaa ["\u{3000}一つ目。"]
+  else L5
+    narration L6 ^aaab ["\u{3000}二つ目。"]
+    narration L8 ^aaac ["\u{3000}三つ目。"]
+  end L9
+
+# diagnostics
+7:1-7:14 E104 @else の後に @elif は置けません

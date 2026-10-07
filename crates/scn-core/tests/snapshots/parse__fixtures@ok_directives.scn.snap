@@ -1,0 +1,44 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/ok_directives.scn
+---
+scene L2 #s001 "日本語名"
+  @背景 L3 bg name="屋上/夕方" transition="フェード"
+  @立ち絵 L4 show character="灯" expression="笑顔" position=left transition="フェード"
+  @立ち絵 L5 show character="灯" expression="真顔" position=- transition="フェード"
+  @立ち絵 L6 show character="灯" expression="笑顔" position=right transition=-
+  @退場 L7 hide character="灯" transition="フェード"
+  @BGM L8 bgm name="日常"
+  @BGM L9 bgm_stop
+  @BGM L10 bgm_stop
+  @SE L11 se name="風"
+  @効果 L12 fx name="揺れ" seconds=0.5
+  @効果 L13 fx name="暗転" seconds=-
+  @待機 L14 wait seconds=1
+  @設定 L15 set (+= 勇気 1)
+  choice L16 ^aaaa prompt=["どうする"] end=L18
+    option L17 ^aaab ["進む"]
+  @呼出 L19 call "s003"
+  @エンディング L20 ending id="good_end"
+scene L22 #s002 "英語名"
+  @bg L23 bg name="屋上 夕方" transition="fade"
+  @show L24 show character="akari" expression="smile" position=center transition=-
+  @show L25 show character="akari" expression="smile" position=center transition="fade"
+  @hide L26 hide character="akari" transition=-
+  @bgm L27 bgm name="daily"
+  @bgm L28 bgm_stop
+  @se L29 se name="wind"
+  @fx L30 fx name="shake" seconds=2
+  @wait L31 wait seconds=0.25
+  @set L32 set (= 勇気 0)
+  choice L33 ^aaac end=L35
+    option L34 ^aaad ["進む"]
+  @call L36 call "s003"
+  @ending L37 ending id="bad_end"
+scene L39 #s003 "呼び出し先"
+  @戻る L40 return
+scene L42 #s004 "呼び出し先2"
+  @return L43 return
+
+# diagnostics

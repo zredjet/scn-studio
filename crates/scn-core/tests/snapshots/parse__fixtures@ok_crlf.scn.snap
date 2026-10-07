@@ -1,0 +1,18 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/ok_crlf.scn
+---
+scene L2 #s001 "CRLF"
+  meta L3 closed
+    summary: "改行がCRLF"
+  dialogue L6 ^aaaa 灯 「」(normal)
+    | ["一行目"]
+    | ["二行目"]
+  narration L8 ^aaab ["\u{3000}地の文。"]
+  break L9
+  narration L10 ^aaac ["\u{3000}次の段落。"]
+  raw L11 engine="renpy" end=L13
+    | "$ a = 1"
+
+# diagnostics

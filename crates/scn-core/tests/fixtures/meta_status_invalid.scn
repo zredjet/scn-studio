@@ -1,0 +1,5 @@
+// expect: E110
+## 不正な状態 #s001
+---
+status: finished
+---

@@ -1,0 +1,12 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/dialogue_unclosed_directive.scn
+---
+scene L2 #s001 "閉じていない台詞"
+  dialogue L3 ^aaaa 灯 「」(normal) unclosed
+    | ["閉じ括弧を忘れた"]
+  @背景 L4 bg name="屋上/夕方" transition=-
+
+# diagnostics
+3:1-3:17 E201 台詞の閉じ括弧 」 がありません

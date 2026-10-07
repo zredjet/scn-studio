@@ -1,0 +1,12 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/ok_dialogue_display_name.scn
+---
+scene L2 #s001 "表示名"
+  dialogue L3 ^aaaa 灯（？？？） 「」(normal)
+    | ["誰？"]
+  dialogue L4 ^aaab 灯（） 「」(normal)
+    | ["名前を伏せた台詞"]
+
+# diagnostics

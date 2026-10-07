@@ -1,0 +1,26 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/ok_blank_lines.scn
+---
+scene L2 #s001 "空行"
+  @背景 L3 bg name="屋上/夕方" transition=-
+  narration L5 ^aaaa ["\u{3000}一段落目。"]
+  break L6
+  narration L7 ^aaab ["\u{3000}二段落目。"]
+  break L9
+  dialogue L10 ^aaac 灯 「」(normal)
+    | ["三段落目"]
+  break L11
+  narration L13 ^aaad ["\u{3000}連続する空行は1つにまとめる。"]
+  @BGM L15 bgm name="日常"
+  narration L17 ^aaae ["\u{3000}演出の前後の空行は区切りにならない。"]
+  choice L19 ^aaaf prompt=["選ぶ"] end=L27
+    option L21 ^aaag ["一つ目"]
+      narration L22 ^aaah ["\u{3000}中身の一行目。"]
+      break L23
+      narration L24 ^aaai ["\u{3000}中身の二行目。"]
+    option L26 ^aaaj ["二つ目"]
+  narration L29 ^aaak ["\u{3000}ブロックの後の空行も区切りにならない。"]
+
+# diagnostics

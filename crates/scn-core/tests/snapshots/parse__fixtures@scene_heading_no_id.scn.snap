@@ -1,0 +1,10 @@
+---
+source: crates/scn-core/tests/parse.rs
+expression: "support::dump(&source, &parsed)"
+input_file: crates/scn-core/tests/fixtures/scene_heading_no_id.scn
+---
+scene L2 (no id) "IDの無い見出し"
+  narration L3 ^aaaa ["\u{3000}本文。"]
+
+# diagnostics
+2:1-2:12 W107 シーン見出しにIDがありません（行末に ` #シーンID` を書きます）
