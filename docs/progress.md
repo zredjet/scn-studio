@@ -6,7 +6,7 @@ Claude Codeは、作業を始めるときにこのファイルを読み、タス
 
 - フェーズ：1（執筆の核）。計画は `docs/plan/phase1.md`。フェーズ0のゲートは条件付きで通過した（T0-9、D040）
 - 作業中のタスク：なし
-- 次のタスク：T1-5 `scn graph` と作品フォルダの用意（人の作業：規約の確認）
+- 次のタスク：T1-6 アプリの骨格、開く・作る・保存、外部の変更の取り込み（人の作業：macOSで確かめる）
 - T1-1（Windowsでの確認）は、Windowsの環境を用意できたときに行う。エディタに機能を足すT1-7より前が望ましく、遅くともT1-13（フェーズ1のゲート）までに終える。中身は、フェーズ0で別途対応にした3件（`scripts/check-all.ps1`、アプリの起動、IMEテストのW1）
 
 ## フェーズ2へ（フェーズ1では作らないが、気づいたこと）
@@ -24,6 +24,30 @@ Claude Codeは、作業を始めるときにこのファイルを読み、タス
 - エディタのテーマの `&.cm-focused .cm-selectionBackground` は、CodeMirrorの基本テーマより詳細度が低く、フォーカス中の選択は基本テーマの色（`#d7d4f0`）になっている。`--accent-tint` を効かせるように直すときは、今の行の上で選択が見えにくくならないか確かめる（今の行の背景は60%に薄めている）。T0-8のレビューで気づいた
 
 ## 記録
+
+### 2026-10-08 T1-5 完了
+
+- やったこと
+  - 作品フォルダの規約を `docs/spec/project-files.md` にまとめた（`project.toml`、`variables.yaml`、素材カタログ、設定DB、企画書、文体、アイデアメモ、`ai/` と出自の記録、ツールが作るファイル）。人が確かめた（D044）
+  - `scn graph [project-dir] [--level scene|chapter|route] [--json]`（コアの `graph::build_graph`）。シーンごとに出る辺・エンディング・読み書きする変数、章とルートでは外へ出る辺を出す
+  - `scn new <dir> [--title 作品名]`（コアの `scaffold::create_project`）。ひな形は `crates/scn-core/templates/`
+  - `FORMAT.md` は、仕様書の1〜16節と作品フォルダの規約をつなげたもの（`scaffold::format_doc`）。`scn format-doc [project-dir] [--check]` で書き直す
+  - `CLAUDE.md` の共通のひな形を作り、サンプルの `CLAUDE.template.md` を「共通のひな形＋この作品のきまり」にした（テストで確かめる）。手順は `scn check`・`scn fmt`・`scn graph` を使い、リダイレクトを使わない
+  - `CLAUDE.md` のコマンドの節と資料の表、`README.md`、`.claude/rules/rust.md`、仕様書の冒頭を更新した
+- 決めたこと（D044。どれも人が推奨案を選んだ）：規約の置き場所（別の文書）、`scn new <dir>`、`FORMAT.md` の作り方と `scn format-doc`、新しい作品フォルダの中身（スタブ1つと共通のひな形）、規約の中身（項目の型の名前、`promoted_to`）
+- 実行したコマンドと結果
+  - `cargo test -p scn-core`：成功（graph 5件を含む。サンプルの構造の一覧のスナップショット3件は、粒度ごとに中身を読んで確かめた）
+  - `cargo test -p scn-cli`：26件成功（`scn graph` の2件、`scn new` と `scn format-doc` の2件を含む）
+  - `cargo run -p scn-cli -- graph samples/houkago --level route`：ルート 共通・灯・紬と、ルートをまたぐ辺（s012 → 灯、s013b → 紬）、エンディングと変数の読み書きを出す
+  - 新しく作った作品フォルダで `scn check`：エラー0件、警告1件（スタブ `s001` の W503）、終了コード0
+  - `scripts/check-all`：成功
+- `plan-reviewer` で確認した。指摘（`scn new .` で作品名が空になる、`scn graph` が `@elif` の枝を `@if` と書く、`CLAUDE.md` に `scn graph` の終了コードが無い）を直した。確認が必要な点のうち、`FORMAT.md` に入らない17節への参照、`title` を読まないこと、改行が `\r\n` の `FORMAT.md` を古いとみなすこと、`cargo install` に `--locked` が無いことを直した。入れ子の辺の外側の文脈は出さない（いちばん内側だけ）と D044 に書いた
+- 人への確認：AskUserQuestionで2回（規約の置き場所・コマンド・`FORMAT.md`・中身の4問、規約の中身）
+- 加えた依存：なし
+- 残った課題
+  - 設定DBの項目の値を型に照らす検査（T1-10）
+  - アプリの「新しく作る」（T1-6）は `scaffold::create_project` を使う
+- 次のタスク：T1-6（アプリの骨格、開く・作る・保存、外部の変更の取り込み）
 
 ### 2026-10-08 T1-4 完了
 

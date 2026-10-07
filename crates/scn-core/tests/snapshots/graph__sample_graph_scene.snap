@@ -1,0 +1,356 @@
+---
+source: crates/scn-core/tests/graph.rs
+expression: "serde_json::to_string_pretty(&graph).unwrap()"
+---
+{
+  "level": "scene",
+  "groups": [
+    {
+      "id": "s010",
+      "title": "登校",
+      "file": "story/chapter01.scn",
+      "route": "共通",
+      "status": "writing",
+      "is_stub": false,
+      "scenes": [
+        "s010"
+      ],
+      "exits": [
+        {
+          "from": "s010",
+          "to": "s011",
+          "kind": "jump",
+          "via": "direct",
+          "label": null,
+          "cond_text": null,
+          "to_exists": true,
+          "to_group": "s011"
+        }
+      ],
+      "endings": [],
+      "reads": [],
+      "writes": []
+    },
+    {
+      "id": "s011",
+      "title": "昼休みの教室",
+      "file": "story/chapter01.scn",
+      "route": "共通",
+      "status": "writing",
+      "is_stub": false,
+      "scenes": [
+        "s011"
+      ],
+      "exits": [
+        {
+          "from": "s011",
+          "to": "s012",
+          "kind": "jump",
+          "via": "direct",
+          "label": null,
+          "cond_text": null,
+          "to_exists": true,
+          "to_group": "s012"
+        }
+      ],
+      "endings": [],
+      "reads": [],
+      "writes": [
+        "akari.好感度",
+        "flag.勇気"
+      ]
+    },
+    {
+      "id": "s012",
+      "title": "放課後の屋上",
+      "file": "story/chapter01.scn",
+      "route": "共通",
+      "status": "draft",
+      "is_stub": false,
+      "scenes": [
+        "s012"
+      ],
+      "exits": [
+        {
+          "from": "s012",
+          "to": "s014",
+          "kind": "jump",
+          "via": "choice",
+          "label": "黙ってうなずく",
+          "cond_text": "勇気 >= 2",
+          "to_exists": true,
+          "to_group": "s014"
+        },
+        {
+          "from": "s012",
+          "to": "s013a",
+          "kind": "jump",
+          "via": "if",
+          "label": null,
+          "cond_text": "灯.好感度 >= 3",
+          "to_exists": true,
+          "to_group": "s013a"
+        },
+        {
+          "from": "s012",
+          "to": "s013b",
+          "kind": "jump",
+          "via": "else",
+          "label": null,
+          "cond_text": null,
+          "to_exists": true,
+          "to_group": "s013b"
+        }
+      ],
+      "endings": [],
+      "reads": [
+        "akari.好感度",
+        "flag.勇気"
+      ],
+      "writes": [
+        "akari.好感度"
+      ]
+    },
+    {
+      "id": "s013a",
+      "title": "打ち明ける",
+      "file": "story/chapter01.scn",
+      "route": "灯",
+      "status": "draft",
+      "is_stub": false,
+      "scenes": [
+        "s013a"
+      ],
+      "exits": [
+        {
+          "from": "s013a",
+          "to": "s020",
+          "kind": "jump",
+          "via": "direct",
+          "label": null,
+          "cond_text": null,
+          "to_exists": true,
+          "to_group": "s020"
+        }
+      ],
+      "endings": [],
+      "reads": [],
+      "writes": [
+        "flag.ルート"
+      ]
+    },
+    {
+      "id": "s013b",
+      "title": "帰り道",
+      "file": "story/chapter01.scn",
+      "route": "共通",
+      "status": "ai-draft",
+      "is_stub": false,
+      "scenes": [
+        "s013b"
+      ],
+      "exits": [
+        {
+          "from": "s013b",
+          "to": "s030",
+          "kind": "jump",
+          "via": "direct",
+          "label": null,
+          "cond_text": null,
+          "to_exists": true,
+          "to_group": "s030"
+        }
+      ],
+      "endings": [],
+      "reads": [],
+      "writes": [
+        "flag.ルート",
+        "tsumugi.好感度"
+      ]
+    },
+    {
+      "id": "s014",
+      "title": "沈黙のあと",
+      "file": "story/chapter01.scn",
+      "route": "灯",
+      "status": "draft",
+      "is_stub": true,
+      "scenes": [
+        "s014"
+      ],
+      "exits": [],
+      "endings": [],
+      "reads": [],
+      "writes": []
+    },
+    {
+      "id": "s020",
+      "title": "灯の家の前",
+      "file": "story/chapter02.scn",
+      "route": "灯",
+      "status": "draft",
+      "is_stub": false,
+      "scenes": [
+        "s020"
+      ],
+      "exits": [
+        {
+          "from": "s020",
+          "to": "s021",
+          "kind": "jump",
+          "via": "direct",
+          "label": null,
+          "cond_text": null,
+          "to_exists": true,
+          "to_group": "s021"
+        }
+      ],
+      "endings": [],
+      "reads": [],
+      "writes": []
+    },
+    {
+      "id": "s021",
+      "title": "屋上の約束",
+      "file": "story/chapter02.scn",
+      "route": "灯",
+      "status": "ai-draft",
+      "is_stub": false,
+      "scenes": [
+        "s021"
+      ],
+      "exits": [
+        {
+          "from": "s021",
+          "to": "s022",
+          "kind": "jump",
+          "via": "direct",
+          "label": null,
+          "cond_text": null,
+          "to_exists": true,
+          "to_group": "s022"
+        }
+      ],
+      "endings": [],
+      "reads": [],
+      "writes": []
+    },
+    {
+      "id": "s022",
+      "title": "雨の図書室",
+      "file": "story/chapter02.scn",
+      "route": "灯",
+      "status": "draft",
+      "is_stub": true,
+      "scenes": [
+        "s022"
+      ],
+      "exits": [
+        {
+          "from": "s022",
+          "to": "s040",
+          "kind": "jump",
+          "via": "direct",
+          "label": null,
+          "cond_text": null,
+          "to_exists": true,
+          "to_group": "s040"
+        }
+      ],
+      "endings": [],
+      "reads": [],
+      "writes": []
+    },
+    {
+      "id": "s040",
+      "title": "見送り",
+      "file": "story/chapter02.scn",
+      "route": "灯",
+      "status": "draft",
+      "is_stub": false,
+      "scenes": [
+        "s040"
+      ],
+      "exits": [],
+      "endings": [
+        "akari_end"
+      ],
+      "reads": [],
+      "writes": [
+        "akari.転校済み"
+      ]
+    },
+    {
+      "id": "s030",
+      "title": "紬と帰る",
+      "file": "story/chapter03.scn",
+      "route": "紬",
+      "status": "draft",
+      "is_stub": true,
+      "scenes": [
+        "s030"
+      ],
+      "exits": [
+        {
+          "from": "s030",
+          "to": "s060",
+          "kind": "jump",
+          "via": "if",
+          "label": null,
+          "cond_text": "紬.好感度 >= 1",
+          "to_exists": true,
+          "to_group": "s060"
+        },
+        {
+          "from": "s030",
+          "to": "s061",
+          "kind": "jump",
+          "via": "else",
+          "label": null,
+          "cond_text": null,
+          "to_exists": true,
+          "to_group": "s061"
+        }
+      ],
+      "endings": [],
+      "reads": [
+        "tsumugi.好感度"
+      ],
+      "writes": []
+    },
+    {
+      "id": "s060",
+      "title": "紬エンド",
+      "file": "story/chapter03.scn",
+      "route": "紬",
+      "status": "draft",
+      "is_stub": true,
+      "scenes": [
+        "s060"
+      ],
+      "exits": [],
+      "endings": [
+        "tsumugi_end"
+      ],
+      "reads": [],
+      "writes": []
+    },
+    {
+      "id": "s061",
+      "title": "すれ違い",
+      "file": "story/chapter03.scn",
+      "route": "紬",
+      "status": "draft",
+      "is_stub": true,
+      "scenes": [
+        "s061"
+      ],
+      "exits": [],
+      "endings": [
+        "bad_end"
+      ],
+      "reads": [],
+      "writes": []
+    }
+  ]
+}

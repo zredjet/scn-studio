@@ -1,0 +1,13 @@
+format_version = 0
+title = {{title}}
+start_scene = "s001"
+
+# 台詞に使える括弧と、表示スタイル（FORMAT.md の .scn 形式の6節）
+[dialogue.brackets]
+"「」" = "normal"
+"『』" = "thought"   # 心の声
+
+# メッセージウィンドウの大きさ。台詞と地の文のはみ出し（W203）を調べる
+[message_window]
+lines = 3
+chars_per_line = 24

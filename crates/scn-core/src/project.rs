@@ -214,6 +214,11 @@ pub enum ProjectError {
         #[source]
         source: io::Error,
     },
+    /// 新しい作品フォルダを作るフォルダが、空でない（[`crate::scaffold::create_project`]）。
+    #[error(
+        "{path} は空のフォルダではありません。新しい作品フォルダは、無いフォルダか空のフォルダに作ります"
+    )]
+    NotEmpty { path: PathBuf },
 }
 
 impl Project {

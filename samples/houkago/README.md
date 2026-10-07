@@ -16,7 +16,7 @@
 | `export/renpy.yaml` | Ren'Py向けの出力プロファイル |
 | `ai/` | AIタスクの定義と出自記録 |
 | `ideas/` | アイデアメモ |
-| `CLAUDE.template.md` | 作品フォルダに置くAIエージェント向け指示書のひな形（作品では `CLAUDE.md` にする） |
+| `CLAUDE.template.md` | 作品フォルダに置くAIエージェント向けの指示書（作品では `CLAUDE.md` にする）。ツールのリポジトリでは、開発作業中に読み込まれないよう、この名前で置いている。中身は `scn new` が使う共通のひな形（`crates/scn-core/templates/CLAUDE.md`）に、この作品のきまりを足したもの（テストで確かめる） |
 
 ## 意図して残している診断
 

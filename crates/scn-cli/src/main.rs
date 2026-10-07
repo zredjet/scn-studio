@@ -7,6 +7,10 @@
 //! - `scn ir <project-dir>`：プロジェクト全体のIRを、標準出力にJSONで出す。
 //! - `scn check [project-dir] [--json]`：プロジェクト全体を検証し（読み込み・構文解析・意味解析の診断と、
 //!   検証の段階1。D043）、診断を `ファイル:行:列 コード メッセージ ^行ID` の形で出す。
+//! - `scn graph [project-dir] [--level scene|chapter|route] [--json]`：シーン、辺、条件、変数の読み書きを、
+//!   粒度ごとに一覧で出す（D044）。
+//! - `scn new <dir> [--title 作品名]`：新しい作品フォルダを作る（D044）。
+//! - `scn format-doc [project-dir] [--check]`：`FORMAT.md` を、今のツールの版で書き直す（D044）。
 //! - `scn fmt <project-dir> [--check] [--json]`：行IDの無い行に行IDを付ける（仕様書9節、D041）。
 //!   付けた行IDを `ファイル:行:列 ^ID` の形で出す。`--check` では書き換えず、付ける行があれば1で終わる。
 //!   `project.toml` にエラーがあれば、台詞の括弧を書かれたとおりに読めないので、何もせずに2で終わる。
@@ -25,12 +29,14 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::thread;
 
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use scn_core::check::check;
+use scn_core::graph::{Graph, GraphEdge, Level, build_graph};
 use scn_core::index::build_index;
 use scn_core::ir::IrDiagnostic;
 use scn_core::line_id::{LineIdGenerator, assign_line_ids};
 use scn_core::project::SourceFile;
+use scn_core::scaffold::{create_project, format_doc_is_stale, write_format_doc};
 use scn_core::{
     LineIndex, ParseOptions, ProjectError, Severity, analyze, load_project, parse, write_source,
 };
@@ -66,6 +72,35 @@ enum Command {
         /// 診断をJSONで出す
         #[arg(long)]
         json: bool,
+    },
+    /// シーン、辺、条件、変数の読み書きを、粒度ごとに一覧で出す
+    Graph {
+        /// プロジェクトのフォルダ（project.toml のあるところ）。省くと今のフォルダ
+        #[arg(default_value = ".")]
+        project: PathBuf,
+        /// まとめる粒度
+        #[arg(long, value_enum, default_value_t = GraphLevel::Scene)]
+        level: GraphLevel,
+        /// JSONで出す
+        #[arg(long)]
+        json: bool,
+    },
+    /// 新しい作品フォルダを作る（無いフォルダか、空のフォルダに）
+    New {
+        /// 作るフォルダ
+        dir: PathBuf,
+        /// 作品名。省くとフォルダ名
+        #[arg(long)]
+        title: Option<String>,
+    },
+    /// FORMAT.md（形式の仕様と作品フォルダの規約）を、今のツールの版で書き直す
+    FormatDoc {
+        /// プロジェクトのフォルダ（project.toml のあるところ）。省くと今のフォルダ
+        #[arg(default_value = ".")]
+        project: PathBuf,
+        /// 書き直さずに、古いか（無いか）だけを確かめる。古ければ終了コード1
+        #[arg(long)]
+        check: bool,
     },
     /// 行IDの無い行に行IDを付け、付けた行IDを `ファイル:行:列 ^ID` の形で出す。整形はしない
     Fmt {
@@ -139,6 +174,13 @@ fn run(command: Command) -> Result<u8, CliError> {
         Command::Parse { file, json } => run_parse(&file, json),
         Command::Ir { project } => run_ir(&project),
         Command::Check { project, json } => run_check(&project, json),
+        Command::Graph {
+            project,
+            level,
+            json,
+        } => run_graph(&project, level.into(), json),
+        Command::New { dir, title } => run_new(&dir, title.as_deref()),
+        Command::FormatDoc { project, check } => run_format_doc(&project, check),
         Command::Fmt {
             project,
             check,
@@ -628,4 +670,174 @@ fn run_check(dir: &Path, json: bool) -> Result<u8, CliError> {
         count(Severity::Info)
     );
     finish(written, code)
+}
+
+// ---- scn graph ----
+
+/// `--level` の値。
+#[derive(Clone, Copy, ValueEnum)]
+enum GraphLevel {
+    /// シーンごと
+    Scene,
+    /// 章（ファイル）ごと
+    Chapter,
+    /// ルートごと
+    Route,
+}
+
+impl From<GraphLevel> for Level {
+    fn from(level: GraphLevel) -> Self {
+        match level {
+            GraphLevel::Scene => Level::Scene,
+            GraphLevel::Chapter => Level::Chapter,
+            GraphLevel::Route => Level::Route,
+        }
+    }
+}
+
+fn run_graph(dir: &Path, level: Level, json: bool) -> Result<u8, CliError> {
+    let project = load_project(dir).map_err(CliError::Project)?;
+    let ir = analyze(&project);
+    let index = build_index(&project, &ir);
+    let graph = build_graph(&ir, &index, level);
+    let mut out = io::stdout().lock();
+    if json {
+        let body = serde_json::to_string_pretty(&graph).map_err(|e| CliError::Write(e.into()))?;
+        return finish(writeln!(out, "{body}"), SUCCESS);
+    }
+    finish(write_graph(&mut out, dir, &graph), SUCCESS)
+}
+
+/// 構造の一覧を、人が読む形で書く。
+fn write_graph(out: &mut impl Write, dir: &Path, graph: &Graph) -> io::Result<()> {
+    for group in &graph.groups {
+        match graph.level {
+            Level::Scene => {
+                let mut notes = Vec::new();
+                if let Some(file) = &group.file {
+                    notes.push(display_path(dir, file));
+                }
+                if let Some(route) = &group.route {
+                    notes.push(format!("ルート {route}"));
+                }
+                if let Some(status) = &group.status {
+                    notes.push(status.clone());
+                }
+                if group.is_stub == Some(true) {
+                    notes.push("スタブ".into());
+                }
+                writeln!(
+                    out,
+                    "{} {}（{}）",
+                    group.id.as_deref().unwrap_or_default(),
+                    group.title.as_deref().unwrap_or_default(),
+                    notes.join("、")
+                )?;
+            }
+            Level::Chapter => writeln!(
+                out,
+                "{}（シーン {}）",
+                display_path(dir, group.id.as_deref().unwrap_or_default()),
+                group.scenes.join("、")
+            )?,
+            Level::Route => writeln!(
+                out,
+                "{}（シーン {}）",
+                group
+                    .id
+                    .as_deref()
+                    .map_or("ルートなし".to_owned(), |r| format!("ルート {r}")),
+                group.scenes.join("、")
+            )?,
+        }
+        for edge in &group.exits {
+            writeln!(out, "  {}", edge_text(dir, graph.level, edge))?;
+        }
+        if !group.endings.is_empty() {
+            writeln!(out, "  @エンディング {}", group.endings.join("、"))?;
+        }
+        if !group.reads.is_empty() {
+            writeln!(out, "  読む：{}", group.reads.join("、"))?;
+        }
+        if !group.writes.is_empty() {
+            writeln!(out, "  書く：{}", group.writes.join("、"))?;
+        }
+    }
+    Ok(())
+}
+
+/// 辺を1行にする（`-> s014（選択肢「黙ってうなずく」 if 勇気 >= 2）`）。章とルートの粒度では、
+/// 出るシーンと、行き先のまとまりも書く。
+fn edge_text(dir: &Path, level: Level, edge: &GraphEdge) -> String {
+    let arrow = if edge.kind == "call" { "@呼出" } else { "->" };
+    let target = match level {
+        Level::Scene => format!("{arrow} {}", edge.to),
+        Level::Chapter | Level::Route => format!("{} {arrow} {}", edge.from, edge.to),
+    };
+    let cond = edge
+        .cond_text
+        .as_deref()
+        .map(|c| format!(" if {c}"))
+        .unwrap_or_default();
+    let via = match edge.via {
+        "choice" => format!(
+            "（選択肢「{}」{cond}）",
+            edge.label.as_deref().unwrap_or_default()
+        ),
+        // `if` は `@if` と `@elif` の両方の枝（いちばん内側の文脈だけ。D044）。
+        "if" => format!("（条件 {}）", edge.cond_text.as_deref().unwrap_or_default()),
+        "else" => "（@else の枝）".into(),
+        _ => String::new(),
+    };
+    let group = match (level, &edge.to_group) {
+        (_, _) if !edge.to_exists => " ※シーンがありません".to_owned(),
+        (Level::Scene, _) => String::new(),
+        (Level::Chapter, Some(file)) => format!(" → {}", display_path(dir, file)),
+        (Level::Route, Some(route)) => format!(" → ルート {route}"),
+        (_, None) => " → ルートなし".to_owned(),
+    };
+    format!("{target}{via}{group}")
+}
+
+// ---- scn new ----
+
+fn run_new(dir: &Path, title: Option<&str>) -> Result<u8, CliError> {
+    // 作品名を省くとフォルダ名（`scn new .` でも、今のフォルダの名前にする）。
+    let title = title.map_or_else(
+        || {
+            std::path::absolute(dir)
+                .ok()
+                .and_then(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
+                .unwrap_or_else(|| "作品".into())
+        },
+        str::to_owned,
+    );
+    create_project(dir, &title).map_err(CliError::Project)?;
+    eprintln!(
+        "作品フォルダを作りました：{}（作品名：{title}）",
+        dir.display()
+    );
+    Ok(SUCCESS)
+}
+
+// ---- scn format-doc ----
+
+fn run_format_doc(dir: &Path, check: bool) -> Result<u8, CliError> {
+    // 作品フォルダでなければ（`project.toml` が無ければ）書かない。
+    load_project(dir).map_err(CliError::Project)?;
+    let shown = display_path(dir, "FORMAT.md");
+    if check {
+        if format_doc_is_stale(dir) {
+            eprintln!("{shown} は、今のツールの版と違います（scn format-doc で書き直します）");
+            return Ok(HAS_ERRORS);
+        }
+        eprintln!("{shown} は、今のツールの版と同じです");
+        return Ok(SUCCESS);
+    }
+    if write_format_doc(dir).map_err(CliError::Project)? {
+        eprintln!("{shown} を書き直しました");
+    } else {
+        eprintln!("{shown} は、今のツールの版と同じです（書き直していません）");
+    }
+    Ok(SUCCESS)
 }

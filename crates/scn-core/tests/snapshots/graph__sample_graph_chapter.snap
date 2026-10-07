@@ -1,0 +1,102 @@
+---
+source: crates/scn-core/tests/graph.rs
+expression: "serde_json::to_string_pretty(&graph).unwrap()"
+---
+{
+  "level": "chapter",
+  "groups": [
+    {
+      "id": "story/chapter01.scn",
+      "title": null,
+      "file": null,
+      "route": null,
+      "status": null,
+      "is_stub": null,
+      "scenes": [
+        "s010",
+        "s011",
+        "s012",
+        "s013a",
+        "s013b",
+        "s014"
+      ],
+      "exits": [
+        {
+          "from": "s013a",
+          "to": "s020",
+          "kind": "jump",
+          "via": "direct",
+          "label": null,
+          "cond_text": null,
+          "to_exists": true,
+          "to_group": "story/chapter02.scn"
+        },
+        {
+          "from": "s013b",
+          "to": "s030",
+          "kind": "jump",
+          "via": "direct",
+          "label": null,
+          "cond_text": null,
+          "to_exists": true,
+          "to_group": "story/chapter03.scn"
+        }
+      ],
+      "endings": [],
+      "reads": [
+        "akari.好感度",
+        "flag.勇気"
+      ],
+      "writes": [
+        "akari.好感度",
+        "flag.ルート",
+        "flag.勇気",
+        "tsumugi.好感度"
+      ]
+    },
+    {
+      "id": "story/chapter02.scn",
+      "title": null,
+      "file": null,
+      "route": null,
+      "status": null,
+      "is_stub": null,
+      "scenes": [
+        "s020",
+        "s021",
+        "s022",
+        "s040"
+      ],
+      "exits": [],
+      "endings": [
+        "akari_end"
+      ],
+      "reads": [],
+      "writes": [
+        "akari.転校済み"
+      ]
+    },
+    {
+      "id": "story/chapter03.scn",
+      "title": null,
+      "file": null,
+      "route": null,
+      "status": null,
+      "is_stub": null,
+      "scenes": [
+        "s030",
+        "s060",
+        "s061"
+      ],
+      "exits": [],
+      "endings": [
+        "tsumugi_end",
+        "bad_end"
+      ],
+      "reads": [
+        "tsumugi.好感度"
+      ],
+      "writes": []
+    }
+  ]
+}

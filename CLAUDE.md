@@ -12,6 +12,7 @@
 | 知りたいこと | 資料 |
 | --- | --- |
 | `.scn` の文法と意味、診断コード | `docs/spec/scn-format-v0.md` |
+| 作品フォルダの `.scn` 以外のファイル（`project.toml`、変数、素材、設定DB、企画書、メモ、出自の記録） | `docs/spec/project-files.md` |
 | 日本語の用語とコード上の名前の対応 | `docs/glossary.md` |
 | なぜそう決めたか | `docs/decisions.md` |
 | 全体設計（データモデル、検証、AI、エクスポート） | `docs/design.md` |
@@ -58,8 +59,11 @@ app/                    Tauri＋React（src-tauri/ と src/）
   - `parse` は、上のディレクトリに `project.toml` があればプロジェクト全体で意味解析を行い、設定ファイルの診断と、そのファイルの診断を出す（ほかの章の診断は出さない）。無ければ構文解析だけを行う
   - `cargo run -p scn-cli -- fmt <project-dir>`：行IDの無い行（I302）に行IDを付け、付けた行を `ファイル:行:列 ^ID` で出す（`--json` でJSON）。`--check` は書き換えずに、付ける行があれば終了コード1。本文の診断では1にしない。`project.toml` にエラーがあれば、何もせずに終了コード2
   - `cargo run -p scn-cli -- check [project-dir]`：プロジェクト全体を検証し（読み込み・構文解析・意味解析と、検証の段階1：行き止まり、到達できないシーン、はみ出し、変数の読み書き、企画書のエンディング、伏線）、診断を `ファイル:行:列 コード メッセージ ^行ID` で出す（`--json` でJSON）。フォルダを省くと今のフォルダ。終了コードは `parse` と同じ
+  - `cargo run -p scn-cli -- graph [project-dir] [--level scene|chapter|route]`：シーン、辺、条件、変数の読み書きを、粒度ごとに一覧で出す（`--json` でJSON）。辺の文脈は、いちばん内側のもの（選択肢、条件、`@else` の枝）だけ。診断は出さず、終了コードは0（作品フォルダでなければ2）
+  - `cargo run -p scn-cli -- new <dir> [--title 作品名]`：新しい作品フォルダを作る（無いフォルダか空のフォルダに。`project.toml`、スタブの章、`CLAUDE.md`、`FORMAT.md` など）。ひな形は `crates/scn-core/templates/`
+  - `cargo run -p scn-cli -- format-doc [project-dir]`：作品フォルダの `FORMAT.md`（仕様書の1〜16節と作品フォルダの規約）を、今のツールの版で書き直す。`--check` は書き直さずに、古ければ終了コード1
   - CLIのテストだけ：`cargo test -p scn-cli`
-  - `scn` をパスの通った場所（`~/.cargo/bin`）に入れる：`cargo install --path crates/scn-cli`（作品フォルダで `scn` として使うとき）
+  - `scn` をパスの通った場所（`~/.cargo/bin`）に入れる：`cargo install --locked --path crates/scn-cli`（作品フォルダで `scn` として使うとき）
 - フロント：`pnpm install` / `pnpm lint`（Biomeの書式と静的検査）/ `pnpm fmt`（Biomeで整形と安全な修正）/ `pnpm typecheck` / `pnpm test`
   - Biomeはルートで全体を一度に検査する（`docs/` と `samples/` は対象外）。各パッケージには `lint` を置かず、`typecheck` と `test` のスクリプトを置く。ルートの `pnpm typecheck` と `pnpm test` が、それを持つパッケージをすべて走らせる
 - Lezer文法（`packages/lezer-scn`）：`pnpm -C packages/lezer-scn test`（文法から構文解析器を作り直してから、`node --test` でテスト）／`pnpm -C packages/lezer-scn build`（構文解析器を作るだけ）

@@ -1,0 +1,204 @@
+# 作品フォルダの規約
+
+状態：v0（2026-10-08、T1-5で `.scn` 以外のファイルの規約をまとめた。D044）。`.scn` の書き方は `docs/spec/scn-format-v0.md` にある。
+
+1つの作品は1つのフォルダ（作品フォルダ）にまとめ、ツールが作るキャッシュ（`.cache/`）のほかは、すべてテキストとしてGitで管理する。ツールは、ここに書いたファイルだけを読む。決まっていないキーや項目は読み飛ばし、診断も出さない（将来のフェーズで使うものがあるため）。
+
+## 1. フォルダの構成
+
+```
+作品フォルダ/
+├─ project.toml       形式のバージョン、開始シーン、台詞の括弧、メッセージウィンドウ（必須）
+├─ CLAUDE.md          AIエージェント向けの指示書（`scn new` が作る）
+├─ FORMAT.md          形式の仕様と、この規約（`scn new` と `scn format-doc` が書く）
+├─ concept.md         企画書
+├─ style.md           文体の方針と文体見本
+├─ variables.yaml     変数の宣言
+├─ story/             本文（`*.scn`。サブディレクトリは読まない）
+├─ bible/
+│  ├─ types/          設定DBの型（`<型ID>.yaml`）
+│  └─ entries/        設定DBのエントリ（`<型ID>/<ID>.md`）
+├─ assets/
+│  ├─ catalog.yaml    素材カタログ
+│  └─ files/          素材のファイル
+├─ ideas/             アイデアメモ（1枚1ファイル）
+├─ ai/                AIタスクの定義、出自の記録、変更の提案
+├─ export/            出力プロファイル（フェーズ2以降）
+├─ layout.json        フロー図のノードの位置（T1-9）
+└─ .cache/            ツールのキャッシュ（Gitに入れない）
+```
+
+- `project.toml` の無いフォルダは、作品フォルダとして読まない。ほかのファイルは無くてもよく、無ければ空として扱う。
+- 設定ファイルが読めない、または形が合わないときは、解析を止めずに診断にする（E801〜W804。`scn-format-v0.md` の16節）。
+- 文字コードはどれもUTF-8。
+
+## 2. `project.toml`
+
+```toml
+format_version = 0           # 必須。今は0
+title = "放課後の灯"
+start_scene = "s010"         # 開始シーン。無ければ最初のシーン
+
+[dialogue.brackets]          # 台詞の括弧と表示スタイル（scn-format-v0.md の6節）
+"「」" = "normal"
+"『』" = "thought"
+
+[message_window]             # はみ出し（W203）を調べる大きさ。無ければ調べない
+lines = 3
+chars_per_line = 24
+```
+
+| キー | 型 | 内容 |
+| --- | --- | --- |
+| `format_version` | 整数 | 形式のバージョン。対応していなければ E803 |
+| `title` | 文字列 | 作品名（`scn new` が書く。今のツールの解析は読まない。アプリの表示で使う予定） |
+| `start_scene` | 文字列 | 開始シーンのID。存在しないシーンなら、検証で E501 |
+| `[dialogue.brackets]` | 表 | キーは開き括弧と閉じ括弧の2文字、値は表示スタイルの名前（英字） |
+| `[message_window]` | 表 | `lines`（行数）と `chars_per_line`（1行の字数、全角で数える）。どちらも正の整数 |
+
+次のキーは、書いてもよいが、今のツールはまだ読まない：`[screen]`（`width`、`height`。プレビュー）、`[editor]`（`normalize_ellipsis`、`indent_narration`。入力補助、T1-8）、`[ai.*]`（AIの接続先。フェーズ3）。
+
+## 3. `variables.yaml`
+
+```yaml
+flag.勇気:
+  type: int
+  default: 0
+  scope: save
+  desc: 主人公が踏み込む勇気。屋上での選択肢の条件に使う
+flag.ルート:
+  type: enum
+  values: [共通, 灯, 紬]
+  default: 共通
+```
+
+- キーは変数名で、`名前空間.名前` か `名前`（名前空間を省くと `flag.`）。キャラクターの変数は、名前空間をキャラクターIDにする（本文では名前や呼び名でも書ける）。
+- `type`（必須）：`bool`・`int`・`string`・`enum`。`enum` には `values`（文字列のリスト）が要る。
+- `default`：既定値。`scope`：`save`（セーブデータごと）か `persistent`（周回など、ゲーム全体）。`persistent` の変数は、本文で書かなくても警告しない（W606 を出さない）。
+- `range`（整数の範囲 `[最小, 最大]`）、`desc`（用途の説明。検証の表示とAIの文脈に使う）。
+
+## 4. `assets/catalog.yaml`（素材カタログ）
+
+```yaml
+backgrounds:
+  屋上/夕方: { file: files/bg/rooftop_evening.png }
+  屋上/夜:   {}                      # 未作成（仮素材）
+characters:
+  akari:
+    dir: files/chara/akari/
+    expressions:
+      笑顔: smile.png
+      照れ: {}
+bgm:
+  切ない: { file: files/bgm/setsunai.ogg, loop: true }
+se:
+  ドア: {}
+```
+
+- 節は `backgrounds`（背景）・`characters`（キャラクターIDごとの立ち絵の差分）・`bgm`・`se`。キーが意味名で、本文の `@背景`・`@立ち絵`・`@BGM`・`@SE`・`{se}` と照らす（カタログに無ければ I403）。
+- 値の `file`・`dir`・`loop` などは、プレビューとエクスポートで使う（フェーズ2以降）。値が空（`{}`）の意味名は、まだファイルの無い仮素材。
+
+## 5. 設定DB（`bible/`）
+
+### 型（`bible/types/<型ID>.yaml`）
+
+```yaml
+name: キャラクター
+builtin: character
+fields:
+  - { key: aliases,      label: 呼び名, type: list<text> }
+  - { key: first_person, label: 一人称, type: text }
+  - { key: org,          label: 所属,   type: ref<organization> }
+```
+
+- ファイル名（拡張子を除く）が型ID。エントリのフォルダ名と同じにする（型の無いフォルダは W804）。
+- `name`：型の名前。`builtin`：組み込みの型。書けるのは `character` だけで、その型のエントリが台詞の話者になる。無ければ型ID `character` を使う。
+- `fields`：項目の定義のリスト。`key`（必須）、`label`、`type`（必須）、`options`（`select` と `multiselect` の選択肢）。
+- 項目の型：`text`（短文）、`longtext`（長文）、`number`（数値）、`bool`（真偽）、`date`（日付、`YYYY-MM-DD`）、`select`（選択肢から1つ）、`multiselect`（選択肢からいくつか）、`asset`（素材の意味名）、`ref<型ID>`（エントリの参照）、`ref<scene>`（シーンの参照）、`list<型>`（どれかの型のリスト。例：`list<ref<scene>>`）。値が型に合うかの検査は、設定DBの画面と一緒に作る（T1-10）。
+
+### エントリ（`bible/entries/<型ID>/<ID>.md`）
+
+```markdown
+---
+id: akari
+name: 灯
+aliases: [あかり, 灯ちゃん]
+first_person: わたし
+---
+明るく振る舞うが、転校の件を誰にも言えずにいる。
+```
+
+- `---` で囲んだフロントマター（YAML）に項目の値を、その後ろに自由な本文（Markdown）を書く。
+- `id`：エントリのID。無ければファイル名（拡張子を除く）。`name`：名前。
+- キャラクターには `name` が要る。`aliases`（呼び名のリスト）は話者の解決に使う。
+- 伏線は型ID `foreshadow` で表し、`setup`（仕込みのシーンのリスト）と `payoff`（回収のシーン）を持たせる。`payoff` が無い・空・存在しないシーンなら W703。
+
+## 6. 企画書（`concept.md`）
+
+```markdown
+---
+logline: 転校を言い出せない少女と、屋上でだけ本音を話す主人公の、夏休みまでの三週間
+theme: 言わないことは優しさか
+tone: 静か、夕方の光、切なさ多め
+volume: { chars: 300000, routes: 2 }
+main_characters: [akari, tsumugi, minato]
+endings:
+  - { id: akari_end, name: 灯エンド, intent: 秘密を受け入れて見送る }
+  - { id: true_end,  name: トゥルー, intent: 両ルートの後、灯が残る理由を見つける }
+---
+# 企画書
+
+やりたいこと、やらないこと、参考にしたい感触を書く。
+```
+
+- 作品に1つだけ置く。プロット系のAIタスクすべての、いちばん上の文脈になる。
+- フロントマターの項目：`logline`（作品を一文で）、`theme`、`tone`、`volume`（`chars` 字数、`routes` ルート数の目安）、`main_characters`（キャラクターIDのリスト。欲求と葛藤はキャラクターのエントリに書き、ここには書かない）、`endings`（エンディングのリスト）。
+- `endings` の要素は `id`（必須。本文の `@エンディング` のIDと同じ形）、`name`、`intent`（どう終わらせたいか）。検証で本文の `@エンディング` と照らす（W701・W702）。`endings` を書かなければ照らさない。
+- 本文は自由。見出しは「やりたいこと」「やらないこと」「参考にしたい感触」を勧める。
+
+## 7. 文体（`style.md`）
+
+- 文体の方針と、自分で書いた文体見本を置く。AIに本文を書かせるときは、必ず文脈に入れる。
+- 形は自由なMarkdown（フロントマターは読まない）。見出しは「方針」「表記」「文体見本」を勧める。表記の決まり（三点リーダ、ダッシュ、数字、一人称など）は、後の表記ゆれの検証（段階2）の手がかりにする。
+
+## 8. アイデアメモ（`ideas/`）
+
+```markdown
+---
+status: 採用
+tags: [灯, 屋上]
+promoted_to: scene/s012
+---
+放課後の屋上で、灯が転校を打ち明けかける。
+```
+
+- 1枚を1つの `.md` ファイルにする。ファイル名は自由。
+- フロントマター：`status`（`未整理`・`採用`・`保留`・`没`）、`tags`（文字列のリスト）、`promoted_to`（昇格先。`scene/<シーンID>` か `<型ID>/<エントリのID>`）。
+- 没にしたメモも消さない（AIの発散の材料にする）。Obsidianなどの外部エディタで書いてよい。
+
+## 9. AI（`ai/`）
+
+- `ai/*.yaml`：AIタスクの定義（`docs/design.md` の「AIタスクのテンプレート化」。アプリでの実行はフェーズ3）。
+- `ai/provenance.jsonl`：AIが書いた行の出自の記録。1行に1つのJSON。
+
+  ```json
+  {"line":"k3fa","origin":"ai","task":"external:claude-code","model":"[モデル名]","at":"2026-10-06T21:10:00+09:00"}
+  ```
+
+  | キー | 内容 |
+  | --- | --- |
+  | `line` | 行ID（`^` を除く） |
+  | `origin` | `ai`（AIが書いた）・`ai-edited`（AIが書いたものを人が直した）・`human`（人） |
+  | `task` | AIタスクの定義から実行したときはその名前（`ai/<名前>.yaml`）。外部のAIエージェントが書いたときは `external:<エージェント名>`（例：`external:claude-code`） |
+  | `model` | モデルの名前 |
+  | `at` | 日時（ISO 8601、時差つき） |
+
+  外部のAIエージェントは、`scn fmt` で付いた行IDのうち、自分が書いた行のものを書き足す（D041）。記録を自動で書く仕組みは、フェーズ3で作る。
+- `ai/proposals/`：AIエージェントが、人の書いた行への変更案を置く（日付つきのMarkdown。対象の行ID、今の文、案、理由）。
+
+## 10. ツールが作るファイル
+
+- `FORMAT.md`：`.scn` の仕様（`scn-format-v0.md` の1〜16節）と、この規約をまとめたもの。`scn new` が作り、ツールの版が上がったら `scn format-doc` で書き直す（D044）。手で直さない。
+- `CLAUDE.md`：`scn new` が共通のひな形から作る。作品のきまり（視点、口調など）は、作品ごとに書き足す。
+- `layout.json`：フロー図で動かしたノードの位置（T1-9）。
+- `.cache/`：索引などのキャッシュ。Gitに入れない（`scn new` が `.gitignore` に書く）。

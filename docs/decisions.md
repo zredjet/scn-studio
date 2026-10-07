@@ -369,3 +369,18 @@
   - はみ出しは、エンジンごとに表示が違うので、目安として「表示する文字」で数える。厳密な組版はエクスポートとプレビューで確かめる。
   - 周回の変数は、ゲームの側（クリアの記録）で書くので、本文に書く位置が無いのが普通。
 - 影響：仕様書の7節・16節、`crates/scn-core/tests/fixtures/README.md`（検証の節と W406）、`samples/houkago/README.md`、`CLAUDE.md` のコマンドの節、`.claude/rules/rust.md`（モジュールの表）を更新した。`samples/houkago/CLAUDE.template.md` を `scn check` を使う手順に書き直すのはT1-5。
+
+## D044 作品フォルダの規約、`scn new`・`scn format-doc`・`scn graph`（2026-10-08）
+
+- 決定：
+  - 作品フォルダの `.scn` 以外のファイルの規約を、別の文書 `docs/spec/project-files.md` にまとめる（人の判断）。`project.toml`、`variables.yaml`、素材カタログ、設定DB（型とエントリ。項目の型の名前を含む）、企画書、文体、アイデアメモ、`ai/`（出自の記録の形と `task` の書き方。D041）、ツールが作るファイル。`.scn` の仕様書は `.scn` のことだけに保つ。人が中身を確かめた。設定DBの項目の型の名前（`text`・`longtext`・`number`・`bool`・`date`・`select`・`multiselect`・`asset`・`ref<型ID>`・`ref<scene>`・`list<型>`）と、アイデアメモの `promoted_to`（`scene/<シーンID>` か `<型ID>/<エントリのID>`）は、ここで決めた（値の検査はT1-10）。
+  - 新しい作品フォルダは `scn new <dir> [--title 作品名]` で作る（人の判断）。無いフォルダか空のフォルダに作り、空でなければ何も書かずに終了コード2。作品名を省くとフォルダ名。コアの `scaffold::create_project` で作り、アプリの「新しく作る」（T1-6）も使う。
+  - 新しい作品フォルダの中身（人の判断）：`project.toml`（`start_scene = "s001"`、「」と『』、`[message_window]` 3行×24字）、`story/chapter01.scn`（スタブのシーン `s001`。出口が無いので W503 の警告が1つ出る）、`bible/types/character.yaml`、`bible/entries/character/`、`variables.yaml`（例だけのコメント）、`concept.md`（空の `endings`）、`style.md`、`ai/provenance.jsonl`（空）、`.gitignore`（`.cache/`）、`CLAUDE.md`、`FORMAT.md`。ひな形は `crates/scn-core/templates/` に置き、ビルドのときに埋め込む。
+  - `CLAUDE.md` は、作品によらない共通のひな形から作る。サンプルの `CLAUDE.template.md` は、共通のひな形（作品名「放課後の灯」）に、この作品のきまりを足したものにし、ずれないことをテストで確かめる。手順は `scn check`・`scn fmt`・`scn graph` を使い、リダイレクトを使わない（WindowsのPowerShellでもそのまま動く）。
+  - `FORMAT.md` は、`.scn` の仕様書の1〜16節（IRの形の17節と、決定の経緯の18・19節は入れない）と、作品フォルダの規約をつなげたもの。`scn` に埋め込み、作るときに書く。ツールの版が上がったら `scn format-doc [project-dir]` で書き直す（`--check` で古いかだけを確かめる）（人の判断）。
+  - `scn graph [project-dir] [--level scene|chapter|route] [--json]`：シーンの粒度では、シーンごとに、出る辺（選択肢の表示文と条件、`@if` の条件、`@else`、`@呼出`）、`@エンディング`、読む変数と書く変数を出す。章とルートの粒度では、まとまりの外へ出る辺だけを、行き先のまとまりと一緒に出す。辺の文脈は、IRの辺と同じく、いちばん内側のもの（選択肢の表示文と条件、`@if`・`@elif` の条件、`@else` の枝）だけを出す（入れ子の外側の文脈は出さない。要るようになったら、IRかグラフで文脈を積む）。終了コードは0（診断は出さない）。コアの `graph::build_graph` で作る（フロー図のまとめ方、T1-9でも使える）。
+- 理由：
+  - Claude Codeが、新しい作品フォルダで、形式の仕様（`FORMAT.md`）を読み、書き（`scn fmt`）、検証し（`scn check`）、構造を確かめ（`scn graph`）られるようにする（T1-5の目的）。
+  - 仕様書と規約を分けると、`.scn` の文法を探すときに、作品フォルダの細かい決まりが混ざらない。`FORMAT.md` では両方を1つにして、エージェントが1つのファイルを読めば足りるようにする。
+  - `FORMAT.md` を埋め込むと、ツールの版と中身がそろう。書き直しのコマンドがあれば、古い作品フォルダも追いつける。
+- 影響：`docs/spec/project-files.md`（新規）、仕様書の冒頭、`samples/houkago/CLAUDE.template.md` と `README.md`、`CLAUDE.md` のコマンドの節と資料の表、`README.md`、`.claude/rules/rust.md`（モジュールの表）を更新した。

@@ -22,6 +22,7 @@ Claude Code（Opus 5.5）で開発している。フェーズ0（形式を固め
 | `.claude/agents/plan-reviewer.md` | 差分を計画と仕様に照らすレビュー用のサブエージェント |
 | `docs/design.md` | 設計検討書（全体設計） |
 | `docs/spec/scn-format-v0.md` | `.scn` 形式の仕様（v0。T0-2で確定） |
+| `docs/spec/project-files.md` | 作品フォルダの規約（`.scn` 以外のファイル） |
 | `docs/glossary.md` | 用語集（日本語とコード上の名前の対応） |
 | `docs/decisions.md` | 決定記録 |
 | `docs/plan/phase0.md` | フェーズ0の作業手順（完了） |

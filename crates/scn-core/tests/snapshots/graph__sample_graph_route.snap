@@ -1,0 +1,113 @@
+---
+source: crates/scn-core/tests/graph.rs
+expression: "serde_json::to_string_pretty(&graph).unwrap()"
+---
+{
+  "level": "route",
+  "groups": [
+    {
+      "id": "共通",
+      "title": null,
+      "file": null,
+      "route": null,
+      "status": null,
+      "is_stub": null,
+      "scenes": [
+        "s010",
+        "s011",
+        "s012",
+        "s013b"
+      ],
+      "exits": [
+        {
+          "from": "s012",
+          "to": "s014",
+          "kind": "jump",
+          "via": "choice",
+          "label": "黙ってうなずく",
+          "cond_text": "勇気 >= 2",
+          "to_exists": true,
+          "to_group": "灯"
+        },
+        {
+          "from": "s012",
+          "to": "s013a",
+          "kind": "jump",
+          "via": "if",
+          "label": null,
+          "cond_text": "灯.好感度 >= 3",
+          "to_exists": true,
+          "to_group": "灯"
+        },
+        {
+          "from": "s013b",
+          "to": "s030",
+          "kind": "jump",
+          "via": "direct",
+          "label": null,
+          "cond_text": null,
+          "to_exists": true,
+          "to_group": "紬"
+        }
+      ],
+      "endings": [],
+      "reads": [
+        "akari.好感度",
+        "flag.勇気"
+      ],
+      "writes": [
+        "akari.好感度",
+        "flag.ルート",
+        "flag.勇気",
+        "tsumugi.好感度"
+      ]
+    },
+    {
+      "id": "灯",
+      "title": null,
+      "file": null,
+      "route": null,
+      "status": null,
+      "is_stub": null,
+      "scenes": [
+        "s013a",
+        "s014",
+        "s020",
+        "s021",
+        "s022",
+        "s040"
+      ],
+      "exits": [],
+      "endings": [
+        "akari_end"
+      ],
+      "reads": [],
+      "writes": [
+        "akari.転校済み",
+        "flag.ルート"
+      ]
+    },
+    {
+      "id": "紬",
+      "title": null,
+      "file": null,
+      "route": null,
+      "status": null,
+      "is_stub": null,
+      "scenes": [
+        "s030",
+        "s060",
+        "s061"
+      ],
+      "exits": [],
+      "endings": [
+        "tsumugi_end",
+        "bad_end"
+      ],
+      "reads": [
+        "tsumugi.好感度"
+      ],
+      "writes": []
+    }
+  ]
+}

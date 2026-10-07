@@ -7,6 +7,8 @@
 //! - プロジェクト全体の意味解析とIR：[`analyze`]
 //! - 索引（補完、逆引き、検証が使う一覧）：[`index::build_index`]
 //! - 検証の段階1（`scn check`）：[`check::check`]
+//! - 構造の一覧（`scn graph`）：[`graph::build_graph`]
+//! - 作品フォルダのひな形（`scn new`、`scn format-doc`）：[`scaffold`]
 //! - 行IDの付与（`scn fmt`）：[`line_id::assign_line_ids`]
 
 // ライブラリのコードでは、パニックしうる書き方を禁じる（`.claude/rules/rust.md`）。
@@ -26,12 +28,14 @@ pub mod ast;
 pub mod check;
 pub mod diag;
 pub mod expr;
+pub mod graph;
 pub mod index;
 pub mod inline;
 pub mod ir;
 mod line;
 pub mod line_id;
 pub mod project;
+pub mod scaffold;
 mod sema;
 pub mod syntax;
 

@@ -389,6 +389,192 @@ fn deep_nesting_does_not_overflow() {
     let _ = fs::remove_dir_all(&dir);
 }
 
+// ---- scn graph ----
+
+/// 完了条件：`scn graph samples/houkago` が、粒度ごとに期待した一覧を出す。
+#[test]
+fn graph_levels() {
+    let root = repo_root();
+    let out = scn(&["graph", "samples/houkago"], &root);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    let lines: Vec<&str> = out.stdout.lines().collect();
+    let at = lines
+        .iter()
+        .position(|l| l.starts_with("s012 放課後の屋上"))
+        .unwrap();
+    assert_eq!(
+        &lines[at..at + 6],
+        [
+            "s012 放課後の屋上（samples/houkago/story/chapter01.scn、ルート 共通、draft）",
+            "  -> s014（選択肢「黙ってうなずく」 if 勇気 >= 2）",
+            "  -> s013a（条件 灯.好感度 >= 3）",
+            "  -> s013b（@else の枝）",
+            "  読む：akari.好感度、flag.勇気",
+            "  書く：akari.好感度",
+        ]
+    );
+    assert!(lines.contains(
+        &"s014 沈黙のあと（samples/houkago/story/chapter01.scn、ルート 灯、draft、スタブ）"
+    ));
+    assert!(lines.contains(&"  @エンディング akari_end"));
+    assert_eq!(lines.iter().filter(|l| !l.starts_with(' ')).count(), 13);
+
+    let out = scn(
+        &["graph", "--level", "chapter"],
+        &root.join("samples/houkago"),
+    );
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    assert_eq!(
+        out.stdout.lines().take(5).collect::<Vec<_>>(),
+        [
+            "story/chapter01.scn（シーン s010、s011、s012、s013a、s013b、s014）",
+            "  s013a -> s020 → story/chapter02.scn",
+            "  s013b -> s030 → story/chapter03.scn",
+            "  読む：akari.好感度、flag.勇気",
+            "  書く：akari.好感度、flag.ルート、flag.勇気、tsumugi.好感度",
+        ]
+    );
+
+    let out = scn(&["graph", "--level", "route", "samples/houkago"], &root);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    let headers: Vec<&str> = out.stdout.lines().filter(|l| !l.starts_with(' ')).collect();
+    assert_eq!(
+        headers,
+        [
+            "ルート 共通（シーン s010、s011、s012、s013b）",
+            "ルート 灯（シーン s013a、s014、s020、s021、s022、s040）",
+            "ルート 紬（シーン s030、s060、s061）",
+        ]
+    );
+    assert!(out.stdout.contains("  s013b -> s030 → ルート 紬\n"));
+    assert!(
+        out.stdout
+            .contains("  @エンディング tsumugi_end、bad_end\n")
+    );
+}
+
+/// `--json` は、粒度と、まとまりのリスト。行き先の無い辺も出す。
+#[test]
+fn graph_json() {
+    let dir = temp_dir(
+        "graph-json",
+        &[
+            ("project.toml", "format_version = 0\n"),
+            (
+                "story/a.scn",
+                "## a #s1\n@呼出 s2\n-> s9\n\n## b #s2\n@戻る\n",
+            ),
+        ],
+    );
+    let out = scn(&["graph", "--json", "."], &dir);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    let graph: Value = serde_json::from_str(&out.stdout).unwrap();
+    assert_eq!(graph["level"], "scene");
+    let exits = graph["groups"][0]["exits"].as_array().unwrap();
+    assert_eq!(exits[0]["kind"], "call");
+    assert_eq!(exits[1]["to"], "s9");
+    assert_eq!(exits[1]["to_exists"], false);
+    let text = scn(&["graph", "."], &dir).stdout;
+    assert!(
+        text.contains("  @呼出 s2\n  -> s9 ※シーンがありません\n"),
+        "{text}"
+    );
+
+    // `@elif` の枝も「条件」と書く（`@if` と書かない）。
+    fs::write(
+        dir.join("story/a.scn"),
+        "## a #s1\n@if flag.y == 1\n  -> s1\n@elif flag.y == 2\n  -> s1\n@else\n  -> s1\n@end\n",
+    )
+    .unwrap();
+    let text = scn(&["graph", "."], &dir).stdout;
+    assert!(
+        text.contains(
+            "  -> s1（条件 flag.y == 1）\n  -> s1（条件 flag.y == 2）\n  -> s1（@else の枝）\n"
+        ),
+        "{text}"
+    );
+    let _ = fs::remove_dir_all(&dir);
+}
+
+// ---- scn new、scn format-doc ----
+
+/// 完了条件：新しく作った作品フォルダで、`scn check` がエラー0件で終わる（スタブの行き止まりの警告だけ）。
+/// 空でないフォルダには作らない。
+#[test]
+fn new_project() {
+    let base = temp_dir("new", &[]);
+    fs::create_dir_all(&base).unwrap();
+    let out = scn(&["new", "my-novel", "--title", "夏の終わり"], &base);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    let dir = base.join("my-novel");
+    let toml = fs::read_to_string(dir.join("project.toml")).unwrap();
+    assert!(toml.contains("title = \"夏の終わり\""), "{toml}");
+    assert!(
+        fs::read_to_string(dir.join("CLAUDE.md"))
+            .unwrap()
+            .starts_with("# 夏の終わり（作品フォルダ）")
+    );
+
+    let out = scn(&["check"], &dir);
+    assert_eq!(out.code, SUCCESS, "{}{}", out.stdout, out.stderr);
+    assert!(
+        out.stdout.starts_with("story/chapter01.scn:3:1 W503 "),
+        "{}",
+        out.stdout
+    );
+    assert!(
+        out.stderr.contains("エラー 0件、警告 1件、情報 0件"),
+        "{}",
+        out.stderr
+    );
+
+    // 作品名を省くとフォルダ名。空でないフォルダには作らない。
+    assert_eq!(scn(&["new", "other"], &base).code, SUCCESS);
+    assert!(
+        fs::read_to_string(base.join("other/project.toml"))
+            .unwrap()
+            .contains("title = \"other\"")
+    );
+    // `scn new .` でも、作品名は今のフォルダの名前。
+    fs::create_dir_all(base.join("here")).unwrap();
+    assert_eq!(scn(&["new", "."], &base.join("here")).code, SUCCESS);
+    assert!(
+        fs::read_to_string(base.join("here/project.toml"))
+            .unwrap()
+            .contains("title = \"here\"")
+    );
+    let out = scn(&["new", "my-novel"], &base);
+    assert_eq!(out.code, FAILURE);
+    assert!(
+        out.stderr.contains("空のフォルダではありません"),
+        "{}",
+        out.stderr
+    );
+    let _ = fs::remove_dir_all(&base);
+}
+
+/// `format-doc --check` は、`FORMAT.md` が今の版と同じなら0、違えば（無ければ）1。`format-doc` で書き直す。
+#[test]
+fn format_doc() {
+    let base = temp_dir("format-doc", &[]);
+    fs::create_dir_all(&base).unwrap();
+    assert_eq!(scn(&["new", "w"], &base).code, SUCCESS);
+    let dir = base.join("w");
+    assert_eq!(scn(&["format-doc", "--check"], &dir).code, SUCCESS);
+    let original = fs::read_to_string(dir.join("FORMAT.md")).unwrap();
+    assert!(original.contains("## 16. 診断の一覧"));
+    assert!(original.contains("# 作品フォルダの規約"));
+    fs::remove_file(dir.join("FORMAT.md")).unwrap();
+    assert_eq!(scn(&["format-doc", "--check"], &dir).code, HAS_ERRORS);
+    assert!(!dir.join("FORMAT.md").exists());
+    assert_eq!(scn(&["format-doc"], &dir).code, SUCCESS);
+    assert_eq!(fs::read_to_string(dir.join("FORMAT.md")).unwrap(), original);
+    // 作品フォルダでなければ書かない。
+    assert_eq!(scn(&["format-doc", "."], &base).code, FAILURE);
+    assert!(!base.join("FORMAT.md").exists());
+    let _ = fs::remove_dir_all(&base);
+}
+
 // ---- scn fmt ----
 
 /// `scn fmt` の1行（`ファイル:行:列 ^ID`。`--check` では `ファイル:行:列 行IDがありません`）。
