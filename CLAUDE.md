@@ -57,7 +57,7 @@ app/                    Tauri＋React（src-tauri/ と src/）
 - 開発用CLI `scn`（`crates/scn-cli`）：`cargo run -p scn-cli -- parse <file.scn>`（診断を `ファイル:行:列 コード メッセージ` で出す。`--json` でJSON）／`cargo run -p scn-cli -- ir <project-dir>`（IRをJSONで出す。例：`cargo run -p scn-cli -- ir samples/houkago`）
   - 終了コードは、成功が0、エラー（E）の診断があれば1、使い方の誤り・`project.toml` の無いフォルダ・フォルダを読めないなどの入出力の誤りは2。設定ファイルの誤り（読めないものを含む）はエラーの診断（E801〜E803）になるので1
   - `parse` は、上のディレクトリに `project.toml` があればプロジェクト全体で意味解析を行い、設定ファイルの診断と、そのファイルの診断を出す（ほかの章の診断は出さない）。無ければ構文解析だけを行う
-  - `cargo run -p scn-cli -- fmt <project-dir>`：行IDの無い行（I302）に行IDを付け、付けた行を `ファイル:行:列 ^ID` で出す（`--json` でJSON）。`--check` は書き換えずに、付ける行があれば終了コード1。本文の診断では1にしない。`project.toml` にエラーがあれば、何もせずに終了コード2
+  - `cargo run -p scn-cli -- fmt <project-dir>`：行IDの無い行（I302）に行IDを付け、付けた行を `ファイル:行:列 ^ID` で出す（`--json` でJSON）。`--check` は書き換えずに、付ける行があれば終了コード1。本文の診断では1にしない。`project.toml` の `format_version` か `[dialogue]` を読めなければ（`project.toml` そのものを読めないときを含む）、何もせずに終了コード2
   - `cargo run -p scn-cli -- check [project-dir]`：プロジェクト全体を検証し（読み込み・構文解析・意味解析と、検証の段階1：行き止まり、到達できないシーン、はみ出し、変数の読み書き、企画書のエンディング、伏線）、診断を `ファイル:行:列 コード メッセージ ^行ID` で出す（`--json` でJSON）。フォルダを省くと今のフォルダ。終了コードは `parse` と同じ
   - `cargo run -p scn-cli -- graph [project-dir] [--level scene|chapter|route]`：シーン、辺、条件、変数の読み書きを、粒度ごとに一覧で出す（`--json` でJSON）。辺の文脈は、いちばん内側のもの（選択肢、条件、`@else` の枝）だけ。診断は出さず、終了コードは0（作品フォルダでなければ2）
   - `cargo run -p scn-cli -- new <dir> [--title 作品名]`：新しい作品フォルダを作る（無いフォルダか空のフォルダに。`project.toml`、スタブの章、`CLAUDE.md`、`FORMAT.md` など）。ひな形は `crates/scn-core/templates/`
@@ -69,7 +69,8 @@ app/                    Tauri＋React（src-tauri/ と src/）
 - Lezer文法（`packages/lezer-scn`）：`pnpm -C packages/lezer-scn test`（文法から構文解析器を作り直してから、`node --test` でテスト）／`pnpm -C packages/lezer-scn build`（構文解析器を作るだけ）
   - 作った `src/parser.ts`・`src/parser.terms.ts` はコミットしない（`typecheck` と `test` が先に作る）
   - サンプルの行の種類の期待値（`test/expected/*.txt`）を作り直す：`UPDATE_EXPECTED=1 pnpm -C packages/lezer-scn test`。差分を読んで確かめてから受け入れる
-- アプリ（`app/`、Tauri＋React）：`pnpm -C app tauri dev`（開発用に起動する。デバッグビルドでは起動時に `samples/houkago` を開く）／`pnpm -C app test`（位置の変換とグラフの配置のテスト）／`pnpm -C app build`（フロントのビルド）
+- アプリ（`app/`、Tauri＋React）：`pnpm -C app tauri dev`（開発用に起動する。デバッグビルドでは起動時に `samples/houkago` を開く）／`pnpm -C app test`（位置の変換、グラフの配置、エディタ、置き換え、検証の画面のテスト）／`pnpm -C app build`（フロントのビルド）
+  - 開発用の環境変数：`SCN_DEV_PROJECT=<作品フォルダ>`（起動時に開く）、`SCN_MEASURE_IPC=1`（開いた後に、入力が止まったときの受け渡しの時間を10回測ってターミナルに書く）。解析の速さを見るときは、Rustをリリースビルドにする `pnpm -C app tauri dev --release` で測る
   - Rust側（`app/src-tauri`、パッケージ名 `scn-app`）はCargoのワークスペースに入っているので、`cargo test --workspace`・`cargo clippy --workspace` の対象になる
   - フロントの `dev`・`build`・`typecheck` は、先に `packages/lezer-scn` の文法から構文解析器を作る
 - 版の固定：Rustは `rust-toolchain.toml`、pnpmとBiomeは `package.json`（`packageManager` と `devDependencies`）

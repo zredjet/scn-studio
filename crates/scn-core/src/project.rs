@@ -42,22 +42,31 @@ pub struct Project {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Settings {
     pub format_version: i64,
+    /// 作品名（`title`）。アプリの表示に使う。
+    pub title: Option<String>,
     pub start_scene: Option<String>,
     /// `start_scene` の値の位置（`project.toml` の中）。無いシーンを指すときの E501 に使う。
     pub start_scene_span: Span,
     pub brackets: Vec<DialogueBracket>,
     /// メッセージウィンドウの大きさ（`[message_window]`）。無ければ、はみ出しを調べない。
     pub message_window: Option<MessageWindow>,
+    /// 本文の読み方に関わる設定を、書かれたとおりに読めなかった：`project.toml` そのものが読めない（E801）、
+    /// `format_version` の誤り（E802、E803）、`[dialogue]` と `[dialogue.brackets]` の誤り（E802）。
+    /// 台詞の括弧が既定に戻って行の読み方が変わるので、行IDを付けない（D042、D045）。
+    /// `title`・`start_scene`・`[message_window]` の誤りは含めない。
+    pub reading_errors: bool,
 }
 
 impl Default for Settings {
     fn default() -> Self {
         Self {
             format_version: FORMAT_VERSION,
+            title: None,
             start_scene: None,
             start_scene_span: Span::new(0, 0),
             brackets: ParseOptions::default().brackets,
             message_window: None,
+            reading_errors: false,
         }
     }
 }
@@ -229,12 +238,11 @@ impl Project {
         }
     }
 
-    /// `project.toml` にエラー（E801〜E803）があるか。あれば、台詞の括弧などが書かれたとおりに
-    /// 読めていないかもしれないので、本文を書き換える処理（行IDの付与）はしない（D042）。
-    pub fn has_project_toml_errors(&self) -> bool {
-        self.load_diagnostics
-            .iter()
-            .any(|d| d.file == "project.toml" && d.diag.severity() == crate::diag::Severity::Error)
+    /// 本文の読み方に関わる設定（`project.toml` の `format_version`、`[dialogue]`）を書かれたとおりに
+    /// 読めなかったか（[`Settings::reading_errors`]）。あれば、台詞の括弧が既定に戻っているかもしれないので、
+    /// 本文を書き換える処理（行IDの付与）はしない（D042、D045）。
+    pub fn has_reading_errors(&self) -> bool {
+        self.settings.reading_errors
     }
 }
 
@@ -557,6 +565,7 @@ impl Loader<'_> {
         let file = "project.toml";
         let mut settings = Settings::default();
         let Some(text) = self.decode(&path, bytes.to_vec()) else {
+            settings.reading_errors = true;
             return settings;
         };
         let table: toml::Table = match toml::from_str(&text) {
@@ -574,9 +583,11 @@ impl Loader<'_> {
                         e.message()
                     ),
                 );
+                settings.reading_errors = true;
                 return settings;
             }
         };
+        let diags_before_version = self.diags.len();
         match table.get("format_version") {
             Some(toml::Value::Integer(v)) if *v == FORMAT_VERSION => {}
             Some(toml::Value::Integer(v)) => self.diag(
@@ -598,6 +609,17 @@ impl Loader<'_> {
                 Code::E802,
                 Span::new(0, 0),
                 "format_version がありません。v0として読みます",
+            ),
+        }
+        settings.reading_errors |= self.diags.len() > diags_before_version;
+        match table.get("title") {
+            None => {}
+            Some(toml::Value::String(title)) => settings.title = Some(title.clone()),
+            Some(_) => self.diag(
+                file,
+                Code::E802,
+                key_span(&text, 0, "title"),
+                "title は文字列で書きます",
             ),
         }
         match table.get("start_scene") {
@@ -643,6 +665,8 @@ impl Loader<'_> {
                 "message_window は [message_window] の表で書きます。はみ出しを調べません",
             ),
         }
+        // ここから下（`[dialogue]`）の誤りは、本文の読み方に関わる。
+        let diags_before_dialogue = self.diags.len();
         let brackets = match table.get("dialogue") {
             None => None,
             Some(toml::Value::Table(dialogue)) => dialogue.get("brackets"),
@@ -671,6 +695,7 @@ impl Loader<'_> {
                 "[dialogue.brackets] は、括弧をキーにした表で書きます。既定の「」を使います",
             ),
         }
+        settings.reading_errors |= self.diags.len() > diags_before_dialogue;
         settings
     }
 

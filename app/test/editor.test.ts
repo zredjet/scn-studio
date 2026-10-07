@@ -7,17 +7,20 @@ import { Compartment, EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { PositionMap } from "../src/core/position.ts";
 import {
+  countLineBreaks,
   createState,
   editorKeymap,
   editorThemeSpec,
+  hasMixedLineBreaks,
+  lineBreakOf,
   matchLineBreaks,
   toEditorDiagnostics,
-  usesCrlf,
 } from "../src/editor/state.ts";
 
 const BRACKETS = [{ open: "「", close: "」" }];
 const HOOKS = {
   changed: () => {},
+  save: () => {},
   compositionStarted: () => {},
   compositionEnded: () => {},
 };
@@ -48,7 +51,8 @@ test("Enter で、字下げの全角空白を消さない", () => {
 
 test("改行が CRLF の本文は、そのまま保つ。診断の位置も合う", () => {
   const text = "## a #s1\r\n灯「やあ」 ^k3f9\r\n😀\r\n";
-  assert.ok(usesCrlf(text));
+  assert.equal(lineBreakOf(text), "\r\n");
+  assert.ok(!hasMixedLineBreaks(text));
   const s = state(text);
   assert.equal(s.sliceDoc(), text);
   const map = new PositionMap(text);
@@ -79,8 +83,16 @@ test("改行が CRLF の本文は、そのまま保つ。診断の位置も合�
 });
 
 test("改行が LF の本文と、混ざった本文", () => {
-  assert.ok(!usesCrlf("a\nb\n"));
-  assert.ok(!usesCrlf("a\r\nb\n"));
+  assert.equal(lineBreakOf("a\nb\n"), "\n");
+  assert.equal(lineBreakOf("a"), "\n");
+  assert.deepEqual(countLineBreaks("a\r\nb\nc\rd\r\n"), {
+    crlf: 2,
+    lf: 1,
+    cr: 1,
+  });
+  assert.ok(!hasMixedLineBreaks("a\nb\n"));
+  assert.ok(hasMixedLineBreaks("a\r\nb\n"));
+  assert.ok(hasMixedLineBreaks("a\rb"));
   const lf = state("灯「a」\n😀\n");
   assert.equal(lf.sliceDoc(), "灯「a」\n😀\n");
   assert.equal(new PositionMap("灯「a」\n😀\n").utf16Length, lf.doc.length);
@@ -90,6 +102,25 @@ test("改行が LF の本文と、混ざった本文", () => {
     new PositionMap(mixed).utf16Length,
     EditorState.create({ doc: mixed }).doc.length,
   );
+});
+
+test("改行の種類が混ざった本文は、多いほうにそろえて読み込む。位置は変わらない", () => {
+  // \r\n が多い：\r\n にそろえる（Windowsで、CRLFのファイルにLFの行を足した場合）。
+  const mostlyCrlf = "## a #s1\r\n灯「a」\r\n足した行\n😀\r\n";
+  assert.equal(lineBreakOf(mostlyCrlf), "\r\n");
+  const crlf = state(mostlyCrlf);
+  assert.equal(crlf.lineBreak, "\r\n");
+  assert.equal(crlf.sliceDoc(), "## a #s1\r\n灯「a」\r\n足した行\r\n😀\r\n");
+  assert.equal(crlf.doc.lines, 5);
+  // \n が多いか同じ数：\n にそろえる。\r だけの改行も \n にする。
+  const mostlyLf = "a\nb\r\nc\rd\n";
+  const lf = state(mostlyLf);
+  assert.equal(lf.lineBreak, "\n");
+  assert.equal(lf.sliceDoc(), "a\nb\nc\nd\n");
+  // エディタの位置（改行は1つ）は、そろえる前の本文の位置と同じなので、診断の位置もそのまま使える。
+  for (const text of [mostlyCrlf, mostlyLf]) {
+    assert.equal(new PositionMap(text).utf16Length, state(text).doc.length);
+  }
 });
 
 test("Enter の割り当ては、改行を入れるだけの insertNewline", () => {

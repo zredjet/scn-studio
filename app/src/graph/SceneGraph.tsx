@@ -1,17 +1,17 @@
-// 右のグラフ：シーンをノード、ジャンプと呼び出しを辺にする（xyflow）。座標は自動配置で、保存しない。
+// フローの画面：シーンをノード、ジャンプと呼び出しを辺にする（xyflow）。座標は自動配置で、保存しない（T1-9）。
 
 import { Background, type Edge, type Node, ReactFlow } from "@xyflow/react";
 import { useMemo } from "react";
-import type { Ir } from "../core/types.ts";
+import type { SceneSummary, Summary } from "../core/types.ts";
 import { layoutScenes } from "./layout.ts";
 
 const COLUMN = 220;
 const ROW = 84;
 
 interface Props {
-  readonly ir: Ir;
+  readonly ir: Summary;
   readonly currentFile: string | null;
-  readonly onSelect: (sceneIndex: number) => void;
+  readonly onSelect: (scene: SceneSummary) => void;
 }
 
 export function SceneGraph({ ir, currentFile, onSelect }: Props) {
@@ -81,7 +81,9 @@ export function SceneGraph({ ir, currentFile, onSelect }: Props) {
         nodesDraggable={false}
         onNodeClick={(_, node) => {
           const match = /^scene-(\d+)$/.exec(node.id);
-          if (match?.[1] !== undefined) onSelect(Number(match[1]));
+          const scene =
+            match?.[1] === undefined ? undefined : ir.scenes[Number(match[1])];
+          if (scene !== undefined) onSelect(scene);
         }}
       >
         <Background />

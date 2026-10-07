@@ -1,6 +1,8 @@
 // エディタの状態（CodeMirror 6）の作り方。React を使わない部分で、テストから直接使う。
 //
 // 本文を黙って変えない：Enter で字下げや全角空白を消さない。改行の `\r\n` を `\n` に変えない。
+// 改行の種類が混ざった本文だけは、エディタが1種類しか持てないので、多いほうにそろえて読み込み、
+// 画面で知らせる（保存するとそろう。D045）。
 // 補完と括弧の自動補完は入れない（basicSetup を使わず、拡張を1つずつ選ぶ。.claude/rules/frontend.md）。
 
 import {
@@ -10,7 +12,12 @@ import {
   insertNewline,
 } from "@codemirror/commands";
 import type { Diagnostic } from "@codemirror/lint";
-import { type Compartment, EditorState } from "@codemirror/state";
+import {
+  Annotation,
+  type ChangeSet,
+  type Compartment,
+  EditorState,
+} from "@codemirror/state";
 import {
   drawSelection,
   EditorView,
@@ -23,12 +30,41 @@ import { scn, scnSyntaxHighlighting } from "@scn-studio/lezer-scn";
 import { PositionMap } from "../core/position.ts";
 import type { Bracket, IrDiagnostic } from "../core/types.ts";
 
+/** 改行の数（`\r\n`、`\n` だけ、`\r` だけ）。 */
+export function countLineBreaks(text: string): {
+  crlf: number;
+  lf: number;
+  cr: number;
+} {
+  let crlf = 0;
+  let lf = 0;
+  let cr = 0;
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code === 0x0a) lf += 1;
+    else if (code === 0x0d) {
+      if (text.charCodeAt(i + 1) === 0x0a) {
+        crlf += 1;
+        i += 1;
+      } else cr += 1;
+    }
+  }
+  return { crlf, lf, cr };
+}
+
 /**
- * 改行がすべて `\r\n` の本文か。そのときは、エディタも `\r\n` で行を分け、つなぐ。
+ * エディタで使う改行。`\r\n` が `\n` より多ければ `\r\n`（エディタも `\r\n` で行を分け、つなぐ）。
  * 本文を取り出すときは `doc.toString()`（いつも `\n` でつなぐ）ではなく `state.sliceDoc()` を使う。
  */
-export function usesCrlf(text: string): boolean {
-  return text.includes("\r\n") && !/(^|[^\r])\n/.test(text);
+export function lineBreakOf(text: string): "\r\n" | "\n" {
+  const { crlf, lf } = countLineBreaks(text);
+  return crlf > lf ? "\r\n" : "\n";
+}
+
+/** 改行の種類が混ざっているか（`\r\n` と `\n`、または `\r` だけの改行がある）。 */
+export function hasMixedLineBreaks(text: string): boolean {
+  const { crlf, lf, cr } = countLineBreaks(text);
+  return cr > 0 || (crlf > 0 && lf > 0);
 }
 
 /** コアの診断を、CodeMirrorの診断にする（UTF-8のバイト位置から、エディタの位置へ）。 */
@@ -101,26 +137,32 @@ export const editorKeymap = [
   ...historyKeymap,
 ];
 
+/** 人の編集でない変更（保存で付いた行ID、外部の変更の読み込み直し）に付ける印。 */
+export const programmatic = Annotation.define<boolean>();
+
 export interface Hooks {
-  /** 本文が変わった。 */
-  readonly changed: () => void;
+  /** 本文が変わった。`byUser` は人の編集か（`programmatic` の印の無い変更）。`changes` はその変更。 */
+  readonly changed: (byUser: boolean, changes: ChangeSet) => void;
+  /** 保存のキー（Ctrl+S／Cmd+S）が押された。 */
+  readonly save: () => void;
   /** 変換が始まった。 */
   readonly compositionStarted: () => void;
   /** 変換が終わった。 */
   readonly compositionEnded: () => void;
 }
 
-/** エディタの状態を作る。テストからも使う。 */
+/** エディタの状態を作る。改行の種類が混ざっていれば、多いほうにそろえる。テストからも使う。 */
 export function createState(
   doc: string,
   brackets: readonly Bracket[],
   language: Compartment,
   hooks: Hooks,
 ): EditorState {
+  const lineBreak = lineBreakOf(doc);
   return EditorState.create({
-    doc,
+    doc: matchLineBreaks(doc, lineBreak),
     extensions: [
-      usesCrlf(doc)
+      lineBreak === "\r\n"
         ? [
             EditorState.lineSeparator.of("\r\n"),
             // \r\n で行を分けるので、貼り付けた \n も \r\n にそろえる（行の中に \n を入れない）。
@@ -135,12 +177,26 @@ export function createState(
       drawSelection(),
       highlightActiveLine(),
       EditorView.lineWrapping,
-      keymap.of(editorKeymap),
+      keymap.of([
+        {
+          key: "Mod-s",
+          preventDefault: true,
+          run: () => {
+            hooks.save();
+            return true;
+          },
+        },
+        ...editorKeymap,
+      ]),
       language.of(scn({ brackets })),
       scnSyntaxHighlighting,
       theme,
       EditorView.updateListener.of((update) => {
-        if (update.docChanged) hooks.changed();
+        if (!update.docChanged) return;
+        const byUser = update.transactions.some(
+          (tr) => tr.docChanged && tr.annotation(programmatic) !== true,
+        );
+        hooks.changed(byUser, update.changes);
       }),
       EditorView.domEventHandlers({
         compositionstart: () => {

@@ -1,0 +1,4 @@
+// expect: E802
+// title・start_scene・[message_window] の形の誤り。本文の読み方は変わらないので、行IDの付与は止めない
+## a #s001
+灯「やあ」 ^aaaa

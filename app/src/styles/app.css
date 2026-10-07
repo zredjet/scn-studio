@@ -1,4 +1,4 @@
-/* フェーズ0の最小の画面の配置。色と形は tokens.css の変数だけを使う。 */
+/* 画面の骨格（docs/ui/README.md）。色と形は tokens.css の変数だけを使う。 */
 
 * {
   box-sizing: border-box;
@@ -39,32 +39,61 @@ body {
   font-weight: 700;
 }
 
-.open-form {
-  display: flex;
-  flex: 1;
-  gap: 8px;
-  max-width: 640px;
+.project-title {
+  color: var(--chrome-text-muted);
 }
 
-.open-form input {
+.titlebar-spacer {
   flex: 1;
-  min-width: 0;
-  padding: 4px 10px;
+}
+
+.chrome-button,
+.recent-select {
+  height: 28px;
+  padding: 0 12px;
   border: 0;
   border-radius: var(--radius-control);
   background: var(--chrome-bg-2);
   color: var(--chrome-text);
   font: inherit;
+  cursor: pointer;
 }
 
-.open-form button {
-  padding: 4px 14px;
-  border: 0;
+.recent-select {
+  max-width: 280px;
+}
+
+.small-button {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--border-control);
   border-radius: var(--radius-control);
-  background: var(--accent);
-  color: #ffffff;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.primary-button,
+.secondary-button {
+  height: 36px;
+  padding: 0 18px;
+  border-radius: var(--radius-control);
   font: inherit;
   cursor: pointer;
+}
+
+.primary-button {
+  border: 0;
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.secondary-button {
+  border: 1px solid var(--border-control);
+  background: var(--paper);
+  color: var(--ink);
 }
 
 .error {
@@ -74,10 +103,130 @@ body {
   color: var(--warn-text);
 }
 
-.workspace {
+.body {
   display: flex;
   flex: 1;
   min-height: 0;
+}
+
+.left-bar {
+  display: flex;
+  flex: 0 0 64px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 6px;
+  background: var(--chrome-bg);
+}
+
+.left-item {
+  position: relative;
+  height: 44px;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--chrome-text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.left-item.current {
+  background: var(--chrome-active);
+  color: var(--chrome-text);
+}
+
+.left-item:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--warn);
+  color: #ffffff;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.workspace {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.screen {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.screen[hidden] {
+  display: none;
+}
+
+.check-screen {
+  overflow: auto;
+  padding: 16px 24px;
+  background: var(--paper);
+}
+
+.context-panel {
+  flex: 0 0 280px;
+  overflow: auto;
+  padding: 8px;
+  background: var(--panel-bg-2);
+  border-left: 1px solid var(--border);
+}
+
+.welcome {
+  margin: 64px auto;
+  width: min(560px, 100% - 32px);
+}
+
+.welcome h1 {
+  font-size: 20px;
+}
+
+.welcome-actions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.recent-list,
+.check-list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recent-item {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.recent-item:hover {
+  background: var(--accent-tint-2);
+}
+
+.recent-path {
+  color: var(--text-faint);
+  font-size: 12px;
 }
 
 .scene-list {
@@ -86,6 +235,51 @@ body {
   padding: 8px;
   background: var(--panel-bg);
   border-right: 1px solid var(--border);
+}
+
+.panel-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-right: 4px;
+}
+
+.add-chapter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 8px 8px;
+}
+
+.add-chapter input {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  font: inherit;
+}
+
+.form-problem {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--danger-text);
+  font-size: 12px;
+}
+
+.file-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.dirty-mark {
+  margin-left: 6px;
+  color: var(--accent);
 }
 
 .panel-heading {
@@ -144,13 +338,72 @@ body {
 }
 
 .editor-pane {
+  display: flex;
   flex: 1;
+  flex-direction: column;
   min-width: 0;
   background: var(--panel-bg-2);
 }
 
+.conflict-bar,
+.notice-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--warn-tint);
+  color: var(--warn-text);
+  border-bottom: 1px solid var(--warn-border);
+}
+
+.check-file-name {
+  margin-top: 16px;
+}
+
+.check-item {
+  display: grid;
+  grid-template-columns: 48px 40px 1fr;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.check-item:hover:not(:disabled) {
+  background: var(--accent-tint-2);
+}
+
+.check-item:disabled {
+  cursor: default;
+}
+
+.check-code {
+  font-family: var(--font-mono);
+}
+
+.check-item.error .check-severity {
+  color: var(--danger-text);
+}
+
+.check-item.warning .check-severity {
+  color: var(--warn);
+}
+
+.check-item.info .check-severity {
+  color: var(--text-faint);
+}
+
 .editor {
-  height: 100%;
+  flex: 1;
+  min-height: 0;
 }
 
 .placeholder {
@@ -159,9 +412,8 @@ body {
 }
 
 .scene-graph {
-  flex: 0 0 420px;
+  flex: 1;
   background: var(--paper);
-  border-left: 1px solid var(--border);
 }
 
 /* xyflow の既定のノードの見た目（.react-flow__node-default）より、詳しい選択子で上書きする。 */
@@ -204,6 +456,14 @@ body {
   font-size: 12px;
 }
 
-.statusbar span:last-child {
-  margin-left: auto;
+.statusbar-notice {
+  flex: 1;
+  overflow: hidden;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unsaved {
+  color: var(--accent);
 }

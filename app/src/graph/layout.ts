@@ -1,10 +1,10 @@
 // シーンのグラフの自動配置。開始シーンから辺をたどった段（深さ）を横に、段の中の順を縦に並べる。
-// フェーズ0の簡単な配置で、座標は保存しない（layout.json はフェーズ1）。
+// 簡単な配置で、座標は保存しない（layout.json はT1-9）。
 
-import type { Ir } from "../core/types.ts";
+import type { Summary } from "../core/types.ts";
 
 export interface NodePlacement {
-  /** IRの scenes の添字。 */
+  /** シーンの一覧（scenes）の添字。 */
   readonly index: number;
   readonly rank: number;
   readonly order: number;
@@ -15,7 +15,9 @@ export interface NodePlacement {
  * たどり着けないシーンは、ファイルの順に、続く段からたどり直す。
  * シーンIDが重複しているときは、ジャンプ先と同じく先に現れたほうを使う。
  */
-export function layoutScenes(ir: Ir): NodePlacement[] {
+export function layoutScenes(
+  ir: Pick<Summary, "scenes" | "edges" | "start_scene">,
+): NodePlacement[] {
   const firstIndex = new Map<string, number>();
   ir.scenes.forEach((scene, index) => {
     if (!firstIndex.has(scene.id)) firstIndex.set(scene.id, index);

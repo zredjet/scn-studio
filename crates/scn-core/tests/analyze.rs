@@ -428,6 +428,26 @@ fn settings_fixtures_report_diagnostics() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
+/// 行IDの付与を止めるのは、本文の読み方に関わる設定（`format_version`、`[dialogue]`）を読めないときと、
+/// `project.toml` そのものを読めないときだけ（D045）。
+#[test]
+fn reading_errors_only_for_format_version_and_dialogue() {
+    let expected = [
+        ("toml_broken", true),
+        ("toml_version", true),
+        ("toml_items", true),
+        ("toml_brackets", true),
+        ("toml_dialogue_scalar", true),
+        ("toml_title", false),
+        ("ok_brackets_empty", false),
+        ("variables_broken", false),
+    ];
+    for (name, reading) in expected {
+        let project = load_project(&fixtures_dir().join("settings").join(name)).unwrap();
+        assert_eq!(project.has_reading_errors(), reading, "{name}");
+    }
+}
+
 /// 設定ファイルの診断それぞれに、それを期待するfixtureがある。
 #[test]
 fn every_settings_code_has_a_fixture() {

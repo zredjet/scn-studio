@@ -13,7 +13,8 @@
 //! - `scn format-doc [project-dir] [--check]`：`FORMAT.md` を、今のツールの版で書き直す（D044）。
 //! - `scn fmt <project-dir> [--check] [--json]`：行IDの無い行に行IDを付ける（仕様書9節、D041）。
 //!   付けた行IDを `ファイル:行:列 ^ID` の形で出す。`--check` では書き換えず、付ける行があれば1で終わる。
-//!   `project.toml` にエラーがあれば、台詞の括弧を書かれたとおりに読めないので、何もせずに2で終わる。
+//!   `project.toml` の `format_version` か `[dialogue]` を読めなければ、台詞の括弧を書かれたとおりに読めないので、
+//!   何もせずに2で終わる（D045）。
 //!
 //! 終了コードは、成功が0、エラー（E）の診断があれば1、使い方の誤り・`project.toml` の無いフォルダ・
 //! 入出力の誤りは2。`fmt` は本文の診断では1にしない（`--check` で行IDの無い行があるときだけ1）。
@@ -437,8 +438,8 @@ struct FmtEntry {
 /// 書き終えたファイルの行IDは出してから終了コード2で終える（AIの出自の記録に使うため。D041）。
 fn run_fmt(dir: &Path, check: bool, json: bool) -> Result<u8, CliError> {
     let project = load_project(dir).map_err(CliError::Project)?;
-    // 台詞の括弧が既定に戻っていると、複数行の台詞の途中の行にも行IDを付けてしまう（D042）。
-    if project.has_project_toml_errors() {
+    // 台詞の括弧が既定に戻っていると、複数行の台詞の途中の行にも行IDを付けてしまう（D042、D045）。
+    if project.has_reading_errors() {
         let text = fs::read(dir.join("project.toml"))
             .map(|b| String::from_utf8_lossy(&b).into_owned())
             .unwrap_or_default();
@@ -457,7 +458,7 @@ fn run_fmt(dir: &Path, check: bool, json: bool) -> Result<u8, CliError> {
             );
         }
         return Err(CliError::Refused(
-            "project.toml にエラーがあるので、行IDを付けません（台詞の括弧を書かれたとおりに読めないため）".into(),
+            "project.toml の format_version か [dialogue] を書かれたとおりに読めないので、行IDを付けません（台詞の括弧が既定に戻るため）".into(),
         ));
     }
     let results = assign_line_ids(&project, &mut LineIdGenerator::new());

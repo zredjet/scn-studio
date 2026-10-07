@@ -1,0 +1,7 @@
+format_version = 0
+title = 1
+start_scene = 1
+
+[message_window]
+lines = 0
+chars_per_line = 20

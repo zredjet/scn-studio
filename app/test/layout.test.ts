@@ -2,10 +2,10 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { Ir, IrEdge, IrScene } from "../src/core/types.ts";
+import type { IrEdge, SceneSummary, Summary } from "../src/core/types.ts";
 import { layoutScenes } from "../src/graph/layout.ts";
 
-function scene(id: string): IrScene {
+function scene(id: string): SceneSummary {
   return {
     id,
     title: id,
@@ -13,7 +13,6 @@ function scene(id: string): IrScene {
     span: [0, 0],
     meta: { summary: null, status: null, route: null, tags: [], extra: {} },
     is_stub: false,
-    ops: [],
   };
 }
 
@@ -33,9 +32,8 @@ function ir(
   ids: string[],
   edges: [string, string][],
   start: string | null,
-): Ir {
+): Summary {
   return {
-    ir_version: 1,
     start_scene: start,
     scenes: ids.map(scene),
     edges: edges.map(([from, to]) => edge(from, to)),

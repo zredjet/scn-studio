@@ -1,0 +1,7 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "dump_with_disk(&ir, &dir)"
+---
+project.toml:2:1-2:6 E802 title は文字列で書きます
+project.toml:3:1-3:12 E802 start_scene はシーンIDの文字列で書きます
+project.toml:5:1-5:17 E802 [message_window] の lines と chars_per_line は、正の整数で書きます。はみ出しを調べません
