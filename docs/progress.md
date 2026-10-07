@@ -8,7 +8,7 @@ Claude Codeは、作業を始めるときにこのファイルを読み、タス
 - 作業中のタスク：なし
 - 次のタスク：T0-2 形式仕様v0の確定
 - 人の判断待ち：なし
-- 人の作業待ち：Windowsで `scripts/check-all.ps1` を実行し、成功するか確かめる（T0-1の完了条件のうち、Windows側）
+- 別途対応：Windowsで `scripts/check-all.ps1` を実行し、成功するか確かめる（T0-1の完了条件のうち、Windows側）。Windowsの環境を用意しにくいため、T0-1とは切り離して後で行う（2026-10-07、人の判断）
 
 ## フェーズ1へ（フェーズ0では作らないが、気づいたこと）
 
@@ -43,6 +43,7 @@ Claude Codeは、作業を始めるときにこのファイルを読み、タス
 - 加えた依存：`@biomejs/biome`（開発用、理由は上のとおり）。crateは加えていない
 - 残った課題
   - Windowsで `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-all.ps1` を実行し、成功するかを人が確かめる
+    - 2026-10-07：Windowsの環境を用意しにくいため、別途対応とする（人の判断）。T0-7とT0-8、フェーズ0のゲート2もWindowsでの確認を含むので、それまでに環境が要る
   - T0-3への申し送り：仕様（1節）ではCRLFも受け付ける。CRLFのfixtureを置くときは、`.gitattributes` でそのファイルだけ `-text` を指定する（指定しないとLFに変換される）
 - 次のタスク：T0-2
 
