@@ -1,0 +1,131 @@
+# fixtureの一覧
+
+`scn-core` のテスト入力。仕様書（`docs/spec/scn-format-v0.md`）の段階0の診断それぞれに、それを出すfixtureを1つ以上置く。中身はT0-3（構文系）とT0-4（意味系）で作る。この一覧はT0-2で作った。
+
+## 約束
+
+- 1つのfixtureでは、1つの構文か1つの診断に絞る（`.claude/rules/spec-and-samples.md`）。
+- 異常系は、期待する診断コードをファイル先頭のコメントに書く（例：`// expect: E103`）。複数あれば `// expect: W112 W101` のように並べる。正常系は `// expect:` を書かず、診断が出ないことを確かめる。
+- 期待する診断には、そのfixtureで確かめるコードだけを書く。行IDの付け忘れによる I302 が混ざらないよう、I302 を確かめるもの以外では、台詞・地の文・選択肢・`@選択` の行に行IDを付ける。
+- 行IDは、fixtureの中でも一意にする。`samples/houkago/` の行IDとは重なってもよい（fixtureは1つずつ解析するため）。
+- 構文系のfixtureは、プロジェクトの外の1ファイルとして解析する。台詞の括弧は既定の「」だけになる（仕様書6節）。
+- 意味系のfixtureは、共通の小さなプロジェクト `project/` の設定DB・変数・素材カタログを使って解析する。複数のファイルにまたがるものは、ディレクトリにまとめる。置き方の細部はT0-4で決めてよい。
+- CRLFのfixture（`ok_crlf.scn`）は、`.gitattributes` でそのファイルだけ `-text` を指定し、LFに変換されないようにする。
+
+## 構文系（T0-3）
+
+### 正常系
+
+| ファイル | 内容 |
+| --- | --- |
+| `ok_minimal_scene.scn` | 見出し、メタ情報、台詞、地の文、ジャンプだけの最小のシーン |
+| `ok_chapter_heading.scn` | 先頭の章見出し（前にコメントと空行を置く） |
+| `ok_indent.scn` | 行頭の半角空白とタブは読み飛ばし、全角空白は本文に残す |
+| `ok_dialogue_display_name.scn` | `灯（？？？）「誰？」` の形の表示名 |
+| `ok_dialogue_multiline.scn` | 閉じ括弧が次の行以降にある台詞。行IDは最後の行に付ける。途中のコメントの行は台詞に含めない |
+| `ok_dialogue_nested_brackets.scn` | 本文の中に同じ種類の括弧がある台詞（入れ子として数える） |
+| `ok_inline_markup.scn` | ルビ（`\|`、`｜`、自動ルビ）、傍点、`{w}`、`{p}`、`{se}`、`{speed}`、`{=式}`、`{{` と `}}`、`\|《`、閉じていない `{` |
+| `ok_directives.scn` | 10節のディレクティブすべてを、日本語名と英語名で。引数のキーワードの日英（`左`／`left`、`停止`／`stop`）、`"…"` で囲んだ引数、全角空白の区切り、位置を省いてトランジションを書いた `@立ち絵`、小数の秒 |
+| `ok_choice.scn` | 条件・ジャンプ付きの選択肢、中身の無い選択肢、入れ子の選択ブロック、`{w 0.5}` を含む問いかけ文 |
+| `ok_if_elif_else.scn` | `@if`、複数の `@elif`、`@else`、`@end` |
+| `ok_raw_dedent.scn` | `@raw` の共通の字下げを取り除き、それより深い字下げと空行を保つ。半角空白だけの行は空行として扱う |
+| `ok_raw_content.scn` | `@raw` の中の、字下げした `## ` の行、` ^mask` で終わる行、`@選択` や `- ` で始まる行を、解析せずに中身として保つ |
+| `ok_escape.scn` | `\@`、`\-`、`\/`、`\#`、`\\` と、台詞の形の前の `\` |
+| `ok_blank_lines.scn` | `break` になる空行（本文に挟まれたもの、間にコメントがあるもの）と、ならない空行（演出やブロックの前後） |
+| `ok_expr.scn` | 演算子の優先順位、括弧、`not`、文字列、真偽、名前空間の省略、日本語の名前 |
+| `ok_line_id_lengths.scn` | 4文字と12文字の行ID。`^_^` と、前に半角空白の無い `^` は本文の一部 |
+| `ok_bom.scn` | 先頭にBOMのあるファイル |
+| `ok_crlf.scn` | 改行がCRLFのファイル |
+
+### 異常系
+
+| ファイル | 内容 | 期待する診断 |
+| --- | --- | --- |
+| `before_first_scene.scn` | 最初のシーン見出しより前に地の文がある | W101 |
+| `meta_unclosed.scn` | メタ情報の `---` が閉じていない（`キー: 値` の形でない行の手前で回復し、続く台詞は本文になる）。後ろにメタ情報のあるシーンを置き、その開きの `---` を閉じと取り違えないことも確かめる | E102 |
+| `choice_unclosed.scn` | `@選択` が `@end` で閉じていない（次のシーン見出しで回復する） | E103 |
+| `if_unclosed.scn` | `@if` が閉じていない（ファイルの終わりで回復する） | E103 |
+| `raw_unclosed.scn` | `@raw` が閉じていない（行頭に空白の無い `## ` の行で回復し、そのシーンは正しく読める） | E103 |
+| `raw_unclosed_eof.scn` | `@raw` が閉じていないまま、ファイルが終わる | E103 |
+| `end_without_block.scn` | 対応するブロックの無い `@end` | E104 |
+| `else_without_if.scn` | `@if` の無い `@elif` と `@else` | E104 |
+| `else_duplicate.scn` | 2つ目の `@else` | E104 |
+| `elif_after_else.scn` | `@else` の後の `@elif` | E104 |
+| `option_outside_choice.scn` | 選択ブロックの外にある `- ` の行（地の文として扱う） | E105 |
+| `choice_no_options.scn` | 選択肢が1つも無い `@選択` | E106 |
+| `scene_heading_no_id.scn` | ` #` の無いシーン見出し | W107 |
+| `meta_unknown_key.scn` | メタ情報の知らないキー | I109 |
+| `meta_status_invalid.scn` | `status` の値が一覧に無い | E110 |
+| `scene_id_invalid.scn` | 形の崩れたシーンID（`#帰り道`、`#s-1`、` #` の後が空） | E111 |
+| `ending_id_invalid.scn` | 形の崩れたエンディングID（`@エンディング 灯エンド`） | E111 |
+| `chapter_heading_not_at_top.scn` | ファイルの途中にある `# ` の行（シーンより後） | W112 |
+| `chapter_heading_second.scn` | 先頭の章見出しの後、最初のシーンより前に2つ目の `# ` の行 | W112 W101 |
+| `meta_duplicate_key.scn` | メタ情報の同じキーが2回 | W113 |
+| `meta_malformed_line.scn` | 閉じたメタ情報の中にある、`キー: 値` の形でない行（`summary 灯が…`） | E114 |
+| `dialogue_unclosed_blank.scn` | 閉じ括弧の前に空行が来る台詞 | E201 |
+| `dialogue_unclosed_directive.scn` | 閉じ括弧の前にディレクティブが来る台詞 | E201 |
+| `dialogue_unclosed_heading.scn` | 閉じ括弧の前にシーン見出しが来る台詞 | E201 |
+| `dialogue_unclosed_option.scn` | 選択肢の中身で、閉じ括弧の前に次の選択肢の行が来る台詞（選択ブロックは壊れない） | E201 |
+| `dialogue_unclosed_eof.scn` | 閉じ括弧が無いまま、ファイルが終わる台詞 | E201 |
+| `line_id_not_allowed.scn` | 行IDを持てない行（シーン見出し、ディレクティブ、ジャンプ、複数行の台詞の途中の行）に行IDがある | W303 |
+| `line_id_malformed.scn` | 形の崩れた行ID（`^K3F9`、`^k3`、13文字） | E304 |
+| `directive_unknown.scn` | 知らないディレクティブ（`@回想開始`、`@Bgm`） | W401 |
+| `directive_arg_count.scn` | 引数の数が合わないディレクティブ（`@背景` に引数なし、`@待機` に引数2つ） | E402 |
+| `directive_arg_invalid.scn` | 引数の値が合わないディレクティブ（`@待機 長め`、引数4つの `@立ち絵` の3つ目が位置でない） | E402 |
+| `option_empty_text.scn` | 表示文が空の選択肢（`-` だけ、`- -> s014`、`- if 勇気 >= 2`、`- ^abcd`） | E402 |
+| `choice_text_before_option.scn` | `@選択` と最初の選択肢の間にある地の文 | E402 |
+| `inline_unknown_command.scn` | 知らないインライン命令（`{shake}`） | W405 |
+| `inline_invalid_value.scn` | 値の合わないインライン命令（`{w 長め}`、`{speed 速すぎ}`） | W405 |
+| `expr_syntax_error.scn` | 式の構文エラー（閉じていない括弧、`1日目`、`and` を名前に使う、全角の `”`、全角の数字） | E601 |
+| `option_if_in_text.scn` | 表示文に半角の ` if ` を含む選択肢（`- What if I said no`） | E601 |
+
+## 意味系（T0-4）
+
+### 共通のプロジェクト `project/`
+
+- `project.toml`：`format_version = 0`。`[dialogue.brackets]` に「」（`normal`）と『』（`thought`）
+- 設定DB：キャラクター3人。1人は名前と呼び名を持つ（話者と名前空間の照合を確かめる）。2人は同じ呼び名を持つ（あいまいな呼び名を確かめる）
+- `variables.yaml`：`int`、`bool`、`string`、`enum` の変数を1つずつ以上。キャラクターの名前空間の変数を1つ
+- `assets/catalog.yaml`：背景、立ち絵、BGM、SEを少しずつ
+
+### 正常系
+
+| ファイル | 内容 |
+| --- | --- |
+| `ok_speaker_resolution.scn` | ID、名前、呼び名のそれぞれで書いた話者が、同じキャラクターIDになる |
+| `ok_narration_with_quote.scn` | `彼は「行こう」と言った。` のように、話者を解決できず、閉じ括弧の後に文が続く行が、診断なしで地の文になる |
+| `ok_dialogue_bracket_style.scn` | 『』の台詞が、表示スタイル `thought` の台詞になる |
+| `ok_var_namespace.scn` | `灯.好感度` のようなキャラの名前の名前空間がIDにそろい、名前空間の無い名前に `flag.` が補われる |
+| `ok_enum_value.scn` | 列挙の変数への代入と比較を文字列で書く |
+| `ok_cross_file_jump/` | 別のファイルのシーンへのジャンプと呼び出し |
+| `ok_ending.scn` | `@エンディング` で終わるシーン |
+| `ok_jump_branches.scn` | ジャンプの直後に `@else`・`@end`・次の選択肢の行・空行・コメントが来ても、W502 が出ない |
+| `ok_assets_known.scn` | カタログにある意味名。トランジションと `@効果` の効果名は、カタログに無くても I403 にならない |
+
+### 異常系
+
+| ファイル | 内容 | 期待する診断 |
+| --- | --- | --- |
+| `scene_id_duplicate/` | 2つのファイルに同じシーンID（辞書順で後のファイルに出る） | E108 |
+| `scene_id_duplicate_in_file.scn` | 1つのファイルに同じシーンID（後の行に出る） | E108 |
+| `dialogue_unknown_speaker.scn` | 未登録の話者の台詞（`店員「いらっしゃいませ」`） | W202 |
+| `dialogue_ambiguous_alias.scn` | 2人が同じ呼び名を持ち、その呼び名で書いた台詞 | W202 |
+| `line_id_duplicate/` | 2つのファイルに同じ行ID | E301 |
+| `line_id_duplicate_in_file.scn` | 1つのファイルに同じ行ID | E301 |
+| `line_id_missing.scn` | 行IDの無い台詞、地の文、選択肢、`@選択` の行 | I302 |
+| `asset_unknown.scn` | 素材カタログに無い背景・BGM・SEの意味名 | I403 |
+| `show_unknown_character.scn` | `@立ち絵`・`@退場` のキャラを解決できない（差分の I403 は重ねない） | W404 |
+| `jump_unknown_scene.scn` | 存在しないシーンへのジャンプ、選択肢の行のジャンプ、`@呼出` | E501 |
+| `unreachable_after_jump.scn` | ジャンプ、`@エンディング`、`@戻る` の後ろの、同じ枝の中の行 | W502 |
+| `var_undeclared.scn` | 宣言されていない変数の参照、代入、`+=`（E603・E604 は重ねない） | W602 |
+| `var_type_mismatch.scn` | 型の不一致（`bool` に整数、`int` と文字列の比較、列挙の `values` に無い値） | E603 |
+| `var_compound_non_int.scn` | `+=`・`-=` を整数以外の変数に使う（E603 は重ねない） | E604 |
+
+## 段階0の診断との対応
+
+仕様書16節の段階0の診断が、すべて上の表にあることを確かめるための一覧。
+
+| 種類 | コード |
+| --- | --- |
+| 構文系（T0-3） | W101、E102、E103、E104、E105、E106、W107、I109、E110、E111、W112、W113、E114、E201、W303、E304、W401、E402、W405、E601 |
+| 意味系（T0-4） | E108、W202、E301、I302、I403、W404、E501、W502、W602、E603、E604 |

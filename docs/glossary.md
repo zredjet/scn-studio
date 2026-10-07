@@ -49,7 +49,9 @@
 | 台詞候補 | dialogue candidate | 構文解析の段階で台詞の形に見える行 |
 | 話者 | speaker | 台詞を話すキャラクター（IDに解決する） |
 | 表示名 | display name | `灯（？？？）` の上書き名 |
+| 表示スタイル | dialogue style | 括弧の種類ごとの台詞の見せ方（`normal`、`thought` など）。`project.toml` の `[dialogue.brackets]` で決める |
 | 地の文 | narration | 台詞でも命令でもない本文 |
+| エスケープ | escape | 行頭の `\`。取り除いたうえで、その行を地の文として分類させる |
 | 段落の区切り | break | 空行から作る区切り |
 | ディレクティブ | directive | `@` で始まる行 |
 | ブロック | block | `@選択`・`@if`・`@raw` から `@end` まで |
