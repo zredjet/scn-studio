@@ -42,6 +42,7 @@ pub mod ir;
 pub mod layout;
 mod line;
 pub mod line_id;
+pub mod plaintext;
 pub mod preview;
 pub mod project;
 pub mod renpy;

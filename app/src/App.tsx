@@ -18,6 +18,7 @@ import {
   devSettings,
   exportRenpy,
   exportScript,
+  exportText,
   focusThisWindow,
   guardClose,
   keepMine,
@@ -32,6 +33,7 @@ import {
   pickNewProjectFolder,
   pickProjectFolder,
   previewData,
+  readingChoices,
   recentProjects,
   reloadFile,
   saveFile,
@@ -1263,6 +1265,8 @@ export function App() {
                     load={scriptSheet}
                     write={exportScript}
                     writeRenpy={exportRenpy}
+                    loadChoices={readingChoices}
+                    writeText={exportText}
                   />
                 </section>
               )}

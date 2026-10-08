@@ -19,9 +19,10 @@ use scn_core::assets::{AssetState, asset_list, orders};
 use scn_core::check::check as check_project;
 use scn_core::index::build_index;
 use scn_core::line_id::{LineIdGenerator, assign_line_ids};
+use scn_core::plaintext::plain_text;
 use scn_core::project::{MessageWindow, Project, SourceFile};
 use scn_core::renpy::{RenpyProfile, export_renpy};
-use scn_core::route::route_at;
+use scn_core::route::{ReadingTarget, read, reading_choices, route_at};
 use scn_core::{DialogueBracket, ParseOptions, analyze, load_project, parse};
 
 /// 意味系のfixtureで使う共通のプロジェクト。本文だけを差し替えて、意味解析とIRも通す。
@@ -107,6 +108,14 @@ fn check(source: &str) {
         }
         at += line.len();
     }
+
+    // 通読とプレーンテキスト（道の候補のすべて）。
+    for choice in reading_choices(&ir) {
+        let reading = read(&windowed, &ir, &choice.target, &Default::default());
+        let _ = plain_text(&windowed, &reading, &choice.label, true);
+    }
+    let reading = read(&windowed, &ir, &ReadingTarget::Common, &Default::default());
+    let _ = plain_text(&windowed, &reading, "共通", false);
 
     // Ren'Py への書き出し（定義のファイルは必ず書く）。
     let export = export_renpy(&windowed, &fixture_root(), &ir, &RenpyProfile::default());

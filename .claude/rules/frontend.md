@@ -44,6 +44,7 @@ paths:
 - 素材のファイルはアセットプロトコル（`core/api.ts` の `assetUrl`）で見せる。許すのは開いた作品の `assets/` だけ。
 - エディタとの同期は、カーソルもフォーカスも動かさない行の印（`editor/marker.ts`）で行う。プレビュー中の行は行IDで探し、無ければバイト位置に戻る（D050）。
 - カーソル位置から再生（T2-4、D055）は、コアの最短経路（`route`）の選択肢を `runtime.ts` の `replay` で速送りして始める。式の評価や命令の意味を変えたら、コアの `route` も同じに直し、`app/test/route.test.ts`（コアのスナップショット `route__*.snap` を速送りして、同じ変数になることを確かめる）を通す。
+- 縦書きビュー（`preview/VerticalView.tsx`）は、コアの通読（`route::read`）を `preview/vertical.ts` で段落・行・ページにする。組み方（折り返し、縦中横、原稿用紙換算）は `vertical.ts` に置き、テストを付ける（`app/test/vertical.test.ts`）。
 - プレビューの別ウィンドウ（`preview/PreviewWindow.tsx`。ウィンドウのラベルは `preview`）とメインウィンドウは、Tauri のイベントでだけつなぐ（`core/api.ts` の `sendPreviewLine` など）。ウィンドウどうしで状態を共有しない。
 
 ## フロー図（xyflow）

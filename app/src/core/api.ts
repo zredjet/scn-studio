@@ -22,6 +22,9 @@ import type {
   LoadedLayout,
   OpenedProject,
   PreviewRequest,
+  ReadingChoice,
+  ReadingResult,
+  ReadingTarget,
   RecentProject,
   ReloadedFile,
   Route,
@@ -470,4 +473,27 @@ export function focusThisWindow(): Promise<void> {
 /** このウィンドウを閉じる。 */
 export function closeThisWindow(): Promise<void> {
   return getCurrentWindow().close();
+}
+
+// ---- 通読（縦書きビュー）とプレーンテキスト（T2-5、D056） ----
+
+/** 通読の道の候補（共通、ルート、エンディング）。 */
+export function readingChoices(): Promise<ReadingChoice[]> {
+  return invoke<ReadingChoice[]>("reading_choices");
+}
+
+/** 通読する。`persistent` は永続の変数の今の値。 */
+export function readRoute(
+  target: ReadingTarget,
+  persistent: PersistentValues,
+): Promise<ReadingResult> {
+  return invoke<ReadingResult>("read_route", { target, persistent });
+}
+
+/** 通読の道を `export/text/<道の名前>.txt` に書き出す。 */
+export function exportText(
+  target: ReadingTarget,
+  notes: boolean,
+): Promise<{ path: string }> {
+  return invoke<{ path: string }>("export_text", { target, notes });
 }

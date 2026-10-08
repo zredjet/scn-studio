@@ -608,3 +608,175 @@
   background: var(--accent);
   color: #ffffff;
 }
+
+/* ---- 縦書きビュー（T2-5、D056。docs/ui/mockups/06b-preview-vertical.html） ---- */
+
+.preview-view-switch {
+  margin-left: 8px;
+}
+
+.vertical-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.vertical-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.vertical-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 16px;
+  font-size: 12.5px;
+}
+
+.vertical-field {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.vertical-field select,
+.vertical-field input[type="number"] {
+  font: inherit;
+}
+
+.vertical-field input[type="number"] {
+  width: 56px;
+}
+
+.vertical-count {
+  color: var(--chrome-text-muted);
+}
+
+.vertical-error {
+  margin: 0 16px;
+  color: var(--preview-provisional-text);
+  font-size: 12.5px;
+}
+
+.vertical-stage {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 12px;
+  overflow: auto;
+}
+
+.vertical-page {
+  box-sizing: content-box;
+  width: calc(var(--v-lines, 16) * 1.9em);
+  height: calc(var(--v-chars, 40) * 1em);
+  padding: 28px 32px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.9;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+.v-line {
+  white-space: pre;
+}
+
+/* 空の行も1行ぶん空ける。 */
+.v-line:empty::before {
+  content: "\3000";
+}
+
+.v-line.heading {
+  padding-inline-start: 3em;
+  font-weight: 700;
+}
+
+.v-line.note {
+  color: var(--text-muted);
+  font-size: 0.85em;
+}
+
+.v-tcy {
+  -webkit-text-combine: horizontal;
+  text-combine-upright: all;
+}
+
+.v-dots {
+  -webkit-text-emphasis: filled sesame;
+  text-emphasis: filled sesame;
+}
+
+.vertical-page rt {
+  font-size: 0.5em;
+}
+
+.vertical-turn {
+  flex: none;
+  width: 32px;
+  height: 64px;
+  border: 1px solid var(--preview-line);
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--chrome-text);
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.vertical-turn:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.vertical-info {
+  margin: 0;
+  padding: 0 16px 10px;
+  color: var(--chrome-text-muted);
+  font-size: 12px;
+}
+
+.vertical-side {
+  display: flex;
+  flex: 0 0 260px;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 16px;
+  overflow: auto;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.vertical-side .preview-debug-heading {
+  padding: 14px 16px 0;
+}
+
+.vertical-scenes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0 12px;
+  list-style: none;
+}
+
+.vertical-scenes .small-button {
+  width: 100%;
+  text-align: left;
+}
+
+.vertical-side > .small-button {
+  align-self: flex-start;
+  margin: 8px 12px 0;
+}

@@ -1023,6 +1023,70 @@ fn export_orders() {
     let _ = fs::remove_dir_all(&dir);
 }
 
+/// `scn export text`：共通とルートごとに export/text/ に書く。`--route`・`--ending` で1つの道、`-o -` で標準出力。
+#[test]
+fn export_text() {
+    let dir = std::env::temp_dir().join(format!("scn-cli-text-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    copy_dir(&repo_root().join("samples/houkago"), &dir);
+    let out = scn(&["export", "text"], &dir);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    for name in ["共通のみ", "灯ルート", "紬ルート"] {
+        assert!(
+            dir.join(format!("export/text/{name}.txt")).exists(),
+            "{name}"
+        );
+    }
+    let akari = fs::read_to_string(dir.join("export/text/灯ルート.txt")).unwrap();
+    assert!(akari.starts_with("放課後の灯（灯ルート）\n"));
+    assert!(akari.contains("〔エンディング：akari_end〕"));
+    let piped = scn(&["export", "text", ".", "--route", "灯", "-o", "-"], &dir);
+    assert_eq!(piped.stdout, akari);
+    let bare = scn(
+        &[
+            "export",
+            "text",
+            ".",
+            "--ending",
+            "tsumugi_end",
+            "--no-notes",
+            "-o",
+            "-",
+        ],
+        &dir,
+    );
+    assert!(!bare.stdout.contains("〔選択"), "{}", bare.stdout);
+    // 指定した道が無い・着けないときは、知らせて書かずに2。
+    let bad = scn(&["export", "text", ".", "--ending", "bad_end"], &dir);
+    assert_eq!(bad.code, 2, "{}", bad.stderr);
+    assert!(bad.stderr.contains("bad_end"), "{}", bad.stderr);
+    assert!(
+        !dir.join("export/text/エンディング bad_end まで.txt")
+            .exists()
+    );
+    assert_eq!(
+        scn(&["export", "text", ".", "--route", "無い"], &dir).code,
+        2
+    );
+    // -o は1つの道だけ。
+    assert_eq!(scn(&["export", "text", ".", "-o", "x.txt"], &dir).code, 2);
+    let _ = fs::remove_dir_all(&dir);
+    // ルートの無い作品は、通しで書く。
+    let fresh = std::env::temp_dir().join(format!("scn-cli-text-new-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&fresh);
+    let parent = fresh.parent().unwrap().to_owned();
+    let made = scn(&["new", fresh.to_str().unwrap()], &parent);
+    assert_eq!(made.code, SUCCESS, "{}", made.stderr);
+    let out = scn(&["export", "text"], &fresh);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    assert!(
+        fresh.join("export/text/通し.txt").exists(),
+        "{}",
+        out.stdout
+    );
+    let _ = fs::remove_dir_all(&fresh);
+}
+
 /// `scn export renpy`：書き出し先（既定はプロファイルの output）の game/scn/ を作り、書き出し先とファイルの
 /// 数を出す。知らせとプロファイルの誤りは標準エラー。終了コードはエラーの診断で決まる。
 #[test]

@@ -693,6 +693,64 @@ fn take_preview_request(state: State<'_, AppState>) -> Result<Response, String> 
     json_response(&request.unwrap_or(Value::Null))
 }
 
+// ---- 通読（縦書きビュー）とプレーンテキスト（T2-5、D056） ----
+
+/// 通読の道の候補（共通、ルート、エンディング）。
+#[tauri::command]
+fn reading_choices(state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let project = open_workspace(&mut guard)?.project();
+    let choices = with_ir(project, |ir| {
+        to_json(&route::reading_choices(ir), "通読の道の候補")
+    })?;
+    json_response(&choices)
+}
+
+/// 通読する（保存していない本文も含む）。`persistent` は、永続の変数の今の値。
+#[tauri::command]
+fn read_route(
+    target: route::ReadingTarget,
+    persistent: Option<route::Variables>,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let project = open_workspace(&mut guard)?.project();
+    let persistent = persistent.unwrap_or_default();
+    let reading = with_ir(project, |ir| {
+        let reading = route::read(project, ir, &target, &persistent);
+        let label = route::target_label(ir, &target);
+        Ok(json!({
+            "label": label,
+            "reading": to_json(&reading, "通読")?,
+        }))
+    })?;
+    json_response(&reading)
+}
+
+/// 通読の道を、作品フォルダの `export/text/<道の名前>.txt` に書き出す（`scn export text` と同じ）。
+#[tauri::command]
+fn export_text(
+    target: route::ReadingTarget,
+    notes: bool,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let (project, root) = (workspace.project(), workspace.root());
+    let (label, text, message) = with_ir(project, |ir| {
+        let reading = route::read(project, ir, &target, &route::Variables::new());
+        let label = route::target_label(ir, &target);
+        let text = scn_core::plaintext::plain_text(project, &reading, &label, notes);
+        Ok((label, text, reading.message))
+    })?;
+    if let Some(message) = message {
+        return Err(format!("{label}：{message}"));
+    }
+    let path =
+        scn_core::plaintext::write_plain_text(root, &label, &text).map_err(|e| e.to_string())?;
+    json_response(&json!({ "path": path.display().to_string() }))
+}
+
 // ---- 素材カタログ（T2-3、D054） ----
 
 /// 素材の一覧（保存していない本文も含めて数える）。
@@ -1164,6 +1222,9 @@ pub fn run() {
             asset_list,
             route_at,
             route_to_scene,
+            reading_choices,
+            read_route,
+            export_text,
             open_preview_window,
             take_preview_request,
             add_catalog_entries,

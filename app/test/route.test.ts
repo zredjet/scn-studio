@@ -8,6 +8,7 @@ import { test } from "node:test";
 import type { PreviewData } from "../src/core/ir.ts";
 import type { RouteStep } from "../src/core/types.ts";
 import {
+  choose,
   next,
   type Program,
   program,
@@ -15,6 +16,7 @@ import {
   replay,
   resumeAt,
   start,
+  stepsFromLog,
   stopLocation,
 } from "../src/preview/runtime.ts";
 
@@ -136,4 +138,27 @@ test("今の行IDから続ける：同じ行で止まり、変数と舞台は今
   // 今の行は実行し直すが、バックログに2つ並べない。
   assert.equal(resumed.log.length, state.log.length);
   assert.equal(resumeAt(prog, state, "zzzz"), null);
+});
+
+test("ADV で選んだ選択肢の順を、バックログから作る（縦書きビューの「プレビューで選んだ道」）", () => {
+  const prog = programOf(
+    JSON.parse(snapshot("preview__houkago")) as PreviewData,
+  );
+  let state = start(prog, { includeAiDrafts: true });
+  const picks = [1, 0];
+  for (let n = 0; n < 200 && picks.length > 0; n++) {
+    if (state.stop.kind === "choice") {
+      state = choose(prog, state, picks.shift() ?? 0);
+    } else {
+      state = next(prog, state);
+    }
+  }
+  const steps = stepsFromLog(prog, state.log);
+  assert.deepEqual(
+    steps.map((s) => [s.scene, s.option]),
+    [
+      ["s011", 1],
+      ["s012", 0],
+    ],
+  );
 });

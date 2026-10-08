@@ -19,7 +19,7 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use serde::{Deserialize, Serialize};
 
 use crate::Span;
-use crate::ir::{Ir, IrExpr, IrOption, Op};
+use crate::ir::{Ir, IrExpr, IrInline, IrOption, Op};
 use crate::preview::initial_value;
 use crate::project::{Project, VarType};
 
@@ -129,7 +129,7 @@ fn fits(ty: Option<&VarType>, value: &Value) -> bool {
 }
 
 /// 道で選んだ選択肢。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RouteStep {
     /// 選択肢のあるシーン。
     pub scene: String,
@@ -415,6 +415,27 @@ impl<'a> Searcher<'a> {
             .map(|v| &v.ty)
     }
 
+    /// `@設定`：誤りなら書かない。宣言の型に合わない値も書かない。
+    fn set(&self, vars: &mut Variables, var: &str, op: &str, value: &IrExpr) {
+        let new = evaluate(value, vars).and_then(|v| match (op, v) {
+            ("=", v) => Some(v),
+            ("+=", Value::Int(d)) => match vars.get(var) {
+                Some(Value::Int(c)) => c.checked_add(d).map(Value::Int),
+                _ => None,
+            },
+            ("-=", Value::Int(d)) => match vars.get(var) {
+                Some(Value::Int(c)) => c.checked_sub(d).map(Value::Int),
+                _ => None,
+            },
+            _ => None,
+        });
+        if let Some(new) = new
+            && fits(self.declared(var), &new)
+        {
+            vars.insert(var.to_owned(), new);
+        }
+    }
+
     /// 選択肢か目的の命令に着くまで実行する。
     fn run(&self, mut m: Machine<'a>) -> Outcome<'a> {
         for _ in 0..MAX_STEPS {
@@ -441,25 +462,7 @@ impl<'a> Searcher<'a> {
             }
             top.index += 1;
             match op {
-                Op::Set { var, op, value, .. } => {
-                    let new = evaluate(value, &m.vars).and_then(|v| match (*op, v) {
-                        ("=", v) => Some(v),
-                        ("+=", Value::Int(d)) => match m.vars.get(var) {
-                            Some(Value::Int(c)) => c.checked_add(d).map(Value::Int),
-                            _ => None,
-                        },
-                        ("-=", Value::Int(d)) => match m.vars.get(var) {
-                            Some(Value::Int(c)) => c.checked_sub(d).map(Value::Int),
-                            _ => None,
-                        },
-                        _ => None,
-                    });
-                    if let Some(new) = new
-                        && fits(self.declared(var), &new)
-                    {
-                        m.vars.insert(var.clone(), new);
-                    }
-                }
+                Op::Set { var, op, value, .. } => self.set(&mut m.vars, var, op, value),
                 Op::Choice { span, options, .. } => {
                     let any = options
                         .iter()
@@ -628,4 +631,565 @@ pub fn route_at(
 ) -> Option<Route> {
     let target = target_at(project, ir, file, offset)?;
     Some(route_to(project, ir, &target, persistent))
+}
+
+// ---- 通読（T2-5、D056） ----
+
+/// 通読する道。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ReadingTarget {
+    /// 開始シーンのルート（共通）だけ：ほかのルートのシーンに入る手前まで（選択肢は前のものを選ぶ）。
+    /// 開始シーンにルートが無ければ、通し（終わりまで）。
+    Common,
+    /// ルート：そのルートの、着ける最初のエンディング（本文の順）までの最短経路で（どれにも着けなければ、
+    /// そのルートの最初のシーンまで）。
+    Route { name: String },
+    /// エンディング：そのエンディングまでの最短経路で。
+    Ending { id: String },
+    /// 選んだ選択肢の順（プレビューで選んだ道）。合わない道は読み飛ばし、使い切ったら選べる最初の選択肢を選ぶ。
+    Steps { steps: Vec<RouteStep> },
+}
+
+/// 通読の道の候補（画面の選択肢）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ReadingChoice {
+    pub label: String,
+    pub target: ReadingTarget,
+}
+
+/// 通読の選択肢の、ひとつの項目。
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ReadingOption {
+    pub text: Vec<IrInline>,
+    pub enabled: bool,
+}
+
+/// 通読の本文の並び。文中の記法は IR のまま（変数の埋め込みは、値が決まればその値の文字にする）。
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ReadingItem {
+    /// シーンに入った（`@戻る` で呼び出し元へ戻ったときは出さない）。
+    Scene {
+        id: String,
+        title: String,
+        route: Option<String>,
+        file: String,
+        span: Span,
+    },
+    Say {
+        file: String,
+        span: Span,
+        line_id: Option<String>,
+        speaker: String,
+        style: String,
+        text: Vec<IrInline>,
+    },
+    Narrate {
+        file: String,
+        span: Span,
+        line_id: Option<String>,
+        text: Vec<IrInline>,
+    },
+    /// 段落の区切り。
+    Break,
+    /// 選んだ選択肢。
+    Choice {
+        file: String,
+        span: Span,
+        prompt: Option<Vec<IrInline>>,
+        options: Vec<ReadingOption>,
+        chosen: usize,
+    },
+    Ending {
+        id: Option<String>,
+    },
+}
+
+/// 通読の結果。
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Reading {
+    pub target: ReadingTarget,
+    pub items: Vec<ReadingItem>,
+    /// 止まった理由：`ending`・`dead_end`（行き止まり、無いシーン、選べる選択肢が無い）・`route_changed`
+    /// （共通だけで、ほかのルートに入る）・`limit`（長すぎる、循環）・`unreachable`（道が無い）。
+    pub stop: &'static str,
+    /// 知らせ（道が無い理由など）。
+    pub message: Option<String>,
+}
+
+/// 通読の項目の数の上限。
+const MAX_ITEMS: usize = 100_000;
+
+/// 変数の埋め込みを、値が決まればその値の文字にする（プレビューと同じ見せ方）。
+fn resolved(text: &[IrInline], vars: &Variables) -> Vec<IrInline> {
+    text.iter()
+        .map(|inline| match inline {
+            IrInline::Interpolation {
+                expr: Some(expr), ..
+            } => match evaluate(expr, vars) {
+                Some(Value::Bool(b)) => IrInline::Text {
+                    text: b.to_string(),
+                },
+                Some(Value::Int(n)) => IrInline::Text {
+                    text: n.to_string(),
+                },
+                Some(Value::Str(s)) => IrInline::Text { text: s },
+                None => inline.clone(),
+            },
+            _ => inline.clone(),
+        })
+        .collect()
+}
+
+/// 通読の道の名前（画面の選択肢、プレーンテキストの見出しとファイル名）。
+pub fn target_label(ir: &Ir, target: &ReadingTarget) -> String {
+    match target {
+        ReadingTarget::Common => match start_scene(ir).and_then(|s| s.meta.route.as_deref()) {
+            Some(route) => format!("{route}のみ"),
+            // ルートの無い作品は、選べる最初の選択肢で通しで読む。
+            None => "通し".to_owned(),
+        },
+        ReadingTarget::Route { name } => format!("{name}ルート"),
+        ReadingTarget::Ending { id } => format!("エンディング {id} まで"),
+        ReadingTarget::Steps { .. } => "選んだ道".to_owned(),
+    }
+}
+
+/// 通読の道の候補：共通（開始シーンのルート）、ほかのルート、エンディング（本文の順）。
+pub fn reading_choices(ir: &Ir) -> Vec<ReadingChoice> {
+    let mut out = Vec::new();
+    let start_route = start_scene(ir).and_then(|s| s.meta.route.clone());
+    let mut push = |target: ReadingTarget| {
+        out.push(ReadingChoice {
+            label: target_label(ir, &target),
+            target,
+        });
+    };
+    if !ir.scenes.is_empty() {
+        push(ReadingTarget::Common);
+    }
+    let mut routes: Vec<&str> = Vec::new();
+    for scene in &ir.scenes {
+        if let Some(route) = scene.meta.route.as_deref()
+            && Some(route) != start_route.as_deref()
+            && !routes.contains(&route)
+        {
+            routes.push(route);
+        }
+    }
+    for route in routes {
+        push(ReadingTarget::Route {
+            name: route.to_owned(),
+        });
+    }
+    let mut endings: Vec<String> = Vec::new();
+    for scene in &ir.scenes {
+        collect_endings(&scene.ops, &mut endings);
+    }
+    for id in endings {
+        push(ReadingTarget::Ending { id });
+    }
+    out
+}
+
+fn collect_endings(ops: &[Op], out: &mut Vec<String>) {
+    for op in ops {
+        match op {
+            Op::Ending { id: Some(id), .. } if !out.contains(id) => out.push(id.clone()),
+            Op::Choice { options, .. } => {
+                for option in options {
+                    collect_endings(&option.body, out);
+                }
+            }
+            Op::If {
+                branches,
+                else_body,
+                ..
+            } => {
+                for branch in branches {
+                    collect_endings(&branch.body, out);
+                }
+                if let Some(body) = else_body {
+                    collect_endings(body, out);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn start_scene(ir: &Ir) -> Option<&crate::ir::IrScene> {
+    ir.start_scene
+        .as_deref()
+        .and_then(|s| ir.scenes.iter().find(|x| x.id == s))
+        .or_else(|| ir.scenes.first())
+}
+
+/// 命令の木の中の、条件に合う最初の命令（文書の順）。
+fn find_op<'a>(ops: &'a [Op], pred: &dyn Fn(&Op) -> bool) -> Option<&'a Op> {
+    for op in ops {
+        if pred(op) {
+            return Some(op);
+        }
+        let found = match op {
+            Op::Choice { options, .. } => options.iter().find_map(|o| find_op(&o.body, pred)),
+            Op::If {
+                branches,
+                else_body,
+                ..
+            } => branches
+                .iter()
+                .find_map(|b| find_op(&b.body, pred))
+                .or_else(|| else_body.as_deref().and_then(|b| find_op(b, pred))),
+            _ => None,
+        };
+        if found.is_some() {
+            return found;
+        }
+    }
+    None
+}
+
+/// 道の行き先の候補（前から順に試す）。ルートなら、そのルートのエンディング（本文の順）と、そのルートの最初の
+/// シーンの最初の命令。エンディングなら、そのエンディング。
+fn reading_goals(ir: &Ir, target: &ReadingTarget) -> Vec<RouteTarget> {
+    let to = |scene: &crate::ir::IrScene, op: &Op| RouteTarget {
+        scene: scene.id.clone(),
+        file: scene.file.clone(),
+        span: op.span(),
+        line_id: line_id_of(op),
+    };
+    match target {
+        ReadingTarget::Route { name } => {
+            let mine: Vec<&crate::ir::IrScene> = ir
+                .scenes
+                .iter()
+                .filter(|s| s.meta.route.as_deref() == Some(name.as_str()))
+                .collect();
+            let mut goals = Vec::new();
+            for scene in &mine {
+                let mut endings = Vec::new();
+                collect_ending_ops(&scene.ops, &mut endings);
+                goals.extend(endings.into_iter().map(|op| to(scene, op)));
+            }
+            if let Some((scene, op)) = mine.first().and_then(|s| s.ops.first().map(|op| (s, op))) {
+                goals.push(to(scene, op));
+            }
+            goals
+        }
+        ReadingTarget::Ending { id } => ir
+            .scenes
+            .iter()
+            .find_map(|s| {
+                find_op(
+                    &s.ops,
+                    &|op| matches!(op, Op::Ending { id: Some(x), .. } if x == id),
+                )
+                .map(|op| to(s, op))
+            })
+            .into_iter()
+            .collect(),
+        ReadingTarget::Common | ReadingTarget::Steps { .. } => Vec::new(),
+    }
+}
+
+/// 命令の木の中のエンディング（本文の順）。
+fn collect_ending_ops<'a>(ops: &'a [Op], out: &mut Vec<&'a Op>) {
+    for op in ops {
+        match op {
+            Op::Ending { .. } => out.push(op),
+            Op::Choice { options, .. } => {
+                for option in options {
+                    collect_ending_ops(&option.body, out);
+                }
+            }
+            Op::If {
+                branches,
+                else_body,
+                ..
+            } => {
+                for branch in branches {
+                    collect_ending_ops(&branch.body, out);
+                }
+                if let Some(body) = else_body {
+                    collect_ending_ops(body, out);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// 通読する：道（選択肢の順）に沿って本文を実行し、台詞・地の文・選んだ選択肢・シーンの見出しを並べる。
+/// 道を使い切ったら、選べる最初の選択肢を選ぶ。エンディング・行き止まりで止まる。
+pub fn read(project: &Project, ir: &Ir, target: &ReadingTarget, persistent: &Variables) -> Reading {
+    let unreachable = |message: String| Reading {
+        target: target.clone(),
+        items: Vec::new(),
+        stop: "unreachable",
+        message: Some(message),
+    };
+    let steps = match target {
+        ReadingTarget::Steps { steps } => steps.clone(),
+        ReadingTarget::Common => Vec::new(),
+        ReadingTarget::Route { .. } | ReadingTarget::Ending { .. } => {
+            let goals = reading_goals(ir, target);
+            if goals.is_empty() {
+                return unreachable(match target {
+                    ReadingTarget::Ending { id } => format!("エンディング {id} がありません"),
+                    _ => format!("{}のシーンがありません", target_label(ir, target)),
+                });
+            }
+            // 着ける最初の行き先（ルートの最初のエンディングに着けなければ、次のエンディング）。
+            let mut last = None;
+            let mut found = None;
+            for goal in &goals {
+                let route = route_to(project, ir, goal, persistent);
+                if route.reachable {
+                    found = Some(route.steps);
+                    break;
+                }
+                last = route.message;
+            }
+            match found {
+                Some(steps) => steps,
+                None => return unreachable(last.unwrap_or_default()),
+            }
+        }
+    };
+    let Some(start) = start_scene(ir) else {
+        return unreachable("シーンがありません".to_owned());
+    };
+    let common = matches!(target, ReadingTarget::Common).then(|| start.meta.route.clone());
+    // 目的の命令では止まらない（通読は、エンディングか行き止まりまで）。
+    let never = RouteTarget {
+        scene: String::new(),
+        file: String::new(),
+        span: Span::default(),
+        line_id: None,
+    };
+    let searcher = Searcher {
+        ir,
+        project,
+        target: &never,
+    };
+    let mut reader = Reader {
+        searcher: &searcher,
+        items: Vec::new(),
+        file: String::new(),
+        steps: steps.into_iter().collect(),
+        common: common.flatten(),
+    };
+    let stop = reader.run(start, persistent);
+    Reading {
+        target: target.clone(),
+        items: reader.items,
+        stop,
+        message: None,
+    }
+}
+
+struct Reader<'s, 'a> {
+    searcher: &'s Searcher<'a>,
+    items: Vec<ReadingItem>,
+    /// 今のシーンのファイル。
+    file: String,
+    steps: VecDeque<RouteStep>,
+    /// 共通だけを読むとき、開始シーンのルート。
+    common: Option<String>,
+}
+
+impl<'a> Reader<'_, 'a> {
+    /// シーンに入る。入れなければ（無いシーン、共通だけでほかのルート）止まる理由。
+    /// シーンに入る。`heading` なら見出しを出す（`@呼出` で呼ばれたシーンは、呼び出し元の本文に挟まるので
+    /// 出さない）。入れなければ（無いシーン、共通だけでほかのルート）止まる理由。
+    fn enter(
+        &mut self,
+        m: &mut Machine<'a>,
+        scene: &str,
+        heading: bool,
+    ) -> Result<(), &'static str> {
+        let Some(s) = self.searcher.ir.scenes.iter().find(|s| s.id == scene) else {
+            return Err("dead_end");
+        };
+        if let Some(common) = &self.common
+            && s.meta.route.as_ref().is_some_and(|r| r != common)
+        {
+            return Err("route_changed");
+        }
+        self.searcher.enter(m, scene);
+        self.file.clone_from(&s.file);
+        if heading {
+            self.items.push(ReadingItem::Scene {
+                id: s.id.clone(),
+                title: s.title.clone(),
+                route: s.meta.route.clone(),
+                file: s.file.clone(),
+                span: s.span,
+            });
+        }
+        Ok(())
+    }
+
+    fn run(&mut self, start: &'a crate::ir::IrScene, persistent: &Variables) -> &'static str {
+        let mut m = Machine {
+            scene: "",
+            frames: Vec::new(),
+            calls: Vec::new(),
+            vars: initial_variables(self.searcher.project, persistent),
+            steps: Vec::new(),
+        };
+        if let Err(stop) = self.enter(&mut m, &start.id, true) {
+            return stop;
+        }
+        for _ in 0..MAX_STEPS * 10 {
+            if self.items.len() > MAX_ITEMS {
+                return "limit";
+            }
+            let file = self.file.clone();
+            let Some(top) = m.frames.last_mut() else {
+                return "dead_end";
+            };
+            let Some(op) = top.ops.get(top.index) else {
+                let after = top.after;
+                m.frames.pop();
+                if let Some(target) = after {
+                    if let Err(stop) = self.enter(&mut m, target, true) {
+                        return stop;
+                    }
+                    continue;
+                }
+                if m.frames.is_empty() {
+                    return "dead_end";
+                }
+                continue;
+            };
+            top.index += 1;
+            match op {
+                Op::Say {
+                    span,
+                    line_id,
+                    speaker,
+                    style,
+                    text,
+                    ..
+                } => self.items.push(ReadingItem::Say {
+                    file,
+                    span: *span,
+                    line_id: line_id.clone(),
+                    speaker: speaker.clone(),
+                    style: style.clone(),
+                    text: resolved(text, &m.vars),
+                }),
+                Op::Narrate {
+                    span,
+                    line_id,
+                    text,
+                } => self.items.push(ReadingItem::Narrate {
+                    file,
+                    span: *span,
+                    line_id: line_id.clone(),
+                    text: resolved(text, &m.vars),
+                }),
+                Op::Break { .. } => self.items.push(ReadingItem::Break),
+                Op::Set { var, op, value, .. } => self.searcher.set(&mut m.vars, var, op, value),
+                Op::Choice {
+                    span,
+                    prompt,
+                    options,
+                    ..
+                } => {
+                    let enabled: Vec<bool> = options
+                        .iter()
+                        .map(|o| o.cond_text.is_none() || condition(o.cond.as_ref(), &m.vars))
+                        .collect();
+                    // 道の選択肢：残りの道のうち、この選択肢のものを探し、その前の合わない道は捨てる（ADV の
+                    // デバッグで飛んだ、本文が変わったなどで、道がずれたとき）。無ければ、選べる最初の選択肢。
+                    let at = self
+                        .steps
+                        .iter()
+                        .position(|s| s.scene == m.scene && s.choice == *span);
+                    let planned = at
+                        .and_then(|at| self.steps.get(at))
+                        .map(|s| s.option)
+                        .filter(|i| enabled.get(*i).copied().unwrap_or(false));
+                    if let (Some(at), Some(_)) = (at, planned) {
+                        self.steps.drain(..=at);
+                    }
+                    let Some(chosen) = planned.or_else(|| enabled.iter().position(|e| *e)) else {
+                        return "dead_end";
+                    };
+                    let Some(option) = options.get(chosen) else {
+                        return "dead_end";
+                    };
+                    self.items.push(ReadingItem::Choice {
+                        file,
+                        span: *span,
+                        prompt: prompt.as_ref().map(|p| resolved(p, &m.vars)),
+                        options: options
+                            .iter()
+                            .zip(&enabled)
+                            .map(|(o, e)| ReadingOption {
+                                text: resolved(&o.text, &m.vars),
+                                enabled: *e,
+                            })
+                            .collect(),
+                        chosen,
+                    });
+                    m.frames.push(Frame {
+                        ops: &option.body,
+                        index: 0,
+                        after: option.jump.as_deref(),
+                    });
+                }
+                Op::If {
+                    branches,
+                    else_body,
+                    ..
+                } => {
+                    let body = branches
+                        .iter()
+                        .find(|b| condition(b.cond.as_ref(), &m.vars))
+                        .map(|b| b.body.as_slice())
+                        .or(else_body.as_deref());
+                    if let Some(body) = body {
+                        m.frames.push(Frame {
+                            ops: body,
+                            index: 0,
+                            after: None,
+                        });
+                    }
+                }
+                Op::Jump { target, .. } => {
+                    if let Err(stop) = self.enter(&mut m, target, true) {
+                        return stop;
+                    }
+                }
+                Op::Call { target, .. } => {
+                    let caller = (m.scene, m.frames.clone());
+                    m.calls.push(caller);
+                    if let Err(stop) = self.enter(&mut m, target, false) {
+                        return stop;
+                    }
+                }
+                Op::Return { .. } => match m.calls.pop() {
+                    Some((scene, frames)) => {
+                        m.scene = scene;
+                        m.frames = frames;
+                        if let Some(s) = self.searcher.ir.scenes.iter().find(|s| s.id == scene) {
+                            self.file.clone_from(&s.file);
+                        }
+                    }
+                    None => return "dead_end",
+                },
+                Op::Ending { id, .. } => {
+                    self.items.push(ReadingItem::Ending { id: id.clone() });
+                    return "ending";
+                }
+                _ => {}
+            }
+        }
+        "limit"
+    }
 }

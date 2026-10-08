@@ -34,3 +34,4 @@ packages/lezer-scn/src/parser.terms.ts
 samples/*/export/script.csv
 samples/*/export/orders.csv
 samples/*/export/renpy/
+samples/*/export/text/

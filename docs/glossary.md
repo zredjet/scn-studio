@@ -140,6 +140,11 @@
 | 出力プロファイル | export profile | `export/*.yaml`（Ren'Py は `export/renpy.yaml`、`RenpyProfile`） |
 | Ren'Py への書き出し | Ren'Py export | `scn export renpy`。書き出し先の `game/scn/` を作り直す（`renpy::export_renpy`） |
 | 書き出し先 | output | 書き出すフォルダ（Ren'Py は既定で `export/renpy`） |
+| 通読 | reading | 道を一本道にした本文の並び（`route::read`）。縦書きビューとプレーンテキストに使う |
+| 道（通読の） | reading target | 共通のみ・ルート・エンディング・選んだ道（`route::ReadingTarget`） |
+| 縦書きビュー | vertical view | プレビューの縦書きの表示（`preview/VerticalView.tsx`、組み方は `vertical.ts`） |
+| プレーンテキスト | plain text | 通読用のテキスト（`export/text/`。`scn export text`、`plaintext`） |
+| 原稿用紙換算 | manuscript sheets | 本文を20字×20行で数えた枚数 |
 | 台本 | script sheet | 収録・校正用の表（`export/script.csv`。`scn export script`） |
 | ボイスファイル名 | voice file name | `キャラID_行ID`（拡張子なし） |
 | 直前の地の文 | preceding narration | 台本の列。同じシーンで、その台詞より前のいちばん近い地の文 |

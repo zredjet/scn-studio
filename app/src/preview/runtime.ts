@@ -964,3 +964,49 @@ export function resumeAt(
   }
   return null;
 }
+
+/**
+ * バックログの選んだ選択肢から、道（選択肢の順）を作る（縦書きビューの「プレビューで選んだ道」。T2-5）。
+ * 選択肢の行の位置で、その `@選択` と何番目かを探す。
+ */
+export function stepsFromLog(
+  prog: Program,
+  log: readonly LogEntry[],
+): RouteStep[] {
+  const find = (
+    ops: readonly Op[],
+    span: IrSpan,
+  ): { choice: IrSpan; option: number } | null => {
+    for (const op of ops) {
+      if (op.kind === "choice") {
+        const index = op.options.findIndex(
+          (o) => o.span[0] === span[0] && o.span[1] === span[1],
+        );
+        if (index !== -1) return { choice: op.span, option: index };
+        for (const o of op.options) {
+          const inner = find(o.body, span);
+          if (inner !== null) return inner;
+        }
+      }
+      if (op.kind === "if") {
+        for (const b of op.branches) {
+          const inner = find(b.body, span);
+          if (inner !== null) return inner;
+        }
+        if (op.else !== null) {
+          const inner = find(op.else, span);
+          if (inner !== null) return inner;
+        }
+      }
+    }
+    return null;
+  };
+  const steps: RouteStep[] = [];
+  for (const entry of log) {
+    if (!entry.chosen) continue;
+    const scene = prog.scenes.get(entry.scene);
+    const found = scene === undefined ? null : find(scene.ops, entry.span);
+    if (found !== null) steps.push({ scene: entry.scene, ...found });
+  }
+  return steps;
+}

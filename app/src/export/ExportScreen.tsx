@@ -1,12 +1,18 @@
 // 出力の画面（T1-12、D051）：台本（収録と校正の表）を CSV で書き出す。書き出す前に、中身を表で見られる。
 // 書き出し先は作品フォルダの `export/script.csv`（CLI の `scn export script` と同じ）。
 // Ren'Py への書き出し（T2-2、D053）は、出力プロファイル（export/renpy.yaml）に従って、書き出し先の
-// game/scn/ を作り直す（CLI の `scn export renpy` と同じ）。
+// game/scn/ を作り直す（CLI の `scn export renpy` と同じ）。プレーンテキスト（T2-5、D056）は、道（共通、ルート、
+// エンディング）を選んで export/text/ に書く（CLI の `scn export text` と同じ）。
 
 import { useEffect, useState } from "react";
 import { keyed } from "../bible/fields.ts";
 import type { RenpyResult } from "../core/api.ts";
-import type { ScriptSheet, Summary } from "../core/types.ts";
+import type {
+  ReadingChoice,
+  ReadingTarget,
+  ScriptSheet,
+  Summary,
+} from "../core/types.ts";
 
 interface Props {
   /** 本文が変わったら、台本を取り直す。 */
@@ -21,6 +27,121 @@ interface Props {
   }>;
   /** Ren'Py へ書き出す。 */
   readonly writeRenpy: () => Promise<RenpyResult>;
+  /** 通読の道の候補。 */
+  readonly loadChoices: () => Promise<ReadingChoice[]>;
+  /** プレーンテキストを書き出す。 */
+  readonly writeText: (
+    target: ReadingTarget,
+    notes: boolean,
+  ) => Promise<{ readonly path: string }>;
+}
+
+/** プレーンテキストの書き出し（ルート単位の通読用。ルビはなろう・カクヨム記法）。 */
+function TextCard({
+  summary,
+  loadChoices,
+  writeText,
+}: {
+  readonly summary: Summary;
+  readonly loadChoices: () => Promise<ReadingChoice[]>;
+  readonly writeText: (
+    target: ReadingTarget,
+    notes: boolean,
+  ) => Promise<{ readonly path: string }>;
+}) {
+  const [choices, setChoices] = useState<readonly ReadingChoice[]>([]);
+  const [selected, setSelected] = useState(0);
+  const [notes, setNotes] = useState(true);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    void summary;
+    let live = true;
+    loadChoices()
+      .then((c) => {
+        if (live) setChoices(c);
+      })
+      .catch((e: unknown) => {
+        if (live) setError(String(e));
+      });
+    return () => {
+      live = false;
+    };
+  }, [summary, loadChoices]);
+  const index = Math.max(0, Math.min(selected, choices.length - 1));
+  const choice = choices[index];
+  return (
+    <section className="export-card" aria-label="プレーンテキスト">
+      <div className="export-card-head">
+        <div>
+          <h2>プレーンテキスト</h2>
+          <p className="export-note">
+            道を一本道にした通読用のテキスト。話者名は書かず、台詞は括弧で囲みます。ルビは
+            ｜親文字《読み》、傍点は《《傍点》》（なろう・カクヨムの記法）。UTF-8・LF
+            で書きます。書き出し先：export/text/（道の名前）.txt
+          </p>
+        </div>
+        <button
+          type="button"
+          className="primary-small"
+          disabled={busy || choice === undefined}
+          onClick={() => {
+            if (choice === undefined) return;
+            setBusy(true);
+            writeText(choice.target, notes)
+              .then((r) => {
+                setNotice(`${r.path} に書き出しました`);
+                setError(null);
+              })
+              .catch((e: unknown) => setError(String(e)))
+              .finally(() => setBusy(false));
+          }}
+        >
+          書き出す
+        </button>
+      </div>
+      <div className="export-options">
+        <label>
+          道
+          <select
+            value={index}
+            onChange={(event) => setSelected(Number(event.target.value))}
+          >
+            {choices.map((c, i) => (
+              <option key={c.label} value={i}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={notes}
+            onChange={(event) => setNotes(event.target.checked)}
+          />
+          選んだ選択肢とエンディングを注記する（〔選択：…〕）
+        </label>
+      </div>
+      {choices.length === 0 && (
+        <p className="export-warning">
+          道がありません（シーンのメタ情報に route
+          を書くと、ルートごとに書き出せます）。
+        </p>
+      )}
+      {notice !== null && (
+        <p className="export-notice" role="status">
+          {notice}
+        </p>
+      )}
+      {error !== null && (
+        <p className="export-error" role="alert">
+          {error}
+        </p>
+      )}
+    </section>
+  );
 }
 
 const COLUMNS = [
@@ -122,6 +243,8 @@ export function ExportScreen({
   load,
   write,
   writeRenpy,
+  loadChoices,
+  writeText,
 }: Props) {
   const [sheet, setSheet] = useState<ScriptSheet | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -153,6 +276,11 @@ export function ExportScreen({
         <span className="flow-spacer" />
       </header>
       <RenpyCard unsaved={unsaved} writeRenpy={writeRenpy} />
+      <TextCard
+        summary={summary}
+        loadChoices={loadChoices}
+        writeText={writeText}
+      />
       <section className="export-card" aria-label="台本">
         <div className="export-card-head">
           <div>

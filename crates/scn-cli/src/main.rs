@@ -14,6 +14,8 @@
 //! - `scn export script [project-dir] [-o file]`：台本を CSV で書き出す（D051）。
 //! - `scn export renpy [project-dir] [-o dir]`：Ren'Py のスクリプトを書き出す（D053）。
 //! - `scn export orders [project-dir] [-o file]`：発注リストを CSV で書き出す（D054）。
+//! - `scn export text [project-dir] [--route 名前 | --ending ID] [--no-notes] [-o file]`：ルート単位の通読用の
+//!   テキストを書き出す（D056）。
 //! - `scn fmt <project-dir> [--check] [--json]`：行IDの無い行に行IDを付ける（仕様書9節、D041）。
 //!   付けた行IDを `ファイル:行:列 ^ID` の形で出す。`--check` では書き換えず、付ける行があれば1で終わる。
 //!   `project.toml` の `format_version` か `[dialogue]` を読めなければ、台詞の括弧を書かれたとおりに読めないので、
@@ -144,6 +146,26 @@ enum ExportCommand {
         #[arg(long, short)]
         output: Option<PathBuf>,
     },
+    /// ルート単位の通読用のテキスト（ルビはなろう・カクヨム記法）を書き出す。`--route` も `--ending` も無ければ、
+    /// 共通（ルートの無い作品は通し）とすべてのルートを export/text/ に書く
+    Text {
+        /// プロジェクトのフォルダ（project.toml のあるところ）。省くと今のフォルダ
+        #[arg(default_value = ".")]
+        project: PathBuf,
+        /// ルートの名前（シーンのメタ情報の route）
+        #[arg(long, conflicts_with = "ending")]
+        route: Option<String>,
+        /// エンディングのID（そこまでの最短経路で読む）
+        #[arg(long)]
+        ending: Option<String>,
+        /// 選んだ選択肢とエンディングの注記（〔選択：…〕）を書かない
+        #[arg(long)]
+        no_notes: bool,
+        /// 書き出すファイル（`--route` か `--ending` で1つの道を選んだときだけ使える）。省くと
+        /// export/text/<道の名前>.txt。`-` なら標準出力
+        #[arg(long, short)]
+        output: Option<PathBuf>,
+    },
     /// Ren'Py のスクリプトを、出力プロファイル（export/renpy.yaml）に従って書き出す。書き出し先の
     /// game/scn/ を作り直す
     Renpy {
@@ -236,6 +258,22 @@ fn run(command: Command) -> Result<u8, CliError> {
         Command::Export {
             what: ExportCommand::Orders { project, output },
         } => run_export_orders(&project, output.as_deref()),
+        Command::Export {
+            what:
+                ExportCommand::Text {
+                    project,
+                    route,
+                    ending,
+                    no_notes,
+                    output,
+                },
+        } => run_export_text(
+            &project,
+            route.as_deref(),
+            ending.as_deref(),
+            !no_notes,
+            output.as_deref(),
+        ),
     }
 }
 
@@ -568,6 +606,79 @@ fn run_export_orders(dir: &Path, output: Option<&Path>) -> Result<u8, CliError> 
         ),
         code,
     )
+}
+
+fn run_export_text(
+    dir: &Path,
+    route: Option<&str>,
+    ending: Option<&str>,
+    notes: bool,
+    output: Option<&Path>,
+) -> Result<u8, CliError> {
+    use scn_core::plaintext::{plain_text, write_plain_text};
+    use scn_core::route::{ReadingTarget, Variables, read, reading_choices, target_label};
+    let project = load_project(dir).map_err(CliError::Project)?;
+    let ir = analyze(&project);
+    let code = exit_code(&ir.diagnostics);
+    let targets: Vec<ReadingTarget> = match (route, ending) {
+        (Some(name), _) => vec![ReadingTarget::Route {
+            name: name.to_owned(),
+        }],
+        (None, Some(id)) => vec![ReadingTarget::Ending { id: id.to_owned() }],
+        (None, None) => reading_choices(&ir)
+            .into_iter()
+            .map(|c| c.target)
+            .filter(|t| !matches!(t, ReadingTarget::Ending { .. }))
+            .collect(),
+    };
+    if targets.is_empty() {
+        return Err(CliError::Refused("シーンがありません".to_owned()));
+    }
+    let single = route.is_some() || ending.is_some();
+    if output.is_some() && targets.len() > 1 {
+        return Err(CliError::Refused(
+            "-o は --route か --ending と一緒に使います（1つの道だけを書き出すとき）".to_owned(),
+        ));
+    }
+    let mut out = io::stdout().lock();
+    for target in &targets {
+        let reading = read(&project, &ir, target, &Variables::new());
+        let label = target_label(&ir, target);
+        if let Some(message) = &reading.message {
+            // 1つの道を指定して着けなければ、書き出せないので2。まとめて書くときは、着けない道を飛ばす。
+            if single {
+                return Err(CliError::Refused(format!("{label}：{message}")));
+            }
+            eprintln!("scn: {label}：{message}");
+            continue;
+        }
+        let text = plain_text(&project, &reading, &label, notes);
+        match output {
+            Some(path) if path == Path::new("-") => {
+                return finish(out.write_all(text.as_bytes()), code);
+            }
+            Some(path) => {
+                if let Some(parent) = path.parent()
+                    && !parent.as_os_str().is_empty()
+                {
+                    fs::create_dir_all(parent).map_err(|e| {
+                        CliError::Refused(format!("{} を作れません：{e}", parent.display()))
+                    })?;
+                }
+                fs::write(path, &text).map_err(|e| {
+                    CliError::Refused(format!("{} に書けません：{e}", path.display()))
+                })?;
+                return finish(writeln!(out, "{}", path.display()), code);
+            }
+            None => {
+                let path = write_plain_text(dir, &label, &text).map_err(CliError::Project)?;
+                if let Err(e) = writeln!(out, "{}（{}）", path.display(), reading.stop) {
+                    return finish(Err(e), code);
+                }
+            }
+        }
+    }
+    Ok(code)
 }
 
 fn run_export_renpy(dir: &Path, output: Option<&Path>) -> Result<u8, CliError> {

@@ -546,3 +546,71 @@ export type PreviewRequest =
     }
   /** シーンの頭から、最短経路で再生する。 */
   | { readonly seq: number; readonly kind: "scene"; readonly scene: string };
+
+/** 通読の文中の記法（IR と同じ形）。 */
+type ReadingInline = import("./ir.ts").IrInline;
+
+/** 通読する道（コアの `route::ReadingTarget`。T2-5、D056）。 */
+export type ReadingTarget =
+  | { readonly kind: "common" }
+  | { readonly kind: "route"; readonly name: string }
+  | { readonly kind: "ending"; readonly id: string }
+  | { readonly kind: "steps"; readonly steps: readonly RouteStep[] };
+
+/** 通読の道の候補（コアの `route::ReadingChoice`）。 */
+export interface ReadingChoice {
+  readonly label: string;
+  readonly target: ReadingTarget;
+}
+
+/** 通読の本文の並び（コアの `route::ReadingItem`）。 */
+export type ReadingItem =
+  | {
+      readonly kind: "scene";
+      readonly id: string;
+      readonly title: string;
+      readonly route: string | null;
+      readonly file: string;
+      readonly span: readonly [number, number];
+    }
+  | {
+      readonly kind: "say";
+      readonly file: string;
+      readonly span: readonly [number, number];
+      readonly line_id: string | null;
+      readonly speaker: string;
+      readonly style: string;
+      readonly text: readonly ReadingInline[];
+    }
+  | {
+      readonly kind: "narrate";
+      readonly file: string;
+      readonly span: readonly [number, number];
+      readonly line_id: string | null;
+      readonly text: readonly ReadingInline[];
+    }
+  | { readonly kind: "break" }
+  | {
+      readonly kind: "choice";
+      readonly file: string;
+      readonly span: readonly [number, number];
+      readonly prompt: readonly ReadingInline[] | null;
+      readonly options: readonly {
+        readonly text: readonly ReadingInline[];
+        readonly enabled: boolean;
+      }[];
+      readonly chosen: number;
+    }
+  | { readonly kind: "ending"; readonly id: string | null };
+
+/** 通読の結果（コアの `route::Reading` と、道の名前）。 */
+export interface ReadingResult {
+  readonly label: string;
+  readonly reading: {
+    readonly target: ReadingTarget;
+    readonly items: readonly ReadingItem[];
+    /** `ending`・`dead_end`・`route_changed`・`limit`・`unreachable`。 */
+    readonly stop: string;
+    readonly message: string | null;
+  };
+}

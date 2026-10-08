@@ -5,7 +5,7 @@
 
 use std::fmt;
 
-use serde::{Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// ソース中の範囲。UTF-8のバイト位置で、`start` を含み `end` を含まない。
 ///
@@ -31,6 +31,14 @@ impl Span {
 impl Serialize for Span {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         [self.start, self.end].serialize(serializer)
+    }
+}
+
+/// 書き出したとおりの `[start, end]` から読む（アプリから道を受け取るとき）。
+impl<'de> Deserialize<'de> for Span {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let [start, end] = <[usize; 2]>::deserialize(deserializer)?;
+        Ok(Span { start, end })
     }
 }
 
