@@ -299,7 +299,7 @@ fn run_refuses_before_sending() {
     let cancel = AtomicBool::new(false);
     for (id, scene) in [
         ("branch_ideas", Some("s012")),
-        ("draft_stub", Some("s014")),
+        ("route_skeleton", None),
         ("draft_chapter", None),
     ] {
         let task = project.ai_tasks.iter().find(|t| t.id == id).unwrap();
@@ -485,4 +485,37 @@ fn run_diff_task() {
     assert_eq!(outcome.proposals.len(), 1);
     assert_eq!(outcome.proposals.first().unwrap().line, "k3fg");
     assert!(outcome.findings.is_empty() && outcome.unread.is_empty());
+}
+
+/// 生成のタスク（スタブの本文。T3-9）：応答から書き込む本文の行を読む（書き込みはワークスペース）。
+#[test]
+fn run_generate_task() {
+    let project = houkago();
+    let ir = analyze(&project);
+    let sources =
+        ai::read_sources(&PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../samples/houkago"));
+    let task = project
+        .ai_tasks
+        .iter()
+        .find(|t| t.id == "draft_stub")
+        .unwrap();
+    let (url, received) = serve("## 沈黙のあと #s014\n灯「……」\n　風が止んだ。\n-> s020");
+    let cancel = AtomicBool::new(false);
+    let outcome = ai::run_task(
+        &project,
+        &ir,
+        &sources,
+        task,
+        Some("s014"),
+        &connection(url),
+        None,
+        None,
+        &options(),
+        &cancel,
+        &mut |_| {},
+    )
+    .unwrap();
+    assert_eq!(outcome.draft, ["灯「……」", "　風が止んだ。"]);
+    // 生成のタスクの文脈には文体（文体見本）が入っている。
+    assert!(received.lock().unwrap().contains("文体見本"));
 }

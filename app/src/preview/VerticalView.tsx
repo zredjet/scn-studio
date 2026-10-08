@@ -97,6 +97,8 @@ export function VerticalView({
   const [result, setResult] = useState<ReadingResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState(true);
+  /** AI下書き（status: ai-draft）のシーンを含めるか（T3-9）。 */
+  const [aiDrafts, setAiDrafts] = useState(true);
   // 入力欄の値はそのまま持ち、使うときに範囲に収める（打っている途中で値を書き換えない）。
   const [perLineText, setPerLineText] = useState("40");
   const [perPageText, setPerPageText] = useState("16");
@@ -144,6 +146,7 @@ export function VerticalView({
     readRoute(
       JSON.parse(targetKey) as ReadingTarget,
       JSON.parse(persistentKey) as PersistentValues,
+      aiDrafts,
     )
       .then((r) => {
         if (!live) return;
@@ -156,7 +159,7 @@ export function VerticalView({
     return () => {
       live = false;
     };
-  }, [targetKey, data, persistentKey]);
+  }, [targetKey, data, persistentKey, aiDrafts]);
 
   const paragraphs = useMemo(
     () =>
@@ -208,6 +211,14 @@ export function VerticalView({
               onChange={(event) => setNotes(event.target.checked)}
             />
             選んだ選択肢を注記
+          </label>
+          <label className="vertical-field">
+            <input
+              type="checkbox"
+              checked={aiDrafts}
+              onChange={(event) => setAiDrafts(event.target.checked)}
+            />
+            AI下書きを含める
           </label>
           <label className="vertical-field">
             <input

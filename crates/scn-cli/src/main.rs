@@ -193,6 +193,9 @@ enum ExportCommand {
         /// 変わった台詞の備考に「再収録候補」と書く）
         #[arg(long)]
         baseline: bool,
+        /// AI下書き（status: ai-draft）のシーンの台詞と地の文を省く（流れは残し、省いたことを地の文で示す）
+        #[arg(long)]
+        no_ai_drafts: bool,
         /// 書き出す先。省くと作品フォルダの export/script.csv（Excel 形式は export/script.xlsx）。`-` なら標準出力
         #[arg(long, short)]
         output: Option<PathBuf>,
@@ -221,6 +224,9 @@ enum ExportCommand {
         /// 選んだ選択肢とエンディングの注記（〔選択：…〕）を書かない
         #[arg(long)]
         no_notes: bool,
+        /// AI下書き（status: ai-draft）のシーンの台詞と地の文を省く（流れは残し、省いたことを地の文で示す）
+        #[arg(long)]
+        no_ai_drafts: bool,
         /// 書き出すファイル（`--route` か `--ending` で1つの道を選んだときだけ使える）。省くと
         /// export/text/<道の名前>.txt。`-` なら標準出力
         #[arg(long, short)]
@@ -235,6 +241,9 @@ enum ExportCommand {
         /// 書き出し先（Ren'Py のプロジェクトのフォルダ）。省くとプロファイルの output（既定は export/renpy）
         #[arg(long, short)]
         output: Option<PathBuf>,
+        /// AI下書き（status: ai-draft）のシーンの台詞と地の文を省く（流れは残し、省いたことを地の文で示す）
+        #[arg(long)]
+        no_ai_drafts: bool,
     },
 }
 
@@ -341,12 +350,24 @@ fn run(command: Command) -> Result<u8, CliError> {
                     project,
                     format,
                     baseline,
+                    no_ai_drafts,
                     output,
                 },
-        } => run_export_script(&project, format.into(), baseline, output.as_deref()),
+        } => run_export_script(
+            &project,
+            format.into(),
+            baseline,
+            no_ai_drafts,
+            output.as_deref(),
+        ),
         Command::Export {
-            what: ExportCommand::Renpy { project, output },
-        } => run_export_renpy(&project, output.as_deref()),
+            what:
+                ExportCommand::Renpy {
+                    project,
+                    output,
+                    no_ai_drafts,
+                },
+        } => run_export_renpy(&project, output.as_deref(), no_ai_drafts),
         Command::Export {
             what: ExportCommand::Orders { project, output },
         } => run_export_orders(&project, output.as_deref()),
@@ -357,6 +378,7 @@ fn run(command: Command) -> Result<u8, CliError> {
                     route,
                     ending,
                     no_notes,
+                    no_ai_drafts,
                     output,
                 },
         } => run_export_text(
@@ -364,6 +386,7 @@ fn run(command: Command) -> Result<u8, CliError> {
             route.as_deref(),
             ending.as_deref(),
             !no_notes,
+            no_ai_drafts,
             output.as_deref(),
         ),
     }
@@ -628,15 +651,26 @@ impl From<ScriptFormatArg> for scn_core::script::ScriptFormat {
 /// `export/script.csv`（Excel 形式は `export/script.xlsx`。コアの `write_script`）。行IDの無い台詞、エラーの
 /// 診断、収録の基準と比べた数があれば、標準エラーに出す。`baseline` なら、書き出した後に収録の基準を書き直す。
 /// 終了コードは `ir` と同じ（エラーの診断があれば1）。
+/// 書き出しの IR。`no_ai_drafts` なら AI下書きのシーンの台詞と地の文を省く（T3-9）。
+fn analyze_for_export(project: &scn_core::Project, no_ai_drafts: bool) -> scn_core::Ir {
+    let ir = analyze(project);
+    if no_ai_drafts {
+        scn_core::ai::without_ai_drafts(&ir)
+    } else {
+        ir
+    }
+}
+
 fn run_export_script(
     dir: &Path,
     format: scn_core::script::ScriptFormat,
     baseline: bool,
+    no_ai_drafts: bool,
     output: Option<&Path>,
 ) -> Result<u8, CliError> {
     use scn_core::script::{mark_retakes, read_baseline, write_baseline};
     let project = load_project(dir).map_err(CliError::Project)?;
-    let ir = analyze(&project);
+    let ir = analyze_for_export(&project, no_ai_drafts);
     let mut sheet = scn_core::script::script(&project, &ir);
     let code = exit_code(&ir.diagnostics);
     match read_baseline(dir) {
@@ -758,12 +792,13 @@ fn run_export_text(
     route: Option<&str>,
     ending: Option<&str>,
     notes: bool,
+    no_ai_drafts: bool,
     output: Option<&Path>,
 ) -> Result<u8, CliError> {
     use scn_core::plaintext::{plain_text, write_plain_text};
     use scn_core::route::{ReadingTarget, Variables, read, reading_choices, target_label};
     let project = load_project(dir).map_err(CliError::Project)?;
-    let ir = analyze(&project);
+    let ir = analyze_for_export(&project, no_ai_drafts);
     let code = exit_code(&ir.diagnostics);
     let targets: Vec<ReadingTarget> = match (route, ending) {
         (Some(name), _) => vec![ReadingTarget::Route {
@@ -826,10 +861,10 @@ fn run_export_text(
     Ok(code)
 }
 
-fn run_export_renpy(dir: &Path, output: Option<&Path>) -> Result<u8, CliError> {
+fn run_export_renpy(dir: &Path, output: Option<&Path>, no_ai_drafts: bool) -> Result<u8, CliError> {
     use scn_core::renpy::{RENPY_PROFILE, export_renpy, read_profile, write_renpy};
     let project = load_project(dir).map_err(CliError::Project)?;
-    let ir = analyze(&project);
+    let ir = analyze_for_export(&project, no_ai_drafts);
     let code = exit_code(&ir.diagnostics);
     let (profile, problems) = read_profile(dir);
     for problem in &problems {

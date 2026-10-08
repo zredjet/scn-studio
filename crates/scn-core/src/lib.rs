@@ -39,6 +39,7 @@ pub mod concept;
 pub mod diag;
 pub mod expr;
 pub mod flowedit;
+pub mod gitops;
 pub mod graph;
 pub mod ideas;
 pub mod index;

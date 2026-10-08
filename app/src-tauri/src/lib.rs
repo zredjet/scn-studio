@@ -168,6 +168,52 @@ struct AppState {
     preview_request: Mutex<Option<Value>>,
     /// 「接続を試す」の取り消し（T3-5）。
     ai_cancel: Mutex<AiCancel>,
+    /// 走っている自律の実行（T3-9）。1つだけ。
+    auto: Mutex<Option<AutoTarget>>,
+}
+
+/// 走っている自律の実行の書き込み先。
+#[derive(Clone)]
+struct AutoTarget {
+    root: PathBuf,
+    file: String,
+    /// Git のブランチで書いている（作業ツリーが AI のブランチなので、本文を保存しない）。
+    branch: bool,
+}
+
+/// 自律の実行中に、本文を書き換える操作を止める（T3-9）。`file` は書き換える章（`None` は、どの章も書き換えうる
+/// 操作）。ブランチで実行している間は、どの章も書き換えない。
+fn refuse_during_auto(state: &AppState, root: &Path, file: Option<&str>) -> Result<(), String> {
+    let auto = locked(&state.auto)?;
+    let Some(target) = auto.as_ref().filter(|t| t.root == root) else {
+        return Ok(());
+    };
+    if target.branch {
+        return Err(
+            "自律で実行しています（Git のブランチに書いています）。終わってから保存します"
+                .to_owned(),
+        );
+    }
+    match file {
+        Some(f) if f != target.file => Ok(()),
+        _ => Err(format!(
+            "自律で実行しています（{} に書いています）。終わってから保存します",
+            target.file
+        )),
+    }
+}
+
+/// 走っている自律の実行の登録。外れるときに消す。
+struct AutoGuard<'a> {
+    state: &'a AppState,
+}
+
+impl Drop for AutoGuard<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut auto) = self.state.auto.lock() {
+            *auto = None;
+        }
+    }
 }
 
 /// 「接続を試す」の取り消し。画面が付けた回の番号で照らす（取り消しと次の回の頼みが前後して届いても、
@@ -338,6 +384,7 @@ fn save_file(
 ) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
+    refuse_during_auto(&state, workspace.root(), Some(&file))?;
     if !workspace.set_buffer(&file, &text) {
         return Err(format!("作品フォルダに無いファイルです：{file}"));
     }
@@ -394,6 +441,7 @@ fn keep_mine(
 ) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
+    refuse_during_auto(&state, workspace.root(), Some(&file))?;
     // アプリが覚えていた元（知らせの途中の競合）は、人が直し始めた元でもある（出自の記録。T3-4）。
     if let Some(base) = &base {
         workspace.remember_base(&file, base);
@@ -435,6 +483,7 @@ fn apply_merge(
 ) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
+    refuse_during_auto(&state, workspace.root(), Some(&file))?;
     let applied = workspace
         .apply_merge(&file, base.as_deref(), &choices, &token)
         .map_err(|e| e.to_string())?;
@@ -634,6 +683,9 @@ fn promote_idea(
 ) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
+    if let Promotion::Scene { file, .. } = &promotion {
+        refuse_during_auto(&state, workspace.root(), Some(file))?;
+    }
     let promoted = workspace
         .promote_idea(&path, &seen, &promotion)
         .map_err(|e| e.to_string())?;
@@ -817,12 +869,24 @@ fn preview_data(state: State<'_, AppState>) -> Result<Response, String> {
 // ---- 台本（T1-12、D051） ----
 
 /// 大きなスタックのスレッドで解析して、台本を作る。
-fn script_of(project: &Project) -> Result<script::ScriptSheet, String> {
+/// 書き出しと通読の IR。`ai_drafts` が偽なら、AI下書きのシーンの台詞と地の文を省く（T3-9、D070）。
+fn export_ir(project: &Project, ai_drafts: bool) -> scn_core::Ir {
+    let ir = analyze(project);
+    if ai_drafts {
+        ir
+    } else {
+        ai::without_ai_drafts(&ir)
+    }
+}
+
+fn script_of(project: &Project, ai_drafts: bool) -> Result<script::ScriptSheet, String> {
     thread::scope(|scope| {
         thread::Builder::new()
             .name("script".into())
             .stack_size(ANALYZE_STACK_SIZE)
-            .spawn_scoped(scope, || script::script(project, &analyze(project)))
+            .spawn_scoped(scope, || {
+                script::script(project, &export_ir(project, ai_drafts))
+            })
             .map_err(|e| format!("解析のスレッドを作れません：{e}"))?
             .join()
             .map_err(|_| "解析が途中で止まりました".to_owned())
@@ -910,10 +974,10 @@ fn playthrough(state: State<'_, AppState>) -> Result<Response, String> {
 /// 台本（出力の画面で、書き出す前に中身を見る）。保存していない本文も含む。収録の基準があれば、変わった台詞を
 /// 再収録候補にする（`baseline_problem` は基準を読めなかったわけ）。
 #[tauri::command]
-fn script_sheet(state: State<'_, AppState>) -> Result<Response, String> {
+fn script_sheet(ai_drafts: Option<bool>, state: State<'_, AppState>) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
-    let mut sheet = script_of(workspace.project())?;
+    let mut sheet = script_of(workspace.project(), ai_drafts.unwrap_or(true))?;
     let problem = with_retakes(workspace.root(), &mut sheet);
     let mut value = to_json(&sheet, "台本")?;
     if let Value::Object(map) = &mut value {
@@ -928,11 +992,12 @@ fn script_sheet(state: State<'_, AppState>) -> Result<Response, String> {
 fn export_script(
     format: script::ScriptFormat,
     baseline: bool,
+    ai_drafts: Option<bool>,
     state: State<'_, AppState>,
 ) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
-    let mut sheet = script_of(workspace.project())?;
+    let mut sheet = script_of(workspace.project(), ai_drafts.unwrap_or(true))?;
     with_retakes(workspace.root(), &mut sheet);
     let path = script::write_script(workspace.root(), &sheet, format).map_err(|e| e.to_string())?;
     if baseline {
@@ -954,11 +1019,20 @@ fn with_ir<T: Send>(
     project: &Project,
     f: impl FnOnce(&scn_core::Ir) -> Result<T, String> + Send,
 ) -> Result<T, String> {
+    with_export_ir(project, true, f)
+}
+
+/// [`with_ir`] で、AI下書きを含めるかを選ぶ（T3-9）。
+fn with_export_ir<T: Send>(
+    project: &Project,
+    ai_drafts: bool,
+    f: impl FnOnce(&scn_core::Ir) -> Result<T, String> + Send,
+) -> Result<T, String> {
     thread::scope(|scope| {
         thread::Builder::new()
             .name("route".into())
             .stack_size(ANALYZE_STACK_SIZE)
-            .spawn_scoped(scope, || f(&analyze(project)))
+            .spawn_scoped(scope, || f(&export_ir(project, ai_drafts)))
             .map_err(|e| format!("解析のスレッドを作れません：{e}"))?
             .join()
             .map_err(|_| "解析が途中で止まりました".to_owned())?
@@ -1060,12 +1134,13 @@ fn reading_choices(state: State<'_, AppState>) -> Result<Response, String> {
 fn read_route(
     target: route::ReadingTarget,
     persistent: Option<route::Variables>,
+    ai_drafts: Option<bool>,
     state: State<'_, AppState>,
 ) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let project = open_workspace(&mut guard)?.project();
     let persistent = persistent.unwrap_or_default();
-    let reading = with_ir(project, |ir| {
+    let reading = with_export_ir(project, ai_drafts.unwrap_or(true), |ir| {
         let reading = route::read(project, ir, &target, &persistent);
         let label = route::target_label(ir, &target);
         Ok(json!({
@@ -1081,12 +1156,13 @@ fn read_route(
 fn export_text(
     target: route::ReadingTarget,
     notes: bool,
+    ai_drafts: Option<bool>,
     state: State<'_, AppState>,
 ) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
     let (project, root) = (workspace.project(), workspace.root());
-    let (label, text, message) = with_ir(project, |ir| {
+    let (label, text, message) = with_export_ir(project, ai_drafts.unwrap_or(true), |ir| {
         let reading = route::read(project, ir, &target, &route::Variables::new());
         let label = route::target_label(ir, &target);
         let text = scn_core::plaintext::plain_text(project, &reading, &label, notes);
@@ -1180,7 +1256,7 @@ fn export_orders(state: State<'_, AppState>) -> Result<Response, String> {
 /// Ren'Py のスクリプトを、出力プロファイル（`export/renpy.yaml`）に従って書き出す（`scn export renpy` と
 /// 同じ。D053）。保存していない本文も含める。書き出し先、ファイルの数、知らせ、プロファイルの誤りを返す。
 #[tauri::command]
-fn export_renpy(state: State<'_, AppState>) -> Result<Response, String> {
+fn export_renpy(ai_drafts: Option<bool>, state: State<'_, AppState>) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
     let (project, root) = (workspace.project(), workspace.root());
@@ -1190,7 +1266,12 @@ fn export_renpy(state: State<'_, AppState>) -> Result<Response, String> {
             .name("renpy".into())
             .stack_size(ANALYZE_STACK_SIZE)
             .spawn_scoped(scope, || {
-                renpy::export_renpy(project, root, &analyze(project), &profile)
+                renpy::export_renpy(
+                    project,
+                    root,
+                    &export_ir(project, ai_drafts.unwrap_or(true)),
+                    &profile,
+                )
             })
             .map_err(|e| format!("解析のスレッドを作れません：{e}"))?
             .join()
@@ -1322,6 +1403,7 @@ fn add_stub(
 ) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
+    refuse_during_auto(&state, workspace.root(), Some(&file))?;
     let written = workspace
         .add_stub(&file, &id, &title, summary.as_deref())
         .map_err(|e| e.to_string())?;
@@ -1333,6 +1415,7 @@ fn add_stub(
 fn add_flow_edge(edge: FlowEdge, state: State<'_, AppState>) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
+    refuse_during_auto(&state, workspace.root(), None)?;
     let written = workspace.add_edge(&edge).map_err(|e| e.to_string())?;
     story_written(workspace, &written)
 }
@@ -1380,6 +1463,7 @@ fn apply_rename(
 ) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
+    refuse_during_auto(&state, workspace.root(), None)?;
     let renamed = workspace.rename(&target, &new).map_err(|e| e.to_string())?;
     after_settings_write(workspace, to_json(&renamed, "名前の変更")?)
 }
@@ -1393,6 +1477,7 @@ fn rename_chapter(
 ) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
+    refuse_during_auto(&state, workspace.root(), None)?;
     let to = workspace
         .rename_chapter(&file, &name)
         .map_err(|e| e.to_string())?;
@@ -1407,6 +1492,7 @@ fn rename_chapter(
 fn delete_chapter(file: String, state: State<'_, AppState>) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
+    refuse_during_auto(&state, workspace.root(), Some(&file))?;
     workspace.delete_chapter(&file).map_err(|e| e.to_string())?;
     let Analyzed {
         summary, checks, ..
@@ -1722,7 +1808,12 @@ fn ai_tasks(state: State<'_, AppState>, app: AppHandle) -> Result<Response, Stri
                     "context_tokens": c.context_tokens,
                 })),
                 "connection_problem": conn.err(),
-                "unsupported": ai::runnable(task).err(),
+                // 自律は章を選んで `ai_auto` で実行する（T3-9）。
+                "unsupported": if task.level == ai::TaskLevel::Auto {
+                    None
+                } else {
+                    ai::runnable(task).err()
+                },
             })
         })
         .collect();
@@ -1916,6 +2007,7 @@ fn adopt_proposals(
 ) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
+    refuse_during_auto(&state, workspace.root(), Some(&file))?;
     if !workspace.set_buffer(&file, &text) {
         return Err(format!("作品フォルダに無いファイルです：{file}"));
     }
@@ -1951,6 +2043,452 @@ fn adopt_proposals(
         "summary": summary,
         "checks": checks,
     }))
+}
+
+/// 生成の下書きをスタブのシーンに書き込む（T3-9）：`text` を今の本文にして、本文の行を差し込み、`ai-draft` にして
+/// 保存し、差し込んだ行の出自を `ai` として書き足す。`disk` はフロントが知っているディスクの中身。
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+fn write_ai_draft(
+    file: String,
+    scene: String,
+    body: Vec<String>,
+    task: String,
+    model: String,
+    text: String,
+    disk: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    refuse_during_auto(&state, workspace.root(), Some(&file))?;
+    if !workspace.set_buffer(&file, &text) {
+        return Err(format!("作品フォルダに無いファイルです：{file}"));
+    }
+    let written = {
+        let mut generator = locked(&state.generator)?;
+        let generator = generator.get_or_insert_with(LineIdGenerator::new);
+        workspace
+            .write_draft(
+                &file,
+                &scene,
+                &body,
+                &task,
+                &model,
+                disk.as_deref(),
+                generator,
+            )
+            .map_err(|e| e.to_string())?
+    };
+    if let Some(reason) = written.refused {
+        return json_response(&json!({ "kind": "refused", "reason": reason }));
+    }
+    if let Some(deleted) = written.conflict {
+        return json_response(&json!({ "kind": "conflict", "deleted": deleted }));
+    }
+    let Some(saved) = written.saved else {
+        return json_response(&json!({ "kind": "refused", "reason": "書き込めませんでした" }));
+    };
+    let Analyzed {
+        summary, checks, ..
+    } = analyze_summary(workspace.project(), true, None)?;
+    json_response(&json!({
+        "kind": "saved",
+        "text": saved.text,
+        "ids": written.ids,
+        "provenance_problem": saved.provenance_problem,
+        "summary": summary,
+        "checks": checks,
+    }))
+}
+
+/// 自律の実行を、アプリの作品フォルダにつなぐ（T3-9）。LLM を呼ぶ間はワークスペースをロックせず、書き込むときだけ
+/// ロックする。書き込んだ本文と進み具合はフロントへ知らせる。
+struct AppAutoHost<'a> {
+    app: &'a AppHandle,
+    state: &'a AppState,
+    root: PathBuf,
+    machine: MachineSettings,
+    cancel: Arc<AtomicBool>,
+    run: u64,
+    task: String,
+    model: String,
+    /// Git のブランチで書いている（書く章に保存していない変更があれば書かない）。
+    branch: bool,
+    /// 書き込んだファイル（作品フォルダからの相対パス。ブランチのコミットに入れる）。
+    written: BTreeSet<String>,
+}
+
+impl AppAutoHost<'_> {
+    /// 今の作品フォルダ（実行の途中で別の作品フォルダを開いたら止める）。
+    fn workspace<'g>(
+        &self,
+        guard: &'g mut MutexGuard<'_, Option<Workspace>>,
+    ) -> Result<&'g mut Workspace, String> {
+        let workspace = open_workspace(guard)?;
+        if workspace.root() != self.root {
+            return Err("実行の途中で、別の作品フォルダを開きました".to_owned());
+        }
+        Ok(workspace)
+    }
+}
+
+impl ai::AutoHost for AppAutoHost<'_> {
+    fn project(&mut self) -> Result<Project, String> {
+        let mut guard = locked(&self.state.workspace)?;
+        Ok(self.workspace(&mut guard)?.project().clone())
+    }
+
+    fn sources(&mut self) -> ai::ContextSources {
+        ai::read_sources(&self.root)
+    }
+
+    fn connection(
+        &mut self,
+        task: &ai::AiTask,
+    ) -> Result<(ai::Connection, Option<String>), String> {
+        let project = self.project()?;
+        let conn = task_connection(&project, &self.machine, task)?;
+        let key = key_for(&conn)?;
+        Ok((conn, key))
+    }
+
+    fn complete(
+        &mut self,
+        conn: &ai::Connection,
+        key: Option<&str>,
+        request: &ai::ChatRequest,
+    ) -> Result<ai::Completion, ai::AiError> {
+        ai::complete(
+            conn,
+            key,
+            request,
+            &ai::CallOptions::default(),
+            &self.cancel,
+            &mut |_| {},
+        )
+    }
+
+    fn write(&mut self, file: &str, scene: &str, body: &[String]) -> Result<Vec<String>, String> {
+        let mut guard = locked(&self.state.workspace)?;
+        let workspace = self.workspace(&mut guard)?;
+        if self.branch && workspace.is_dirty(file) {
+            return Err(format!(
+                "{file} に保存していない変更があるので、ブランチに書き込みませんでした"
+            ));
+        }
+        let seen = workspace.disk_text(file).map(str::to_owned);
+        // 書く前の本文（フロントは、これと同じ本文なら置き換える）。
+        let before = workspace.text(file).map(str::to_owned);
+        let written = {
+            let mut generator = locked(&self.state.generator)?;
+            let generator = generator.get_or_insert_with(LineIdGenerator::new);
+            workspace
+                .write_draft(
+                    file,
+                    scene,
+                    body,
+                    &self.task,
+                    &self.model,
+                    seen.as_deref(),
+                    generator,
+                )
+                .map_err(|e| e.to_string())?
+        };
+        if let Some(reason) = written.refused {
+            return Err(reason);
+        }
+        if written.conflict.is_some() {
+            return Err(format!(
+                "{file} が外部で変更されていたので、書き込みませんでした"
+            ));
+        }
+        if let Some(saved) = &written.saved {
+            self.written.insert(file.to_owned());
+            self.written.insert("ai/provenance.jsonl".to_owned());
+            let Analyzed {
+                summary, checks, ..
+            } = analyze_summary(workspace.project(), true, None)?;
+            let _ = self.app.emit_to(
+                "main",
+                "ai-draft-written",
+                json!({
+                    "file": file,
+                    "before": before,
+                    "text": saved.text,
+                    "provenance_problem": saved.provenance_problem,
+                    "summary": summary,
+                    "checks": checks,
+                }),
+            );
+        }
+        Ok(written.ids)
+    }
+
+    fn event(&mut self, event: ai::AutoEvent) {
+        let _ = self.app.emit_to(
+            "main",
+            "ai-auto-progress",
+            json!({ "run": self.run, "event": event }),
+        );
+    }
+
+    fn cancelled(&self) -> bool {
+        self.cancel.load(Ordering::Relaxed)
+    }
+}
+
+/// 自律で章のスタブを下書きにする（T3-9）。`branch` なら、Git のブランチ（`ai/<タスク>-<日時>`）を作って書き、
+/// コミットして基のブランチへ戻る（人が差分を見て取り込む）。保存していない変更、コミットしていない変更があれば
+/// 始めない。クラウドの接続先を使うときは `confirmed_cloud`（人が送る中身を確かめた）が要る。
+#[tauri::command]
+async fn ai_auto(
+    task: String,
+    file: String,
+    run: u64,
+    branch: bool,
+    confirmed_cloud: bool,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Response, String> {
+    let (cancel, _registered) = register_ai_run(&state, run)?;
+    if locked(&state.auto)?.is_some() {
+        return Err("ほかの自律の実行が走っています。終わってから実行します".to_owned());
+    }
+    let (project, root, unsaved) = {
+        let mut guard = locked(&state.workspace)?;
+        let workspace = open_workspace(&mut guard)?;
+        let unsaved: Vec<String> = workspace
+            .project()
+            .files
+            .iter()
+            .filter(|f| workspace.is_dirty(&f.path))
+            .map(|f| f.path.clone())
+            .collect();
+        (
+            workspace.project().clone(),
+            workspace.root().to_owned(),
+            unsaved,
+        )
+    };
+    if !unsaved.is_empty() {
+        return Err(format!(
+            "保存していない変更があります（{}）。保存してから自律で実行します",
+            unsaved.join("、")
+        ));
+    }
+    let (machine, _) = ai::read_machine_settings(&ai_settings_file(&app)?);
+    let definition = project
+        .ai_tasks
+        .iter()
+        .find(|t| t.id == task)
+        .cloned()
+        .ok_or_else(|| format!("ai/{task}.yaml がありません"))?;
+    if definition.level != ai::TaskLevel::Auto {
+        return Err(format!("{} は自律のタスクではありません", definition.name));
+    }
+    let conn = task_connection(&project, &machine, &definition)?;
+    // クラウドへ送るタスク（自律と、点検のタスク）は、人が確かめてから。
+    let mut involved = vec![&definition];
+    involved.extend(
+        project
+            .ai_tasks
+            .iter()
+            .filter(|t| definition.checks.contains(&t.id)),
+    );
+    for t in involved {
+        let c = task_connection(&project, &machine, t)?;
+        if c.cloud && !confirmed_cloud {
+            return Err(format!(
+                "{} はクラウド（{}）へ送ります。送る中身を確かめてから実行します",
+                t.name, c.name
+            ));
+        }
+    }
+    let mut branch_info: Option<(String, String)> = None;
+    if branch {
+        if !scn_core::gitops::is_repo(&root) {
+            return Err(
+                "作品フォルダが Git の作業ツリーではありません。ブランチを使わずに実行します（「ブランチで実行」を外す）"
+                    .to_owned(),
+            );
+        }
+        let dirty = scn_core::gitops::uncommitted(&root)?;
+        if !dirty.is_empty() {
+            return Err(format!(
+                "コミットしていない変更があります（{}件）。コミットしてから、ブランチで実行します",
+                dirty.len()
+            ));
+        }
+        let base = scn_core::gitops::current_branch(&root)?;
+        if base == "HEAD" {
+            return Err(
+                "Git がブランチの上にありません（detached HEAD）。ブランチに切り替えてから実行します"
+                    .to_owned(),
+            );
+        }
+        let template = definition
+            .branch
+            .clone()
+            .unwrap_or_else(|| "ai/{task}-{date}".to_owned());
+        let name = scn_core::gitops::branch_name(
+            &root,
+            &template,
+            &definition.id,
+            &scn_core::gitops::date_stamp(),
+        );
+        branch_info = Some((base, name));
+    }
+    // 走っている間は、書く章（ブランチなら、どの章も）を人の保存から守る。
+    {
+        let mut auto = locked(&state.auto)?;
+        if auto.is_some() {
+            return Err("ほかの自律の実行が走っています。終わってから実行します".to_owned());
+        }
+        *auto = Some(AutoTarget {
+            root: root.clone(),
+            file: file.clone(),
+            branch: branch_info.is_some(),
+        });
+    }
+    let _auto = AutoGuard { state: &state };
+    if let Some((_, name)) = &branch_info {
+        scn_core::gitops::start_branch(&root, name)?;
+    }
+    let all = project.ai_tasks.clone();
+    let host_app = app.clone();
+    let task_id = definition.id.clone();
+    let model = conn.model.clone();
+    let root_for_host = root.clone();
+    let in_branch = branch_info.is_some();
+    let (outcome, written) = tauri::async_runtime::spawn_blocking(move || {
+        let state = host_app.state::<AppState>();
+        let mut host = AppAutoHost {
+            app: &host_app,
+            state: &state,
+            root: root_for_host,
+            machine,
+            cancel,
+            run,
+            task: task_id,
+            model,
+            branch: in_branch,
+            written: BTreeSet::new(),
+        };
+        let outcome = ai::run_auto(&mut host, &definition, &file, &all);
+        (outcome, host.written)
+    })
+    .await
+    .map_err(|e| format!("自律で実行できません：{e}"))?;
+    let mut branch_json = Value::Null;
+    if let Some((base, name)) = branch_info {
+        branch_json = finish_branch(&root, &base, &name, &outcome, &written);
+    }
+    json_response(&json!({
+        "outcome": to_json(&outcome, "自律の結果")?,
+        "branch": branch_json,
+    }))
+}
+
+/// 自律の実行の後のブランチ：書き込んだファイル（と出自の記録）だけをコミットして、基のブランチに戻る。何も
+/// 書かなければブランチを消す。コミットできなければ、書いた分を失わないように、ブランチにとどまる。
+fn finish_branch(
+    root: &Path,
+    base: &str,
+    name: &str,
+    outcome: &ai::AutoOutcome,
+    written: &BTreeSet<String>,
+) -> Value {
+    let paths: Vec<String> = written.iter().cloned().collect();
+    let committed = scn_core::gitops::commit_paths(
+        root,
+        &paths,
+        &format!("ai: {} の下書き（{}）", outcome.task, outcome.file),
+    );
+    let (kept, problem) = match &committed {
+        Err(e) => (
+            true,
+            Some(format!(
+                "コミットできなかったので、ブランチ {name} にとどまりました（{e}）"
+            )),
+        ),
+        Ok(done) => match scn_core::gitops::switch(root, base) {
+            Err(e) => (true, Some(format!("{base} に戻れませんでした（{e}）"))),
+            Ok(()) if !done => (
+                false,
+                scn_core::gitops::delete_branch(root, name)
+                    .err()
+                    .map(|e| format!("空のブランチ {name} を消せませんでした（{e}）")),
+            ),
+            Ok(()) => (true, None),
+        },
+    };
+    json!({
+        "name": name,
+        "base": base,
+        "committed": committed.as_ref().ok(),
+        "kept": kept,
+        "problem": problem,
+    })
+}
+
+/// AI のブランチ（`ai/` で始まるもの）と、今のブランチ。Git でなければ `repo: false`。
+#[tauri::command]
+fn ai_branches(state: State<'_, AppState>) -> Result<Response, String> {
+    let root = {
+        let mut guard = locked(&state.workspace)?;
+        open_workspace(&mut guard)?.root().to_owned()
+    };
+    if !scn_core::gitops::is_repo(&root) {
+        return json_response(&json!({ "repo": false, "current": null, "branches": [] }));
+    }
+    json_response(&json!({
+        "repo": true,
+        "current": scn_core::gitops::current_branch(&root).ok(),
+        "branches": scn_core::gitops::ai_branches(&root)?,
+    }))
+}
+
+/// AI のブランチと今のブランチの差分（あらましと本文）。
+#[tauri::command]
+fn ai_branch_diff(name: String, state: State<'_, AppState>) -> Result<Response, String> {
+    let root = {
+        let mut guard = locked(&state.workspace)?;
+        open_workspace(&mut guard)?.root().to_owned()
+    };
+    let base = scn_core::gitops::current_branch(&root)?;
+    let (stat, patch) = scn_core::gitops::diff(&root, &base, &name)?;
+    json_response(&json!({ "base": base, "stat": stat, "patch": patch }))
+}
+
+/// AI のブランチを今のブランチに取り込む。保存していない変更があれば取り込まない（ファイルが変わるため）。
+#[tauri::command]
+fn ai_branch_merge(name: String, state: State<'_, AppState>) -> Result<(), String> {
+    let root = {
+        let mut guard = locked(&state.workspace)?;
+        let workspace = open_workspace(&mut guard)?;
+        refuse_during_auto(&state, workspace.root(), None)?;
+        if workspace
+            .project()
+            .files
+            .iter()
+            .any(|f| workspace.is_dirty(&f.path))
+        {
+            return Err("保存していない変更があります。保存してから取り込みます".to_owned());
+        }
+        workspace.root().to_owned()
+    };
+    scn_core::gitops::merge(&root, &name)
+}
+
+/// AI のブランチを取り込まずに捨てる。
+#[tauri::command]
+fn ai_branch_delete(name: String, state: State<'_, AppState>) -> Result<(), String> {
+    let root = {
+        let mut guard = locked(&state.workspace)?;
+        open_workspace(&mut guard)?.root().to_owned()
+    };
+    scn_core::gitops::delete_branch(&root, &name)
 }
 
 /// 走っている回（「接続を試す」と AI タスクの実行）を取り消す（次のデータの合間で止まる）。まだ始まっていなければ、
@@ -2209,6 +2747,12 @@ pub fn run() {
             proposal_files,
             view_proposals,
             adopt_proposals,
+            write_ai_draft,
+            ai_auto,
+            ai_branches,
+            ai_branch_diff,
+            ai_branch_merge,
+            ai_branch_delete,
             export_script,
             export_renpy,
             asset_list,

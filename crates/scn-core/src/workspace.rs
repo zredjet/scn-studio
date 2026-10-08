@@ -143,6 +143,19 @@ pub struct Adopted {
     pub skipped: Vec<(String, String)>,
 }
 
+/// 下書きを書き込んだ結果（T3-9、D070）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DraftWritten {
+    /// 保存した。
+    pub saved: Option<Saved>,
+    /// まだ取り込んでいない外部の変更があったので、書き込まなかった（`true` なら外で消された）。
+    pub conflict: Option<bool>,
+    /// 書き込まなかったわけ（スタブでない、差し込む行が無い、流れが変わる）。
+    pub refused: Option<String>,
+    /// 差し込んだ行に付けた行ID。
+    pub ids: Vec<String>,
+}
+
 /// 保存の結果。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SaveOutcome {
@@ -613,6 +626,141 @@ impl Workspace {
                     conflict: None,
                     applied: applied.applied,
                     skipped: applied.skipped,
+                })
+            }
+        }
+    }
+
+    /// 生成の下書きをスタブのシーンに書き込む（T3-9、D070）：本文の行を差し込み（今ある行は変えない）、メタ情報の
+    /// `status` を `ai-draft` にし、差し込んだ行にだけ行IDを付けて保存し、その行の出自を `ai` として書き足す。
+    /// スタブでない（台詞か地の文がある）シーン、差し込むとシーンの流れ（ジャンプ・選択肢・条件）が変わる下書きは
+    /// 書き込まない。外部の変更とぶつかったとき・書けなかったときは本文を戻す。
+    #[allow(clippy::too_many_arguments)]
+    pub fn write_draft(
+        &mut self,
+        file: &str,
+        scene: &str,
+        body: &[String],
+        task: &str,
+        model: &str,
+        seen: Option<&str>,
+        generator: &mut LineIdGenerator,
+    ) -> Result<DraftWritten, ProjectError> {
+        use crate::ai::{draft_into_scene, is_stub, line_ids_in, scene_range, with_line_ids};
+        let path = self.root.join(file);
+        let Some(current) = self.text(file).map(str::to_owned) else {
+            return Err(not_open(&path));
+        };
+        let refuse = |reason: String| DraftWritten {
+            saved: None,
+            conflict: None,
+            refused: Some(reason),
+            ids: Vec::new(),
+        };
+        let ir = crate::analyze(&self.project);
+        let Some((scene_file, start, end)) = scene_range(&self.project, &ir, scene) else {
+            return Ok(refuse(format!("シーン {scene} がありません")));
+        };
+        if scene_file != file {
+            return Ok(refuse(format!("シーン {scene} は {file} にありません")));
+        }
+        if !is_stub(&ir, scene) {
+            return Ok(refuse(format!(
+                "シーン {scene} には台詞か地の文があるので、書き込みません（スタブにだけ書き込みます）"
+            )));
+        }
+        if self.project.has_reading_errors() {
+            // 本文の読み方の設定を読めないときは行IDを付けない（D042、D045）。下書きの出自を記録できないので書かない。
+            return Ok(refuse(
+                "project.toml の本文の読み方の設定を読めないので、行IDを付けられず、書き込みません"
+                    .to_owned(),
+            ));
+        }
+        let drafted = match current
+            .get(start..end)
+            .ok_or_else(|| "シーンの範囲を読めません".to_owned())
+            .and_then(|scene_text| draft_into_scene(scene_text, body))
+        {
+            Ok(drafted) => drafted,
+            Err(reason) => return Ok(refuse(reason)),
+        };
+        let new_text = format!(
+            "{}{}{}",
+            current.get(..start).unwrap_or_default(),
+            drafted.text,
+            current.get(end..).unwrap_or_default()
+        );
+        let range = (start + drafted.inserted.0, start + drafted.inserted.1);
+        if line_ids_in(&new_text) != line_ids_in(&current) {
+            return Ok(refuse("下書きに今ある行IDが入っています".to_owned()));
+        }
+        // 差し込んでもシーンの流れ（辺）が変わらないことを確かめる（閉じていない括弧が後ろの行を飲み込むなど）。
+        let edges = |ir: &crate::Ir| {
+            ir.edges
+                .iter()
+                .filter(|e| e.from == scene)
+                .map(|e| {
+                    (
+                        e.to.clone(),
+                        e.kind,
+                        e.via,
+                        e.label.clone(),
+                        e.cond_text.clone(),
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        let mut trial = self.project.clone();
+        if let Some(f) = trial.files.iter_mut().find(|f| f.path == file) {
+            f.text = new_text.clone();
+        }
+        if edges(&crate::analyze(&trial)) != edges(&ir) {
+            return Ok(refuse(
+                "下書きを差し込むとシーンの流れ（ジャンプ・選択肢・条件）が変わるので、書き込みません".to_owned(),
+            ));
+        }
+        let (with_ids, ids) = with_line_ids(&self.project, file, &new_text, range, generator);
+        self.set_buffer(file, &with_ids);
+        let outcome = match self.save(file, seen, generator) {
+            Ok(outcome) => outcome,
+            Err(e) => {
+                self.set_buffer(file, &current);
+                return Err(e);
+            }
+        };
+        match outcome {
+            SaveOutcome::Conflict { deleted } => {
+                self.set_buffer(file, &current);
+                Ok(DraftWritten {
+                    saved: None,
+                    conflict: Some(deleted),
+                    refused: None,
+                    ids: Vec::new(),
+                })
+            }
+            SaveOutcome::Saved(mut saved) => {
+                let at = provenance_now();
+                let records: Vec<Record> = ids
+                    .iter()
+                    .map(|line| Record {
+                        line: line.clone(),
+                        origin: AI.to_owned(),
+                        task: task.to_owned(),
+                        model: model.to_owned(),
+                        at: at.clone(),
+                    })
+                    .collect();
+                if let Err(e) = append_provenance(&self.root, &records) {
+                    saved.provenance_problem = Some(format!(
+                        "{e}（下書きの {}行を記録できませんでした）",
+                        ids.len()
+                    ));
+                }
+                Ok(DraftWritten {
+                    saved: Some(saved),
+                    conflict: None,
+                    refused: None,
+                    ids,
                 })
             }
         }

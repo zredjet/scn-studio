@@ -1,0 +1,2 @@
+# 出自の記録は、ブランチを取り込むときに両方の行を残す（AI のブランチ。T3-9）
+ai/provenance.jsonl merge=union

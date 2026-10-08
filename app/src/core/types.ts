@@ -641,6 +641,8 @@ export interface AiRunOutcome {
   readonly summary: string | null;
   /** 提案（`output: diff`。T3-8）。 */
   readonly proposals: readonly AiProposal[];
+  /** 生成の下書き（書き込む本文の行。T3-9）。 */
+  readonly draft: readonly string[];
   readonly unread: readonly string[];
   readonly text: string;
   readonly completion: {
@@ -719,6 +721,71 @@ export type AdoptResult =
         readonly reason: string;
       }[];
     };
+
+/** 生成の下書きを書き込んだ結果（`write_ai_draft`、T3-9）。 */
+export type DraftWriteResult =
+  | {
+      readonly kind: "saved";
+      readonly text: string;
+      readonly ids: readonly string[];
+      readonly provenance_problem: string | null;
+      readonly summary: Summary;
+      readonly checks: readonly IrDiagnostic[];
+    }
+  | { readonly kind: "conflict"; readonly deleted: boolean }
+  | { readonly kind: "refused"; readonly reason: string };
+
+/** 自律のシーンの結果（コアの `ai::AutoScene`）。 */
+export interface AutoScene {
+  readonly scene: string;
+  readonly title: string;
+  readonly status: "written" | "skipped" | "failed";
+  readonly chars: number;
+  readonly iterations: number;
+  readonly issues: readonly string[];
+  readonly message: string | null;
+  readonly ids: readonly string[];
+}
+
+/** 自律の進み具合（コアの `ai::AutoEvent`）。 */
+export type AutoEvent =
+  | { readonly kind: "planned"; readonly scenes: readonly string[] }
+  | {
+      readonly kind: "step";
+      readonly scene: string;
+      readonly step: "beats" | "draft" | "check" | "fix" | "write";
+      readonly iteration: number;
+    }
+  | { readonly kind: "scene_done"; readonly scene: AutoScene }
+  | { readonly kind: "tokens"; readonly used: number };
+
+/** 自律の結果（`ai_auto`）。 */
+export interface AutoResult {
+  readonly outcome: {
+    readonly task: string;
+    readonly file: string;
+    readonly scenes: readonly AutoScene[];
+    readonly tokens: number;
+    readonly budget: number | null;
+    readonly stopped: string | null;
+  };
+  /** ブランチで実行したとき。 */
+  readonly branch: {
+    readonly name: string;
+    readonly base: string;
+    readonly committed: boolean | null;
+    /** ブランチを残した（何も書かなければ消す）。 */
+    readonly kept: boolean;
+    readonly problem: string | null;
+  } | null;
+}
+
+/** AI のブランチ（`ai_branches`）。 */
+export interface AiBranches {
+  readonly repo: boolean;
+  readonly current: string | null;
+  readonly branches: readonly string[];
+}
 
 /** 自動巡回の結果（検証の段階2。コアの `playthrough::Playthrough`、T3-2）。 */
 export interface Playthrough {

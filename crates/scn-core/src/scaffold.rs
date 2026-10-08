@@ -15,7 +15,7 @@ const SPEC: &str = include_str!("../../../docs/spec/scn-format-v0.md");
 const PROJECT_FILES: &str = include_str!("../../../docs/spec/project-files.md");
 
 /// 作品フォルダの中に置くファイル（パスと中身）。`{{title}}` は作品名にする。
-const TEMPLATES: [(&str, &str); 18] = [
+const TEMPLATES: [(&str, &str); 19] = [
     ("project.toml", include_str!("../templates/project.toml")),
     ("CLAUDE.md", include_str!("../templates/CLAUDE.md")),
     ("concept.md", include_str!("../templates/concept.md")),
@@ -71,6 +71,7 @@ const TEMPLATES: [(&str, &str); 18] = [
         include_str!("../templates/ai/wording_check.yaml"),
     ),
     (".gitignore", include_str!("../templates/gitignore")),
+    (".gitattributes", include_str!("../templates/gitattributes")),
 ];
 
 /// 企画書のひな形（アプリの「企画書を作る」。`scn new` と同じ中身）。

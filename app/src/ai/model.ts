@@ -9,6 +9,9 @@ import type {
   AiProposalView,
   AiTask,
   AiTaskInfo,
+  AutoEvent,
+  AutoResult,
+  AutoScene,
 } from "../core/types.ts";
 import { locateLine } from "../preview/locate.ts";
 
@@ -145,6 +148,8 @@ export type RunResult =
       /** 提案（`output: diff`。T3-8）と、出自に記録するモデル。 */
       readonly proposals: readonly AiProposal[];
       readonly model: string;
+      /** 生成の下書きを書き込んだ結果の文（T3-9。生成でなければ null）。 */
+      readonly written: string | null;
       readonly unread: readonly string[];
       readonly tokens: string;
     }
@@ -294,4 +299,95 @@ export function proposalsByFile(
     out.set(v.file, list);
   }
   return out;
+}
+
+/** 自律の段の名前（T3-9）。 */
+export const STEP_LABEL: Readonly<Record<string, string>> = {
+  beats: "展開メモ",
+  draft: "本文",
+  check: "点検",
+  fix: "直し",
+  write: "書き込み",
+};
+
+/** 走っている自律の実行（進み具合の知らせから作る）。 */
+export interface AutoRun {
+  readonly run: number;
+  readonly task: string;
+  readonly file: string;
+  /** 下書きにするシーン（本文の順）。 */
+  readonly planned: readonly string[];
+  /** 今の段。 */
+  readonly current: {
+    readonly scene: string;
+    readonly step: string;
+    readonly iteration: number;
+  } | null;
+  /** 終わったシーン。 */
+  readonly done: readonly AutoScene[];
+  readonly tokens: number;
+  readonly budget: number | null;
+}
+
+/** 進み具合の知らせを当てる。 */
+export function applyAutoEvent(run: AutoRun, event: AutoEvent): AutoRun {
+  switch (event.kind) {
+    case "planned":
+      return { ...run, planned: event.scenes };
+    case "step":
+      return {
+        ...run,
+        current: {
+          scene: event.scene,
+          step: event.step,
+          iteration: event.iteration,
+        },
+      };
+    case "scene_done":
+      return { ...run, current: null, done: [...run.done, event.scene] };
+    case "tokens":
+      return { ...run, tokens: event.used };
+  }
+}
+
+/** 自律をブランチで実行した後の文。 */
+export function autoBranchText(
+  branch: NonNullable<AutoResult["branch"]>,
+): string {
+  const { name, base, committed, kept, problem } = branch;
+  if (committed === null)
+    return `ブランチ ${name} に書きました。${problem ?? "コミットできませんでした"}`;
+  if (!committed && !kept)
+    return `何も書き込まなかったので、空のブランチ ${name} を消して ${base} に戻りました。${problem ?? ""}`;
+  if (problem !== null)
+    return committed
+      ? `ブランチ ${name} にコミットしました。${problem}`
+      : problem;
+  return committed
+    ? `ブランチ ${name} に書いてコミットし、${base} に戻りました。下の「AIのブランチ」で差分を見て取り込みます。`
+    : `ブランチ ${name} に変更はありませんでした。${base} に戻りました。`;
+}
+
+/** シーンの様子の文（自律の進み具合の表）。 */
+export function autoSceneText(run: AutoRun, scene: string): string {
+  const done = run.done.find((d) => d.scene === scene);
+  if (done !== undefined) {
+    if (done.status === "written")
+      return done.issues.length === 0
+        ? done.iterations === 0
+          ? "書き込みました（点検 問題なし）"
+          : `書き込みました（${done.iterations}回直して 問題なし）`
+        : `書き込みました（点検が ${done.issues.length}件残っています）`;
+    return (
+      done.message ??
+      (done.status === "failed" ? "失敗" : "書き込みませんでした")
+    );
+  }
+  if (run.current?.scene === scene) {
+    const step = STEP_LABEL[run.current.step] ?? run.current.step;
+    return run.current.iteration > 0
+      ? `${step}中（${run.current.iteration}回目）`
+      : `${step}中`;
+  }
+  return "待機";
 }

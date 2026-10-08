@@ -13,8 +13,9 @@ use serde_json::Value;
 use super::client::{AiError, CallOptions, ChatMessage, ChatRequest, Completion, Role, complete};
 use super::connection::Connection;
 use super::context::{Assembled, ContextSources, assemble};
+use super::generate::generated_body;
 use super::proposal::{Proposal, proposal_of};
-use super::task::{AiTask, TaskLevel, TaskOutput};
+use super::task::{AiTask, ContextItem, TaskLevel, TaskOutput};
 use crate::Span;
 use crate::index::build_index;
 use crate::ir::Ir;
@@ -259,6 +260,8 @@ pub struct RunOutcome {
     pub summary: Option<String>,
     /// 提案（`output: diff`。T3-8）。
     pub proposals: Vec<Proposal>,
+    /// 生成の下書き（`output: draft`。書き込む本文の行。T3-9）。
+    pub draft: Vec<String>,
     /// 応答のうち、読めなかった行。
     pub unread: Vec<String>,
     /// 応答の文（そのまま）。
@@ -292,8 +295,14 @@ pub fn runnable(task: &AiTask) -> Result<(), String> {
             "{} は提案ノード（proposals）を出すタスクです。フロー図の提案ノードは T3-10 で作ります",
             task.name
         )),
-        (TaskLevel::Generate | TaskLevel::Auto, _) => Err(format!(
-            "{} は生成・自律のタスクです。生成と自律の実行は T3-9 で作ります",
+        // 生成は、今のシーン（スタブ）に書くタスクだけ（T3-9）。ルートの骨格（新しいシーンを足す）は T3-10。
+        (TaskLevel::Generate, _) if task.context.contains(&ContextItem::Scene) => Ok(()),
+        (TaskLevel::Generate, _) => Err(format!(
+            "{} はシーンを足す生成のタスクです。ルートの骨格の生成は T3-10 で作ります",
+            task.name
+        )),
+        (TaskLevel::Auto, _) => Err(format!(
+            "{} は自律のタスクです。章を選んで自律で実行します",
             task.name
         )),
     }
@@ -365,6 +374,7 @@ pub fn run_task(
     )?;
     let text = completion.text.clone();
     let mut proposals = Vec::new();
+    let mut draft = Vec::new();
     let (findings, summary, unread) = match task.output {
         TaskOutput::Summary => {
             let summary = parse_summary(&text);
@@ -380,6 +390,15 @@ pub fn run_task(
             proposals = found;
             (Vec::new(), None, unread)
         }
+        TaskOutput::Draft => {
+            draft = generated_body(&text);
+            let unread = if draft.is_empty() && !text.trim().is_empty() {
+                vec![text.trim().to_owned()]
+            } else {
+                Vec::new()
+            };
+            (Vec::new(), None, unread)
+        }
         _ => {
             let (raw, unread) = parse_findings(&text);
             (resolve_findings(project, ir, raw, scene), None, unread)
@@ -393,6 +412,7 @@ pub fn run_task(
         findings,
         summary,
         proposals,
+        draft,
         unread,
         text,
         completion,

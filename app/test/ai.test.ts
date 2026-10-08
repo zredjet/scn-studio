@@ -3,7 +3,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  type AutoRun,
   adoptableIndexes,
+  applyAutoEvent,
+  autoBranchText,
+  autoSceneText,
   blocker,
   estimateText,
   type FindingRecord,
@@ -195,6 +199,7 @@ test("履歴と数の文", () => {
     summaryProblem: null,
     proposals: [],
     model: "m",
+    written: null,
     unread: [],
     tokens: "",
   };
@@ -350,9 +355,99 @@ test("提案：ファイルのまとまり、様子の文、採用できるも�
     summaryProblem: null,
     proposals: [{ line: "x", before: "a", after: "b", reason: null }],
     model: "m",
+    written: null,
     unread: [],
     tokens: "",
   };
   assert.equal(historyStatus(ok, 0, "diff"), "提案 1件");
   assert.equal(historyStatus({ ...ok, proposals: [] }, 0, "diff"), "提案なし");
+});
+
+test("自律の進み具合：計画、段、終わったシーン、トークン数", () => {
+  let run: AutoRun = {
+    run: 1,
+    task: "draft_chapter",
+    file: "story/ch.scn",
+    planned: [],
+    current: null,
+    done: [],
+    tokens: 0,
+    budget: 1000,
+  };
+  run = applyAutoEvent(run, { kind: "planned", scenes: ["s1", "s2"] });
+  assert.deepEqual(run.planned, ["s1", "s2"]);
+  assert.equal(autoSceneText(run, "s1"), "待機");
+  run = applyAutoEvent(run, {
+    kind: "step",
+    scene: "s1",
+    step: "fix",
+    iteration: 2,
+  });
+  assert.equal(autoSceneText(run, "s1"), "直し中（2回目）");
+  run = applyAutoEvent(run, { kind: "tokens", used: 220 });
+  assert.equal(run.tokens, 220);
+  const scene = {
+    scene: "s1",
+    title: "a",
+    status: "written" as const,
+    chars: 10,
+    iterations: 1,
+    issues: [],
+    message: null,
+    ids: ["aaaa"],
+  };
+  run = applyAutoEvent(run, { kind: "scene_done", scene });
+  assert.equal(run.current, null);
+  assert.equal(
+    autoSceneText(run, "s1"),
+    "書き込みました（1回直して 問題なし）",
+  );
+  run = applyAutoEvent(run, {
+    kind: "scene_done",
+    scene: { ...scene, scene: "s2", issues: ["W202 x"], iterations: 3 },
+  });
+  assert.equal(
+    autoSceneText(run, "s2"),
+    "書き込みました（点検が 1件残っています）",
+  );
+  run = applyAutoEvent(run, {
+    kind: "scene_done",
+    scene: {
+      ...scene,
+      scene: "s3",
+      status: "skipped",
+      message: "もうスタブではないので書き込みません",
+    },
+  });
+  assert.equal(
+    autoSceneText(run, "s3"),
+    "もうスタブではないので書き込みません",
+  );
+});
+
+test("自律をブランチで実行した後の文", () => {
+  const branch = {
+    name: "ai/draft_chapter-20261008-1200",
+    base: "main",
+    committed: true as boolean | null,
+    kept: true,
+    problem: null as string | null,
+  };
+  assert.match(autoBranchText(branch), /コミットし、main に戻りました/);
+  assert.match(
+    autoBranchText({ ...branch, committed: false, kept: false }),
+    /空のブランチ .* を消して main に戻りました/,
+  );
+  assert.equal(
+    autoBranchText({
+      ...branch,
+      committed: null,
+      problem: "コミットできなかったので、ブランチ ai/x にとどまりました（e）",
+    }),
+    "ブランチ ai/draft_chapter-20261008-1200 に書きました。コミットできなかったので、ブランチ ai/x にとどまりました（e）",
+  );
+  assert.equal(
+    autoBranchText({ ...branch, problem: "main に戻れませんでした（e）" }),
+    "ブランチ ai/draft_chapter-20261008-1200 にコミットしました。main に戻れませんでした（e）",
+  );
 });

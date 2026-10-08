@@ -4,13 +4,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import type {
+  AiBranches,
   AiPrepared,
   AiProposalFile,
   AiProposalView,
   AiTaskInfo,
+  AutoResult,
   SceneSummary,
 } from "../core/types.ts";
+import { AutoPanel } from "./AutoPanel.tsx";
 import {
+  type AutoRun,
   blocker,
   estimateText,
   type FindingRecord,
@@ -69,6 +73,25 @@ interface Props {
   /** 却下した提案（まとまりの id ごと）。 */
   readonly rejected: ReadonlyMap<string, ReadonlySet<number>>;
   readonly onToggleReject: (setId: string, index: number) => void;
+  /** 自律（T3-9）：走っている回、最後の結果、誤り、実行と取り消し。 */
+  readonly autoRun: AutoRun | null;
+  readonly autoResult: AutoResult | null;
+  readonly autoError: string | null;
+  readonly onRunAuto: (
+    info: AiTaskInfo,
+    file: string,
+    branch: boolean,
+    confirmedCloud: boolean,
+  ) => void;
+  readonly onCancelAuto: () => void;
+  /** AI のブランチ（Git）と、差分・取り込み・破棄。 */
+  readonly branches: AiBranches | null;
+  readonly onBranchDiff: (
+    name: string,
+  ) => Promise<{ base: string; stat: string; patch: string }>;
+  readonly onBranchMerge: (name: string) => Promise<void>;
+  /** 捨てる（人が確かめなければ false）。 */
+  readonly onBranchDelete: (name: string) => Promise<boolean>;
 }
 
 export function AiScreen({
@@ -92,6 +115,15 @@ export function AiScreen({
   onGoToProposal,
   rejected,
   onToggleReject,
+  autoRun,
+  autoResult,
+  autoError,
+  onRunAuto,
+  onCancelAuto,
+  branches,
+  onBranchDiff,
+  onBranchMerge,
+  onBranchDelete,
 }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   /** 開いている提案ファイル（選んでいればタスクの代わりに出す）。 */
@@ -294,241 +326,273 @@ export function AiScreen({
                 )}
               </p>
             )}
-            {sceneNeeded && (
-              <label className="ai-scene-select">
-                <span>対象のシーン</span>
-                <select
-                  value={scene ?? ""}
-                  onChange={(e) =>
-                    setScene(e.target.value === "" ? null : e.target.value)
-                  }
-                >
-                  <option value="">選んでください</option>
-                  {scenes.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.id} {s.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            <div className="ai-run-actions">
-              {thisRunning ? (
-                <>
-                  <span className="ai-test-state" role="status">
-                    実行中 · 受け取った文字{" "}
-                    {running.chars.toLocaleString("ja-JP")}
-                  </span>
-                  <button
-                    type="button"
-                    className="small-button"
-                    onClick={onCancel}
-                  >
-                    取り消す
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className="primary-small ai-run-button"
-                  disabled={
-                    blocked !== null ||
-                    isRunning ||
-                    confirming ||
-                    (sceneNeeded && scene === null) ||
-                    shown?.assembled.problem != null
-                  }
-                  onClick={() => {
-                    if (cloud) {
-                      setConfirming(true);
-                      if (shown === null) prepare();
-                    } else runNow();
-                  }}
-                >
-                  実行
-                </button>
-              )}
-              <button
-                type="button"
-                className="small-button"
-                disabled={preparing || (sceneNeeded && scene === null)}
-                onClick={prepare}
-              >
-                送る中身を見る
-              </button>
-              {isRunning && !thisRunning && (
-                <span className="context-faint">
-                  ほかのタスクを実行しています
-                </span>
-              )}
-            </div>
-            {prepareError !== null && (
-              <p className="export-warning">{prepareError}</p>
-            )}
-            {shown !== null && (
-              <section className="ai-prepared" aria-label="送る中身">
-                <p className="export-info">{estimateText(shown.assembled)}</p>
-                {shown.assembled.problem !== null && (
-                  <p className="export-warning">{shown.assembled.problem}</p>
+            {task.level === "auto" ? (
+              <AutoPanel
+                info={info}
+                checks={tasks.filter((t) => task.checks.includes(t.task.id))}
+                scenes={scenes}
+                run={autoRun}
+                result={autoResult}
+                error={autoError}
+                busy={isRunning || autoRun !== null}
+                blocked={blocked}
+                branches={branches}
+                onRun={onRunAuto}
+                onCancel={onCancelAuto}
+                onDiff={onBranchDiff}
+                onMerge={onBranchMerge}
+                onDelete={onBranchDelete}
+              />
+            ) : (
+              <>
+                {sceneNeeded && (
+                  <label className="ai-scene-select">
+                    <span>対象のシーン</span>
+                    <select
+                      value={scene ?? ""}
+                      onChange={(e) =>
+                        setScene(e.target.value === "" ? null : e.target.value)
+                      }
+                    >
+                      <option value="">選んでください</option>
+                      {scenes.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.id} {s.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 )}
-                {trimmedText(shown.assembled).map((t) => (
-                  <p key={t} className="context-faint ai-prepared-note">
-                    {t}
-                  </p>
-                ))}
-                {shown.assembled.notes.map((n) => (
-                  <p key={n} className="context-faint ai-prepared-note">
-                    {n}
-                  </p>
-                ))}
-                {confirming && shown.assembled.problem === null && (
-                  <div className="ai-confirm">
-                    <p>
-                      クラウド（{shown.connection.name} ·{" "}
-                      {shown.connection.model}
-                      ）へ次の中身を送ります。
-                    </p>
-                    <div className="ai-actions">
-                      <button
-                        type="button"
-                        className="primary-small"
-                        onClick={runNow}
-                      >
-                        送る
-                      </button>
+                <div className="ai-run-actions">
+                  {thisRunning ? (
+                    <>
+                      <span className="ai-test-state" role="status">
+                        実行中 · 受け取った文字{" "}
+                        {running.chars.toLocaleString("ja-JP")}
+                      </span>
                       <button
                         type="button"
                         className="small-button"
-                        onClick={() => setConfirming(false)}
+                        onClick={onCancel}
                       >
-                        やめる
+                        取り消す
                       </button>
-                    </div>
-                  </div>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="primary-small ai-run-button"
+                      disabled={
+                        blocked !== null ||
+                        isRunning ||
+                        confirming ||
+                        (sceneNeeded && scene === null) ||
+                        shown?.assembled.problem != null
+                      }
+                      onClick={() => {
+                        if (cloud) {
+                          setConfirming(true);
+                          if (shown === null) prepare();
+                        } else runNow();
+                      }}
+                    >
+                      実行
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="small-button"
+                    disabled={preparing || (sceneNeeded && scene === null)}
+                    onClick={prepare}
+                  >
+                    送る中身を見る
+                  </button>
+                  {isRunning && !thisRunning && (
+                    <span className="context-faint">
+                      ほかのタスクを実行しています
+                    </span>
+                  )}
+                </div>
+                {prepareError !== null && (
+                  <p className="export-warning">{prepareError}</p>
                 )}
-                <details open={confirming}>
-                  <summary>指示（system）と依頼（user）</summary>
-                  <pre className="ai-preview">{shown.assembled.system}</pre>
-                  <pre className="ai-preview">{shown.assembled.user}</pre>
-                </details>
-              </section>
-            )}
-            {confirming && shown === null && preparing && (
-              <p className="context-faint">送る中身を組み立てています…</p>
-            )}
-            {result !== undefined && !thisRunning && (
-              <section className="ai-result" aria-label="結果">
-                <h2 className="context-heading">
-                  結果{result.scene !== null ? `（${result.scene}）` : ""}
-                </h2>
-                {result.kind === "failed" && (
-                  <p className="export-warning">{result.message}</p>
-                )}
-                {result.kind === "cancelled" && (
-                  <p className="context-faint">取り消しました。</p>
-                )}
-                {result.kind === "ok" && (
-                  <>
-                    <p className="context-faint">{result.tokens}</p>
-                    {task.output === "summary" &&
-                      (result.summary === null ? (
-                        <p className="export-warning">
-                          要約を読めませんでした。
-                        </p>
-                      ) : (
-                        <div className="export-info">
-                          <p className="ai-summary">{result.summary}</p>
-                          <p className="context-faint">
-                            {result.summaryProblem === null
-                              ? "要約のキャッシュ（.cache/summaries.json）に入れました。要約を使うタスクの文脈に入ります。"
-                              : result.summaryProblem}
-                          </p>
-                        </div>
-                      ))}
-                    {task.output === "diff" && (
-                      <ProposalPanel
-                        set={{
-                          id: `run-${result.run}`,
-                          label: task.name,
-                          task: task.id,
-                          model: result.model,
-                          proposals: result.proposals,
-                        }}
-                        version={textVersion}
-                        onAdopt={onAdopt}
-                        onGoTo={onGoToProposal}
-                        rejected={
-                          rejected.get(`run-${result.run}`) ?? NO_REJECTED
-                        }
-                        onToggleReject={onToggleReject}
-                      />
+                {shown !== null && (
+                  <section className="ai-prepared" aria-label="送る中身">
+                    <p className="export-info">
+                      {estimateText(shown.assembled)}
+                    </p>
+                    {shown.assembled.problem !== null && (
+                      <p className="export-warning">
+                        {shown.assembled.problem}
+                      </p>
                     )}
-                    {task.output === "findings" &&
-                      resultFindings.length === 0 && (
-                        <p className="context-empty">
-                          指摘はありません（閉じた指摘は出しません）。
+                    {trimmedText(shown.assembled).map((t) => (
+                      <p key={t} className="context-faint ai-prepared-note">
+                        {t}
+                      </p>
+                    ))}
+                    {shown.assembled.notes.map((n) => (
+                      <p key={n} className="context-faint ai-prepared-note">
+                        {n}
+                      </p>
+                    ))}
+                    {confirming && shown.assembled.problem === null && (
+                      <div className="ai-confirm">
+                        <p>
+                          クラウド（{shown.connection.name} ·{" "}
+                          {shown.connection.model}
+                          ）へ次の中身を送ります。
                         </p>
-                      )}
-                    {resultFindings.map((r) => (
-                      <div key={r.id} className="ai-finding-card">
-                        <span>
-                          <span className={`ai-severity ${r.finding.severity}`}>
-                            {SEVERITY_LABEL[r.finding.severity]}
-                          </span>
-                          {r.finding.line !== null && (
-                            <span className="context-mono">
-                              {" "}
-                              ^{r.finding.line}{" "}
-                            </span>
-                          )}
-                          {r.finding.line === null &&
-                            r.finding.scene !== null && (
-                              <span className="context-mono">
-                                {" "}
-                                {r.finding.scene}{" "}
-                              </span>
-                            )}
-                          {r.finding.message}
-                          {r.finding.unresolved && (
-                            <span className="context-faint">
-                              （本文に無い行ID・シーンです）
-                            </span>
-                          )}
-                        </span>
-                        <div className="ai-finding-actions">
+                        <div className="ai-actions">
                           <button
                             type="button"
-                            className="small-button"
-                            disabled={
-                              r.finding.file === null || r.finding.span === null
-                            }
-                            onClick={() => onGoToFinding(r)}
+                            className="primary-small"
+                            onClick={runNow}
                           >
-                            行へ移動
+                            送る
                           </button>
                           <button
                             type="button"
                             className="small-button"
-                            onClick={() => onDismissFinding(r.id)}
+                            onClick={() => setConfirming(false)}
                           >
-                            閉じる
+                            やめる
                           </button>
                         </div>
                       </div>
-                    ))}
-                    {result.unread.length > 0 && (
-                      <details>
-                        <summary>
-                          応答のうち読めなかった行（{result.unread.length}行）
-                        </summary>
-                        <pre className="ai-preview">
-                          {result.unread.join("\n")}
-                        </pre>
-                      </details>
                     )}
-                  </>
+                    <details open={confirming}>
+                      <summary>指示（system）と依頼（user）</summary>
+                      <pre className="ai-preview">{shown.assembled.system}</pre>
+                      <pre className="ai-preview">{shown.assembled.user}</pre>
+                    </details>
+                  </section>
                 )}
-              </section>
+                {confirming && shown === null && preparing && (
+                  <p className="context-faint">送る中身を組み立てています…</p>
+                )}
+                {result !== undefined && !thisRunning && (
+                  <section className="ai-result" aria-label="結果">
+                    <h2 className="context-heading">
+                      結果{result.scene !== null ? `（${result.scene}）` : ""}
+                    </h2>
+                    {result.kind === "failed" && (
+                      <p className="export-warning">{result.message}</p>
+                    )}
+                    {result.kind === "cancelled" && (
+                      <p className="context-faint">取り消しました。</p>
+                    )}
+                    {result.kind === "ok" && (
+                      <>
+                        <p className="context-faint">{result.tokens}</p>
+                        {result.written !== null && (
+                          <p className="export-notice">{result.written}</p>
+                        )}
+                        {task.output === "summary" &&
+                          (result.summary === null ? (
+                            <p className="export-warning">
+                              要約を読めませんでした。
+                            </p>
+                          ) : (
+                            <div className="export-info">
+                              <p className="ai-summary">{result.summary}</p>
+                              <p className="context-faint">
+                                {result.summaryProblem === null
+                                  ? "要約のキャッシュ（.cache/summaries.json）に入れました。要約を使うタスクの文脈に入ります。"
+                                  : result.summaryProblem}
+                              </p>
+                            </div>
+                          ))}
+                        {task.output === "diff" && (
+                          <ProposalPanel
+                            set={{
+                              id: `run-${result.run}`,
+                              label: task.name,
+                              task: task.id,
+                              model: result.model,
+                              proposals: result.proposals,
+                            }}
+                            version={textVersion}
+                            onAdopt={onAdopt}
+                            onGoTo={onGoToProposal}
+                            rejected={
+                              rejected.get(`run-${result.run}`) ?? NO_REJECTED
+                            }
+                            onToggleReject={onToggleReject}
+                          />
+                        )}
+                        {task.output === "findings" &&
+                          resultFindings.length === 0 && (
+                            <p className="context-empty">
+                              指摘はありません（閉じた指摘は出しません）。
+                            </p>
+                          )}
+                        {resultFindings.map((r) => (
+                          <div key={r.id} className="ai-finding-card">
+                            <span>
+                              <span
+                                className={`ai-severity ${r.finding.severity}`}
+                              >
+                                {SEVERITY_LABEL[r.finding.severity]}
+                              </span>
+                              {r.finding.line !== null && (
+                                <span className="context-mono">
+                                  {" "}
+                                  ^{r.finding.line}{" "}
+                                </span>
+                              )}
+                              {r.finding.line === null &&
+                                r.finding.scene !== null && (
+                                  <span className="context-mono">
+                                    {" "}
+                                    {r.finding.scene}{" "}
+                                  </span>
+                                )}
+                              {r.finding.message}
+                              {r.finding.unresolved && (
+                                <span className="context-faint">
+                                  （本文に無い行ID・シーンです）
+                                </span>
+                              )}
+                            </span>
+                            <div className="ai-finding-actions">
+                              <button
+                                type="button"
+                                className="small-button"
+                                disabled={
+                                  r.finding.file === null ||
+                                  r.finding.span === null
+                                }
+                                onClick={() => onGoToFinding(r)}
+                              >
+                                行へ移動
+                              </button>
+                              <button
+                                type="button"
+                                className="small-button"
+                                onClick={() => onDismissFinding(r.id)}
+                              >
+                                閉じる
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        {result.unread.length > 0 && (
+                          <details>
+                            <summary>
+                              応答のうち読めなかった行（{result.unread.length}
+                              行）
+                            </summary>
+                            <pre className="ai-preview">
+                              {result.unread.join("\n")}
+                            </pre>
+                          </details>
+                        )}
+                      </>
+                    )}
+                  </section>
+                )}
+              </>
             )}
           </main>
           <aside className="ai-run-settings" aria-label="実行の設定">

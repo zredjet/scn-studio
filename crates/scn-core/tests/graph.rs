@@ -70,6 +70,7 @@ fn new_project_checks_clean() {
         "bible/types/character.yaml",
         "ai/provenance.jsonl",
         ".gitignore",
+        ".gitattributes",
     ] {
         assert!(dir.join(path).is_file(), "{path}");
     }

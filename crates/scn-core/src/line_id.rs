@@ -178,7 +178,7 @@ fn push_if_absent(slot: &LineIdSlot, end: usize, offsets: &mut Vec<usize>) {
 }
 
 /// 本文の決まった位置に ` ^ID` を足す。`assigned` は位置の順。
-fn insert(text: &str, assigned: &[AssignedLineId]) -> String {
+pub(crate) fn insert(text: &str, assigned: &[AssignedLineId]) -> String {
     let mut out = String::with_capacity(text.len() + assigned.len() * (NEW_LINE_ID_LEN + 2));
     let mut from = 0;
     for a in assigned {

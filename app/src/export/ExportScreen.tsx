@@ -22,23 +22,26 @@ interface Props {
   readonly summary: Summary;
   /** 保存していないファイルの数（台本は、保存していない本文も含めて作る）。 */
   readonly unsaved: number;
-  readonly load: () => Promise<ScriptSheet>;
+  /** 台本を作る。`aiDrafts` が偽なら AI下書きのシーンの台詞を省く（T3-9）。 */
+  readonly load: (aiDrafts: boolean) => Promise<ScriptSheet>;
   /** 書き出す。書いたファイルのパスを返す。 */
   readonly write: (
     format: ScriptFormat,
     baseline: boolean,
+    aiDrafts: boolean,
   ) => Promise<{
     readonly path: string;
     readonly rows: number;
   }>;
   /** Ren'Py へ書き出す。 */
-  readonly writeRenpy: () => Promise<RenpyResult>;
+  readonly writeRenpy: (aiDrafts: boolean) => Promise<RenpyResult>;
   /** 通読の道の候補。 */
   readonly loadChoices: () => Promise<ReadingChoice[]>;
   /** プレーンテキストを書き出す。 */
   readonly writeText: (
     target: ReadingTarget,
     notes: boolean,
+    aiDrafts: boolean,
   ) => Promise<{ readonly path: string }>;
   /** AIが書いた行の数（出自の記録。T3-4）。 */
   readonly loadProvenance: () => Promise<AiLines>;
@@ -356,12 +359,14 @@ export function ExportScreen({
   const [baseline, setBaseline] = useState(false);
   /** 書き出した回数（基準を記録したら、台本を取り直す）。 */
   const [written, setWritten] = useState(0);
+  /** AI下書き（status: ai-draft）のシーンを含めるか（T3-9）。 */
+  const [aiDrafts, setAiDrafts] = useState(true);
 
   useEffect(() => {
     void summary;
     void written;
     let live = true;
-    load()
+    load(aiDrafts)
       .then((s) => {
         if (live) {
           setSheet(s);
@@ -374,19 +379,27 @@ export function ExportScreen({
     return () => {
       live = false;
     };
-  }, [summary, load, written]);
+  }, [summary, load, written, aiDrafts]);
 
   return (
     <div className="export-screen-body">
       <header className="export-head">
         <h1>出力</h1>
         <span className="flow-spacer" />
+        <label className="export-ai-drafts">
+          <input
+            type="checkbox"
+            checked={aiDrafts}
+            onChange={(e) => setAiDrafts(e.target.checked)}
+          />
+          AI下書き（status: ai-draft）のシーンを含める
+        </label>
       </header>
-      <RenpyCard unsaved={unsaved} writeRenpy={writeRenpy} />
+      <RenpyCard unsaved={unsaved} writeRenpy={() => writeRenpy(aiDrafts)} />
       <TextCard
         summary={summary}
         loadChoices={loadChoices}
-        writeText={writeText}
+        writeText={(target, notes) => writeText(target, notes, aiDrafts)}
       />
       <ProvenanceCard
         summary={summary}
@@ -410,7 +423,7 @@ export function ExportScreen({
             disabled={busy || sheet === null}
             onClick={() => {
               setBusy(true);
-              write(format, baseline)
+              write(format, baseline, aiDrafts)
                 .then((r) => {
                   setNotice(
                     `${r.path} に書き出しました（${r.rows}行）${baseline ? "。収録の基準として記録しました" : ""}`,

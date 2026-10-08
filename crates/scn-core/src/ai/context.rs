@@ -310,6 +310,11 @@ const PREAMBLE: &str = "あなたは、分岐する物語（ADV・ビジュア�
 `話者「台詞」` が台詞、`@` で始まる行が演出や分岐の命令、`-> シーンID` がジャンプ、
 それ以外の行が地の文です。行末の `^xxxx` は行IDで、変えてはいけません。";
 
+/// 共作者としての決まりと `.scn` 形式のあらまし（指示の初めの部分。自律の展開メモでも使う）。
+pub(crate) fn preamble() -> &'static str {
+    PREAMBLE
+}
+
 fn output_instruction(output: TaskOutput) -> &'static str {
     match output {
         TaskOutput::Findings => {

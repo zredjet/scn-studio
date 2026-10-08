@@ -196,6 +196,9 @@
 | 削る順番 | trim order | 文脈が上限に入らないときに節を削る順（`ai::TRIM_ORDER`） |
 | 要約のキャッシュ | summary cache | `.cache/summaries.json`（`ai::SummaryCache`）。シーンの本文のハッシュと一緒に置く |
 | 提案（行ごとの） | proposal | 行ID・今の文・案・理由（`ai::Proposal`）。アプリの `output: diff` と `ai/proposals/*.md` |
+| 下書き（生成の） | draft | スタブのシーンに差し込む AI の本文（`ai::generated_body`・`Workspace::write_draft`）。シーンは `ai-draft` になる |
+| 点検（自律の） | inspection | 自律で書き込む前に、`check` と指摘のタスクで下書きを確かめること |
+| AIのブランチ | ai branch | 自律の大きな実行を書く Git のブランチ（`ai/<タスク>-<日時>`。`gitops`） |
 | 採用 | adopt | 提案を人が選んで本文に当てる（`workspace::adopt_proposals`）。行IDは変えず、出自を `ai` と記録する |
 | 指摘（AIの） | finding | AI のタスクが返した、行IDつきの指摘（`ai::Finding`）。アプリの中だけに持つ |
 | 実行の結果 | run outcome | 1回の実行の指摘・要約・読めなかった行・トークン数（`ai::RunOutcome`） |

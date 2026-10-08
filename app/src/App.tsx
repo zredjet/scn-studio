@@ -7,6 +7,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AiScreen } from "./ai/AiScreen.tsx";
 import {
+  type AutoRun,
+  applyAutoEvent,
   type FindingRecord,
   findingLines,
   findingOffset,
@@ -29,6 +31,10 @@ import { ConceptScreen } from "./concept/ConceptScreen.tsx";
 import {
   addChapter,
   adoptProposals,
+  aiBranchDelete,
+  aiBranchDiff,
+  aiBranches,
+  aiBranchMerge,
   aiConnections,
   aiLines,
   aiTaskList,
@@ -52,6 +58,8 @@ import {
   onPreviewLine as listenPreviewLine,
   onShowInEditor as listenShowInEditor,
   mergeView,
+  onAiAutoProgress,
+  onAiDraftWritten,
   onAiRunProgress,
   onPreviewWindowClosed,
   onWorkspaceChanged,
@@ -70,6 +78,7 @@ import {
   renameChapter,
   renamePreview,
   routeStats,
+  runAiAuto,
   runAiTask,
   runPlaythrough,
   saveFile,
@@ -83,15 +92,18 @@ import {
   symbolAt,
   testAiConnection,
   viewModes,
+  writeAiDraft,
 } from "./core/api.ts";
 import type { PreviewData } from "./core/ir.ts";
 import { PositionMap } from "./core/position.ts";
 import type {
+  AiBranches,
   AiConnections,
   AiProposalFile,
   AiProposalView,
   AiTaskInfo,
   AssistData,
+  AutoResult,
   Bracket,
   EditorSettings,
   GraphLevel,
@@ -370,6 +382,14 @@ export function App() {
     readonly AiProposalFile[]
   >([]);
   const [proposalsVersion, setProposalsVersion] = useState(0);
+  /** 自律の実行（T3-9）：走っている回、最後の結果、AI のブランチ。 */
+  const [aiAutoRun, setAiAutoRun] = useState<AutoRun | null>(null);
+  const [aiAutoResult, setAiAutoResult] = useState<AutoResult | null>(null);
+  const [aiAutoError, setAiAutoError] = useState<string | null>(null);
+  const [aiBranchState, setAiBranchState] = useState<AiBranches | null>(null);
+  const [branchesVersion, setBranchesVersion] = useState(0);
+  /** 走っている自律の回の番号（取り消しに使う）。 */
+  const autoRunning = useRef<number | null>(null);
   /** 却下した提案（まとまりの id ごと。画面を切り替えても残す）。 */
   const [rejectedProposals, setRejectedProposals] = useState<
     ReadonlyMap<string, ReadonlySet<number>>
@@ -1738,6 +1758,78 @@ export function App() {
       unlisten?.();
     };
   }, []);
+  /**
+   * コアが書いた章の本文（提案の採用、生成の下書き、自律の書き込み）を、エディタと App の本文に入れる。`before` は
+   * 書く前にフロントが知っていた本文（エディタがそれと違えば、置き換えを見送って選ばせる）。
+   */
+  const applyWrittenText = useCallback(
+    (
+      file: string,
+      text: string,
+      before: string,
+      summary: Summary,
+      checks: readonly IrDiagnostic[],
+    ) => {
+      saved.current.set(file, text);
+      buffers.current.set(file, text);
+      mergeBases.current.delete(file);
+      setDirty((d) => withoutFiles(d, new Set([file])));
+      if (file === latest.current.currentFile)
+        replaceText(file, text, before, before);
+      setSavedVersion((n) => n + 1);
+      showSummary(summary, checks);
+    },
+    [replaceText, showSummary],
+  );
+  /** 生成の下書きをスタブのシーンに書き込む（T3-9）。結果の文を返す。 */
+  const writeDraft = useCallback(
+    async (
+      scene: string,
+      body: readonly string[],
+      task: string,
+      model: string,
+    ): Promise<string> => {
+      const file = latest.current.project?.summary.scenes.find(
+        (s) => s.id === scene,
+      )?.file;
+      if (file === undefined) return `シーン ${scene} が見つかりません`;
+      if (body.length === 0) return "下書きの本文がありませんでした";
+      if (latest.current.conflicts.has(file))
+        return `${file} は外部の変更とぶつかっています。選んでから実行します`;
+      const text = buffers.current.get(file);
+      if (text === undefined) return `${file} が開かれていません`;
+      const result = await writeAiDraft(
+        file,
+        scene,
+        body,
+        task,
+        model,
+        text,
+        saved.current.get(file) ?? null,
+      );
+      switch (result.kind) {
+        case "saved":
+          applyWrittenText(
+            file,
+            result.text,
+            text,
+            result.summary,
+            result.checks,
+          );
+          return result.provenance_problem === null
+            ? `${scene} に下書きを書き込みました（${result.ids.length}行。status: ai-draft）`
+            : `${scene} に下書きを書き込みましたが、出自を記録できませんでした：${result.provenance_problem}`;
+        case "conflict":
+          setConflicts((map) =>
+            new Map(map).set(file, { deleted: result.deleted }),
+          );
+          return `${file} は外部で変更されていたので、書き込んでいません`;
+        case "refused":
+          return result.reason;
+      }
+    },
+    [applyWrittenText],
+  );
   const runTask = useCallback(
     (info: AiTaskInfo, scene: string | null, digest: string | null) => {
       if (taskRun.current !== null) return;
@@ -1766,7 +1858,13 @@ export function App() {
         );
       };
       runAiTask(task.id, scene, run, digest)
-        .then((outcome) => {
+        .then(async (outcome) => {
+          if (taskRun.current !== run) return;
+          // 生成は、下書きをスタブに書き込む（人が書いた行は変えない）。
+          const written =
+            task.level === "generate" && scene !== null
+              ? await writeDraft(scene, outcome.draft, task.id, outcome.model)
+              : null;
           if (taskRun.current !== run) return;
           taskRun.current = null;
           setAiRunState(null);
@@ -1795,6 +1893,7 @@ export function App() {
               summaryProblem: outcome.summary_problem,
               proposals: outcome.proposals,
               model: outcome.model,
+              written,
               unread: outcome.unread,
               tokens: tokensText(outcome.completion.usage),
             },
@@ -1808,8 +1907,114 @@ export function App() {
           finish({ kind: "failed", run, scene, message: String(e) }, 0);
         });
     },
-    [whenIdle],
+    [whenIdle, writeDraft],
   );
+  // 自律の進み具合と、自律が章に書き込んだ本文（T3-9）。
+  useEffect(() => {
+    const offs: (() => void)[] = [];
+    let live = true;
+    const keep = (u: () => void) => {
+      if (live) offs.push(u);
+      else u();
+    };
+    void onAiAutoProgress((p) => {
+      setAiAutoRun((r) =>
+        r !== null && r.run === p.run ? applyAutoEvent(r, p.event) : r,
+      );
+    }).then(keep);
+    void onAiDraftWritten((w) => {
+      // コアが書く前の本文（エディタがまだ送っていない編集があれば、置き換えずに選ばせる）。
+      const before = w.before ?? buffers.current.get(w.file) ?? w.text;
+      whenIdle(() =>
+        applyWrittenText(w.file, w.text, before, w.summary, w.checks),
+      );
+    }).then(keep);
+    return () => {
+      live = false;
+      for (const off of offs) off();
+    };
+  }, [applyWrittenText, whenIdle]);
+  /** 自律で章のスタブを下書きにする。 */
+  const runAuto = useCallback(
+    (info: AiTaskInfo, file: string, branch: boolean, confirmed: boolean) => {
+      if (latest.current.dirty.size > 0) {
+        setAiAutoError(
+          "保存していない変更があります。保存してから自律で実行します",
+        );
+        return;
+      }
+      aiRun.current += 1;
+      const run = aiRun.current;
+      autoRunning.current = run;
+      const task = info.task;
+      setAiAutoError(null);
+      setAiAutoResult(null);
+      setAiAutoRun({
+        run,
+        task: task.id,
+        file,
+        planned: [],
+        current: null,
+        done: [],
+        tokens: 0,
+        budget: task.budget_tokens,
+      });
+      const at = new Date().toLocaleTimeString("ja-JP", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      setAiHistory((h) => [
+        { run, taskName: task.name, at, status: "自律で実行中" },
+        ...h,
+      ]);
+      const settle = (status: string) =>
+        setAiHistory((h) =>
+          h.map((e) => (e.run === run ? { ...e, status } : e)),
+        );
+      runAiAuto(task.id, file, run, branch, confirmed)
+        .then((result) => {
+          autoRunning.current = null;
+          setAiAutoResult(result);
+          setAiAutoRun(null);
+          setBranchesVersion((n) => n + 1);
+          const written = result.outcome.scenes.filter(
+            (s) => s.status === "written",
+          ).length;
+          settle(
+            result.outcome.stopped === null
+              ? `${written}シーンを下書き`
+              : `${written}シーンを下書き（途中で止めた）`,
+          );
+        })
+        .catch((e: unknown) => {
+          autoRunning.current = null;
+          setAiAutoError(String(e));
+          setAiAutoRun(null);
+          settle("失敗");
+        });
+    },
+    [],
+  );
+  const cancelAuto = useCallback(() => {
+    // 次の段の合間で止まる（結果は届いたときに見せる）。
+    if (autoRunning.current !== null) void cancelAi(autoRunning.current);
+  }, []);
+  // AI のブランチ（AI の画面を開いたとき、自律の後、取り込み・破棄の後）。
+  useEffect(() => {
+    void branchesVersion;
+    if (projectRoot === null || screen !== "ai") return;
+    let live = true;
+    aiBranches()
+      .then((b) => {
+        if (live) setAiBranchState(b);
+      })
+      .catch(() => {
+        if (live) setAiBranchState(null);
+      });
+    return () => {
+      live = false;
+    };
+  }, [projectRoot, branchesVersion, screen]);
   const cancelTaskRun = useCallback(() => {
     const run = taskRun.current;
     const target = taskRunTarget.current;
@@ -2418,6 +2623,31 @@ export function App() {
                     onGoToProposal={goToProposal}
                     rejected={rejectedProposals}
                     onToggleReject={toggleReject}
+                    autoRun={aiAutoRun}
+                    autoResult={aiAutoResult}
+                    autoError={aiAutoError}
+                    onRunAuto={runAuto}
+                    onCancelAuto={cancelAuto}
+                    branches={aiBranchState}
+                    onBranchDiff={aiBranchDiff}
+                    onBranchMerge={(name) =>
+                      aiBranchMerge(name).finally(() =>
+                        setBranchesVersion((n) => n + 1),
+                      )
+                    }
+                    onBranchDelete={async (name) => {
+                      const ok = await confirm(
+                        `AI のブランチ ${name} を、取り込まずに捨てます。元に戻せません。`,
+                        "AIのブランチを破棄",
+                      );
+                      if (!ok) return false;
+                      try {
+                        await aiBranchDelete(name);
+                      } finally {
+                        setBranchesVersion((n) => n + 1);
+                      }
+                      return true;
+                    }}
                   />
                 </section>
               )}

@@ -4010,3 +4010,84 @@ body {
 .ai-proposals .export-notice {
   white-space: pre-wrap;
 }
+
+/* 出力の画面の「AI下書きを含める」（T3-9） */
+.export-ai-drafts {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+
+/* 自律の実行（T3-9） */
+.ai-auto {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ai-auto-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-auto-cloud-task {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted);
+}
+
+.ai-progressbar {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--border-soft);
+}
+
+.ai-progressbar > div {
+  height: 100%;
+  background: var(--ai);
+}
+
+.ai-auto-scenes {
+  margin: 6px 0 0;
+  padding-left: 20px;
+  font-size: 12.5px;
+}
+
+.ai-auto-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.ai-auto-result .ai-auto-table thead th,
+.ai-auto-result .ai-auto-table tbody td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-soft);
+  text-align: left;
+  vertical-align: top;
+}
+
+.ai-branch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12.5px;
+}
+
+.ai-branch-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ai-auto .context-heading {
+  padding-left: 0;
+}

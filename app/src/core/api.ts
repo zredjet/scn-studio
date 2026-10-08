@@ -9,6 +9,7 @@ import type { PreviewData } from "./ir.ts";
 import type {
   AddedChapter,
   AdoptResult,
+  AiBranches,
   AiConnections,
   AiLines,
   AiPrepared,
@@ -21,11 +22,14 @@ import type {
   AssetKey,
   AssetKind,
   AssetList,
+  AutoEvent,
+  AutoResult,
   BibleData,
   BibleWritten,
   CatalogWritten,
   ConceptData,
   DevSettings,
+  DraftWriteResult,
   EntryUsage,
   FlowEdge,
   GraphLevel,
@@ -610,6 +614,106 @@ export function adoptProposals(
   });
 }
 
+/**
+ * 生成の下書きをスタブのシーンに書き込む（T3-9）。`text` は今の本文、`disk` は知っているディスクの中身。
+ * 差し込んだ行にだけ行IDを付けて保存し、出自を `ai` と記録する。
+ */
+export function writeAiDraft(
+  file: string,
+  scene: string,
+  body: readonly string[],
+  task: string,
+  model: string,
+  text: string,
+  disk: string | null,
+): Promise<DraftWriteResult> {
+  return invoke<DraftWriteResult>("write_ai_draft", {
+    file,
+    scene,
+    body,
+    task,
+    model,
+    text,
+    disk,
+  });
+}
+
+/** 自律で章のスタブを下書きにする（T3-9）。`branch` なら Git のブランチで行う。 */
+export function runAiAuto(
+  task: string,
+  file: string,
+  run: number,
+  branch: boolean,
+  confirmedCloud: boolean,
+): Promise<AutoResult> {
+  return invoke<AutoResult>("ai_auto", {
+    task,
+    file,
+    run,
+    branch,
+    confirmedCloud,
+  });
+}
+
+/** 自律の進み具合。 */
+export function onAiAutoProgress(
+  handler: (progress: {
+    readonly run: number;
+    readonly event: AutoEvent;
+  }) => void,
+): Promise<UnlistenFn> {
+  return listen<{ run: number; event: AutoEvent }>("ai-auto-progress", (e) =>
+    handler(e.payload),
+  );
+}
+
+/** 自律で章に書き込んだ（エディタの本文を置き換える）。 */
+export function onAiDraftWritten(
+  handler: (written: {
+    readonly file: string;
+    /** 書く前のコアの本文（エディタがこれと同じなら置き換える）。 */
+    readonly before: string | null;
+    readonly text: string;
+    readonly provenance_problem: string | null;
+    readonly summary: Summary;
+    readonly checks: readonly IrDiagnostic[];
+  }) => void,
+): Promise<UnlistenFn> {
+  return listen<{
+    file: string;
+    before: string | null;
+    text: string;
+    provenance_problem: string | null;
+    summary: Summary;
+    checks: IrDiagnostic[];
+  }>("ai-draft-written", (e) => handler(e.payload));
+}
+
+/** AI のブランチの一覧。 */
+export function aiBranches(): Promise<AiBranches> {
+  return invoke<AiBranches>("ai_branches");
+}
+
+/** AI のブランチと今のブランチの差分。 */
+export function aiBranchDiff(
+  name: string,
+): Promise<{ base: string; stat: string; patch: string }> {
+  return invoke<{ base: string; stat: string; patch: string }>(
+    "ai_branch_diff",
+    { name },
+  );
+}
+
+/** AI のブランチを今のブランチに取り込む。 */
+export function aiBranchMerge(name: string): Promise<void> {
+  return invoke<void>("ai_branch_merge", { name });
+}
+
+/** AI のブランチを捨てる。 */
+export function aiBranchDelete(name: string): Promise<void> {
+  return invoke<void>("ai_branch_delete", { name });
+}
+
 /** AIタスクの実行の進み具合（届いた文字の数）。 */
 export function onAiRunProgress(
   handler: (progress: { readonly run: number; readonly chars: number }) => void,
@@ -625,8 +729,8 @@ export function runPlaythrough(): Promise<Playthrough> {
 }
 
 /** 台本（書き出す前に中身を見る）。 */
-export function scriptSheet(): Promise<ScriptSheet> {
-  return invoke<ScriptSheet>("script_sheet");
+export function scriptSheet(aiDrafts = true): Promise<ScriptSheet> {
+  return invoke<ScriptSheet>("script_sheet", { aiDrafts });
 }
 
 /** 台本を作品フォルダの `export/script.csv`（Excel 形式は `export/script.xlsx`）に書き出す。`baseline` なら、
@@ -634,10 +738,12 @@ export function scriptSheet(): Promise<ScriptSheet> {
 export function exportScript(
   format: ScriptFormat,
   baseline: boolean,
+  aiDrafts = true,
 ): Promise<{ path: string; rows: number }> {
   return invoke<{ path: string; rows: number }>("export_script", {
     format,
     baseline,
+    aiDrafts,
   });
 }
 
@@ -702,8 +808,8 @@ export interface RenpyResult {
   readonly problems: readonly string[];
 }
 
-export function exportRenpy(): Promise<RenpyResult> {
-  return invoke<RenpyResult>("export_renpy");
+export function exportRenpy(aiDrafts = true): Promise<RenpyResult> {
+  return invoke<RenpyResult>("export_renpy", { aiDrafts });
 }
 
 // ---- カーソル位置から再生と、プレビューの別ウィンドウ（T2-4、D055） ----
@@ -835,14 +941,20 @@ export function readingChoices(): Promise<ReadingChoice[]> {
 export function readRoute(
   target: ReadingTarget,
   persistent: PersistentValues,
+  aiDrafts = true,
 ): Promise<ReadingResult> {
-  return invoke<ReadingResult>("read_route", { target, persistent });
+  return invoke<ReadingResult>("read_route", {
+    target,
+    persistent,
+    aiDrafts,
+  });
 }
 
 /** 通読の道を `export/text/<道の名前>.txt` に書き出す。 */
 export function exportText(
   target: ReadingTarget,
   notes: boolean,
+  aiDrafts = true,
 ): Promise<{ path: string }> {
-  return invoke<{ path: string }>("export_text", { target, notes });
+  return invoke<{ path: string }>("export_text", { target, notes, aiDrafts });
 }

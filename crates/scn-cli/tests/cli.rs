@@ -1400,3 +1400,37 @@ fn ai_context() {
         out.stderr
     );
 }
+
+/// `--no-ai-drafts`（T3-9）：AI下書きのシーンの台詞と地の文を省く（台本の行、通読の本文）。
+#[test]
+fn export_without_ai_drafts() {
+    let dir = repo_root().join("samples/houkago");
+    let all = scn(&["export", "script", ".", "-o", "-"], &dir);
+    assert_eq!(all.code, SUCCESS, "{}", all.stderr);
+    assert!(all.stdout.contains("s021"), "{}", all.stdout);
+    let without = scn(
+        &["export", "script", ".", "--no-ai-drafts", "-o", "-"],
+        &dir,
+    );
+    assert_eq!(without.code, SUCCESS, "{}", without.stderr);
+    assert!(!without.stdout.contains("s021"), "{}", without.stdout);
+    let text = scn(
+        &[
+            "export",
+            "text",
+            ".",
+            "--route",
+            "灯",
+            "--no-ai-drafts",
+            "-o",
+            "-",
+        ],
+        &dir,
+    );
+    assert_eq!(text.code, SUCCESS, "{}", text.stderr);
+    assert!(
+        text.stdout.contains("AI下書きのため省いたシーン"),
+        "{}",
+        text.stdout
+    );
+}
