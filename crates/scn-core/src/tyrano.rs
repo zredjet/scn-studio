@@ -245,7 +245,7 @@ fn css_name(name: &str) -> bool {
 
 /// ラベル・キャラクター・表情の名前（英数字と `_`。英字で始まらなければ `prefix` を付ける。英数字が無ければ
 /// 名前から決まる印）。
-fn ascii_name(text: &str, prefix: &str) -> String {
+pub(crate) fn ascii_name(text: &str, prefix: &str) -> String {
     let word: String = text
         .chars()
         .map(|c| {
@@ -273,7 +273,7 @@ fn ascii_name(text: &str, prefix: &str) -> String {
 }
 
 /// 重ならない名前（重なれば `_2`、`_3` …を付ける）。
-fn unique(taken: &mut BTreeSet<String>, wanted: &str) -> String {
+pub(crate) fn unique(taken: &mut BTreeSet<String>, wanted: &str) -> String {
     let mut name = wanted.to_owned();
     let mut n = 2;
     while taken.contains(&name) {

@@ -830,3 +830,16 @@
   - 開始のファイルで舞台を空にし（`[clearstack]`・`[cm]`・`[chara_hide_all]`・`[stopbgm]`）、準備（プロファイルの `setup`。既定は画面の大きさから決めたメッセージ枠と名前の欄。`#名前` に `[chara_config ptext]` が要るため）を書く。
 - 理由：計画 T3-11 の手順と、Ren'Py と同じ考え（D053：書き出しは一方向、生成物は作り直す、人のファイルに触れない、素材は意味名から、仮素材を見せる）。ティラノスクリプトのラベルの中への `[if]` の扱いは処理系に頼れないので、ラベルとジャンプだけで書く（`cond` はどのタグにも書ける）。変数の名前を変えないのは、JavaScript の添字で日本語と `.` をそのまま使えるため（名前の対応表が要らない）。`first.ks` を既定で書かないのは、人のプロジェクトの入口を勝手に変えないため。
 - 影響：`crates/scn-core/src/tyrano.rs`（新規）、`renpy.rs`（プロファイルの読み方と素材の集め方を `pub(crate)` に）、`scn export tyrano`、`app/src-tauri`（`export_tyrano`）、`app/src/export/ExportScreen.tsx`（書き出しのカードを Ren'Py と共通に）、`docs/spec/project-files.md` の12節。
+
+## D073 宴への書き出し（2026-10-09）
+
+- 決定：
+  - 出力プロファイルは `export/utage.yaml`（11節にそろえる）：`target`・`output`（既定 `export/utage`）・`book`（ブックの名前）・`positions`（X 座標）・`transitions`（秒）・`fx`（コマンドの行）・`voice`・`ending`（コマンドの行。既定 `EndScenario`）・`characters`・`variables`。
+  - 書き出し先は宴のプロジェクトへ取り込む前の置き場で、まるごと作り直す（印 `.scn-studio`）。シナリオのブック（開始のシート `scn_start` とシーンごとのシート。シートの名前がシナリオラベル）と設定のブック（Character・Texture・Sound・Param・Layer）を分け、素材は `Texture/`・`Sound/` の下に `scn/<assets から数えたパス>` で写す。ファイルの無い画像は色の矩形の PNG。
+  - 列は `Command`・`Arg1`〜`Arg6`・`WaitType`・`Text`・`PageCtrl`・`Voice`。流れはラベルとジャンプだけ（`Selection` と選択肢ごとのラベル、条件つきの `Jump`、`JumpSubroutine`・`EndSubroutine`）。
+  - 台詞の `Arg1` は表示の名前にし、立ち絵の `CharacterName`（`ch_…`）と分ける（`.scn` の台詞は立ち絵を出さないため）。立ち絵は文の無い行（`Arg1` に `CharacterName`、`Arg2` にパターン、`Arg3` に位置ごとの Character のレイヤー。宴は1つのレイヤーに1人を出すので、位置ごとのレイヤーを Layer のシートに足す）。フェードと待ちの秒は `Arg6`（宴の説明のとおり）。問いかけ文の行は `PageCtrl` に `Input`（選択肢と一緒に見せる）。
+  - 変数はパラメーター（名前の `.` を `_` に）、式は宴の式（`&&`・`||`・`!`、`"…"`）。変数でない式の埋め込みは一時のパラメーター。
+  - テキストタグ：ルビ `<ruby=…>`、傍点 `<em=﹅>`、待ち `<interval=秒>`、速さ `<speed=秒>`、変数 `<param=…>`。文中の効果音は台詞の前の `Se` の行。
+  - Excel 形式の書き手（`xlsx`）に、複数のシートのブック（`xlsx_book`）を足した。依存は足さない。
+- 理由：計画 T3-12 の手順と、Ren'Py・ティラノスクリプトと同じ考え（D053・D072）。宴の公式の説明（コマンド一覧、Selection、Character・Texture・Sound・Param のシート、テキストタグ）に沿う。宴の設定のシートは作品ごとに既にあるので、上書きしない形（別のブック）で渡す。シーンごとのシートは計画のとおり（ラベルは作品全体で通じるので、シートをまたいで飛べる）。
+- 影響：`crates/scn-core/src/utage.rs`（新規）、`xlsx.rs`（`xlsx_book`、`crc32` をクレートの中で使う）、`renpy.rs`（`identifier` を `pub(crate)`）、`tyrano.rs`（`ascii_name`・`unique` を `pub(crate)`）、`scn export utage`、`app/src-tauri`（`export_utage`）、`app/src/export/ExportScreen.tsx`、`docs/spec/project-files.md` の13節。

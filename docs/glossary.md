@@ -154,8 +154,9 @@
 | 自動選択 | auto choice | 選択肢を1番目かランダムで選ぶ |
 | トランジション | transition | 背景や立ち絵の切り替え方（プレビューはフェードだけ再現） |
 | エクスポート | export | エンジン用ファイルなどへの書き出し |
-| 出力プロファイル | export profile | `export/*.yaml`（Ren'Py は `export/renpy.yaml`、`RenpyProfile`。ティラノスクリプトは `export/tyrano.yaml`、`TyranoProfile`） |
+| 出力プロファイル | export profile | `export/*.yaml`（Ren'Py は `export/renpy.yaml`、`RenpyProfile`。ティラノスクリプトは `export/tyrano.yaml`、`TyranoProfile`。宴は `export/utage.yaml`、`UtageProfile`） |
 | Ren'Py への書き出し | Ren'Py export | `scn export renpy`。書き出し先の `game/scn/` を作り直す（`renpy::export_renpy`） |
+| 宴への書き出し | Utage export | `scn export utage`。シナリオと設定のシート（Excel 形式）と素材を書き出し先にまるごと作り直す（`utage::export_utage`） |
 | ティラノスクリプトへの書き出し | TyranoScript export | `scn export tyrano`。書き出し先の `data/scenario/scn/` と素材の `data/*/scn/` を作り直す（`tyrano::export_tyrano`） |
 | 書き出し先 | output | 書き出すフォルダ（Ren'Py は既定で `export/renpy`、ティラノスクリプトは `export/tyrano`） |
 | 通読 | reading | 道を一本道にした本文の並び（`route::read`）。縦書きビューとプレーンテキストに使う |

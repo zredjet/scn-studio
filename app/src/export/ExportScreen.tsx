@@ -3,7 +3,8 @@
 // `scn export script` と同じ）。書き出した台本を収録の基準として記録すると、次から変わった台詞が再収録候補になる。
 // Ren'Py への書き出し（T2-2、D053）は、出力プロファイル（export/renpy.yaml）に従って、書き出し先の
 // game/scn/ を作り直す（CLI の `scn export renpy` と同じ）。ティラノスクリプト（T3-11、D072）も同じく、
-// export/tyrano.yaml に従って data/scenario/scn/ と素材の data/*/scn/ を作り直す。プレーンテキスト（T2-5、D056）は、道（共通、ルート、
+// export/tyrano.yaml に従って data/scenario/scn/ と素材の data/*/scn/ を作り直す。宴（T3-12、D073）は
+// export/utage.yaml に従って、シナリオと設定のシートの Excel 形式と素材を export/utage/ に書く。プレーンテキスト（T2-5、D056）は、道（共通、ルート、
 // エンディング）を選んで export/text/ に書く（CLI の `scn export text` と同じ）。
 
 import { useEffect, useState } from "react";
@@ -38,6 +39,8 @@ interface Props {
   readonly writeRenpy: (aiDrafts: boolean) => Promise<RenpyResult>;
   /** ティラノスクリプトへ書き出す（T3-11）。 */
   readonly writeTyrano: (aiDrafts: boolean) => Promise<RenpyResult>;
+  /** 宴へ書き出す（T3-12）。 */
+  readonly writeUtage: (aiDrafts: boolean) => Promise<RenpyResult>;
   /** 通読の道の候補。 */
   readonly loadChoices: () => Promise<ReadingChoice[]>;
   /** プレーンテキストを書き出す。 */
@@ -349,6 +352,7 @@ export function ExportScreen({
   write,
   writeRenpy,
   writeTyrano,
+  writeUtage,
   loadChoices,
   writeText,
   loadProvenance,
@@ -411,6 +415,12 @@ export function ExportScreen({
         }
         unsaved={unsaved}
         write={() => writeTyrano(aiDrafts)}
+      />
+      <EngineCard
+        name="宴"
+        note="出力プロファイル（export/utage.yaml）に従って、宴のシナリオ（シーンごとのシート）と設定のシート（Character・Texture・Sound・Param）を Excel 形式で書き出します。書き出し先（既定は export/utage）をまるごと作り直します。宴のプロジェクトへは、シナリオのブックを足し、設定のシートの行と Texture・Sound のファイルを取り込みます（作品の Start のシートから Jump *scn_start で始めます）。"
+        unsaved={unsaved}
+        write={() => writeUtage(aiDrafts)}
       />
       <TextCard
         summary={summary}

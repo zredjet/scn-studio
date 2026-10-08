@@ -419,7 +419,7 @@ fn name_char(c: char) -> bool {
 /// Python の名前として使える形にする（使えない文字は `_`。日本語の文字はそのまま）。先頭が名前の初めに
 /// 使えない文字（数字、`_`（Ren'Py は `__` で始まる名前をファイルごとに変える）など）か、予約された名前なら、
 /// `prefix` を付ける。
-fn identifier(text: &str, prefix: &str) -> String {
+pub(crate) fn identifier(text: &str, prefix: &str) -> String {
     let out: String = text
         .chars()
         .map(|c| if name_char(c) { c } else { '_' })

@@ -63,6 +63,7 @@ mod sema;
 pub mod syntax;
 pub mod typedef;
 pub mod tyrano;
+pub mod utage;
 pub mod vardecl;
 pub mod wording;
 pub mod workspace;

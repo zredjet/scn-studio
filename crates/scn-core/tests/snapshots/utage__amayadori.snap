@@ -1,0 +1,268 @@
+---
+source: crates/scn-core/tests/utage.rs
+expression: "dump(&root, &export, &problems)"
+---
+==== scenario
+---- scn_start
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//scn-studio が .scn から書き出したシナリオ。手で直さない（書き出すたびに作り直す）。
+Jump	*s01
+---- s01
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s01 改札前
+//AI下書き（status: ai-draft）
+Bg	駅_夜					0
+//BGM 雨音（ファイルが無いので鳴らさない）
+StopBgm
+//SE 雷（ファイルが無いので鳴らさない）
+								　雨は、駅舎のトタン屋根を休みなく叩いていた。
+								　改札の上の電光板から、最終列車の文字が消える。
+JumpSubroutine	*s90
+	遥人							『……歩いて帰れる距離じゃないな』
+								　ポケットの中の小銭を数えてから、遥人は待合室のドアを押した。
+//SE ドア（ファイルが無いので鳴らさない）
+Jump	*s02
+---- s02
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s02 待合室
+//AI下書き（status: ai-draft）
+Bg	待合室_夜					1
+	ch_shino	伏し目	scn_character_right			0
+								　ストーブの消えた待合室に、先客が一人いた。
+								　同じくらいの年の少女が、膝の上に大きな旅行鞄を抱えている。
+								　鞄には、隣の県の住所が書かれた札が下がっていた。
+								どうする	Input
+Selection	*s02__2							話しかける
+Selection	*s02__3							本を開く
+*s02__2
+Param	flag_話した=true
+Jump	*s03
+*s02__3
+Jump	*s04
+*s02__1
+---- s03
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s03 鞄の理由
+//AI下書き（status: ai-draft）
+	ch_shino	真顔	scn_character_right			0
+	遥人							「……列車、止まっちゃいましたね」
+	少女							「はい。<interval=0.5>バスは、朝まで来ないそうです」
+	遥人							「朝まで」
+	少女							「始発で、ここを出るんです。わたし、志乃といいます」
+								　名前を言うときだけ、少女は遥人の顔を見た。
+	志乃							「親戚の家に行くんです。……荷物、多すぎますよね」
+	遥人							「多すぎる、かな」
+								　志乃は、少しだけ笑った。
+	ch_shino	笑顔	scn_character_right			0
+Param	shino_信頼+=(1)
+Jump	*s05
+---- s04
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s04 本と雨音
+//AI下書き（status: ai-draft）
+								　遥人は鞄から文庫本を出した。
+								　ページをめくる音と、雨の音だけが続く。
+								　少女は、ずっと窓の外を見ていた。
+								　窓ガラスの向こうでは、街灯の光が雨に<em=﹅>ほどけて</em>いる。
+Jump	*s05
+---- s05
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s05 見回り
+//AI下書き（status: ai-draft）
+	ch_saeki	笑顔	scn_character_left			0
+//SE ドア（ファイルが無いので鳴らさない）
+	佐伯							「いやあ、ひどい雨だなあ。毛布、二枚しかないけど使っておくれ」
+JumpSubroutine	*s90
+	佐伯							「始発のバスは五時四十分。それまではここで辛抱だなあ」
+Jump	*s05__2	flag_話した
+Jump	*s05__3
+*s05__2
+	佐伯							「ふたり、知り合いだったのかい。そりゃよかったなあ」
+Jump	*s05__1
+*s05__3
+	佐伯							「ふたりとも、黙りこくって。風邪ひくなよう」
+Jump	*s05__1
+*s05__1
+CharacterOff	ch_saeki					0
+Jump	*s06
+---- s06
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s06 雨脚
+//AI下書き（status: ai-draft）
+//SE 雷（ファイルが無いので鳴らさない）
+//効果 暗転（対応なし）
+Wait						1
+								　一度だけ、空が白く光った。
+								　蛍光灯が消え、待合室は雨の音でいっぱいになった。
+Jump	*s06__2	flag_話した
+Jump	*s06__3
+*s06__2
+//SE 雷（ファイルが無いので鳴らさない）
+	志乃							「……こわくないです。こわくないけど」
+Jump	*s06__1
+*s06__3
+//SE 雷（ファイルが無いので鳴らさない）
+	少女							「……こわくないです。こわくないけど」
+Jump	*s06__1
+*s06__1
+								　暗がりの向こうで、鞄の留め金が鳴った。
+								暗がりで	Input
+Selection	*s06__5							傘を差し出す
+Selection	*s06__6							黙って待つ
+Selection	*s06__7	(shino_信頼 >= (1))						「行かなくていいんじゃないか」
+*s06__5
+Param	flag_傘=true
+Param	shino_信頼+=(1)
+	遥人							「朝、これ使って。バス停まで濡れるから」
+Jump	*s07
+*s06__6
+Jump	*s07
+*s06__7
+Param	flag_残る=true
+Param	shino_信頼+=(1)
+	志乃							「……そんなこと、初めて言われました」
+Jump	*s07
+*s06__4
+---- s07
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s07 夜明け前
+//AI下書き（status: ai-draft）
+Bg	待合室_夜明け					1
+//BGM 夜明け（ファイルが無いので鳴らさない）
+StopBgm
+								　蛍光灯がまたたいて、点いた。
+								　窓の外が、少しずつ灰色になっていく。
+Jump	*s07__2	flag_残る
+Jump	*s07__3	(shino_信頼 >= (1))
+Jump	*s07__4
+*s07__2
+Jump	*s10
+Jump	*s07__1
+*s07__3
+Jump	*s08
+Jump	*s07__1
+*s07__4
+Jump	*s11
+Jump	*s07__1
+*s07__1
+---- s08
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s08 始発バス
+//AI下書き（status: ai-draft）
+Bg	バス停_朝					1
+	ch_shino	真顔	scn_character_center			0
+Jump	*s08__2	(!flag_話した)
+Jump	*s08__1
+*s08__2
+	少女							「……わたし、志乃といいます。傘、ありがとうございました」
+Param	flag_話した=true
+Jump	*s08__1
+*s08__1
+								　雨は、霧のような細さになっていた。
+Jump	*s08__4	flag_傘
+Jump	*s08__5
+*s08__4
+								　志乃は、遥人の傘を差していた。
+Jump	*s08__3
+*s08__5
+								　志乃は、鞄を頭の上にかざしていた。
+Jump	*s08__3
+*s08__3
+	志乃							「見送りは、いらないって思ってたんです」
+	遥人							「……うん」
+	志乃							「でも、いてくれて、よかったです」
+Jump	*s09
+---- s09
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s09 約束
+//AI下書き（status: ai-draft）
+//SE バス（ファイルが無いので鳴らさない）
+	ch_shino	笑顔	scn_character_center			0
+Jump	*s09__2	flag_傘
+Jump	*s09__3
+*s09__2
+	志乃							「この傘、いつか返しに来ます。
+	志乃							この駅に」
+Jump	*s09__1
+*s09__3
+	志乃							「いつか、また。
+	志乃							この駅で」
+Jump	*s09__1
+*s09__1
+CharacterOff	ch_shino					1
+								　バスの赤い灯が、坂の向こうに消えた。
+//エンディング bus_end
+EndScenario
+---- s10
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s10 もう一日
+//AI下書き（status: ai-draft）
+	ch_shino	笑顔	scn_character_center			0
+	志乃							「始発、一本だけ遅らせます。<interval=1>親戚には、電話しておきます」
+	遥人							「一本だけ」
+	志乃							「はい。……一日だけ、です」
+								　鞄は、待合室の椅子の上に置かれたままだった。
+//エンディング stay_end
+EndScenario
+---- s11
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s11 雨上がり
+//AI下書き（status: ai-draft）
+StopBgm
+								　雨が上がった。
+								　少女は鞄を抱えてバス停へ、遥人は始発列車のホームへ。
+								　名前も知らないまま、待合室のドアが閉まった。
+//SE ドア（ファイルが無いので鳴らさない）
+//エンディング rain_end
+EndScenario
+---- s90
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s90 構内放送
+//AI下書き（status: ai-draft）
+								　スピーカーが、ざらついた声で告げた。
+								　――大雨のため、本日の列車はすべて運転を見合わせます。始発バスは、五時四十分の予定です。
+EndSubroutine
+==== settings
+---- Character
+CharacterName	NameText	Pattern	FileName
+ch_saeki	佐伯	笑顔	scn/ph_959685.png
+ch_shino	志乃	伏し目	scn/ph_2fa07b.png
+ch_shino	志乃	真顔	scn/ph_94a055.png
+ch_shino	志乃	笑顔	scn/ph_8555df.png
+---- Texture
+Label	Type	FileName
+バス停_朝	Bg	scn/ph_18cec1.png
+待合室_夜	Bg	scn/ph_beac49.png
+待合室_夜明け	Bg	scn/ph_bdbd26.png
+駅_夜	Bg	scn/ph_9661ec.png
+---- Sound
+Label	Type	FileName
+---- Param
+Label	Type	Value	FileType
+flag_話した	Bool	false
+shino_信頼	Int	0
+flag_傘	Bool	false
+flag_残る	Bool	false
+---- Layer
+LayerName	Type	X	Y	Order
+scn_character_center	Character	0	0	100
+scn_character_left	Character	-384	0	101
+scn_character_right	Character	384	0	102
+==== files
+.scn-studio（117バイト）
+Texture/Bg/scn/ph_18cec1.png（116008バイト）
+Texture/Bg/scn/ph_9661ec.png（116008バイト）
+Texture/Bg/scn/ph_bdbd26.png（116008バイト）
+Texture/Bg/scn/ph_beac49.png（116008バイト）
+Texture/Character/scn/ph_2fa07b.png（30071バイト）
+Texture/Character/scn/ph_8555df.png（30071バイト）
+Texture/Character/scn/ph_94a055.png（30071バイト）
+Texture/Character/scn/ph_959685.png（30071バイト）
+scn.xlsx（64031バイト）
+scn_settings.xlsx（14001バイト）
+==== warnings
+ファイルの無い画像が 8 個あります（色の矩形の PNG にしました）
+ファイルの無い音が 5 個あります（鳴らさずに、コメントを書きました）
+効果「暗転」の対応がプロファイル（fx）に無いので、書き出していません
+文中の効果音（{se}）は、宴の台詞の前で鳴らすようにしました
+==== profile

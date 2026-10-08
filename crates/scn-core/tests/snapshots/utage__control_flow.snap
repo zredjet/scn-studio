@@ -1,0 +1,41 @@
+---
+source: crates/scn-core/tests/utage.rs
+expression: text
+---
+---- start
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//start 始まり
+								どうする	Input
+Selection	*start__2	(flag_勇気 >= (1))						行く
+Selection	*start__3							待つ
+*start__2
+Param	flag_勇気+=(1)
+Jump	*s_001
+Jump	*start__1
+*start__3
+Jump	*start__1
+*start__1
+Jump	*start__5	((flag_勇気 / (2)) > (0))
+Jump	*start__6	(!周回_解放)
+Jump	*start__7
+*start__5
+								地の文。
+Jump	*start__4
+*start__6
+Jump	*start__4
+*start__7
+Param	周回_解放=true
+Jump	*start__4
+*start__4
+JumpSubroutine	*sub
+Selection	*start__9	(flag_勇気 >= (3))						勇者なら
+Selection	*start__10	false						崩れた
+								（行き止まり：選べる選択肢がありません）
+EndScenario
+*start__9
+Jump	*sub
+*start__10
+Jump	*sub
+*start__8
+								（行き止まり：存在しないシーン nowhere）
+EndScenario

@@ -1362,6 +1362,29 @@ fn export_tyrano() {
     let _ = fs::remove_dir_all(&dir);
 }
 
+/// `scn export utage`：書き出し先（既定はプロファイルの output）に、シナリオと設定のブックと素材を書き、
+/// 書き出し先とファイルの数を出す。印の無い、空でないフォルダは消さずに止める（2）。
+#[test]
+fn export_utage() {
+    let dir = std::env::temp_dir().join(format!("scn-cli-utage-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    copy_dir(&repo_root().join("samples/amayadori"), &dir);
+    let _ = fs::remove_dir_all(dir.join("export/utage"));
+    let out = scn(&["export", "utage"], &dir);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    assert!(out.stdout.contains("utage（"), "{}", out.stdout);
+    assert!(out.stderr.contains("PNG"), "{}", out.stderr);
+    assert!(dir.join("export/utage/scn.xlsx").is_file());
+    assert!(dir.join("export/utage/scn_settings.xlsx").is_file());
+    // 印の無い、空でないフォルダは消さずに止める（2）。
+    fs::create_dir_all(dir.join("mine")).unwrap();
+    fs::write(dir.join("mine/a.xlsx"), "mine").unwrap();
+    let out = scn(&["export", "utage", ".", "-o", "mine"], &dir);
+    assert_eq!(out.code, 2, "{}", out.stderr);
+    assert!(dir.join("mine/a.xlsx").exists());
+    let _ = fs::remove_dir_all(&dir);
+}
+
 /// `scn ai context`：タスクの文脈を組み立てて出す（LLM は呼ばない）。実行できなければ1、無いタスクは2。
 #[test]
 fn ai_context() {

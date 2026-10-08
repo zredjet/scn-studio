@@ -1,0 +1,216 @@
+---
+source: crates/scn-core/tests/utage.rs
+expression: "dump(&root, &export, &problems)"
+---
+==== scenario
+---- scn_start
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//scn-studio が .scn から書き出したシナリオ。手で直さない（書き出すたびに作り直す）。
+Jump	*s010
+---- s010
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s010 登校
+Bg	通学路_朝					0
+//BGM 日常（ファイルが無いので鳴らさない）
+StopBgm
+								　坂道の途中で、後ろから鞄がぶつかってきた。
+	灯							「おはよ、湊。今日も眠そうだね」
+	湊							「灯が元気すぎるんだよ」
+	ch_akari	笑顔	scn_character_center			0
+	灯							「ひどいなあ。元気なのは、わたしの数少ない取り柄なのに」
+								　そう言って笑う顔に、昨日までと違うところは見つからなかった。
+Jump	*s011
+---- s011
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s011 昼休みの教室
+Bg	教室_昼					0
+	ch_tsumugi	真顔	scn_character_right			0
+	紬							「湊くん。灯ちゃん、最近なにか言ってた？」
+	湊							「なにかって？」
+	紬							「……ううん、なんでもない」
+CharacterOff	ch_tsumugi					0
+//SE チャイム（ファイルが無いので鳴らさない）
+								　五限の予鈴が鳴った。机の中に、二つ折りのメモが入っていた。
+								　<em=﹅>放課後、屋上で</em>。丸い字は、灯のものだった。
+								屋上へ行くか	Input
+Selection	*s011__2							すぐに行く
+Selection	*s011__3							少し迷ってから行く
+*s011__2
+Param	flag_勇気+=(1)
+Param	akari_好感度+=(2)
+Jump	*s011__1
+*s011__3
+Param	akari_好感度+=(1)
+Jump	*s011__1
+*s011__1
+Jump	*s012
+---- s012
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s012 放課後の屋上
+Bg	屋上_夕方					1
+//BGM 切ない（ファイルが無いので鳴らさない）
+StopBgm
+	ch_akari	笑顔	scn_character_left			0
+//SE 風（ファイルが無いので鳴らさない）
+//@raw renpy（読み飛ばし）
+	灯							「やっと来た。遅いよ」
+								　風が強くて、灯の髪が<ruby=みだ>乱</ruby>れていた。
+	灯							「あのね、<interval=0.5>話があるんだ」
+	ch_akari	真顔				0
+	灯							『……やっぱり、言えないかも』
+								どう答える	Input
+Selection	*s012__2							「ごめん、遅くなって」
+Selection	*s012__3	(flag_勇気 >= (2))						黙ってうなずく
+*s012__2
+Param	akari_好感度+=(1)
+Jump	*s012__1
+*s012__3
+	灯							「……そういうところ、ずるいよね。昔からずっとそうだった。言わなくても分かってくれるって、私が勝手に思ってるだけなのに。だから今日も、言えないまま来ちゃった」
+Jump	*s014
+Jump	*s012__1
+*s012__1
+Jump	*s012__5	(akari_好感度 >= (3))
+Jump	*s012__6
+*s012__5
+	灯							「やっぱり、君には言っておく」
+Jump	*s013a
+Jump	*s012__4
+*s012__6
+Jump	*s013b
+Jump	*s012__4
+*s012__4
+---- s013a
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s013a 打ち明ける
+	ch_akari	真顔	scn_character_center			0
+StopBgm
+	灯							「わたし、夏休みが終わったら、転校するんだ」
+								　風の音だけが、しばらく続いた。
+Param	flag_ルート="灯"
+Jump	*s020
+---- s013b
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s013b 帰り道
+//AI下書き（status: ai-draft）
+Bg	帰り道_夕方					0
+//BGM 切ない（ファイルが無いので鳴らさない）
+StopBgm
+								　結局、灯は何も言わなかった。
+								　校門を出たところで、見慣れた後ろ姿が待っていた。
+	ch_tsumugi	笑顔	scn_character_center			0
+	紬							「湊くん、一緒に帰ろ」
+Param	tsumugi_好感度+=(1)
+Param	flag_ルート="紬"
+Jump	*s030
+---- s014
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s014 沈黙のあと
+								（行き止まり：s014 沈黙のあと（スタブ））
+EndScenario
+---- s020
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s020 灯の家の前
+Bg	灯の家_朝					0
+								　灯の家の前に、段ボールが積まれていた。
+	灯							「見られちゃったか」
+Jump	*s021
+---- s021
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s021 屋上の約束
+//AI下書き（status: ai-draft）
+Bg	屋上_夜					0
+	ch_akari	照れ	scn_character_center			0
+	灯							「じゃあ約束。夏休みまで、毎日ここで」
+								　灯は髪留めに触れながら、小さく笑った。
+Jump	*s022
+---- s022
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s022 雨の図書室
+Jump	*s040
+---- s040
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s040 見送り
+Bg	駅_夕方					0
+//BGM 切ない（ファイルが無いので鳴らさない）
+StopBgm
+	灯							「またね、湊。
+	灯							……またね<interval=1>」
+Param	akari_転校済み=true
+//エンディング akari_end
+EndScenario
+---- s030
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s030 紬と帰る
+Jump	*s030__2	(tsumugi_好感度 >= (1))
+Jump	*s030__3
+*s030__2
+Jump	*s060
+Jump	*s030__1
+*s030__3
+Jump	*s061
+Jump	*s030__1
+*s030__1
+---- s060
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s060 紬エンド
+//エンディング tsumugi_end
+EndScenario
+---- s061
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s061 すれ違い
+//エンディング bad_end
+EndScenario
+==== settings
+---- Character
+CharacterName	NameText	Pattern	FileName
+ch_akari	灯	照れ	scn/ph_abec96.png
+ch_akari	灯	真顔	scn/ph_3734ec.png
+ch_akari	灯	笑顔	scn/ph_b605b6.png
+ch_tsumugi	紬	真顔	scn/ph_d913ac.png
+ch_tsumugi	紬	笑顔	scn/ph_9ffd76.png
+---- Texture
+Label	Type	FileName
+屋上_夕方	Bg	scn/ph_9ef9c0.png
+屋上_夜	Bg	scn/ph_6ef666.png
+帰り道_夕方	Bg	scn/ph_4dbc26.png
+教室_昼	Bg	scn/ph_fe29c1.png
+灯の家_朝	Bg	scn/ph_8c9059.png
+通学路_朝	Bg	scn/ph_a16472.png
+駅_夕方	Bg	scn/ph_fa78a2.png
+---- Sound
+Label	Type	FileName
+---- Param
+Label	Type	Value	FileType
+flag_勇気	Int	0
+flag_ルート	String	共通
+akari_好感度	Int	0
+akari_転校済み	Bool	false
+tsumugi_好感度	Int	0
+周回_トゥルー解放	Bool	false	System
+---- Layer
+LayerName	Type	X	Y	Order
+scn_character_center	Character	0	0	100
+scn_character_left	Character	-384	0	101
+scn_character_right	Character	384	0	102
+==== files
+.scn-studio（117バイト）
+Texture/Bg/scn/ph_4dbc26.png（116008バイト）
+Texture/Bg/scn/ph_6ef666.png（116008バイト）
+Texture/Bg/scn/ph_8c9059.png（116008バイト）
+Texture/Bg/scn/ph_9ef9c0.png（116008バイト）
+Texture/Bg/scn/ph_a16472.png（116008バイト）
+Texture/Bg/scn/ph_fa78a2.png（116008バイト）
+Texture/Bg/scn/ph_fe29c1.png（116008バイト）
+Texture/Character/scn/ph_3734ec.png（30071バイト）
+Texture/Character/scn/ph_9ffd76.png（30071バイト）
+Texture/Character/scn/ph_abec96.png（30071バイト）
+Texture/Character/scn/ph_b605b6.png（30071バイト）
+Texture/Character/scn/ph_d913ac.png（30071バイト）
+scn.xlsx（56191バイト）
+scn_settings.xlsx（15708バイト）
+==== warnings
+ファイルの無い画像が 12 個あります（色の矩形の PNG にしました）
+ファイルの無い音が 4 個あります（鳴らさずに、コメントを書きました）
+@raw renpy は宴への書き出しでは使わないので、読み飛ばしました
+出口の無い経路が残るシーンが 1 個あります（W503）。終わりで知らせてシナリオを終えるようにしました
+==== profile

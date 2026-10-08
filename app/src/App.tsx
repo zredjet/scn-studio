@@ -61,6 +61,7 @@ import {
   exportScript,
   exportText,
   exportTyrano,
+  exportUtage,
   focusThisWindow,
   guardClose,
   keepMine,
@@ -3040,6 +3041,7 @@ export function App() {
                     write={exportScript}
                     writeRenpy={exportRenpy}
                     writeTyrano={exportTyrano}
+                    writeUtage={exportUtage}
                     loadChoices={readingChoices}
                     writeText={exportText}
                     loadProvenance={aiLines}

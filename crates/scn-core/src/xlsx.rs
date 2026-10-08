@@ -1,11 +1,11 @@
 //! 表を Excel 形式（.xlsx、Office Open XML）にする（台本の Excel 形式。T2-10、D061）。
 //!
-//! 依存を足さずに、最小のブックを作る：シートは1枚、欄はすべて文字列（インライン文字列。行IDが数や日付に
+//! 依存を足さずに、最小のブックを作る：シートは1枚（宴への書き出しは複数。T3-12）、欄はすべて文字列（インライン文字列。行IDが数や日付に
 //! 変わらない）、見出しの行は太字で固定、列の幅は呼び手が決める。ZIP は圧縮しない（stored）。時刻は固定
 //! （1980-01-01）にして、同じ表からは同じバイト列を作る。
 
-/// CRC-32（ZIP と同じ多項式 0xEDB88320）。
-fn crc32(bytes: &[u8]) -> u32 {
+/// CRC-32（ZIP と同じ多項式 0xEDB88320。PNG も同じ）。
+pub(crate) fn crc32(bytes: &[u8]) -> u32 {
     let mut crc = 0xFFFF_FFFFu32;
     for &b in bytes {
         crc ^= u32::from(b);
@@ -176,6 +176,63 @@ fn sheet_xml(header: &[&str], rows: &[Vec<String>], widths: &[u32]) -> String {
     }
     out.push_str("</sheetData></worksheet>");
     out
+}
+
+/// ブックの1枚のシート。
+pub(crate) struct Sheet<'a> {
+    /// シートの名前（31文字まで。`[]:*?/\` は使わない）。
+    pub(crate) name: &'a str,
+    pub(crate) header: &'a [&'a str],
+    pub(crate) rows: &'a [Vec<String>],
+    pub(crate) widths: &'a [u32],
+}
+
+/// 複数のシートのブックを .xlsx のバイト列にする（宴への書き出し。T3-12）。
+pub(crate) fn xlsx_book(sheets: &[Sheet<'_>]) -> Result<Vec<u8>, TooLarge> {
+    let mut types = String::from(
+        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>"#,
+    );
+    let mut rels = String::from(
+        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">"#,
+    );
+    let mut list = String::new();
+    for (i, sheet) in sheets.iter().enumerate() {
+        let n = i + 1;
+        types.push_str(&format!(
+            r#"<Override PartName="/xl/worksheets/sheet{n}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>"#
+        ));
+        rels.push_str(&format!(
+            r#"<Relationship Id="rId{n}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet{n}.xml"/>"#
+        ));
+        list.push_str(&format!(
+            r#"<sheet name="{}" sheetId="{n}" r:id="rId{n}"/>"#,
+            escape(sheet.name)
+        ));
+    }
+    types.push_str(r#"<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>"#);
+    rels.push_str(&format!(
+        r#"<Relationship Id="rId{}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>"#,
+        sheets.len() + 1
+    ));
+    let workbook = format!(
+        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>{list}</sheets></workbook>"#
+    );
+    let mut zip = Zip::new();
+    zip.add("[Content_Types].xml", types.as_bytes())?;
+    zip.add("_rels/.rels", ROOT_RELS.as_bytes())?;
+    zip.add("xl/workbook.xml", workbook.as_bytes())?;
+    zip.add("xl/_rels/workbook.xml.rels", rels.as_bytes())?;
+    zip.add("xl/styles.xml", STYLES.as_bytes())?;
+    for (i, sheet) in sheets.iter().enumerate() {
+        zip.add(
+            &format!("xl/worksheets/sheet{}.xml", i + 1),
+            sheet_xml(sheet.header, sheet.rows, sheet.widths).as_bytes(),
+        )?;
+    }
+    zip.finish()
 }
 
 /// 表を .xlsx のバイト列にする。`sheet` はシートの名前（31文字まで。`[]:*?/\` は使わない）。

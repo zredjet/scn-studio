@@ -1,0 +1,19 @@
+---
+source: crates/scn-core/tests/utage.rs
+expression: text
+---
+---- s1
+Command	Arg1	Arg2	Arg3	Arg4	Arg5	Arg6	WaitType	Text	PageCtrl	Voice
+//s1 屋上
+	灯							「前
+	灯							後」
+Se	ドア
+	灯							「ドアが開いた」
+Param	scn_value_1=(flag_勇気 + (1))
+								<param=flag_名前> <param=scn_value_1> <param=flag_ok>
+	灯							『心の声』
+								「名無し」
+								　<ruby=みだ>乱</ruby>れて<em=﹅>強調</em><interval=0.5><speed=0.1>ゆっくり</speed>
+								<speed=0.1>続き</speed>。
+//エンディング end
+EndScenario

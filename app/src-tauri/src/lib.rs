@@ -1320,6 +1320,40 @@ fn export_tyrano(ai_drafts: Option<bool>, state: State<'_, AppState>) -> Result<
     }))
 }
 
+/// 宴のシナリオと設定のシートを、出力プロファイル（`export/utage.yaml`）に従って書き出す（`scn export utage` と
+/// 同じ。T3-12、D073）。保存していない本文も含める。書き出し先、ファイルの数、知らせ、プロファイルの誤りを返す。
+#[tauri::command]
+fn export_utage(ai_drafts: Option<bool>, state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let (project, root) = (workspace.project(), workspace.root());
+    let (profile, problems) = scn_core::utage::read_profile(root);
+    let export = thread::scope(|scope| {
+        thread::Builder::new()
+            .name("utage".into())
+            .stack_size(ANALYZE_STACK_SIZE)
+            .spawn_scoped(scope, || {
+                scn_core::utage::export_utage(
+                    project,
+                    root,
+                    &export_ir(project, ai_drafts.unwrap_or(true)),
+                    &profile,
+                )
+            })
+            .map_err(|e| format!("解析のスレッドを作れません：{e}"))?
+            .join()
+            .map_err(|_| "解析が途中で止まりました".to_owned())
+    })?;
+    let path =
+        scn_core::utage::write_utage(root, &profile, &export, None).map_err(|e| e.to_string())?;
+    json_response(&json!({
+        "path": path.display().to_string(),
+        "files": export.files.len(),
+        "warnings": export.warnings,
+        "problems": problems,
+    }))
+}
+
 /// 大きなスタックのスレッドで解析して索引を作り、`f` に渡す（IRはこのスレッドの中で捨てる）。
 fn with_index<T: Send>(
     project: &Project,
@@ -3105,6 +3139,7 @@ pub fn run() {
             export_script,
             export_renpy,
             export_tyrano,
+            export_utage,
             asset_list,
             route_at,
             route_to_scene,
