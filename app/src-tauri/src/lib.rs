@@ -4,7 +4,7 @@
 //! コアの `Workspace` が持ち、ファイルを読み書きするのはコアだけにする。フロントには任意のパスを読ませない。
 //!
 //! 入力が止まるたびに渡すのは、表示に要る分（診断、シーンの一覧、辺）だけにする（D042）。命令列（IR全体）は
-//! 渡さない。検証の段階1は、開いたとき・保存したとき・外部の変更を取り込んだときに行う。
+//! 渡さない（プレビューの画面を開いているときだけ `preview_data` で渡す）。検証の段階1は、開いたとき・保存したとき・外部の変更を取り込んだときに行う。
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -22,6 +22,7 @@ use scn_core::index::build_index;
 use scn_core::ir::{Edge, IrDiagnostic, IrMeta};
 use scn_core::layout::{Point, read_layout as read_layout_file};
 use scn_core::line_id::LineIdGenerator;
+use scn_core::preview;
 use scn_core::scaffold::create_project as scaffold_project;
 use scn_core::workspace::{Change, SaveOutcome, Workspace};
 use scn_core::{Project, Span, analyze};
@@ -227,6 +228,12 @@ fn open_project(
     });
     *locked(&state.watcher)? = Some(watch(&app, &root)?);
     *locked(&state.workspace)? = Some(workspace);
+    // プレビューの素材（`assets/` の中だけ）をアセットプロトコルで見せる（T1-11、D050）。前に開いた作品の
+    // `assets/` は、開き直しても許したまま（このアプリを閉じるまで）。
+    // 開いた後に `assets/` を作っても見せられるよう、無くても許す。
+    let _ = app
+        .asset_protocol_scope()
+        .allow_directory(preview::assets_dir(&root), true);
     remember_recent(&app, &root, &title);
     json_response(&opened)
 }
@@ -519,6 +526,30 @@ fn write_variables(
         "summary": summary,
         "checks": checks,
     }))
+}
+
+/// 簡易ADVプレビューのデータ（T1-11、D050）：IR全体と、画面・ウィンドウ・括弧・キャラクター・変数・素材。
+/// プレビューの画面を開いているときにだけ呼ぶ（入力のたびの解析には入れない。D042）。
+#[tauri::command]
+fn preview_data(state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let project = workspace.project();
+    let root = workspace.root().to_owned();
+    let data = thread::scope(|scope| {
+        thread::Builder::new()
+            .name("preview".into())
+            .stack_size(ANALYZE_STACK_SIZE)
+            .spawn_scoped(scope, || {
+                let ir = analyze(project);
+                serde_json::to_string(&preview::preview_data(project, &root, &ir))
+                    .map_err(|e| format!("プレビューのデータをJSONにできません：{e}"))
+            })
+            .map_err(|e| format!("解析のスレッドを作れません：{e}"))?
+            .join()
+            .map_err(|_| "解析が途中で止まりました".to_owned())?
+    })?;
+    Ok(Response::new(data))
 }
 
 /// 大きなスタックのスレッドで解析して索引を作り、`f` に渡す（IRはこのスレッドの中で捨てる）。
@@ -867,6 +898,7 @@ pub fn run() {
             create_entry,
             read_variables,
             write_variables,
+            preview_data,
             scene_graph,
             read_layout,
             write_layout,

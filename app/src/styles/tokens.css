@@ -46,6 +46,20 @@
     "JetBrains Mono", "Menlo", "Consolas", "Zen Kaku Gothic New",
     "Hiragino Sans", "Yu Gothic", monospace;
 
+  /* プレビューの暗い面（docs/ui/mockups/06-preview.html。T1-11、D050） */
+  --preview-bg: #15181d; /* プレビューの画面の地 */
+  --preview-control: #22262e; /* 操作のボタンの地 */
+  --preview-line: #3a414d; /* 操作のボタンの枠 */
+  --preview-text: #f3f4f6; /* 舞台の札の文字 */
+  --preview-text-soft: #c9d0d9; /* 送りの印、控えめな文字 */
+  --preview-tag-bg: rgba(21, 24, 29, 0.72); /* 舞台の札の地 */
+  --preview-window-bg: rgba(18, 21, 27, 0.88); /* メッセージウィンドウ */
+  --preview-silhouette: #3b3f4a; /* 仮素材の人影 */
+  --preview-provisional-line: #f2b04b; /* 仮素材の札の点線 */
+  --preview-provisional-text: #f7cb7e; /* 仮素材の札の文字 */
+  --preview-ai-check: #5fc4b6; /* 「AI下書きを含める」 */
+  --preview-sync-check: #7f8cf0; /* 「エディタと同期」 */
+
   /* 形（docs/ui/README.md「形」） */
   --radius-control: 6px;
   --radius-card: 10px;

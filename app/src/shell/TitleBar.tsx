@@ -1,4 +1,4 @@
-// タイトルバー：作品名、作品フォルダを開く・新しく作る、最近開いたもの。
+// タイトルバー：作品名、再生（プレビュー。T1-11）、作品フォルダを開く・新しく作る、最近開いたもの。
 
 import type { RecentProject } from "../core/types.ts";
 
@@ -8,6 +8,8 @@ interface Props {
   readonly onOpen: () => void;
   readonly onCreate: () => void;
   readonly onOpenRecent: (path: string) => void;
+  /** 再生（プレビューの画面を開く）。作品フォルダを開いていなければ null。 */
+  readonly onPlay: (() => void) | null;
 }
 
 export function TitleBar({
@@ -16,12 +18,23 @@ export function TitleBar({
   onOpen,
   onCreate,
   onOpenRecent,
+  onPlay,
 }: Props) {
   return (
     <header className="titlebar">
       <span className="app-name">scn-studio</span>
       {title !== null && <span className="project-title">{title}</span>}
       <span className="titlebar-spacer" />
+      {onPlay !== null && (
+        <button
+          type="button"
+          className="chrome-button play"
+          title="プレビューで再生する"
+          onClick={onPlay}
+        >
+          ▶ 再生
+        </button>
+      )}
       {recent.length > 0 && (
         <select
           className="recent-select"

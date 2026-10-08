@@ -38,6 +38,12 @@ paths:
 - 入力欄の値は、入力が決まったとき（フォーカスが外れた、変換中でない Enter、選んだ）に書く。変換中は書かない（D049）。
 - 型から入力欄を選ぶ、入力を値にする、検索などの判断は `app/src/bible/fields.ts` に置き、テストを付ける。
 
+## プレビュー（app/src/preview/）
+
+- ランタイム（`runtime.ts`）・式の評価（`expr.ts`）・メッセージの組み立て（`text.ts`）・行の探し方（`locate.ts`）は React と DOM に依存させず、テストを付ける。サンプルの各エンディングまで通すテスト（`app/test/preview.test.ts`）は、コアのスナップショット（`crates/scn-core/tests/snapshots/preview__houkago.snap`）を読む。
+- 素材のファイルはアセットプロトコル（`core/api.ts` の `assetUrl`）で見せる。許すのは開いた作品の `assets/` だけ。
+- エディタとの同期は、カーソルもフォーカスも動かさない行の印（`editor/marker.ts`）で行う。プレビュー中の行は行IDで探し、無ければバイト位置に戻る（D050）。
+
 ## フロー図（xyflow）
 
 - ノードと辺はIRから作る。座標は自動で配置し、人が動かした位置は `layout.json` に保存する（T1-9）。

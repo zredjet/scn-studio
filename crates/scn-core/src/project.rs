@@ -51,10 +51,12 @@ pub struct Settings {
     pub brackets: Vec<DialogueBracket>,
     /// メッセージウィンドウの大きさ（`[message_window]`）。無ければ、はみ出しを調べない。
     pub message_window: Option<MessageWindow>,
+    /// 画面の大きさ（`[screen]`。プレビュー。T1-11）。無ければ `None`（プレビューは 1280×720）。
+    pub screen: Option<Screen>,
     /// 本文の読み方に関わる設定を、書かれたとおりに読めなかった：`project.toml` そのものが読めない（E801）、
     /// `format_version` の誤り（E802、E803）、`[dialogue]` と `[dialogue.brackets]` の誤り（E802）。
     /// 台詞の括弧が既定に戻って行の読み方が変わるので、行IDを付けない（D042、D045）。
-    /// `title`・`start_scene`・`[message_window]`・`[editor]` の誤りは含めない。
+    /// `title`・`start_scene`・`[message_window]`・`[screen]`・`[editor]` の誤りは含めない。
     pub reading_errors: bool,
     /// エディタの入力補助（`[editor]`。T1-8、D047）。
     pub editor: EditorSettings,
@@ -78,10 +80,18 @@ impl Default for Settings {
             start_scene_span: Span::new(0, 0),
             brackets: ParseOptions::default().brackets,
             message_window: None,
+            screen: None,
             reading_errors: false,
             editor: EditorSettings::default(),
         }
     }
+}
+
+/// 画面の大きさ（`project.toml` の `[screen]`）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Screen {
+    pub width: u32,
+    pub height: u32,
 }
 
 /// メッセージウィンドウの大きさ（`project.toml` の `[message_window]`）。
@@ -734,6 +744,33 @@ impl Loader<'_> {
                 Code::E802,
                 key_span(&text, 0, "message_window"),
                 "message_window は [message_window] の表で書きます。はみ出しを調べません",
+            ),
+        }
+        match table.get("screen") {
+            None => {}
+            Some(toml::Value::Table(screen)) => {
+                let size = |key: &str| match screen.get(key) {
+                    Some(toml::Value::Integer(n)) if *n > 0 => u32::try_from(*n).ok(),
+                    _ => None,
+                };
+                match (size("width"), size("height")) {
+                    (Some(width), Some(height)) => {
+                        settings.screen = Some(Screen { width, height });
+                    }
+                    _ => self.diag(
+                        file,
+                        Code::E802,
+                        text.find("[screen]")
+                            .map_or(Span::new(0, 0), |at| Span::new(at, at + "[screen]".len())),
+                        "[screen] の width と height は、正の整数で書きます。プレビューは 1280×720 で見せます",
+                    ),
+                }
+            }
+            Some(_) => self.diag(
+                file,
+                Code::E802,
+                key_span(&text, 0, "screen"),
+                "screen は [screen] の表で書きます。プレビューは 1280×720 で見せます",
             ),
         }
         match table.get("editor") {

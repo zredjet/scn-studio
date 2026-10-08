@@ -1,10 +1,11 @@
 // コアの呼び出し（Tauriの invoke）と、Tauriの機能（ダイアログ、知らせ、ウィンドウ）。
 // コンポーネントから直接 invoke を呼ばない（.claude/rules/frontend.md）。
 
-import { invoke } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ask, open, save } from "@tauri-apps/plugin-dialog";
+import type { PreviewData } from "./ir.ts";
 import type {
   AddedChapter,
   BibleData,
@@ -255,4 +256,16 @@ export function guardClose(
   return getCurrentWindow().onCloseRequested(async (event) => {
     if (!(await shouldClose())) event.preventDefault();
   });
+}
+
+// ---- プレビュー（T1-11、D050） ----
+
+/** プレビューのデータ（IR全体と、画面・変数・素材）。 */
+export function previewData(): Promise<PreviewData> {
+  return invoke<PreviewData>("preview_data");
+}
+
+/** 素材のファイル（絶対パス）を、アセットプロトコルのURLにする（作品の `assets/` の中だけ見せる）。 */
+export function assetUrl(path: string): string {
+  return convertFileSrc(path);
 }

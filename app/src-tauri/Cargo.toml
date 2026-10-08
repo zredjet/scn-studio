@@ -19,5 +19,5 @@ notify = "8.2.0"
 scn-core = { path = "../../crates/scn-core" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1.0.151"
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-dialog = "2"

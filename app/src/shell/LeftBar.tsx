@@ -7,7 +7,9 @@ export type Screen =
   | "bible"
   | "variables"
   | "check"
-  | "export";
+  | "export"
+  /** プレビュー（タイトルバーの「再生」から開く。T1-11）。 */
+  | "preview";
 
 const ITEMS: readonly { screen: Screen; label: string; later?: string }[] = [
   { screen: "text", label: "本文" },

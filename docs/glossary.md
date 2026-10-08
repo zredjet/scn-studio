@@ -125,6 +125,15 @@
 | 位置 | position | `left` / `center` / `right` |
 | 発注リスト | asset order list | 仮素材の一覧（CSV） |
 | プレビュー | preview | ADVプレイヤーと縦書きビュー |
+| ランタイム | runtime | IRを解釈してプレビューを進めるもの（`app/src/preview/runtime.ts`） |
+| 舞台 | stage | プレビューの背景・立ち絵・BGMの今の状態 |
+| 止まり | stop | ランタイムが止まるところ（台詞・地の文、選択肢、待ち、エンディング、行き止まりなど） |
+| メッセージウィンドウ | message window | 台詞と地の文を出す枠（`[message_window]`） |
+| 画面の大きさ | screen size | プレビューの画面（`[screen]`） |
+| バックログ | backlog | これまでに出た台詞・地の文と選んだ選択肢 |
+| デバッグの欄 | debug panel | 変数の編集、ジャンプ、自動選択、バックログ |
+| 自動選択 | auto choice | 選択肢を1番目かランダムで選ぶ |
+| トランジション | transition | 背景や立ち絵の切り替え方（プレビューはフェードだけ再現） |
 | エクスポート | export | エンジン用ファイルなどへの書き出し |
 | 出力プロファイル | export profile | `export/*.yaml` |
 | 台本 | script sheet | 収録・校正用の表 |

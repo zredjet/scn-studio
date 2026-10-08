@@ -77,6 +77,18 @@
 | `--warn-strong` | `#8A4F00` | 未登録の素材の札 |
 | `--stub-line` | `#8A93A3` | スタブの点線の枠 |
 | `--danger-text` | `#8A1F1F` | 中止など、取り消せない操作 |
+| `--preview-bg` | `#15181D` | プレビューの画面の地（T1-11） |
+| `--preview-control` | `#22262E` | プレビューの操作のボタンの地 |
+| `--preview-line` | `#3A414D` | プレビューの操作のボタンの枠 |
+| `--preview-text` | `#F3F4F6` | プレビューの舞台の札・メッセージの文字 |
+| `--preview-text-soft` | `#C9D0D9` | 送りの印、控えめな文字 |
+| `--preview-tag-bg` | `rgba(21,24,29,.72)` | 舞台の札の地 |
+| `--preview-window-bg` | `rgba(18,21,27,.88)` | メッセージウィンドウ |
+| `--preview-silhouette` | `#3B3F4A` | 仮素材の人影 |
+| `--preview-provisional-line` | `#F2B04B` | 仮素材の札の点線 |
+| `--preview-provisional-text` | `#F7CB7E` | 仮素材の札の文字 |
+| `--preview-ai-check` | `#5FC4B6` | 「AI下書きを含める」 |
+| `--preview-sync-check` | `#7F8CF0` | 「エディタと同期」 |
 
 ### 色の意味
 

@@ -36,6 +36,7 @@ import type {
   IrDiagnostic,
 } from "../core/types.ts";
 import { type AssistEnv, assistEnv, completion } from "./complete.ts";
+import { previewLine, setPreviewLine } from "./marker.ts";
 import { type Definition, definitionAt } from "./navigate.ts";
 import { replacement, savedChanges } from "./replace.ts";
 import {
@@ -137,6 +138,11 @@ interface Props {
   readonly onDefinition: (definition: Definition) => void;
   /** クイックオープンのキー（Mod-P）が押された。 */
   readonly onQuickOpen: () => void;
+  /** プレビュー中の行（「エディタと同期」。T1-11）。ほかのファイルなら印を付けない。 */
+  readonly previewLine?: {
+    readonly file: string;
+    readonly offset: number;
+  } | null;
 }
 
 export function Editor({
@@ -160,6 +166,7 @@ export function Editor({
   onCursor,
   onDefinition,
   onQuickOpen,
+  previewLine: preview = null,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
@@ -259,6 +266,7 @@ export function Editor({
 
   /** エディタが足す拡張（入力補助、補完、定義へ移る操作、カーソルの知らせ）。 */
   const extras = (): Extension => [
+    previewLine(),
     assistSet.current.of(assistEnv.of(assistEnvOf())),
     completion(),
     typingAssist(typingOptions),
@@ -672,6 +680,29 @@ export function Editor({
     });
     v.focus();
   }, [focus]);
+
+  // プレビュー中の行に印を付ける（カーソルもフォーカスも動かさない）。
+  const previewAt = preview?.file === file ? preview.offset : null;
+  useEffect(() => {
+    // ファイルを替えると状態を作り直すので、印も付け直す。
+    void file;
+    const v = view.current;
+    if (v === null) return;
+    v.dispatch({
+      effects:
+        previewAt === null
+          ? setPreviewLine.of(null)
+          : [
+              setPreviewLine.of(previewAt),
+              EditorView.scrollIntoView(
+                Math.min(previewAt, v.state.doc.length),
+                {
+                  y: "center",
+                },
+              ),
+            ],
+    });
+  }, [previewAt, file]);
 
   return <div className="editor" ref={host} />;
 }

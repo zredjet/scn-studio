@@ -10,6 +10,7 @@ import { CheckList } from "./check/CheckList.tsx";
 import { countBySeverity } from "./check/group.ts";
 import {
   addChapter,
+  assetUrl,
   confirm,
   createProject,
   devReport,
@@ -22,6 +23,7 @@ import {
   parseBuffer,
   pickNewProjectFolder,
   pickProjectFolder,
+  previewData,
   recentProjects,
   reloadFile,
   saveFile,
@@ -29,6 +31,7 @@ import {
   setViewMode,
   viewModes,
 } from "./core/api.ts";
+import type { PreviewData } from "./core/ir.ts";
 import { PositionMap } from "./core/position.ts";
 import type {
   AssistData,
@@ -56,6 +59,8 @@ import { ModeBar } from "./editor/ModeBar.tsx";
 import type { Definition } from "./editor/navigate.ts";
 import { hasMixedLineBreaks, lineBreakOf } from "./editor/state.ts";
 import { SceneGraph } from "./graph/SceneGraph.tsx";
+import { locateLine } from "./preview/locate.ts";
+import { type PreviewLine, PreviewScreen } from "./preview/PreviewScreen.tsx";
 import { SceneList } from "./scenes/SceneList.tsx";
 import { ContextPanel } from "./shell/ContextPanel.tsx";
 import { LeftBar, type Screen } from "./shell/LeftBar.tsx";
@@ -143,6 +148,14 @@ export function App() {
   const [bibleRequest, setBibleRequest] = useState<BibleRequest | null>(null);
   /** 設定ファイルが外で変わった回数（設定DBと変数の画面が読み直す）。 */
   const [settingsVersion, setSettingsVersion] = useState(0);
+  /** プレビューのデータ（プレビューの画面を開いているときだけ取る。T1-11、D050）。 */
+  const [preview, setPreview] = useState<PreviewData | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  /** エディタに印を付ける、プレビュー中の行（「エディタと同期」）。 */
+  const [previewMarker, setPreviewMarker] = useState<{
+    file: string;
+    offset: number;
+  } | null>(null);
   /** 保存していない、設定ファイルのソース表示の変更（画面ごと）。閉じる前の確認に使う。 */
   const [settingsDrafts, setSettingsDrafts] = useState<ReadonlySet<string>>(
     new Set(),
@@ -296,6 +309,9 @@ export function App() {
     setScene(null);
     setBibleRequest(null);
     setSettingsDrafts(new Set());
+    setPreview(null);
+    setPreviewError(null);
+    setPreviewMarker(null);
     setModes(new Map());
     void viewModes()
       .then((m) => setModes(new Map(Object.entries(m))))
@@ -747,6 +763,31 @@ export function App() {
     [project, currentFile],
   );
 
+  /** 本文の画面で、あるファイルの、プレビュー中の行（行IDで探し、無ければバイト位置）へ移る。 */
+  const showPreviewLine = useCallback((line: PreviewLine) => {
+    const text = buffers.current.get(line.file);
+    if (text === undefined) return;
+    const offset = locateLine(text, line.lineId, line.span[0]);
+    setScreen("text");
+    setCurrentFile(line.file);
+    const p = latest.current.project;
+    if (p !== null && line.file !== latest.current.currentFile)
+      setAnalysis(analysisFor(p.summary, line.file, text));
+    if (offset !== null) setFocus((f) => ({ offset, seq: (f?.seq ?? 0) + 1 }));
+  }, []);
+
+  /** エディタに、プレビュー中の行の印を付ける（null で消す）。 */
+  const onPreviewLine = useCallback((line: PreviewLine | null) => {
+    if (line === null) {
+      setPreviewMarker(null);
+      return;
+    }
+    const text = buffers.current.get(line.file);
+    const offset =
+      text === undefined ? null : locateLine(text, line.lineId, line.span[0]);
+    setPreviewMarker(offset === null ? null : { file: line.file, offset });
+  }, []);
+
   const openFromSettings = useCallback(
     (file: string, offset: number) => leaveSettings(() => goTo(file, offset)),
     [leaveSettings, goTo],
@@ -795,6 +836,28 @@ export function App() {
     },
     [goTo, requestBible],
   );
+
+  // プレビューの画面を離れたら、データを捨てる（次に開いたとき、古いデータで始めない）。
+  useEffect(() => {
+    if (screen === "preview") return;
+    setPreview(null);
+    setPreviewError(null);
+  }, [screen]);
+
+  // プレビューのデータを取る（プレビューの画面を開いたとき、本文が変わったとき。少し待ってから）。
+  const previewSummary = screen === "preview" ? project?.summary : undefined;
+  useEffect(() => {
+    if (previewSummary === undefined) return;
+    const timer = setTimeout(() => {
+      previewData()
+        .then((d) => {
+          setPreview(d);
+          setPreviewError(null);
+        })
+        .catch((e: unknown) => setPreviewError(String(e)));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [previewSummary]);
 
   // クイックオープン（Mod-P）。エディタの外にフォーカスがあるときも開く。
   useEffect(() => {
@@ -845,6 +908,11 @@ export function App() {
         onOpen={() => void openPicker()}
         onCreate={() => void create()}
         onOpenRecent={(path) => void open(path)}
+        onPlay={
+          project === null
+            ? null
+            : () => leaveSettings(() => setScreen("preview"))
+        }
       />
       {error !== null && (
         <p className="error" role="alert">
@@ -925,6 +993,7 @@ export function App() {
                       onCursor={onCursor}
                       onDefinition={onDefinition}
                       onQuickOpen={() => setQuickOpen(true)}
+                      previewLine={previewMarker}
                     />
                   ) : (
                     <p className="placeholder">
@@ -981,6 +1050,22 @@ export function App() {
                     onWritten={onSettingsWritten}
                     onOpenLocation={openFromSettings}
                     onUnsaved={onVariablesDraft}
+                  />
+                </section>
+              )}
+              {screen === "preview" && (
+                <section
+                  className="screen preview-screen"
+                  aria-label="プレビュー"
+                >
+                  <PreviewScreen
+                    data={preview}
+                    error={previewError}
+                    title={project.title}
+                    assetUrl={assetUrl}
+                    onShowInEditor={showPreviewLine}
+                    onLine={onPreviewLine}
+                    onClose={() => setScreen("text")}
                   />
                 </section>
               )}
