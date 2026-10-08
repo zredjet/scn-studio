@@ -3703,3 +3703,224 @@ body {
   font: inherit;
   font-size: 12.5px;
 }
+
+/* AIの指摘のある行（T3-7）：薄い緑青の地と、点の下線（色だけで分けない） */
+.cm-ai-finding-line {
+  background: var(--ai-tint-2);
+  text-decoration: underline dotted var(--ai-line);
+  text-underline-offset: 4px;
+}
+
+/* 文脈パネルと AI実行の画面の「AIの指摘」（T3-7） */
+.ai-finding-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 12px 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--ai-border);
+  border-radius: var(--radius-item);
+  background: var(--ai-tint-2);
+  font-size: 12.5px;
+}
+
+.ai-finding-source {
+  color: var(--ai-text);
+  font-size: 11.5px;
+}
+
+.ai-finding-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.ai-severity {
+  margin-right: 6px;
+  padding: 0 6px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ai-severity.error {
+  color: var(--danger-text);
+}
+
+.ai-severity.warning {
+  color: var(--warn-strong);
+}
+
+.ai-severity.info {
+  color: var(--accent);
+}
+
+/* AI実行の画面（T3-7。docs/ui/mockups/07-ai.html） */
+.ai-screen {
+  overflow: hidden;
+  background: var(--paper);
+}
+
+.ai-screen-body {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.ai-task-list {
+  display: flex;
+  flex: 0 0 240px;
+  flex-direction: column;
+  overflow: auto;
+  border-right: 1px solid var(--border);
+  background: var(--panel-bg);
+}
+
+.ai-task-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 8px 8px;
+}
+
+.ai-task-level {
+  padding: 6px 8px 2px;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.ai-task-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ai-task-item[aria-pressed="true"] {
+  background: var(--ai-tint);
+  color: var(--ai-text);
+  font-weight: 500;
+}
+
+.ai-task-name {
+  flex: 1;
+}
+
+.ai-task-place {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.ai-history {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0 16px 16px;
+  list-style: none;
+  font-size: 12.5px;
+}
+
+.ai-history li {
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-run-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  overflow: auto;
+  padding: 18px 24px 32px;
+}
+
+.ai-run-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.ai-run-head h1 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.ai-scene-select {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 12.5px;
+}
+
+.ai-scene-select select {
+  height: 28px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  font: inherit;
+}
+
+.ai-run-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.ai-run-button {
+  background: var(--ai);
+}
+
+.ai-prepared {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ai-prepared-note {
+  margin: 0;
+  font-size: 12px;
+}
+
+.ai-result .ai-finding-card {
+  margin: 0 0 8px;
+}
+
+.ai-summary {
+  margin: 0 0 6px;
+  color: var(--ink);
+}
+
+.ai-run-settings {
+  display: flex;
+  flex: 0 0 260px;
+  flex-direction: column;
+  overflow: auto;
+  padding-right: 12px;
+  border-left: 1px solid var(--border);
+  background: var(--panel-bg-2);
+}
+
+.ai-run-settings .ai-fields {
+  padding: 0 16px;
+}
+
+.ai-scope-note {
+  margin: 12px 16px 0;
+  font-size: 12px;
+}
+
+.ai-result .context-heading {
+  padding-left: 0;
+}

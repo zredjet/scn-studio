@@ -27,12 +27,17 @@ export const aiLines = Facet.define<
 
 const LINE_ID = / \^([0-9a-z]{4,12})[ \t]*$/;
 
+/** 行末の行ID（`^` を除く）。無ければ undefined。 */
+export function trailingLineId(line: string): string | undefined {
+  return LINE_ID.exec(line)?.[1];
+}
+
 /** 行の出自の印の種類（印を付けない行は null）。 */
 export function lineOrigin(
   line: string,
   origins: ReadonlyMap<string, string>,
 ): "ai" | "ai-edited" | null {
-  const id = LINE_ID.exec(line)?.[1];
+  const id = trailingLineId(line);
   if (id === undefined) return null;
   const origin = origins.get(id);
   return origin === "ai" || origin === "ai-edited" ? origin : null;

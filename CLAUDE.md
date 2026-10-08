@@ -79,7 +79,7 @@ app/                    Tauri＋React（src-tauri/ と src/）
 - Lezer文法（`packages/lezer-scn`）：`pnpm -C packages/lezer-scn test`（文法から構文解析器を作り直してから、`node --test` でテスト）／`pnpm -C packages/lezer-scn build`（構文解析器を作るだけ）
   - 作った `src/parser.ts`・`src/parser.terms.ts` はコミットしない（`typecheck` と `test` が先に作る）
   - サンプルの行の種類の期待値（`test/expected/*.txt`）を作り直す：`UPDATE_EXPECTED=1 pnpm -C packages/lezer-scn test`。差分を読んで確かめてから受け入れる
-- アプリ（`app/`、Tauri＋React）：`pnpm -C app tauri dev`（開発用に起動する。デバッグビルドでは起動時に `samples/houkago` を開く）／`pnpm -C app test`（位置の変換、グラフの配置、エディタ、置き換え、執筆表示、行IDを守る扱い、入力補助、検証の画面、設定DBの画面、変数と型定義のフォーム、素材カタログの画面、企画の画面、マージの画面、名前の変更とパレットなどエディタの残り、環境設定の AI の接続先の表示、プレビューのランタイムと縦書きの組み方のテスト。プレビューと「ここから再生」のテストはコアのスナップショット（`crates/scn-core/tests/snapshots/preview__*.snap`・`route__*.snap`）を読むので、`cargo test -p scn-core` の後に走らせる）／`pnpm -C app build`（フロントのビルド）
+- アプリ（`app/`、Tauri＋React）：`pnpm -C app tauri dev`（開発用に起動する。デバッグビルドでは起動時に `samples/houkago` を開く）／`pnpm -C app test`（位置の変換、グラフの配置、エディタ、置き換え、執筆表示、行IDを守る扱い、入力補助、検証の画面、設定DBの画面、変数と型定義のフォーム、素材カタログの画面、企画の画面、マージの画面、名前の変更とパレットなどエディタの残り、環境設定の AI の接続先の表示、AI実行の画面、プレビューのランタイムと縦書きの組み方のテスト。プレビューと「ここから再生」のテストはコアのスナップショット（`crates/scn-core/tests/snapshots/preview__*.snap`・`route__*.snap`）を読むので、`cargo test -p scn-core` の後に走らせる）／`pnpm -C app build`（フロントのビルド）
   - 開発用の環境変数：`SCN_DEV_PROJECT=<作品フォルダ>`（起動時に開く）、`SCN_MEASURE_IPC=1`（開いた後に、入力が止まったときの受け渡しの時間を10回測ってターミナルに書く）。解析の速さを見るときは、Rustをリリースビルドにする `pnpm -C app tauri dev --release` で測る
   - Rust側（`app/src-tauri`、パッケージ名 `scn-app`）はCargoのワークスペースに入っているので、`cargo test --workspace`・`cargo clippy --workspace` の対象になる
   - フロントの `dev`・`build`・`typecheck` は、先に `packages/lezer-scn` の文法から構文解析器を作る

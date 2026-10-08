@@ -1,6 +1,8 @@
 // 文脈パネル（docs/ui/mockups/02-editor.html の「シーン情報」）：今のシーンの登場キャラ（一人称と口調メモ）、
-// 読み書きした変数、使った素材と、このファイルの問題。データはコアの assist::scene_info（T1-8、D047）。
+// 読み書きした変数、使った素材と、このファイルの問題、今のシーンの AI の指摘（T3-7）。データはコアの
+// assist::scene_info（T1-8、D047）。
 
+import { type FindingRecord, SEVERITY_LABEL } from "../ai/model.ts";
 import { CheckList } from "../check/CheckList.tsx";
 import type { IrDiagnostic, SceneInfo } from "../core/types.ts";
 
@@ -13,6 +15,12 @@ interface Props {
   readonly onRegister: (name: string) => void;
   /** キャラクターを設定DBの画面で開く。 */
   readonly onOpenCharacter: (id: string) => void;
+  /** 今のシーンの AI の指摘（T3-7）。 */
+  readonly findings: readonly FindingRecord[];
+  /** 指摘の行へ移る。 */
+  readonly onGoToFinding: (record: FindingRecord) => void;
+  /** 指摘を閉じる（一覧と行の印から消す）。 */
+  readonly onDismissFinding: (id: string) => void;
 }
 
 const ASSET_KIND = {
@@ -37,6 +45,9 @@ export function ContextPanel({
   onSelectDiagnostic,
   onRegister,
   onOpenCharacter,
+  findings,
+  onGoToFinding,
+  onDismissFinding,
 }: Props) {
   // 立ち絵は、キャラクターごとに「灯/笑顔、灯/真顔」とまとめる。
   const assets: { kind: string; name: string; registered: boolean }[] = [];
@@ -136,6 +147,47 @@ export function ContextPanel({
           onRegister={onRegister}
         />
       </div>
+      {findings.length > 0 && (
+        <section className="context-ai-findings" aria-label="AIの指摘">
+          <h2 className="context-heading">AIの指摘</h2>
+          {findings.map((r) => (
+            <div key={r.id} className="ai-finding-card">
+              <span className="ai-finding-source">
+                {r.taskName} · {r.source}
+              </span>
+              <span>
+                <span className={`ai-severity ${r.finding.severity}`}>
+                  {SEVERITY_LABEL[r.finding.severity]}
+                </span>
+                {r.finding.line !== null && (
+                  <span className="context-mono"> ^{r.finding.line} </span>
+                )}
+                {r.finding.message}
+                {r.finding.unresolved && (
+                  <span className="context-faint">（行が見つかりません）</span>
+                )}
+              </span>
+              <div className="ai-finding-actions">
+                <button
+                  type="button"
+                  className="small-button"
+                  disabled={r.finding.file === null || r.finding.span === null}
+                  onClick={() => onGoToFinding(r)}
+                >
+                  行へ移動
+                </button>
+                <button
+                  type="button"
+                  className="small-button"
+                  onClick={() => onDismissFinding(r.id)}
+                >
+                  閉じる
+                </button>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
     </aside>
   );
 }

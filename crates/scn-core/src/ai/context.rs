@@ -92,12 +92,35 @@ pub fn read_sources(root: &Path) -> ContextSources {
     }
 }
 
-/// シーンの本文のハッシュ（FNV-1a 64 ビットの16進）。
+/// 行末の行ID（` ^xxxx`）を除いた行。
+fn without_line_id(line: &str) -> &str {
+    // CRLF の本文でも、行IDの有無で行末をそろえる（行IDは `\r` の前に付く）。
+    let line = line.strip_suffix('\r').unwrap_or(line);
+    let trimmed = line.trim_end_matches([' ', '\t']);
+    match trimmed.rfind(" ^") {
+        Some(at)
+            if trimmed.get(at + 2..).is_some_and(|id| {
+                (4..=12).contains(&id.len())
+                    && id
+                        .bytes()
+                        .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit())
+            }) =>
+        {
+            trimmed.get(..at).unwrap_or(trimmed)
+        }
+        _ => line,
+    }
+}
+
+/// シーンの本文のハッシュ（行末の行IDを除いた本文の FNV-1a 64 ビットの16進）。保存で行IDが付いただけでは
+/// 変わらない（T3-7）。
 pub fn source_hash(text: &str) -> String {
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
-    for b in text.bytes() {
-        hash ^= u64::from(b);
-        hash = hash.wrapping_mul(0x0100_0000_01b3);
+    for line in text.split('\n') {
+        for b in without_line_id(line).bytes().chain(std::iter::once(b'\n')) {
+            hash ^= u64::from(b);
+            hash = hash.wrapping_mul(0x0100_0000_01b3);
+        }
     }
     format!("{hash:016x}")
 }

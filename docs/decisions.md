@@ -771,3 +771,16 @@
 - 理由：設計検討書「文脈の組み立て」「AIタスクのテンプレート化」「生成の進め方」。ローカルの LLM の短い文脈でも動くように、削る順番を決めて、上から下への粒度（企画 → 要約 → 本文）を保つ。誤りを止めずに知らせるのは原則4。
 - 影響：`crates/scn-core/src/ai/task.rs`・`context.rs`（新規）、`project.rs`（`ai_tasks`、`context_tokens`）、`workspace.rs`（`ai/*.yaml` が外で変わったら設定を読み直す）、`scaffold.rs` と `templates/ai/`、両サンプルの `ai/`、`scn-cli`（`ai context`）、`app/src-tauri`（逆引きに `ai`）、`app/src/bible/`（`aicontext.ts`、`UsagePanel.tsx`、`BibleScreen.tsx`、`fields.ts`）、`docs/spec/project-files.md` の2・9・10節。
 
+## D068 AI実行の画面と指摘（2026-10-08）
+
+- 決定：
+  - コアに `ai/run.rs`：文脈を組み立てて呼び（`run_task`）、応答から指摘（`parse_findings`・`resolve_findings`）とシーンの要約（`parse_summary`）を読む。応答の形が崩れていても止めず、読めた分と読めなかった行を返す。指摘の行IDは本文の行IDから位置を引き、行もシーンも無い指摘は対象のシーンに付ける。
+  - 実行するのは指摘の段階（`review`：`findings`・`summary`）だけ。提案は T3-8、生成と自律は T3-9 で作り、それまでは送る前に断る。
+  - 返す分の上限（`max_tokens`）は、文脈の長さから文脈の上限を除いた分。シーン要約の結果は `.cache/summaries.json` に入れる。
+  - アプリ：左端のバーに「AI」（モック `07-ai.html`）：段階ごとのタスクの一覧と実行の履歴、対象のシーン、送る中身を見る（見積もり、削った節、知らせ、指示と依頼）、実行と取り消し（回の番号で照らす。「接続を試す」と共通の `cancel_ai`）、進み具合（届いた文字の数）、結果（指摘、要約、読めなかった行、トークン数）、実行の設定。クラウドの接続先では送る中身を見せてから送る。
+  - 指摘はアプリの中だけに持ち（ファイルに書かない）、エディタの行の印（薄い地と点の下線。色だけで分けない）と、文脈パネルの「AIの指摘」（行へ移動、閉じる）に出す。同じタスクを同じ対象でやり直したら置き換える。「行へ移動」は今の本文の中を行IDで探す（実行の後に行が動いても）。
+  - クラウドの接続先には、人が確かめた中身の要約値（`content_digest`）と、組み立て直した中身の要約値が同じときだけ送る（コアの `run_task` が断る。見せた後に本文や設定が変わった、古い中身を見せた、を防ぐ）。
+  - シーンの要約のハッシュ（D067）は、行末の行IDを除いた本文で取る（保存で行IDが付いただけで要約を古くしない）。取り消した実行の要約は書かず、書く前にキャッシュを読み直す。
+- 理由：設計検討書「出力の扱いと出自の記録」（指摘は行IDつきで返させ、エディタ上に注釈として出す）。指摘をファイルに書かないのは、テキストが正（原則1）で、指摘は本文から導けない一時のものだから。崩れた応答を止めずに読むのは、ローカルの LLM の出力が形に従わないことがあるため。
+- 影響：`crates/scn-core/src/ai/run.rs`（新規）、`app/src-tauri`（`ai_tasks`・`ai_prepare`・`ai_run`・`cancel_ai`、進み具合の知らせ `ai-run-progress`）、`app/src/ai/`（新規。`AiScreen.tsx`・`model.ts`）、`app/src/editor/findings.ts`（新規）・`Editor.tsx`・`provenance.ts`、`shell/ContextPanel.tsx`・`LeftBar.tsx`、`App.tsx`、CSS、`docs/spec/project-files.md` の9節。
+

@@ -10,6 +10,9 @@ import type {
   AddedChapter,
   AiConnections,
   AiLines,
+  AiPrepared,
+  AiRunOutcome,
+  AiTaskInfo,
   AiTestResult,
   AssetKey,
   AssetKind,
@@ -536,9 +539,46 @@ export function testAiConnection(
   return invoke<AiTestResult>("ai_test", { name, run });
 }
 
-/** 「接続を試す」の回を取り消す。 */
-export function cancelAiTest(run: number): Promise<void> {
-  return invoke<void>("cancel_ai_test", { run });
+/** 走っている回（「接続を試す」と AI タスクの実行）を取り消す。 */
+export function cancelAi(run: number): Promise<void> {
+  return invoke<void>("cancel_ai", { run });
+}
+
+/** AI実行の画面のタスクの一覧（T3-7）。 */
+export function aiTaskList(): Promise<{
+  readonly tasks: readonly AiTaskInfo[];
+}> {
+  return invoke<{ readonly tasks: readonly AiTaskInfo[] }>("ai_tasks");
+}
+
+/** 実行する前に、組み立てた文脈（送る中身と見積もり）を見る。 */
+export function prepareAiTask(
+  task: string,
+  scene: string | null,
+): Promise<AiPrepared> {
+  return invoke<AiPrepared>("ai_prepare", { task, scene });
+}
+
+/**
+ * AIタスクを実行する（今は指摘の段階）。`run` は回の番号（取り消しに使う）。`digest` は人が確かめた送る中身の
+ * 要約値（クラウドの接続先では、これと同じ中身のときだけ送る）。
+ */
+export function runAiTask(
+  task: string,
+  scene: string | null,
+  run: number,
+  digest: string | null,
+): Promise<AiRunOutcome> {
+  return invoke<AiRunOutcome>("ai_run", { task, scene, run, digest });
+}
+
+/** AIタスクの実行の進み具合（届いた文字の数）。 */
+export function onAiRunProgress(
+  handler: (progress: { readonly run: number; readonly chars: number }) => void,
+): Promise<UnlistenFn> {
+  return listen<{ run: number; chars: number }>("ai-run-progress", (event) =>
+    handler(event.payload),
+  );
 }
 
 /** 自動巡回（検証の段階2。T3-2）。保存していない本文も含む。 */

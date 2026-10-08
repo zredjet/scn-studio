@@ -385,6 +385,21 @@ fn summary_cache() {
         ("灯が声をかける。", SummarySource::Cache, false)
     );
 
+    // 行IDを付けただけ（保存）なら、要約は古くならない。
+    assert_eq!(
+        ai::source_hash("灯「やあ」 ^aaaa\n地の文。\t\n"),
+        ai::source_hash("灯「やあ」\n地の文。\t\n")
+    );
+    assert_ne!(
+        ai::source_hash("灯「やあ」\n"),
+        ai::source_hash("灯「やあ、湊」\n")
+    );
+    assert_ne!(ai::source_hash("a ^Not\n"), ai::source_hash("a\n"));
+    // CRLF の本文でも（行IDは `\r` の前に付く）。
+    assert_eq!(
+        ai::source_hash("灯「やあ」 ^aaaa\r\n地の文。\r\n"),
+        ai::source_hash("灯「やあ」\r\n地の文。\r\n")
+    );
     // 本文が変わったら、キャッシュを使わずにメタ情報へ戻る（作り直す印を付ける）。
     fs::write(
         root.join("story/a.scn"),

@@ -13,6 +13,8 @@ export type Screen =
   | "export"
   /** プレビュー（タイトルバーの「再生」から開く。T1-11）。 */
   | "preview"
+  /** AI実行（T3-7）。 */
+  | "ai"
   /** 環境設定（AIの接続先。T3-5）。 */
   | "preferences";
 
@@ -24,6 +26,7 @@ const ITEMS: readonly { screen: Screen; label: string; later?: string }[] = [
   { screen: "assets", label: "素材" },
   { screen: "variables", label: "変数" },
   { screen: "check", label: "検証" },
+  { screen: "ai", label: "AI" },
   { screen: "export", label: "出力" },
   { screen: "preferences", label: "環境設定" },
 ];

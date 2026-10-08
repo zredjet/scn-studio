@@ -58,6 +58,11 @@ paths:
 
 - 設定DBの「AIに渡す内容」（T3-6）はコアの `ai::entry_context`（逆引きの `entry_usage` と一緒に受け取る）を `bible/aicontext.ts` で文にする。「＋ 差分を追加」は素材カタログに書く（`add_catalog_entries`）。名前の確かめ方は `bible/fields.ts` の `expressionNameProblem`。どちらもテストを付ける（`app/test/bible.test.ts`）。
 
+## AI実行の画面（app/src/ai/）
+
+- タスクの実行（T3-7、D068）はコア（`ai_prepare`・`ai_run`・`cancel_ai`）。実行と指摘と履歴は App が持つ（画面を切り替えても続く）。結果は回の番号で照らし、取り消した回・前の作品の回の結果は捨てる。クラウドの接続先では送る中身を見せてから送る。
+- 指摘はアプリの中だけに持つ。エディタの印（`editor/findings.ts`）は行末の行IDで引き、本文は変えない。変換中は作り直さず、前の印をずらすだけ。並べ方・持ち方・文は `ai/model.ts` に置き、テストを付ける（`app/test/ai.test.ts`）。
+
 ## 検証の画面（app/src/check/）
 
 - 自動巡回と表記の検査（検証の段階2。T3-2・T3-3、D063・D064）は、検証の画面の「走らせる」で、コア（`playthrough` コマンド。`playthrough::stage2`）が行う。保存のたびには走らせない。結果の診断は検証の一覧に足し、本文が変わったら結果を捨てる（位置がずれるため）。結果の見せ方（道の例、変数の値、並べ方）は `check/playthrough.ts` に置き、テストを付ける（`app/test/check.test.ts`）。

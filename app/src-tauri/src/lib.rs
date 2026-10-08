@@ -1616,16 +1616,7 @@ async fn ai_test(
     app: AppHandle,
 ) -> Result<Response, String> {
     // 取り消しの旗は最初に登録する（作品やキーチェーンを読む間に届いた取り消しも効くように）。
-    let cancel = Arc::new(AtomicBool::new(false));
-    {
-        let mut slot = locked(&state.ai_cancel)?;
-        if let Some(at) = slot.early.iter().position(|r| *r == run) {
-            slot.early.remove(at);
-            cancel.store(true, Ordering::Relaxed);
-        }
-        slot.running.push((run, Arc::clone(&cancel)));
-    }
-    let _registered = AiRunGuard { state: &state, run };
+    let (cancel, _registered) = register_ai_run(&state, run)?;
     let decls = ai_decls(&state)?;
     let (machine, _) = ai::read_machine_settings(&ai_settings_file(&app)?);
     let decl = decls
@@ -1633,12 +1624,7 @@ async fn ai_test(
         .find(|d| d.name == name)
         .ok_or_else(|| format!("接続先「{name}」が project.toml にありません"))?;
     let conn = ai::resolve(decl, &machine)?;
-    let key = match SystemKeys.get(&conn.endpoint) {
-        Ok(key) => key,
-        // キーの要らないローカルの OpenAI 互換は、キーチェーンを読めなくても試す。
-        Err(_) if !conn.cloud && conn.provider == ai::Provider::OpenaiCompatible => None,
-        Err(e) => return Err(e.to_string()),
-    };
+    let key = key_for(&conn)?;
     let flag = Arc::clone(&cancel);
     let result = tauri::async_runtime::spawn_blocking(move || {
         let started = std::time::Instant::now();
@@ -1664,9 +1650,227 @@ async fn ai_test(
     }))
 }
 
-/// 「接続を試す」の回を取り消す（次のデータの合間で止まる）。まだ始まっていなければ、始まったときに止める。
+/// 走る回の取り消しの旗を登録する（外れるときに消す）。始まる前に届いた取り消しも拾う。
+fn register_ai_run(
+    state: &AppState,
+    run: u64,
+) -> Result<(Arc<AtomicBool>, AiRunGuard<'_>), String> {
+    let cancel = Arc::new(AtomicBool::new(false));
+    let mut slot = locked(&state.ai_cancel)?;
+    if let Some(at) = slot.early.iter().position(|r| *r == run) {
+        slot.early.remove(at);
+        cancel.store(true, Ordering::Relaxed);
+    }
+    slot.running.push((run, Arc::clone(&cancel)));
+    Ok((cancel, AiRunGuard { state, run }))
+}
+
+/// 接続先のキー。キーの要らないローカルの OpenAI 互換は、キーチェーンを読めなくても続ける。
+fn key_for(conn: &ai::Connection) -> Result<Option<String>, String> {
+    match SystemKeys.get(&conn.endpoint) {
+        Ok(key) => Ok(key),
+        Err(_) if !conn.cloud && conn.provider == ai::Provider::OpenaiCompatible => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+/// タスクの接続先（`model`、無ければ既定の接続先）を解決する。
+fn task_connection(
+    project: &Project,
+    machine: &MachineSettings,
+    task: &ai::AiTask,
+) -> Result<ai::Connection, String> {
+    let name = task
+        .model
+        .clone()
+        .or_else(|| ai::default_connection(&project.settings.ai, machine).map(str::to_owned))
+        .ok_or_else(|| "project.toml に AI の接続先（[ai.local] など）がありません".to_owned())?;
+    let decl = project
+        .settings
+        .ai
+        .iter()
+        .find(|d| d.name == name)
+        .ok_or_else(|| {
+            format!(
+                "{} の接続先「{name}」が project.toml にありません",
+                task.path
+            )
+        })?;
+    ai::resolve(decl, machine)
+}
+
+/// AI実行の画面のタスクの一覧（T3-7）：定義と、接続先の様子、実行できるか。
 #[tauri::command]
-fn cancel_ai_test(run: u64, state: State<'_, AppState>) -> Result<(), String> {
+fn ai_tasks(state: State<'_, AppState>, app: AppHandle) -> Result<Response, String> {
+    let project = {
+        let mut guard = locked(&state.workspace)?;
+        open_workspace(&mut guard)?.project().clone()
+    };
+    let (machine, _) = ai::read_machine_settings(&ai_settings_file(&app)?);
+    let tasks: Vec<Value> = project
+        .ai_tasks
+        .iter()
+        .map(|task| {
+            let conn = task_connection(&project, &machine, task);
+            json!({
+                "task": task,
+                "connection": conn.as_ref().ok().map(|c| json!({
+                    "name": c.name,
+                    "model": c.model,
+                    "cloud": c.cloud,
+                    "allowed": c.allowed,
+                    "context_tokens": c.context_tokens,
+                })),
+                "connection_problem": conn.err(),
+                "unsupported": ai::runnable(task).err(),
+            })
+        })
+        .collect();
+    json_response(&json!({ "tasks": tasks }))
+}
+
+/// 実行する前に、組み立てた文脈（送る中身と見積もり）を見る。保存していない本文も含む。
+#[tauri::command(async)]
+fn ai_prepare(
+    task: String,
+    scene: Option<String>,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Response, String> {
+    let (project, root) = {
+        let mut guard = locked(&state.workspace)?;
+        let workspace = open_workspace(&mut guard)?;
+        (workspace.project().clone(), workspace.root().to_owned())
+    };
+    let (machine, _) = ai::read_machine_settings(&ai_settings_file(&app)?);
+    let definition = project
+        .ai_tasks
+        .iter()
+        .find(|t| t.id == task)
+        .ok_or_else(|| format!("ai/{task}.yaml がありません"))?;
+    let conn = task_connection(&project, &machine, definition)?;
+    let sources = ai::read_sources(&root);
+    let assembled = thread::scope(|scope| {
+        thread::Builder::new()
+            .name("ai-context".into())
+            .stack_size(ANALYZE_STACK_SIZE)
+            .spawn_scoped(scope, || {
+                let ir = analyze(&project);
+                ai::assemble(
+                    &project,
+                    &ir,
+                    &sources,
+                    definition,
+                    scene.as_deref(),
+                    conn.context_tokens,
+                )
+            })
+            .map_err(|e| format!("解析のスレッドを作れません：{e}"))?
+            .join()
+            .map_err(|_| "文脈の組み立てが途中で止まりました".to_owned())
+    })?;
+    json_response(&json!({
+        "digest": ai::content_digest(&conn, &assembled),
+        "assembled": to_json(&assembled, "文脈")?,
+        "connection": { "name": conn.name, "model": conn.model, "cloud": conn.cloud, "allowed": conn.allowed },
+    }))
+}
+
+/// AIタスクを実行する（T3-7。今は指摘の段階）。届いた文字の数を `ai-run-progress` で知らせる。シーン要約の
+/// 結果は `.cache/summaries.json` に入れる。`run` は画面が付けた回の番号（取り消しに使う）。`digest` は人が
+/// 確かめた送る中身の要約値（`ai_prepare`）。クラウドの接続先では、組み立て直した中身と同じときだけ送る。
+#[tauri::command]
+async fn ai_run(
+    task: String,
+    scene: Option<String>,
+    run: u64,
+    digest: Option<String>,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Response, String> {
+    let (cancel, _registered) = register_ai_run(&state, run)?;
+    let (project, root) = {
+        let mut guard = locked(&state.workspace)?;
+        let workspace = open_workspace(&mut guard)?;
+        (workspace.project().clone(), workspace.root().to_owned())
+    };
+    let (machine, _) = ai::read_machine_settings(&ai_settings_file(&app)?);
+    let definition = project
+        .ai_tasks
+        .iter()
+        .find(|t| t.id == task)
+        .cloned()
+        .ok_or_else(|| format!("ai/{task}.yaml がありません"))?;
+    let conn = task_connection(&project, &machine, &definition)?;
+    let key = key_for(&conn)?;
+    let emitter = app.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        thread::Builder::new()
+            .name("ai-run".into())
+            .stack_size(ANALYZE_STACK_SIZE)
+            .spawn(move || {
+                let ir = analyze(&project);
+                let sources = ai::read_sources(&root);
+                let mut received = 0usize;
+                let mut last = std::time::Instant::now();
+                let outcome = ai::run_task(
+                    &project,
+                    &ir,
+                    &sources,
+                    &definition,
+                    scene.as_deref(),
+                    &conn,
+                    key.as_deref(),
+                    digest.as_deref(),
+                    &ai::CallOptions::default(),
+                    &cancel,
+                    &mut |text| {
+                        received += text.chars().count();
+                        if last.elapsed() >= Duration::from_millis(200) {
+                            last = std::time::Instant::now();
+                            let _ = emitter.emit_to(
+                                "main",
+                                "ai-run-progress",
+                                json!({ "run": run, "chars": received }),
+                            );
+                        }
+                    },
+                );
+                // シーンの要約は、要約を作った本文のハッシュと一緒にキャッシュへ。取り消した回は書かない。
+                // 実行の間にほかの回が書いたかもしれないので、キャッシュを読み直してから足す。
+                let mut stored = None;
+                if let Ok(outcome) = &outcome
+                    && !cancel.load(Ordering::Relaxed)
+                    && let (Some(summary), Some(scene)) = (&outcome.summary, &outcome.scene)
+                    && let Some(source) = ai::scene_source(&project, &ir, scene)
+                {
+                    let mut fresh = ai::read_sources(&root).summaries;
+                    stored = Some(ai::store_summary(&root, &mut fresh, scene, source, summary));
+                }
+                (outcome, stored)
+            })
+            .map_err(|e| format!("実行のスレッドを作れません：{e}"))?
+            .join()
+            .map_err(|_| "AIタスクの実行が途中で止まりました".to_owned())
+    })
+    .await
+    .map_err(|e| format!("AIタスクを実行できません：{e}"))??;
+    let (outcome, stored) = result;
+    let outcome = outcome.map_err(|e| e.to_string())?;
+    let mut value = to_json(&outcome, "実行の結果")?;
+    if let Value::Object(map) = &mut value {
+        map.insert(
+            "summary_problem".to_owned(),
+            json!(stored.and_then(Result::err)),
+        );
+    }
+    json_response(&value)
+}
+
+/// 走っている回（「接続を試す」と AI タスクの実行）を取り消す（次のデータの合間で止まる）。まだ始まっていなければ、
+/// 始まったときに止める。
+#[tauri::command]
+fn cancel_ai(run: u64, state: State<'_, AppState>) -> Result<(), String> {
     /// 覚えておく、始まる前の取り消しの数。
     const EARLY_LIMIT: usize = 16;
     let mut slot = locked(&state.ai_cancel)?;
@@ -1912,7 +2116,10 @@ pub fn run() {
             set_ai_key,
             delete_ai_key,
             ai_test,
-            cancel_ai_test,
+            cancel_ai,
+            ai_tasks,
+            ai_prepare,
+            ai_run,
             export_script,
             export_renpy,
             asset_list,

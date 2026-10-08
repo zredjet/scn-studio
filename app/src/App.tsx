@@ -5,6 +5,19 @@
 // 変換が終わってから反映する（whenIdle）。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AiScreen } from "./ai/AiScreen.tsx";
+import {
+  type FindingRecord,
+  findingLines,
+  findingOffset,
+  findingsForScene,
+  type HistoryEntry,
+  historyStatus,
+  mergeFindings,
+  type RunResult,
+  type RunState,
+  tokensText,
+} from "./ai/model.ts";
 import { AssetsScreen } from "./assets/AssetsScreen.tsx";
 import { type BibleRequest, BibleScreen } from "./bible/BibleScreen.tsx";
 import { CheckList } from "./check/CheckList.tsx";
@@ -15,10 +28,11 @@ import {
   addChapter,
   aiConnections,
   aiLines,
+  aiTaskList,
   applyMerge,
   applyRename,
   assetUrl,
-  cancelAiTest,
+  cancelAi,
   confirm,
   createProject,
   deleteAiKey,
@@ -35,6 +49,7 @@ import {
   onPreviewLine as listenPreviewLine,
   onShowInEditor as listenShowInEditor,
   mergeView,
+  onAiRunProgress,
   onPreviewWindowClosed,
   onWorkspaceChanged,
   onWorkspaceError,
@@ -43,6 +58,7 @@ import {
   parseBuffer,
   pickNewProjectFolder,
   pickProjectFolder,
+  prepareAiTask,
   previewData,
   readingChoices,
   recentProjects,
@@ -50,6 +66,7 @@ import {
   renameChapter,
   renamePreview,
   routeStats,
+  runAiTask,
   runPlaythrough,
   saveFile,
   sceneInfo,
@@ -67,6 +84,7 @@ import type { PreviewData } from "./core/ir.ts";
 import { PositionMap } from "./core/position.ts";
 import type {
   AiConnections,
+  AiTaskInfo,
   AssistData,
   Bracket,
   EditorSettings,
@@ -325,6 +343,22 @@ export function App() {
   const aiRun = useRef(Date.now());
   /** 走っている回の番号（取り消しに使う）。 */
   const aiRunning = useRef<number | null>(null);
+  /** AI実行の画面のタスク（T3-7）。 */
+  const [aiTasks, setAiTasks] = useState<readonly AiTaskInfo[] | null>(null);
+  const [aiTasksError, setAiTasksError] = useState<string | null>(null);
+  /** 走っている AI タスクの実行と、その回の番号（結果を受け取る回）。 */
+  const [aiRunState, setAiRunState] = useState<RunState | null>(null);
+  const taskRun = useRef<number | null>(null);
+  /** 走っている実行のタスクと対象（取り消したときの結果に使う）。 */
+  const taskRunTarget = useRef<{ task: string; scene: string | null } | null>(
+    null,
+  );
+  /** タスクごとの最後の結果、実行の履歴、AIの指摘（この画面を開いている間だけ持つ）。 */
+  const [aiResults, setAiResults] = useState<ReadonlyMap<string, RunResult>>(
+    () => new Map(),
+  );
+  const [aiHistory, setAiHistory] = useState<readonly HistoryEntry[]>([]);
+  const [aiFindings, setAiFindings] = useState<readonly FindingRecord[]>([]);
   /** プロジェクトを開いた回数。開くたびにエディタを作り直す。 */
   const [openSeq, setOpenSeq] = useState(0);
 
@@ -1611,7 +1645,7 @@ export function App() {
     const running = aiRunning.current;
     aiRunning.current = null;
     aiRun.current += 1;
-    if (running !== null) void cancelAiTest(running);
+    if (running !== null) void cancelAi(running);
     setAiTests((m) => {
       if (all) return new Map();
       const next = new Map<string, TestRecord>();
@@ -1632,13 +1666,172 @@ export function App() {
     void projectRoot;
     dropAiTests([], true);
   }, [projectRoot, dropAiTests]);
+  // AI実行の画面のタスク（作品を開いたとき、設定ファイル（ai/*.yaml を含む）が変わったとき、接続先を変えたとき）。
+  useEffect(() => {
+    void settingsVersion;
+    void aiVersion;
+    if (projectRoot === null) {
+      setAiTasks(null);
+      return;
+    }
+    let live = true;
+    aiTaskList()
+      .then((result) => {
+        if (!live) return;
+        setAiTasks(result.tasks);
+        setAiTasksError(null);
+      })
+      .catch((e: unknown) => {
+        if (!live) return;
+        setAiTasks(null);
+        setAiTasksError(String(e));
+      });
+    return () => {
+      live = false;
+    };
+  }, [projectRoot, settingsVersion, aiVersion]);
+  // 作品を開き直したら（同じフォルダでも）、AI の実行と指摘を忘れる（走っている回は取り消す）。
+  useEffect(() => {
+    void projectRoot;
+    void openSeq;
+    if (taskRun.current !== null) void cancelAi(taskRun.current);
+    taskRun.current = null;
+    setAiRunState(null);
+    setAiResults(new Map());
+    setAiHistory([]);
+    setAiFindings([]);
+  }, [projectRoot, openSeq]);
+  // 実行の進み具合（届いた文字の数）。
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+    let live = true;
+    void onAiRunProgress((p) => {
+      setAiRunState((r) =>
+        r !== null && r.run === p.run ? { ...r, chars: p.chars } : r,
+      );
+    }).then((u) => {
+      if (live) unlisten = u;
+      else u();
+    });
+    return () => {
+      live = false;
+      unlisten?.();
+    };
+  }, []);
+  const runTask = useCallback(
+    (info: AiTaskInfo, scene: string | null, digest: string | null) => {
+      if (taskRun.current !== null) return;
+      aiRun.current += 1;
+      const run = aiRun.current;
+      taskRun.current = run;
+      const task = info.task;
+      taskRunTarget.current = { task: task.id, scene };
+      const at = new Date().toLocaleTimeString("ja-JP", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      setAiRunState({ run, task: task.id, scene, chars: 0 });
+      setAiHistory((h) => [
+        { run, taskName: task.name, at, status: "実行中" },
+        ...h,
+      ]);
+      const finish = (result: RunResult, findings: number) => {
+        setAiResults((m) => new Map(m).set(task.id, result));
+        setAiHistory((h) =>
+          h.map((e) =>
+            e.run === run
+              ? { ...e, status: historyStatus(result, findings, task.output) }
+              : e,
+          ),
+        );
+      };
+      runAiTask(task.id, scene, run, digest)
+        .then((outcome) => {
+          if (taskRun.current !== run) return;
+          taskRun.current = null;
+          setAiRunState(null);
+          const source = `${outcome.connection} · ${outcome.model}`;
+          const records: FindingRecord[] = outcome.findings.map(
+            (finding, i) => ({
+              id: `${run}-${i}`,
+              run,
+              task: task.id,
+              taskName: task.name,
+              target: scene,
+              source,
+              finding,
+            }),
+          );
+          // 変換中は画面を変えない（変換が終わってから入れる）。
+          whenIdle(() =>
+            setAiFindings((old) => mergeFindings(old, records, task.id, scene)),
+          );
+          finish(
+            {
+              kind: "ok",
+              run,
+              scene,
+              summary: outcome.summary,
+              summaryProblem: outcome.summary_problem,
+              unread: outcome.unread,
+              tokens: tokensText(outcome.completion.usage),
+            },
+            records.length,
+          );
+        })
+        .catch((e: unknown) => {
+          if (taskRun.current !== run) return;
+          taskRun.current = null;
+          setAiRunState(null);
+          finish({ kind: "failed", run, scene, message: String(e) }, 0);
+        });
+    },
+    [whenIdle],
+  );
+  const cancelTaskRun = useCallback(() => {
+    const run = taskRun.current;
+    const target = taskRunTarget.current;
+    if (run === null || target === null) return;
+    taskRun.current = null;
+    taskRunTarget.current = null;
+    void cancelAi(run);
+    setAiRunState(null);
+    setAiResults((m) =>
+      new Map(m).set(target.task, {
+        kind: "cancelled",
+        run,
+        scene: target.scene,
+      }),
+    );
+    setAiHistory((h) =>
+      h.map((e) => (e.run === run ? { ...e, status: "取り消し" } : e)),
+    );
+  }, []);
+  /** 指摘の行へ移る（行IDで今の本文の中を探す。無ければ実行したときの位置）。 */
+  const goToFinding = useCallback((r: FindingRecord) => {
+    const file = r.finding.file;
+    if (file === null) return;
+    const text = buffers.current.get(file);
+    if (text === undefined) return;
+    const offset = findingOffset(text, r.finding);
+    setScreen("text");
+    setCurrentFile(file);
+    const p = latest.current.project;
+    if (p !== null && file !== latest.current.currentFile)
+      setAnalysis(analysisFor(p.summary, file, text));
+    if (offset !== null) setFocus((f) => ({ offset, seq: (f?.seq ?? 0) + 1 }));
+  }, []);
+  const dismissFinding = useCallback((id: string) => {
+    setAiFindings((list) => list.filter((r) => r.id !== id));
+  }, []);
+  const findingMap = useMemo(() => findingLines(aiFindings), [aiFindings]);
   const runAiTest = useCallback(
     (name: string) => {
       const connection = aiState?.connections.find((c) => c.name === name);
       if (connection === undefined) return;
       const target = testTarget(connection);
       // 前の設定で走っている回が残っていれば（project.toml が途中で変わったなど）、取り消す。
-      if (aiRunning.current !== null) void cancelAiTest(aiRunning.current);
+      if (aiRunning.current !== null) void cancelAi(aiRunning.current);
       aiRun.current += 1;
       const run = aiRun.current;
       aiRunning.current = run;
@@ -1940,6 +2133,7 @@ export function App() {
                       }
                       typewriter={viewPrefs.typewriter}
                       aiLines={aiLineMap}
+                      aiFindings={findingMap}
                       previewLine={previewMarker}
                     />
                   ) : (
@@ -1960,6 +2154,9 @@ export function App() {
                     onOpenCharacter={(id) =>
                       requestBible((seq) => ({ kind: "character", id, seq }))
                     }
+                    findings={findingsForScene(aiFindings, currentScene)}
+                    onGoToFinding={goToFinding}
+                    onDismissFinding={dismissFinding}
                   />
                 )}
               </section>
@@ -2073,6 +2270,26 @@ export function App() {
                     writeText={exportText}
                     loadProvenance={aiLines}
                     writeProvenance={exportProvenance}
+                  />
+                </section>
+              )}
+              {screen === "ai" && (
+                <section className="screen ai-screen" aria-label="AI実行">
+                  <AiScreen
+                    tasks={aiTasks}
+                    tasksError={aiTasksError}
+                    scenes={project.summary.scenes}
+                    currentScene={currentScene}
+                    running={aiRunState}
+                    results={aiResults}
+                    history={aiHistory}
+                    findings={aiFindings}
+                    onPrepare={prepareAiTask}
+                    onRun={runTask}
+                    onCancel={cancelTaskRun}
+                    onGoToFinding={goToFinding}
+                    onDismissFinding={dismissFinding}
+                    onOpenPreferences={() => selectScreen("preferences")}
                   />
                 </section>
               )}

@@ -2,15 +2,18 @@
 //! Anthropic の Messages API）、キーの保管（OS のキーチェーン）。
 //! AIタスクの定義と文脈の組み立て（T3-6、D067）：`ai/*.yaml` の読み方、文脈の組み立てと削る順番、シーンの要約の
 //! キャッシュ、設定DBのエントリが渡る内容。
+//! AIタスクの実行（T3-7、D068）：指摘とシーンの要約を応答から読み、行IDで本文の位置を引く。
 
 mod client;
 mod connection;
 mod context;
 mod keys;
+mod run;
 mod task;
 
 pub use client::*;
 pub use connection::*;
 pub use context::*;
 pub use keys::*;
+pub use run::*;
 pub use task::*;

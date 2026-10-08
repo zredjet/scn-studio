@@ -37,6 +37,7 @@ import type {
   IrDiagnostic,
 } from "../core/types.ts";
 import { type AssistEnv, assistEnv, completion } from "./complete.ts";
+import { aiFindingLines, aiFindingMarks } from "./findings.ts";
 import { previewLine, setPreviewLine } from "./marker.ts";
 import { type Definition, definitionAt } from "./navigate.ts";
 import { aiLineMarks, aiLines } from "./provenance.ts";
@@ -149,6 +150,8 @@ interface Props {
   readonly typewriter?: boolean;
   /** AIが書いた行（行IDから、今の出自 `ai`・`ai-edited`。T3-4）。印を付ける。 */
   readonly aiLines?: ReadonlyMap<string, string>;
+  /** AIの指摘のある行（行IDから、指摘の文。T3-7）。印を付ける。 */
+  readonly aiFindings?: ReadonlyMap<string, string>;
   /** プレビュー中の行（「エディタと同期」。T1-11）。ほかのファイルなら印を付けない。 */
   readonly previewLine?: {
     readonly file: string;
@@ -184,6 +187,7 @@ export function Editor({
   onRename,
   typewriter = false,
   aiLines: aiLineMap = NO_AI_LINES,
+  aiFindings: aiFindingMap = NO_AI_LINES,
   previewLine: preview = null,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
@@ -194,6 +198,7 @@ export function Editor({
   const assistSet = useRef(new Compartment());
   const typewriterSet = useRef(new Compartment());
   const aiLineSet = useRef(new Compartment());
+  const aiFindingSet = useRef(new Compartment());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cursorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** 変換で入った範囲（変換中の編集に合わせてずらす。始まりは前へ、終わりは後ろへ広げる）。 */
@@ -236,6 +241,7 @@ export function Editor({
     onRename,
     typewriter,
     aiLineMap,
+    aiFindingMap,
   });
   props.current = {
     file,
@@ -259,6 +265,7 @@ export function Editor({
     onRename,
     typewriter,
     aiLineMap,
+    aiFindingMap,
   };
 
   /** 補完に要るもの。 */
@@ -297,6 +304,8 @@ export function Editor({
     previewLine(),
     aiLineSet.current.of(aiLines.of(props.current.aiLineMap)),
     aiLineMarks(),
+    aiFindingSet.current.of(aiFindingLines.of(props.current.aiFindingMap)),
+    aiFindingMarks(),
     typewriterSet.current.of(
       props.current.typewriter === true ? typewriterScroll() : [],
     ),
@@ -704,6 +713,15 @@ export function Editor({
       effects: aiLineSet.current.reconfigure(aiLines.of(aiLineMap)),
     });
   }, [aiLineMap]);
+
+  // AIの指摘の行の印を入れ替える。
+  useEffect(() => {
+    view.current?.dispatch({
+      effects: aiFindingSet.current.reconfigure(
+        aiFindingLines.of(aiFindingMap),
+      ),
+    });
+  }, [aiFindingMap]);
 
   // タイプライタースクロールの切り替え。
   useEffect(() => {

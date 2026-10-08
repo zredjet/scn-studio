@@ -544,6 +544,113 @@ export interface AiTestResult {
   readonly elapsed_ms: number;
 }
 
+/** AIタスクの定義（コアの `ai::AiTask`、T3-6）。 */
+export interface AiTask {
+  readonly id: string;
+  readonly path: string;
+  readonly name: string;
+  readonly level: "review" | "propose" | "generate" | "auto";
+  readonly model: string | null;
+  readonly context: readonly {
+    readonly kind: string;
+    readonly fields?: readonly string[] | null;
+  }[];
+  readonly output: "findings" | "summary" | "diff" | "proposals" | "draft";
+  readonly scope: string | null;
+  readonly branch: string | null;
+  readonly checks: readonly string[];
+  readonly max_iterations: number | null;
+  readonly budget_tokens: number | null;
+  readonly prompt: string | null;
+}
+
+/** AI実行の画面のタスク（`ai_tasks`）。 */
+export interface AiTaskInfo {
+  readonly task: AiTask;
+  /** 使う接続先（解決できなければ null）。 */
+  readonly connection: {
+    readonly name: string;
+    readonly model: string;
+    readonly cloud: boolean;
+    readonly allowed: boolean;
+    readonly context_tokens: number;
+  } | null;
+  readonly connection_problem: string | null;
+  /** まだ実行できない段階の理由（提案・生成・自律）。 */
+  readonly unsupported: string | null;
+}
+
+/** 組み立てた文脈（コアの `ai::Assembled`）。 */
+export interface AiAssembled {
+  readonly task: string;
+  readonly scene: string | null;
+  readonly context_tokens: number;
+  readonly limit: number;
+  readonly sections: readonly {
+    readonly item: string;
+    readonly title: string;
+    readonly text: string;
+    readonly tokens: number;
+  }[];
+  readonly trimmed: readonly {
+    readonly item: string;
+    readonly title: string;
+    readonly tokens: number;
+    readonly how: "removed" | "shortened";
+  }[];
+  readonly notes: readonly string[];
+  readonly system: string;
+  readonly user: string;
+  readonly tokens: number;
+  readonly problem: string | null;
+}
+
+/** 実行する前に見る中身（`ai_prepare`）。 */
+export interface AiPrepared {
+  /** 送る中身の要約値。クラウドへは、これを添えて頼んだときだけ送る（コアが組み立て直して照らす）。 */
+  readonly digest: string;
+  readonly assembled: AiAssembled;
+  readonly connection: {
+    readonly name: string;
+    readonly model: string;
+    readonly cloud: boolean;
+    readonly allowed: boolean;
+  };
+}
+
+/** AIの指摘（コアの `ai::Finding`）。 */
+export interface AiFinding {
+  readonly line: string | null;
+  readonly scene: string | null;
+  readonly severity: "error" | "warning" | "info";
+  readonly message: string;
+  readonly file: string | null;
+  readonly span: readonly [number, number] | null;
+  readonly unresolved: boolean;
+}
+
+/** AIタスクの実行の結果（コアの `ai::RunOutcome`）。 */
+export interface AiRunOutcome {
+  readonly task: string;
+  readonly scene: string | null;
+  readonly connection: string;
+  readonly model: string;
+  readonly findings: readonly AiFinding[];
+  readonly summary: string | null;
+  readonly unread: readonly string[];
+  readonly text: string;
+  readonly completion: {
+    readonly usage: {
+      readonly input_tokens: number;
+      readonly output_tokens: number;
+      readonly estimated: boolean;
+    };
+    readonly stop_reason: string | null;
+  };
+  /** シーンの要約をキャッシュに書けなかった理由。 */
+  readonly summary_problem: string | null;
+}
+
 /** 自動巡回の結果（検証の段階2。コアの `playthrough::Playthrough`、T3-2）。 */
 export interface Playthrough {
   readonly complete: boolean;

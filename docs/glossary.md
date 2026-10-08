@@ -195,4 +195,6 @@
 | 文脈の長さ | context tokens | 接続先の `context_tokens`。返す分を除いたものが文脈の上限（`ai::context_limit`） |
 | 削る順番 | trim order | 文脈が上限に入らないときに節を削る順（`ai::TRIM_ORDER`） |
 | 要約のキャッシュ | summary cache | `.cache/summaries.json`（`ai::SummaryCache`）。シーンの本文のハッシュと一緒に置く |
+| 指摘（AIの） | finding | AI のタスクが返した、行IDつきの指摘（`ai::Finding`）。アプリの中だけに持つ |
+| 実行の結果 | run outcome | 1回の実行の指摘・要約・読めなかった行・トークン数（`ai::RunOutcome`） |
 | AIに渡す内容 | entry context | 設定DBのエントリが、どのタスクにどの部分で渡るか（`ai::EntryContext`） |
