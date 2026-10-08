@@ -107,7 +107,7 @@ pub const DEFAULT_WINDOW: WindowSize = WindowSize {
 };
 
 /// 変数の初期値（`default` を型どおりに読む）。2つ目は、書かれていたが型に合わなかったか。
-fn initial_value(ty: &VarType, default: Option<&str>) -> (Value, bool) {
+pub(crate) fn initial_value(ty: &VarType, default: Option<&str>) -> (Value, bool) {
     let fallback = match ty {
         VarType::Bool => Value::Bool(false),
         VarType::Int => Value::from(0),

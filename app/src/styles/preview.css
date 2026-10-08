@@ -103,6 +103,17 @@
   font-size: 12.5px;
 }
 
+.preview-notice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 16px;
+  background: var(--chrome-bg-2);
+  color: var(--chrome-text);
+  font-size: 12.5px;
+}
+
 .preview-stage-wrap {
   display: flex;
   justify-content: center;

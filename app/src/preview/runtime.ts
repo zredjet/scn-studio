@@ -7,6 +7,7 @@
 //   誤りのある条件、スタブ、AI下書きを含めないとき）は D050 で決めた。
 
 import type { Ir, IrInline, IrScene, IrSpan, Op } from "../core/ir.ts";
+import type { Route, RouteStep } from "../core/types.ts";
 import { assign, condition, type Value, type Variables } from "./expr.ts";
 
 /** 立ち絵の位置。 */
@@ -188,17 +189,16 @@ function sceneSpan(prog: Program, id: string): IrSpan {
   return prog.scenes.get(id)?.span ?? [0, 0];
 }
 
-/** 最初から始める（`scene` を渡すと、そのシーンから。変数は `vars` か初期値）。 */
-export function start(
-  prog: Program,
+/** 始める前の状態（シーンに入る前）。 */
+function fresh(
   options: {
     readonly includeAiDrafts: boolean;
-    readonly scene?: string;
     readonly vars?: Variables;
   },
+  prog: Program,
+  first: string | null,
 ): State {
-  const first = options.scene ?? prog.start;
-  const base: State = {
+  return {
     scene: first ?? "",
     frames: [],
     calls: [],
@@ -211,8 +211,21 @@ export function start(
     includeAiDrafts: options.includeAiDrafts,
     noticed: false,
   };
+}
+
+/** 最初から始める（`scene` を渡すと、そのシーンから。変数は `vars` か初期値）。 */
+export function start(
+  prog: Program,
+  options: {
+    readonly includeAiDrafts: boolean;
+    readonly scene?: string;
+    readonly vars?: Variables;
+  },
+): State {
+  const first = options.scene ?? prog.start;
+  const base = fresh(options, prog, first);
   if (first === null) return base;
-  return run(prog, enter(prog, { ...base, events: [] }, first, [0, 0]));
+  return run(prog, enter(prog, base, first, [0, 0]));
 }
 
 /** 今のシーン。 */
@@ -258,12 +271,24 @@ export function next(prog: Program, state: State): State {
 
 /** 選択肢を選ぶ。選べないものは選ばない。 */
 export function choose(prog: Program, state: State, index: number): State {
+  return chooseTo(prog, state, index, null).state;
+}
+
+/** 選択肢を選び、`until` の命令の手前か、止まるところまで実行する。 */
+function chooseTo(
+  prog: Program,
+  state: State,
+  index: number,
+  until: RouteTarget | null,
+): Ran {
   const stop = state.stop;
-  if (stop.kind !== "choice") return state;
+  if (stop.kind !== "choice") return { state, hit: false };
   const item = stop.items.find((i) => i.index === index);
   const choice = findChoice(state);
   const option = choice?.options[index];
-  if (item === undefined || !item.enabled || option === undefined) return state;
+  if (item === undefined || !item.enabled || option === undefined) {
+    return { state, hit: false };
+  }
   const entry: LogEntry = {
     scene: state.scene,
     span: option.span,
@@ -274,15 +299,19 @@ export function choose(prog: Program, state: State, index: number): State {
     text: option.text,
     chosen: true,
   };
-  return run(prog, {
-    ...state,
-    events: [],
-    log: [...state.log, entry],
-    frames: [
-      ...state.frames,
-      { ops: option.body, index: 0, after: option.jump },
-    ],
-  });
+  return runTo(
+    prog,
+    {
+      ...state,
+      events: [],
+      log: [...state.log, entry],
+      frames: [
+        ...state.frames,
+        { ops: option.body, index: 0, after: option.jump },
+      ],
+    },
+    until,
+  );
 }
 
 /** 今止まっている選択肢の命令（実行中のブロックの、1つ前の命令）。 */
@@ -355,12 +384,39 @@ function isAiDraft(prog: Program, state: State): boolean {
   return currentScene(prog, state)?.meta.status === "ai-draft";
 }
 
+/** 再生を始める命令（コアの `route::RouteTarget` のうち、ランタイムが使うところ）。 */
+export type RouteTarget = Pick<Route["target"], "scene" | "span">;
+
+/** 実行の結果。`hit` なら `until` の命令の手前で止めた（その命令はまだ実行していない）。 */
+interface Ran {
+  readonly state: State;
+  readonly hit: boolean;
+}
+
 /** 止まるところまで命令を実行する。 */
 function run(prog: Program, initial: State): State {
+  return runTo(prog, initial, null).state;
+}
+
+/** 止まるところか、`until` の命令の手前まで実行する。 */
+function runTo(prog: Program, initial: State, until: RouteTarget | null): Ran {
   let state = initial;
+  const done = (s: State): Ran => ({ state: s, hit: false });
   for (let steps = 0; steps < MAX_STEPS; steps++) {
     if (state.stop.kind === "missing_scene" && state.frames.length === 0) {
-      return state;
+      return done(state);
+    }
+    // 目的の命令の手前（シーンに入ったときの知らせより先に調べる。知らせは再生を始めてから出す）。
+    if (until !== null && state.scene === until.scene) {
+      const at = state.frames[state.frames.length - 1];
+      const op = at?.ops[at.index];
+      if (
+        op !== undefined &&
+        op.span[0] === until.span[0] &&
+        op.span[1] === until.span[1]
+      ) {
+        return { state, hit: true };
+      }
     }
     // シーンに入ったときの知らせ（スタブ、含めないAI下書き）。
     if (
@@ -371,22 +427,25 @@ function run(prog: Program, initial: State): State {
       const scene = currentScene(prog, state);
       state = { ...state, noticed: true };
       if (scene?.is_stub === true) {
-        return { ...state, stop: { kind: "stub", span: scene.span } };
+        return done({ ...state, stop: { kind: "stub", span: scene.span } });
       }
       if (
         scene !== undefined &&
         isAiDraft(prog, state) &&
         !state.includeAiDrafts
       ) {
-        return { ...state, stop: { kind: "ai_skipped", span: scene.span } };
+        return done({
+          ...state,
+          stop: { kind: "ai_skipped", span: scene.span },
+        });
       }
     }
     const top = state.frames[state.frames.length - 1];
     if (top === undefined) {
-      return {
+      return done({
         ...state,
         stop: { kind: "dead_end", span: sceneSpan(prog, state.scene) },
-      };
+      });
     }
     const op = top.ops[top.index];
     if (op === undefined) {
@@ -402,11 +461,11 @@ function run(prog: Program, initial: State): State {
         continue;
       }
       if (rest.length === 0) {
-        return {
+        return done({
           ...state,
           frames: rest,
           stop: { kind: "dead_end", span: sceneSpan(prog, state.scene) },
-        };
+        });
       }
       state = { ...state, frames: rest };
       continue;
@@ -416,15 +475,17 @@ function run(prog: Program, initial: State): State {
       frames: [...state.frames.slice(0, -1), { ...top, index: top.index + 1 }],
     };
     const result = exec(prog, advanced, op);
-    if (result.stopped) return result.state;
+    if (result.stopped) return done(result.state);
     state = result.state;
   }
-  return warn(
-    {
-      ...state,
-      stop: { kind: "dead_end", span: sceneSpan(prog, state.scene) },
-    },
-    "命令を続けて実行しすぎました（ジャンプが循環しています）。止めます",
+  return done(
+    warn(
+      {
+        ...state,
+        stop: { kind: "dead_end", span: sceneSpan(prog, state.scene) },
+      },
+      "命令を続けて実行しすぎました（ジャンプが循環しています）。止めます",
+    ),
   );
 }
 
@@ -751,4 +812,155 @@ export function skip(
     return s;
   }
   return s;
+}
+
+/** 道の再生の結果。 */
+export type Replayed =
+  | {
+      readonly ok: true;
+      /** 目的の命令から、最初の止まりまで進めた状態（ここから再生する）。 */
+      readonly state: State;
+      /** 目的の命令の手前の状態（変数はコアの `route` と同じになる）。 */
+      readonly at: State;
+    }
+  | { readonly ok: false; readonly error: string };
+
+/**
+ * カーソル位置から再生（T2-4、D055）：開始シーンから始め、道（コアの `route` の最短経路）の選択肢を順に選んで
+ * 速送りし、目的の命令の手前で止めてから、最初の止まりまで進める。台詞・地の文・待ち・知らせは飛ばし、
+ * バックログには残す。道が合わなければ（本文が変わった、評価が違う）誤り。
+ */
+export function replay(
+  prog: Program,
+  options: { readonly includeAiDrafts: boolean; readonly vars?: Variables },
+  steps: readonly RouteStep[],
+  target: RouteTarget,
+): Replayed {
+  const first = prog.start;
+  if (first === null) return { ok: false, error: "シーンがありません" };
+  let ran = runTo(
+    prog,
+    enter(prog, fresh(options, prog, first), first, [0, 0]),
+    target,
+  );
+  let next = 0;
+  for (let n = 0; n < MAX_STEPS; n++) {
+    if (ran.hit) {
+      return {
+        ok: true,
+        at: ran.state,
+        state: run(prog, { ...ran.state, events: [] }),
+      };
+    }
+    const state = ran.state;
+    const stop = state.stop;
+    switch (stop.kind) {
+      case "line":
+      case "wait":
+      case "stub":
+      case "ai_skipped":
+        ran = runTo(prog, { ...state, events: [] }, target);
+        break;
+      case "choice": {
+        const step = steps[next];
+        const item = stop.items.find((i) => i.index === step?.option);
+        if (
+          step === undefined ||
+          step.scene !== state.scene ||
+          step.choice[0] !== stop.span[0] ||
+          item === undefined ||
+          !item.enabled
+        ) {
+          return {
+            ok: false,
+            error: `道が本文と合いません（${state.scene} の選択肢）。本文が変わったかもしれません`,
+          };
+        }
+        next += 1;
+        ran = chooseTo(prog, state, step.option, target);
+        break;
+      }
+      default:
+        return {
+          ok: false,
+          error: `目的の行に着く前に止まりました（${state.scene}）`,
+        };
+    }
+  }
+  return { ok: false, error: "命令を続けて実行しすぎました" };
+}
+
+/** 行IDの命令（台詞・地の文・`@選択`。選択肢の行なら、その `@選択`）までの、実行中のブロックの積み重ね。 */
+function framesTo(
+  ops: readonly Op[],
+  after: string | null,
+  lineId: string,
+): Frame[] | null {
+  for (let index = 0; index < ops.length; index++) {
+    const op = ops[index];
+    if (op === undefined) continue;
+    const here: Frame = { ops, index, after };
+    if (
+      (op.kind === "say" || op.kind === "narrate" || op.kind === "choice") &&
+      op.line_id === lineId
+    ) {
+      return [here];
+    }
+    const inside: Frame = { ops, index: index + 1, after };
+    if (op.kind === "choice") {
+      for (const option of op.options) {
+        if (option.line_id === lineId) return [here];
+        const inner = framesTo(option.body, option.jump, lineId);
+        if (inner !== null) return [inside, ...inner];
+      }
+    }
+    if (op.kind === "if") {
+      for (const branch of op.branches) {
+        const inner = framesTo(branch.body, null, lineId);
+        if (inner !== null) return [inside, ...inner];
+      }
+      if (op.else !== null) {
+        const inner = framesTo(op.else, null, lineId);
+        if (inner !== null) return [inside, ...inner];
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * 本文が変わったとき、新しい本文の同じ行IDの行から続ける（T2-4）。変数・舞台・バックログは今のまま。
+ * `@呼出` の積み重ねは、古い本文を指すので捨てる（呼び出し元へは戻らない）。行IDが無ければ null。
+ */
+export function resumeAt(
+  prog: Program,
+  state: State,
+  lineId: string,
+): State | null {
+  for (const scene of prog.scenes.values()) {
+    const frames = framesTo(scene.ops, null, lineId);
+    if (frames === null) continue;
+    // 今の行は実行し直すので、バックログの最後のその行は消す（2つ並ばないように）。
+    const last = state.log[state.log.length - 1];
+    const log =
+      last !== undefined && !last.chosen && last.lineId === lineId
+        ? state.log.slice(0, -1)
+        : state.log;
+    const resumed = run(prog, {
+      ...state,
+      scene: scene.id,
+      frames,
+      calls: [],
+      events: [],
+      log,
+      noticed: true,
+    });
+    return state.calls.length > 0
+      ? warn(
+          resumed,
+          "本文が変わったので、@呼出 の呼び出し元へは戻りません（デバッグの欄から始め直せます）",
+        )
+      : resumed;
+  }
+  return null;
 }

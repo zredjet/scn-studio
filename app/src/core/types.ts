@@ -510,3 +510,39 @@ export interface CatalogWritten {
   readonly summary: Summary;
   readonly checks: readonly IrDiagnostic[];
 }
+
+/** 最短経路で選ぶ選択肢（コアの `route::RouteStep`）。 */
+export interface RouteStep {
+  readonly scene: string;
+  readonly choice: readonly [number, number];
+  readonly option: number;
+}
+
+/** 最短経路（コアの `route::Route`。T2-4、D055）。 */
+export interface Route {
+  readonly target: {
+    readonly scene: string;
+    readonly file: string;
+    readonly span: readonly [number, number];
+    readonly line_id: string | null;
+  };
+  readonly reachable: boolean;
+  readonly steps: readonly RouteStep[];
+  readonly variables: Readonly<Record<string, boolean | number | string>>;
+  readonly calls: readonly string[];
+  readonly message: string | null;
+}
+
+/** プレビューへの再生の頼み（メインウィンドウの画面にも、別ウィンドウにも渡す）。`seq` で見分ける。 */
+export type PreviewRequest =
+  /** 最初から再生する。 */
+  | { readonly seq: number; readonly kind: "start" }
+  /** ファイルのある位置（バイト）から、最短経路で再生する。 */
+  | {
+      readonly seq: number;
+      readonly kind: "at";
+      readonly file: string;
+      readonly offset: number;
+    }
+  /** シーンの頭から、最短経路で再生する。 */
+  | { readonly seq: number; readonly kind: "scene"; readonly scene: string };

@@ -2,7 +2,7 @@
 // コンポーネントから直接 invoke を呼ばない（.claude/rules/frontend.md）。
 
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { emitTo, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ask, open, save } from "@tauri-apps/plugin-dialog";
 import type { PreviewData } from "./ir.ts";
@@ -21,8 +21,10 @@ import type {
   KeptFile,
   LoadedLayout,
   OpenedProject,
+  PreviewRequest,
   RecentProject,
   ReloadedFile,
+  Route,
   SavedFile,
   SceneGraphData,
   SceneInfo,
@@ -350,4 +352,122 @@ export interface RenpyResult {
 
 export function exportRenpy(): Promise<RenpyResult> {
   return invoke<RenpyResult>("export_renpy");
+}
+
+// ---- カーソル位置から再生と、プレビューの別ウィンドウ（T2-4、D055） ----
+
+/** 永続の変数の今の値（最短経路をプレビューと同じ初めの変数で探すため）。 */
+export type PersistentValues = Readonly<
+  Record<string, boolean | number | string>
+>;
+
+/** ファイルのある位置（バイト）から再生するための最短経路。始められる命令が無ければ null。 */
+export function routeAt(
+  file: string,
+  offset: number,
+  persistent: PersistentValues,
+): Promise<Route | null> {
+  return invoke<Route | null>("route_at", { file, offset, persistent });
+}
+
+/** シーンの頭から再生するための最短経路。命令の無いシーンなら null。 */
+export function routeToScene(
+  scene: string,
+  persistent: PersistentValues,
+): Promise<Route | null> {
+  return invoke<Route | null>("route_to_scene", { scene, persistent });
+}
+
+/** プレビューの別ウィンドウのラベル（コアと同じ）。 */
+const PREVIEW_WINDOW = "preview";
+
+/** このウィンドウが、プレビューの別ウィンドウか。 */
+export function isPreviewWindow(): boolean {
+  try {
+    return getCurrentWindow().label === PREVIEW_WINDOW;
+  } catch {
+    return false;
+  }
+}
+
+/** プレビューを別ウィンドウで開く（開いていれば前に出し、頼みを渡す）。 */
+export function openPreviewWindow(
+  request: PreviewRequest | null,
+): Promise<void> {
+  return invoke<void>("open_preview_window", { request });
+}
+
+/** 別ウィンドウを開いたときの再生の頼みを受け取る（一度だけ）。 */
+export function takePreviewRequest(): Promise<PreviewRequest | null> {
+  return invoke<PreviewRequest | null>("take_preview_request");
+}
+
+/** 別ウィンドウ：再生の頼みを受け取る。 */
+export function onPreviewRequest(
+  handler: (request: PreviewRequest) => void,
+): Promise<UnlistenFn> {
+  return listen<PreviewRequest>("preview-request", (event) =>
+    handler(event.payload),
+  );
+}
+
+/** 別ウィンドウのプレビュー中の行（エディタの印に使う）。 */
+export interface PreviewLinePayload {
+  readonly file: string;
+  readonly lineId: string | null;
+  readonly span: readonly [number, number];
+}
+
+/** 別ウィンドウ → メインウィンドウ：プレビュー中の行（null で印を消す）。 */
+export function sendPreviewLine(
+  line: PreviewLinePayload | null,
+): Promise<void> {
+  return emitTo("main", "preview-line", line);
+}
+
+export function onPreviewLine(
+  handler: (line: PreviewLinePayload | null) => void,
+): Promise<UnlistenFn> {
+  return listen<PreviewLinePayload | null>("preview-line", (event) =>
+    handler(event.payload),
+  );
+}
+
+/** 別ウィンドウ → メインウィンドウ：その行をエディタで見せる。 */
+export function sendShowInEditor(line: PreviewLinePayload): Promise<void> {
+  return emitTo("main", "preview-show-in-editor", line);
+}
+
+export function onShowInEditor(
+  handler: (line: PreviewLinePayload) => void,
+): Promise<UnlistenFn> {
+  return listen<PreviewLinePayload>("preview-show-in-editor", (event) =>
+    handler(event.payload),
+  );
+}
+
+/** メインウィンドウ → 別ウィンドウ：本文が変わった（プレビューのデータを取り直す）。 */
+export function sendTextChanged(): Promise<void> {
+  return emitTo(PREVIEW_WINDOW, "text-changed", null);
+}
+
+export function onTextChanged(handler: () => void): Promise<UnlistenFn> {
+  return listen<null>("text-changed", () => handler());
+}
+
+/** 別ウィンドウが閉じた（メインウィンドウで受け取る）。 */
+export function onPreviewWindowClosed(
+  handler: () => void,
+): Promise<UnlistenFn> {
+  return listen<null>("preview-window-closed", () => handler());
+}
+
+/** このウィンドウを前に出す。 */
+export function focusThisWindow(): Promise<void> {
+  return getCurrentWindow().setFocus();
+}
+
+/** このウィンドウを閉じる。 */
+export function closeThisWindow(): Promise<void> {
+  return getCurrentWindow().close();
 }

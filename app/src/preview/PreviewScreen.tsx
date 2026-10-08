@@ -2,12 +2,16 @@
 // ランタイム（runtime.ts）で IR を解釈し、止まるたびに画面を描き直す。
 //
 // - 「戻る」のために、止まるたびの状態を残す。
-// - 本文が変わってプレビューのデータを取り直したら、知らせて、このシーンの頭から続けるか最初からかを選ばせる
-//   （実行中の状態は古いIRのまま）。
-// - 縦書き、別ウィンドウ、開始シーンからの最短経路での変数の復元、エディタからの再生はフェーズ2。
+// - 本文が変わってプレビューのデータを取り直したら、新しい本文の同じ行IDの行から続ける（T2-4）。行IDが無い
+//   （消した、行IDの無い止まり）ときは、知らせて、このシーンの頭から続けるか最初からかを選ばせる。
+// - 再生の頼み（エディタの「ここから再生」、デバッグの「最短経路で開始」）は、コアの最短経路の選択肢を選んで
+//   ランタイムを速送りし、その行から始める（変数と舞台がそろう。D055）。
+// - メインウィンドウの画面にも、別ウィンドウ（`PreviewWindow.tsx`）にも出す。縦書きは T2-5。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { routeAt, routeToScene } from "../core/api.ts";
 import type { IrInline, IrSpan, PreviewData } from "../core/ir.ts";
+import type { PreviewRequest, Route } from "../core/types.ts";
 import { type ChoicePolicy, DebugPanel } from "./DebugPanel.tsx";
 import type { Value } from "./expr.ts";
 import {
@@ -21,6 +25,8 @@ import {
   next,
   type Program,
   program,
+  replay,
+  resumeAt,
   type State,
   setIncludeAiDrafts,
   setVariable,
@@ -47,8 +53,14 @@ interface Props {
   readonly onShowInEditor: (line: PreviewLine) => void;
   /** 今の行（「エディタと同期」が入っていれば、エディタに印を付ける。null で消す）。 */
   readonly onLine: (line: PreviewLine | null) => void;
-  /** エディタへ戻る（本文の画面）。 */
+  /** エディタへ戻る（本文の画面）。別ウィンドウでは、ウィンドウを閉じる。 */
   readonly onClose: () => void;
+  /** 閉じるボタンの名前。 */
+  readonly closeLabel?: string;
+  /** 再生の頼み（`seq` が変わったら従う）。 */
+  readonly request?: PreviewRequest | null;
+  /** 別ウィンドウで開く（メインウィンドウの画面だけ）。 */
+  readonly onOpenWindow?: (() => void) | null;
 }
 
 /** 「戻る」で戻れる数。 */
@@ -96,6 +108,9 @@ export function PreviewScreen({
   onShowInEditor,
   onLine,
   onClose,
+  closeLabel = "エディタへ戻る",
+  request = null,
+  onOpenWindow = null,
 }: Props) {
   /** 実行しているデータ（本文が変わっても、選ぶまでは古いまま）。 */
   const [running, setRunning] = useState<{
@@ -111,6 +126,12 @@ export function PreviewScreen({
   const [advanceSeq, setAdvanceSeq] = useState(0);
   const [seLabel, setSeLabel] = useState<string | null>(null);
   const [fades, setFades] = useState<ReadonlySet<string>>(new Set());
+  /** 再生の頼みや、本文が変わって続けたことの知らせ。 */
+  const [notice, setNotice] = useState<string | null>(null);
+  /** 従った再生の頼み。 */
+  const applied = useRef<number | null>(null);
+  /** 再生の頼みの最短経路を待っている。 */
+  const waiting = useRef(false);
   const bgm = useRef<HTMLAudioElement | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const state = history[history.length - 1] ?? null;
@@ -139,10 +160,54 @@ export function PreviewScreen({
     [includeAi, push],
   );
 
-  // 初めてデータが届いたら始める。
+  /** 最短経路で、ある行から始める。始められなければ知らせ、まだ動いていなければ最初から始める。 */
+  const startRoute = useCallback(
+    (d: PreviewData, route: Route | null, message: string | null) => {
+      const fallback = (why: string) => {
+        setNotice(why);
+        if (running === null) restart(d, null);
+      };
+      if (route === null) {
+        fallback(message ?? "この行からは始められません");
+        return;
+      }
+      if (!route.reachable) {
+        fallback(
+          `${route.target.scene} の行には、開始シーンから着けません：${route.message ?? ""}`,
+        );
+        return;
+      }
+      const p = program(d.ir, declared(d));
+      const keep = history[history.length - 1]?.vars ?? null;
+      const result = replay(
+        p,
+        { includeAiDrafts: includeAi, vars: initialVariables(p, keep) },
+        route.steps,
+        route.target,
+      );
+      if (!result.ok) {
+        fallback(result.error);
+        return;
+      }
+      setRunning({ data: d, prog: p });
+      setHistory([]);
+      setMode("normal");
+      push(result.state);
+      setNotice(
+        route.steps.length === 0
+          ? `${route.target.scene} から再生しています`
+          : `${route.target.scene} から再生しています（選択肢 ${route.steps.length} 個の最短経路で、変数と舞台をそろえました）`,
+      );
+    },
+    [running, restart, history, includeAi, push],
+  );
+
+  // 初めてデータが届いたら始める（再生の頼みがあれば、それに従う）。
   useEffect(() => {
-    if (data !== null && running === null) restart(data, null);
-  }, [data, running, restart]);
+    if (data === null || running !== null) return;
+    if (request !== null && applied.current !== request.seq) return;
+    restart(data, null);
+  }, [data, running, restart, request]);
 
   // 本文が変わったか：取り直したデータの中身を、動かしているデータと比べる（同じ中身なら知らせない）。
   const stale = useMemo(
@@ -153,6 +218,81 @@ export function PreviewScreen({
       JSON.stringify(data) !== JSON.stringify(running.data),
     [data, running],
   );
+
+  // 本文が変わったら、新しい本文の同じ行IDの行から続ける（変数と舞台は今のまま）。
+  useEffect(() => {
+    // 再生の頼みを待っている間は続けない（頼みが、新しい本文で始め直す）。
+    if (!stale || data === null || running === null || waiting.current) return;
+    if (request !== null && applied.current !== request.seq) return;
+    const current = history[history.length - 1];
+    if (current === undefined) return;
+    const lineId = stopLocation(current).lineId;
+    if (lineId === null) return;
+    const p = program(data.ir, declared(data));
+    const resumed = resumeAt(
+      p,
+      { ...current, includeAiDrafts: includeAi },
+      lineId,
+    );
+    if (resumed === null) return;
+    setRunning({ data, prog: p });
+    setHistory([]);
+    push(resumed);
+    setNotice("本文が変わったので、新しい本文の今の行から続けています");
+  }, [stale, data, running, history, includeAi, push, request]);
+
+  /** 永続の変数の今の値（最短経路を、プレビューと同じ初めの変数で探す）。 */
+  const persistentNow = useCallback(
+    (d: PreviewData) => {
+      const vars = history[history.length - 1]?.vars;
+      const out: Record<string, boolean | number | string> = {};
+      if (vars === undefined) return out;
+      for (const v of d.variables) {
+        const value = vars.get(v.key);
+        if (v.scope === "persistent" && value !== undefined) out[v.key] = value;
+      }
+      return out;
+    },
+    [history],
+  );
+
+  /** 最短経路を求めてから始める（ある行から、シーンの頭から）。 */
+  const routeAndStart = useCallback(
+    (d: PreviewData, target: PreviewRequest) => {
+      if (target.kind === "start") return;
+      const persistent = persistentNow(d);
+      const asked =
+        target.kind === "at"
+          ? routeAt(target.file, target.offset, persistent)
+          : routeToScene(target.scene, persistent);
+      const missing =
+        target.kind === "at"
+          ? "この行からは始められません（シーンの外か、シーンの最後の命令より後ろです）"
+          : `${target.scene} には命令がありません`;
+      waiting.current = true;
+      asked
+        .then((route) => startRoute(d, route, route === null ? missing : null))
+        .catch((e: unknown) => setNotice(String(e)))
+        .finally(() => {
+          waiting.current = false;
+        });
+    },
+    [persistentNow, startRoute],
+  );
+
+  // 再生の頼みに従う（本文が変わったときの続きより後に書く。同じ描き直しで両方が動いたら、頼みが勝つ）。
+  useEffect(() => {
+    if (data === null || request === null || applied.current === request.seq) {
+      return;
+    }
+    applied.current = request.seq;
+    if (request.kind === "start") {
+      setNotice(null);
+      restart(data, history[history.length - 1]?.vars ?? null);
+      return;
+    }
+    routeAndStart(data, request);
+  }, [data, request, restart, routeAndStart, history]);
 
   // 出来事（効果音、トランジション）。
   useEffect(() => {
@@ -438,14 +578,39 @@ export function PreviewScreen({
           <button
             type="button"
             className="preview-button"
-            onClick={() => restart(data, state.vars)}
+            onClick={() => {
+              setNotice(null);
+              restart(data, state.vars);
+            }}
           >
             最初から
           </button>
+          {onOpenWindow !== null && (
+            <button
+              type="button"
+              className="preview-button"
+              title="プレビューを別ウィンドウに出して、本文と並べる"
+              onClick={onOpenWindow}
+            >
+              別ウィンドウで開く
+            </button>
+          )}
           <button type="button" className="preview-button" onClick={onClose}>
-            エディタへ戻る
+            {closeLabel}
           </button>
         </header>
+        {notice !== null && !stale && (
+          <div className="preview-notice" role="status">
+            <span>{notice}</span>
+            <button
+              type="button"
+              className="preview-button"
+              onClick={() => setNotice(null)}
+            >
+              閉じる
+            </button>
+          </div>
+        )}
         {stale && (
           <div className="preview-stale" role="status">
             <span>
@@ -580,6 +745,10 @@ export function PreviewScreen({
           onJump={(id) => {
             setMode("normal");
             push(jumpTo(prog, state, id));
+          }}
+          onRouteJump={(id) => {
+            setMode("normal");
+            routeAndStart(data, { seq: -1, kind: "scene", scene: id });
           }}
           onShowInEditor={() => {
             if (line !== null) onShowInEditor(line);

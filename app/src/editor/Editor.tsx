@@ -15,7 +15,8 @@
 // 表示は、執筆表示とソース表示を切り替える（D046）。切り替えても本文は変わらない（飾りと行番号が変わるだけ）。
 //
 // 定義へ移る（F12、Mod-クリック。navigate.ts）、クイックオープン（Mod-P）、カーソルのあるシーンの知らせ
-// （文脈パネルとステータスバー）も、ここからアプリへ知らせる（D047）。
+// （文脈パネルとステータスバー）も、ここからアプリへ知らせる（D047）。ここから再生（F5。T2-4）は、変換中は
+// 知らせない。
 
 import { closeCompletion } from "@codemirror/autocomplete";
 import { setDiagnostics } from "@codemirror/lint";
@@ -138,6 +139,8 @@ interface Props {
   readonly onDefinition: (definition: Definition) => void;
   /** クイックオープンのキー（Mod-P）が押された。 */
   readonly onQuickOpen: () => void;
+  /** ここから再生のキー（F5）が押された（エディタの位置）。 */
+  readonly onPlayHere?: (file: string, offset: number) => void;
   /** プレビュー中の行（「エディタと同期」。T1-11）。ほかのファイルなら印を付けない。 */
   readonly previewLine?: {
     readonly file: string;
@@ -166,6 +169,7 @@ export function Editor({
   onCursor,
   onDefinition,
   onQuickOpen,
+  onPlayHere,
   previewLine: preview = null,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
@@ -212,6 +216,7 @@ export function Editor({
     onCursor,
     onDefinition,
     onQuickOpen,
+    onPlayHere,
   });
   props.current = {
     file,
@@ -231,6 +236,7 @@ export function Editor({
     onCursor,
     onDefinition,
     onQuickOpen,
+    onPlayHere,
   };
 
   /** 補完に要るもの。 */
@@ -281,6 +287,19 @@ export function Editor({
           preventDefault: true,
           run: () => {
             props.current.onQuickOpen();
+            return true;
+          },
+        },
+        {
+          key: "F5",
+          preventDefault: true,
+          run: (v) => {
+            const current = loaded.current;
+            if (current === null || isComposing(v)) return true;
+            props.current.onPlayHere?.(
+              current.file,
+              v.state.selection.main.head,
+            );
             return true;
           },
         },

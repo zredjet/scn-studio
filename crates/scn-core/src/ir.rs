@@ -161,6 +161,34 @@ pub enum Op {
     },
 }
 
+impl Op {
+    /// 命令の行（`@選択`・`@if` はその行、台詞は複数行ならその全体）。
+    pub fn span(&self) -> Span {
+        match self {
+            Op::Say { span, .. }
+            | Op::Narrate { span, .. }
+            | Op::Break { span }
+            | Op::Bg { span, .. }
+            | Op::Show { span, .. }
+            | Op::Hide { span, .. }
+            | Op::Bgm { span, .. }
+            | Op::BgmStop { span }
+            | Op::Se { span, .. }
+            | Op::Fx { span, .. }
+            | Op::Wait { span, .. }
+            | Op::Set { span, .. }
+            | Op::Choice { span, .. }
+            | Op::If { span, .. }
+            | Op::Jump { span, .. }
+            | Op::Call { span, .. }
+            | Op::Return { span }
+            | Op::Ending { span, .. }
+            | Op::Raw { span, .. }
+            | Op::UnknownDirective { span, .. } => *span,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct IrOption {
     pub span: Span,

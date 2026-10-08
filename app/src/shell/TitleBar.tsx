@@ -1,4 +1,5 @@
-// タイトルバー：作品名、再生（プレビュー。T1-11）、作品フォルダを開く・新しく作る、最近開いたもの。
+// タイトルバー：作品名、再生（プレビュー。T1-11）とここから再生（T2-4）、作品フォルダを開く・新しく作る、
+// 最近開いたもの。
 
 import type { RecentProject } from "../core/types.ts";
 
@@ -10,6 +11,8 @@ interface Props {
   readonly onOpenRecent: (path: string) => void;
   /** 再生（プレビューの画面を開く）。作品フォルダを開いていなければ null。 */
   readonly onPlay: (() => void) | null;
+  /** ここから再生（エディタのカーソルの行から）。カーソルが無ければ null。 */
+  readonly onPlayHere: (() => void) | null;
 }
 
 export function TitleBar({
@@ -19,6 +22,7 @@ export function TitleBar({
   onCreate,
   onOpenRecent,
   onPlay,
+  onPlayHere,
 }: Props) {
   return (
     <header className="titlebar">
@@ -33,6 +37,17 @@ export function TitleBar({
           onClick={onPlay}
         >
           ▶ 再生
+        </button>
+      )}
+      {onPlay !== null && (
+        <button
+          type="button"
+          className="chrome-button play"
+          title="エディタのカーソルの行から再生する（F5）。開始シーンからの最短経路で、変数と舞台をそろえる"
+          disabled={onPlayHere === null}
+          onClick={onPlayHere ?? undefined}
+        >
+          ▶ ここから
         </button>
       )}
       {recent.length > 0 && (

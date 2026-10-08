@@ -1,0 +1,3616 @@
+---
+source: crates/scn-core/tests/route.rs
+expression: "serde_json::to_string_pretty(&cases).unwrap()"
+---
+[
+  {
+    "kind": "bg",
+    "route": {
+      "target": {
+        "scene": "s01",
+        "file": "story/chapter01.scn",
+        "span": [
+          184,
+          199
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "bgm",
+    "route": {
+      "target": {
+        "scene": "s01",
+        "file": "story/chapter01.scn",
+        "span": [
+          200,
+          211
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "se",
+    "route": {
+      "target": {
+        "scene": "s01",
+        "file": "story/chapter01.scn",
+        "span": [
+          212,
+          219
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s01",
+        "file": "story/chapter01.scn",
+        "span": [
+          221,
+          298
+        ],
+        "line_id": "rpashh"
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s01",
+        "file": "story/chapter01.scn",
+        "span": [
+          299,
+          379
+        ],
+        "line_id": "vx7iqo"
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "call",
+    "route": {
+      "target": {
+        "scene": "s01",
+        "file": "story/chapter01.scn",
+        "span": [
+          380,
+          391
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s01",
+        "file": "story/chapter01.scn",
+        "span": [
+          392,
+          457
+        ],
+        "line_id": "l11zzp"
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s01",
+        "file": "story/chapter01.scn",
+        "span": [
+          458,
+          559
+        ],
+        "line_id": "eqlgen"
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "se",
+    "route": {
+      "target": {
+        "scene": "s01",
+        "file": "story/chapter01.scn",
+        "span": [
+          560,
+          570
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "jump",
+    "route": {
+      "target": {
+        "scene": "s01",
+        "file": "story/chapter01.scn",
+        "span": [
+          572,
+          578
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "bg",
+    "route": {
+      "target": {
+        "scene": "s02",
+        "file": "story/chapter01.scn",
+        "span": [
+          731,
+          765
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "show",
+    "route": {
+      "target": {
+        "scene": "s02",
+        "file": "story/chapter01.scn",
+        "span": [
+          766,
+          797
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s02",
+        "file": "story/chapter01.scn",
+        "span": [
+          799,
+          873
+        ],
+        "line_id": "43t4h0"
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s02",
+        "file": "story/chapter01.scn",
+        "span": [
+          874,
+          972
+        ],
+        "line_id": "5533gu"
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s02",
+        "file": "story/chapter01.scn",
+        "span": [
+          973,
+          1056
+        ],
+        "line_id": "bz752o"
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "choice",
+    "route": {
+      "target": {
+        "scene": "s02",
+        "file": "story/chapter01.scn",
+        "span": [
+          1058,
+          1086
+        ],
+        "line_id": "769588"
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "set",
+    "route": {
+      "target": {
+        "scene": "s02",
+        "file": "story/chapter01.scn",
+        "span": [
+          1120,
+          1151
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "show",
+    "route": {
+      "target": {
+        "scene": "s03",
+        "file": "story/chapter01.scn",
+        "span": [
+          1312,
+          1340
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s03",
+        "file": "story/chapter01.scn",
+        "span": [
+          1342,
+          1407
+        ],
+        "line_id": "wj7dga"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s03",
+        "file": "story/chapter01.scn",
+        "span": [
+          1408,
+          1498
+        ],
+        "line_id": "oeyjoa"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s03",
+        "file": "story/chapter01.scn",
+        "span": [
+          1499,
+          1528
+        ],
+        "line_id": "ip8tmw"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s03",
+        "file": "story/chapter01.scn",
+        "span": [
+          1529,
+          1633
+        ],
+        "line_id": "0whp7t"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s03",
+        "file": "story/chapter01.scn",
+        "span": [
+          1634,
+          1708
+        ],
+        "line_id": "i8nmpu"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s03",
+        "file": "story/chapter01.scn",
+        "span": [
+          1709,
+          1798
+        ],
+        "line_id": "dkh06k"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s03",
+        "file": "story/chapter01.scn",
+        "span": [
+          1799,
+          1840
+        ],
+        "line_id": "7e19qd"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s03",
+        "file": "story/chapter01.scn",
+        "span": [
+          1841,
+          1888
+        ],
+        "line_id": "8euw1q"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "show",
+    "route": {
+      "target": {
+        "scene": "s03",
+        "file": "story/chapter01.scn",
+        "span": [
+          1889,
+          1917
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "set",
+    "route": {
+      "target": {
+        "scene": "s03",
+        "file": "story/chapter01.scn",
+        "span": [
+          1918,
+          1943
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "jump",
+    "route": {
+      "target": {
+        "scene": "s03",
+        "file": "story/chapter01.scn",
+        "span": [
+          1945,
+          1951
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s04",
+        "file": "story/chapter01.scn",
+        "span": [
+          2107,
+          2160
+        ],
+        "line_id": "tx2dsq"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 1
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s04",
+        "file": "story/chapter01.scn",
+        "span": [
+          2161,
+          2229
+        ],
+        "line_id": "36qrks"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 1
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s04",
+        "file": "story/chapter01.scn",
+        "span": [
+          2230,
+          2289
+        ],
+        "line_id": "nb32yz"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 1
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s04",
+        "file": "story/chapter01.scn",
+        "span": [
+          2290,
+          2388
+        ],
+        "line_id": "kfyylg"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 1
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "jump",
+    "route": {
+      "target": {
+        "scene": "s04",
+        "file": "story/chapter01.scn",
+        "span": [
+          2390,
+          2396
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 1
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "show",
+    "route": {
+      "target": {
+        "scene": "s05",
+        "file": "story/chapter01.scn",
+        "span": [
+          2552,
+          2580
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "se",
+    "route": {
+      "target": {
+        "scene": "s05",
+        "file": "story/chapter01.scn",
+        "span": [
+          2581,
+          2591
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s05",
+        "file": "story/chapter01.scn",
+        "span": [
+          2593,
+          2700
+        ],
+        "line_id": "x7c78x"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "call",
+    "route": {
+      "target": {
+        "scene": "s05",
+        "file": "story/chapter01.scn",
+        "span": [
+          2701,
+          2712
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s05",
+        "file": "story/chapter01.scn",
+        "span": [
+          2713,
+          2808
+        ],
+        "line_id": "bpn58b"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "if",
+    "route": {
+      "target": {
+        "scene": "s05",
+        "file": "story/chapter01.scn",
+        "span": [
+          2809,
+          2827
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s05",
+        "file": "story/chapter01.scn",
+        "span": [
+          2828,
+          2922
+        ],
+        "line_id": "ihq01n"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s05",
+        "file": "story/chapter01.scn",
+        "span": [
+          2929,
+          3011
+        ],
+        "line_id": "tnyd4w"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 1
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "hide",
+    "route": {
+      "target": {
+        "scene": "s05",
+        "file": "story/chapter01.scn",
+        "span": [
+          3017,
+          3031
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "jump",
+    "route": {
+      "target": {
+        "scene": "s05",
+        "file": "story/chapter01.scn",
+        "span": [
+          3033,
+          3039
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "se",
+    "route": {
+      "target": {
+        "scene": "s06",
+        "file": "story/chapter01.scn",
+        "span": [
+          3183,
+          3190
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "fx",
+    "route": {
+      "target": {
+        "scene": "s06",
+        "file": "story/chapter01.scn",
+        "span": [
+          3191,
+          3207
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s06",
+        "file": "story/chapter01.scn",
+        "span": [
+          3208,
+          3258
+        ],
+        "line_id": "398izk"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s06",
+        "file": "story/chapter01.scn",
+        "span": [
+          3259,
+          3342
+        ],
+        "line_id": "boo12i"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "if",
+    "route": {
+      "target": {
+        "scene": "s06",
+        "file": "story/chapter01.scn",
+        "span": [
+          3343,
+          3361
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s06",
+        "file": "story/chapter01.scn",
+        "span": [
+          3362,
+          3443
+        ],
+        "line_id": "ywnjej"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s06",
+        "file": "story/chapter01.scn",
+        "span": [
+          3450,
+          3543
+        ],
+        "line_id": "isbs4z"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 1
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s06",
+        "file": "story/chapter01.scn",
+        "span": [
+          3549,
+          3617
+        ],
+        "line_id": "q32ik1"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "choice",
+    "route": {
+      "target": {
+        "scene": "s06",
+        "file": "story/chapter01.scn",
+        "span": [
+          3619,
+          3647
+        ],
+        "line_id": "irtm7a"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "set",
+    "route": {
+      "target": {
+        "scene": "s06",
+        "file": "story/chapter01.scn",
+        "span": [
+          3684,
+          3709
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "set",
+    "route": {
+      "target": {
+        "scene": "s06",
+        "file": "story/chapter01.scn",
+        "span": [
+          3710,
+          3737
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s06",
+        "file": "story/chapter01.scn",
+        "span": [
+          3738,
+          3814
+        ],
+        "line_id": "7cylcy"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "set",
+    "route": {
+      "target": {
+        "scene": "s06",
+        "file": "story/chapter01.scn",
+        "span": [
+          3932,
+          3960
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 2
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "set",
+    "route": {
+      "target": {
+        "scene": "s06",
+        "file": "story/chapter01.scn",
+        "span": [
+          3961,
+          3988
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 2
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": true,
+        "flag.話した": true,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s06",
+        "file": "story/chapter01.scn",
+        "span": [
+          3989,
+          4062
+        ],
+        "line_id": "9fjha2"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 2
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": true,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "bg",
+    "route": {
+      "target": {
+        "scene": "s07",
+        "file": "story/chapter02.scn",
+        "span": [
+          175,
+          215
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "bgm",
+    "route": {
+      "target": {
+        "scene": "s07",
+        "file": "story/chapter02.scn",
+        "span": [
+          216,
+          230
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s07",
+        "file": "story/chapter02.scn",
+        "span": [
+          231,
+          284
+        ],
+        "line_id": "xypyl7"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s07",
+        "file": "story/chapter02.scn",
+        "span": [
+          285,
+          350
+        ],
+        "line_id": "5hr4k0"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "if",
+    "route": {
+      "target": {
+        "scene": "s07",
+        "file": "story/chapter02.scn",
+        "span": [
+          352,
+          367
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "jump",
+    "route": {
+      "target": {
+        "scene": "s07",
+        "file": "story/chapter02.scn",
+        "span": [
+          368,
+          376
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 2
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": true,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "jump",
+    "route": {
+      "target": {
+        "scene": "s07",
+        "file": "story/chapter02.scn",
+        "span": [
+          401,
+          409
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "jump",
+    "route": {
+      "target": {
+        "scene": "s07",
+        "file": "story/chapter02.scn",
+        "span": [
+          416,
+          424
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 1
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 1
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "bg",
+    "route": {
+      "target": {
+        "scene": "s08",
+        "file": "story/chapter02.scn",
+        "span": [
+          531,
+          565
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "show",
+    "route": {
+      "target": {
+        "scene": "s08",
+        "file": "story/chapter02.scn",
+        "span": [
+          566,
+          594
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "if",
+    "route": {
+      "target": {
+        "scene": "s08",
+        "file": "story/chapter02.scn",
+        "span": [
+          595,
+          617
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s08",
+        "file": "story/chapter02.scn",
+        "span": [
+          618,
+          733
+        ],
+        "line_id": "k3d9bu"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 1
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "set",
+    "route": {
+      "target": {
+        "scene": "s08",
+        "file": "story/chapter02.scn",
+        "span": [
+          734,
+          765
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 1
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s08",
+        "file": "story/chapter02.scn",
+        "span": [
+          771,
+          833
+        ],
+        "line_id": "51q45r"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "if",
+    "route": {
+      "target": {
+        "scene": "s08",
+        "file": "story/chapter02.scn",
+        "span": [
+          834,
+          846
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s08",
+        "file": "story/chapter02.scn",
+        "span": [
+          847,
+          905
+        ],
+        "line_id": "os9zcz"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s08",
+        "file": "story/chapter02.scn",
+        "span": [
+          912,
+          976
+        ],
+        "line_id": "5r4n37"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 1
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s08",
+        "file": "story/chapter02.scn",
+        "span": [
+          982,
+          1056
+        ],
+        "line_id": "zjfng5"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s08",
+        "file": "story/chapter02.scn",
+        "span": [
+          1057,
+          1089
+        ],
+        "line_id": "0zlenc"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s08",
+        "file": "story/chapter02.scn",
+        "span": [
+          1090,
+          1155
+        ],
+        "line_id": "t9lq4a"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "jump",
+    "route": {
+      "target": {
+        "scene": "s08",
+        "file": "story/chapter02.scn",
+        "span": [
+          1157,
+          1163
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "se",
+    "route": {
+      "target": {
+        "scene": "s09",
+        "file": "story/chapter02.scn",
+        "span": [
+          1295,
+          1305
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "show",
+    "route": {
+      "target": {
+        "scene": "s09",
+        "file": "story/chapter02.scn",
+        "span": [
+          1306,
+          1334
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "if",
+    "route": {
+      "target": {
+        "scene": "s09",
+        "file": "story/chapter02.scn",
+        "span": [
+          1335,
+          1347
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s09",
+        "file": "story/chapter02.scn",
+        "span": [
+          1348,
+          1427
+        ],
+        "line_id": "nx5f69"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s09",
+        "file": "story/chapter02.scn",
+        "span": [
+          1434,
+          1492
+        ],
+        "line_id": "lhqqkq"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 1
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 1
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "hide",
+    "route": {
+      "target": {
+        "scene": "s09",
+        "file": "story/chapter02.scn",
+        "span": [
+          1498,
+          1525
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s09",
+        "file": "story/chapter02.scn",
+        "span": [
+          1526,
+          1591
+        ],
+        "line_id": "fgjra9"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "ending",
+    "route": {
+      "target": {
+        "scene": "s09",
+        "file": "story/chapter02.scn",
+        "span": [
+          1592,
+          1619
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "flag.傘": true,
+        "flag.残る": false,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "show",
+    "route": {
+      "target": {
+        "scene": "s10",
+        "file": "story/chapter02.scn",
+        "span": [
+          1727,
+          1755
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 2
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": true,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s10",
+        "file": "story/chapter02.scn",
+        "span": [
+          1756,
+          1859
+        ],
+        "line_id": "djhvqc"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 2
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": true,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s10",
+        "file": "story/chapter02.scn",
+        "span": [
+          1860,
+          1892
+        ],
+        "line_id": "vvt2nv"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 2
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": true,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s10",
+        "file": "story/chapter02.scn",
+        "span": [
+          1893,
+          1949
+        ],
+        "line_id": "vk8gac"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 2
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": true,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s10",
+        "file": "story/chapter02.scn",
+        "span": [
+          1950,
+          2027
+        ],
+        "line_id": "hiqjyx"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 2
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": true,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "ending",
+    "route": {
+      "target": {
+        "scene": "s10",
+        "file": "story/chapter02.scn",
+        "span": [
+          2028,
+          2056
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 2
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": true,
+        "flag.話した": true,
+        "shino.信頼": 2
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "bgm_stop",
+    "route": {
+      "target": {
+        "scene": "s11",
+        "file": "story/chapter02.scn",
+        "span": [
+          2215,
+          2226
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 1
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 1
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s11",
+        "file": "story/chapter02.scn",
+        "span": [
+          2227,
+          2259
+        ],
+        "line_id": "kb6ujb"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 1
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 1
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s11",
+        "file": "story/chapter02.scn",
+        "span": [
+          2260,
+          2349
+        ],
+        "line_id": "1rpu2k"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 1
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 1
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s11",
+        "file": "story/chapter02.scn",
+        "span": [
+          2350,
+          2427
+        ],
+        "line_id": "uysn3r"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 1
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 1
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "se",
+    "route": {
+      "target": {
+        "scene": "s11",
+        "file": "story/chapter02.scn",
+        "span": [
+          2428,
+          2438
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 1
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 1
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "ending",
+    "route": {
+      "target": {
+        "scene": "s11",
+        "file": "story/chapter02.scn",
+        "span": [
+          2439,
+          2467
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s02",
+          "choice": [
+            1058,
+            1086
+          ],
+          "option": 1
+        },
+        {
+          "scene": "s06",
+          "choice": [
+            3619,
+            3647
+          ],
+          "option": 1
+        }
+      ],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s90",
+        "file": "story/chapter02.scn",
+        "span": [
+          2602,
+          2667
+        ],
+        "line_id": "3n7mit"
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [
+        "s01"
+      ],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s90",
+        "file": "story/chapter02.scn",
+        "span": [
+          2668,
+          2811
+        ],
+        "line_id": "i96gca"
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [
+        "s01"
+      ],
+      "message": null
+    }
+  },
+  {
+    "kind": "return",
+    "route": {
+      "target": {
+        "scene": "s90",
+        "file": "story/chapter02.scn",
+        "span": [
+          2812,
+          2819
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "flag.傘": false,
+        "flag.残る": false,
+        "flag.話した": false,
+        "shino.信頼": 0
+      },
+      "calls": [
+        "s01"
+      ],
+      "message": null
+    }
+  }
+]

@@ -18,10 +18,15 @@ import {
   devSettings,
   exportRenpy,
   exportScript,
+  focusThisWindow,
   guardClose,
   keepMine,
+  onPreviewLine as listenPreviewLine,
+  onShowInEditor as listenShowInEditor,
+  onPreviewWindowClosed,
   onWorkspaceChanged,
   onWorkspaceError,
+  openPreviewWindow,
   openProject,
   parseBuffer,
   pickNewProjectFolder,
@@ -32,6 +37,7 @@ import {
   saveFile,
   sceneInfo,
   scriptSheet,
+  sendTextChanged,
   setViewMode,
   viewModes,
 } from "./core/api.ts";
@@ -44,6 +50,7 @@ import type {
   GraphLevel,
   IrDiagnostic,
   OpenedProject,
+  PreviewRequest,
   RecentProject,
   SceneInfo,
   SceneSummary,
@@ -160,6 +167,15 @@ export function App() {
   /** プレビューのデータ（プレビューの画面を開いているときだけ取る。T1-11、D050）。 */
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  /** プレビューへの再生の頼み（メインウィンドウのプレビューの画面に渡す。T2-4）。 */
+  const [previewRequest, setPreviewRequest] = useState<PreviewRequest | null>(
+    null,
+  );
+  /** プレビューの別ウィンドウを開いているか。 */
+  const [previewWindow, setPreviewWindow] = useState(false);
+  const requestSeq = useRef(0);
+  /** エディタのカーソルの最後の位置（エディタの位置）。「ここから再生」に使う。 */
+  const lastCursor = useRef<{ file: string; offset: number } | null>(null);
   /** エディタに印を付ける、プレビュー中の行（「エディタと同期」）。 */
   const [previewMarker, setPreviewMarker] = useState<{
     file: string;
@@ -204,6 +220,7 @@ export function App() {
     settingsDrafts,
     screen,
     previewMarker,
+    previewWindow,
   });
   latest.current = {
     project,
@@ -216,6 +233,7 @@ export function App() {
     settingsDrafts,
     screen,
     previewMarker,
+    previewWindow,
   };
 
   const replaceText = useCallback(
@@ -670,6 +688,7 @@ export function App() {
   /** カーソルが止まった：そのシーンを今のシーンにし、情報を読み直す。 */
   const onCursor = useCallback(
     (file: string, offset: number) => {
+      lastCursor.current = { file, offset };
       const p = latest.current.project;
       const text = buffers.current.get(file);
       if (p === null || text === undefined) return;
@@ -816,6 +835,117 @@ export function App() {
     setPreviewMarker(offset === null ? null : { file: line.file, offset });
   }, []);
 
+  /** 再生の頼みを、別ウィンドウ（開いていれば）か、メインウィンドウのプレビューの画面に渡す（T2-4）。 */
+  const sendPreview = useCallback(
+    (make: (seq: number) => PreviewRequest) => {
+      requestSeq.current += 1;
+      const request = make(requestSeq.current);
+      if (latest.current.previewWindow) {
+        openPreviewWindow(request).catch((e: unknown) => setError(String(e)));
+        return;
+      }
+      setPreviewRequest(request);
+      leaveSettings(() => setScreen("preview"));
+    },
+    [leaveSettings],
+  );
+
+  /** ある行（エディタの位置）から再生するための頼み（バイト位置にする。最短経路はプレビューが求める）。 */
+  const atRequest = useCallback(
+    (file: string, offset: number) =>
+      (seq: number): PreviewRequest => {
+        const text = buffers.current.get(file) ?? "";
+        return {
+          seq,
+          kind: "at",
+          file,
+          offset: new PositionMap(text).utf16ToByte(offset),
+        };
+      },
+    [],
+  );
+
+  /** ここから再生（F5、タイトルバー）：カーソルの行から、開始シーンからの最短経路で。 */
+  const playHere = useCallback(
+    (file: string, offset: number) => sendPreview(atRequest(file, offset)),
+    [atRequest, sendPreview],
+  );
+
+  /** 「▶ ここから」：最後のカーソルの行から。カーソルが無ければ、そのファイルの最初のシーンの頭から。 */
+  const playAtCursor = useCallback(() => {
+    const file = latest.current.currentFile;
+    if (file === null) return;
+    const cursor = lastCursor.current;
+    if (cursor !== null && cursor.file === file) {
+      playHere(cursor.file, cursor.offset);
+      return;
+    }
+    const first = latest.current.project?.summary.scenes.find(
+      (scene) => scene.file === file,
+    );
+    if (first === undefined) {
+      playHere(file, 0);
+      return;
+    }
+    sendPreview((seq) => ({ seq, kind: "scene", scene: first.id }));
+  }, [playHere, sendPreview]);
+
+  /** プレビューを別ウィンドウで開く。プレビュー中の行（「エディタと同期」の印）があれば、その行から。 */
+  const openWindow = useCallback(() => {
+    const marker = latest.current.previewMarker;
+    requestSeq.current += 1;
+    const seq = requestSeq.current;
+    const request: PreviewRequest =
+      marker === null
+        ? { seq, kind: "start" }
+        : atRequest(marker.file, marker.offset)(seq);
+    openPreviewWindow(request)
+      .then(() => {
+        setPreviewWindow(true);
+        setScreen("text");
+      })
+      .catch((e: unknown) => setError(String(e)));
+  }, [atRequest]);
+
+  // F5 は「ここから再生」（エディタの外でも。WebView がページを読み込み直さないよう、いつも止める）。
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "F5") return;
+      // エディタの中で押されたら、エディタが受けている（変換中は再生しない）。
+      const handled = event.defaultPrevented;
+      event.preventDefault();
+      if (handled || event.isComposing || event.keyCode === 229) return;
+      if (latest.current.screen === "text") playAtCursor();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [playAtCursor]);
+
+  // 別ウィンドウから：プレビュー中の行の印、エディタで見せる、閉じた。
+  useEffect(() => {
+    const subs = [
+      listenPreviewLine((line) => onPreviewLine(line)),
+      listenShowInEditor((line) => {
+        void focusThisWindow();
+        showPreviewLine(line);
+      }),
+      onPreviewWindowClosed(() => {
+        setPreviewWindow(false);
+        setPreviewMarker(null);
+      }),
+    ];
+    return () => {
+      for (const sub of subs) void sub.then((f) => f());
+    };
+  }, [onPreviewLine, showPreviewLine]);
+
+  // 別ウィンドウへ：本文が変わった（プレビューのデータを取り直す）。
+  const summaryForWindow = previewWindow ? project?.summary : undefined;
+  useEffect(() => {
+    if (summaryForWindow === undefined) return;
+    sendTextChanged().catch(() => {});
+  }, [summaryForWindow]);
+
   const openFromSettings = useCallback(
     (file: string, offset: number) => leaveSettings(() => goTo(file, offset)),
     [leaveSettings, goTo],
@@ -949,7 +1079,10 @@ export function App() {
         onPlay={
           project === null
             ? null
-            : () => leaveSettings(() => setScreen("preview"))
+            : () => sendPreview((seq) => ({ seq, kind: "start" }))
+        }
+        onPlayHere={
+          project === null || currentFile === null ? null : playAtCursor
         }
       />
       {error !== null && (
@@ -1031,6 +1164,7 @@ export function App() {
                       onCursor={onCursor}
                       onDefinition={onDefinition}
                       onQuickOpen={() => setQuickOpen(true)}
+                      onPlayHere={playHere}
                       previewLine={previewMarker}
                     />
                   ) : (
@@ -1116,6 +1250,8 @@ export function App() {
                     onShowInEditor={showPreviewLine}
                     onLine={onPreviewLine}
                     onClose={closePreview}
+                    request={previewRequest}
+                    onOpenWindow={openWindow}
                   />
                 </section>
               )}

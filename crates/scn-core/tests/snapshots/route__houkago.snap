@@ -1,0 +1,2735 @@
+---
+source: crates/scn-core/tests/route.rs
+expression: "serde_json::to_string_pretty(&cases).unwrap()"
+---
+[
+  {
+    "kind": "bg",
+    "route": {
+      "target": {
+        "scene": "s010",
+        "file": "story/chapter01.scn",
+        "span": [
+          139,
+          160
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "akari.好感度": 0,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "bgm",
+    "route": {
+      "target": {
+        "scene": "s010",
+        "file": "story/chapter01.scn",
+        "span": [
+          161,
+          172
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "akari.好感度": 0,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s010",
+        "file": "story/chapter01.scn",
+        "span": [
+          174,
+          246
+        ],
+        "line_id": "a1b2"
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "akari.好感度": 0,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s010",
+        "file": "story/chapter01.scn",
+        "span": [
+          247,
+          304
+        ],
+        "line_id": "a1b3"
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "akari.好感度": 0,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s010",
+        "file": "story/chapter01.scn",
+        "span": [
+          305,
+          350
+        ],
+        "line_id": "a1b4"
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "akari.好感度": 0,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "show",
+    "route": {
+      "target": {
+        "scene": "s010",
+        "file": "story/chapter01.scn",
+        "span": [
+          351,
+          376
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "akari.好感度": 0,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s010",
+        "file": "story/chapter01.scn",
+        "span": [
+          377,
+          470
+        ],
+        "line_id": "a1b5"
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "akari.好感度": 0,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s010",
+        "file": "story/chapter01.scn",
+        "span": [
+          471,
+          570
+        ],
+        "line_id": "a1b6"
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "akari.好感度": 0,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "jump",
+    "route": {
+      "target": {
+        "scene": "s010",
+        "file": "story/chapter01.scn",
+        "span": [
+          572,
+          579
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "akari.好感度": 0,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "bg",
+    "route": {
+      "target": {
+        "scene": "s011",
+        "file": "story/chapter01.scn",
+        "span": [
+          750,
+          768
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "akari.好感度": 0,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "show",
+    "route": {
+      "target": {
+        "scene": "s011",
+        "file": "story/chapter01.scn",
+        "span": [
+          769,
+          794
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "akari.好感度": 0,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s011",
+        "file": "story/chapter01.scn",
+        "span": [
+          796,
+          868
+        ],
+        "line_id": "a1c1"
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "akari.好感度": 0,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s011",
+        "file": "story/chapter01.scn",
+        "span": [
+          869,
+          902
+        ],
+        "line_id": "a1c2"
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "akari.好感度": 0,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s011",
+        "file": "story/chapter01.scn",
+        "span": [
+          903,
+          954
+        ],
+        "line_id": "a1c3"
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "akari.好感度": 0,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "hide",
+    "route": {
+      "target": {
+        "scene": "s011",
+        "file": "story/chapter01.scn",
+        "span": [
+          955,
+          966
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "akari.好感度": 0,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "se",
+    "route": {
+      "target": {
+        "scene": "s011",
+        "file": "story/chapter01.scn",
+        "span": [
+          967,
+          983
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "akari.好感度": 0,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s011",
+        "file": "story/chapter01.scn",
+        "span": [
+          984,
+          1080
+        ],
+        "line_id": "a1c4"
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "akari.好感度": 0,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s011",
+        "file": "story/chapter01.scn",
+        "span": [
+          1081,
+          1165
+        ],
+        "line_id": "a1c5"
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "akari.好感度": 0,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "choice",
+    "route": {
+      "target": {
+        "scene": "s011",
+        "file": "story/chapter01.scn",
+        "span": [
+          1167,
+          1199
+        ],
+        "line_id": "a1c6"
+      },
+      "reachable": true,
+      "steps": [],
+      "variables": {
+        "akari.好感度": 0,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "set",
+    "route": {
+      "target": {
+        "scene": "s011",
+        "file": "story/chapter01.scn",
+        "span": [
+          1224,
+          1245
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 0,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "set",
+    "route": {
+      "target": {
+        "scene": "s011",
+        "file": "story/chapter01.scn",
+        "span": [
+          1246,
+          1274
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 0,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "set",
+    "route": {
+      "target": {
+        "scene": "s011",
+        "file": "story/chapter01.scn",
+        "span": [
+          1311,
+          1339
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 1
+        }
+      ],
+      "variables": {
+        "akari.好感度": 0,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "jump",
+    "route": {
+      "target": {
+        "scene": "s011",
+        "file": "story/chapter01.scn",
+        "span": [
+          1346,
+          1353
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "bg",
+    "route": {
+      "target": {
+        "scene": "s012",
+        "file": "story/chapter01.scn",
+        "span": [
+          1465,
+          1499
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "bgm",
+    "route": {
+      "target": {
+        "scene": "s012",
+        "file": "story/chapter01.scn",
+        "span": [
+          1500,
+          1514
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "show",
+    "route": {
+      "target": {
+        "scene": "s012",
+        "file": "story/chapter01.scn",
+        "span": [
+          1515,
+          1540
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "se",
+    "route": {
+      "target": {
+        "scene": "s012",
+        "file": "story/chapter01.scn",
+        "span": [
+          1541,
+          1548
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "raw",
+    "route": {
+      "target": {
+        "scene": "s012",
+        "file": "story/chapter01.scn",
+        "span": [
+          1549,
+          1559
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s012",
+        "file": "story/chapter01.scn",
+        "span": [
+          1615,
+          1657
+        ],
+        "line_id": "k3f9"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s012",
+        "file": "story/chapter01.scn",
+        "span": [
+          1658,
+          1728
+        ],
+        "line_id": "k3fa"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s012",
+        "file": "story/chapter01.scn",
+        "span": [
+          1729,
+          1781
+        ],
+        "line_id": "k3fb"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "show",
+    "route": {
+      "target": {
+        "scene": "s012",
+        "file": "story/chapter01.scn",
+        "span": [
+          1782,
+          1803
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s012",
+        "file": "story/chapter01.scn",
+        "span": [
+          1804,
+          1858
+        ],
+        "line_id": "k3fh"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "choice",
+    "route": {
+      "target": {
+        "scene": "s012",
+        "file": "story/chapter01.scn",
+        "span": [
+          1906,
+          1935
+        ],
+        "line_id": "k3fc"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "set",
+    "route": {
+      "target": {
+        "scene": "s012",
+        "file": "story/chapter01.scn",
+        "span": [
+          1978,
+          2006
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s012",
+        "file": "story/chapter01.scn",
+        "span": [
+          2052,
+          2300
+        ],
+        "line_id": "k3ff"
+      },
+      "reachable": false,
+      "steps": [],
+      "variables": {},
+      "calls": [],
+      "message": "開始シーンから、選択肢と条件をどう選んでも着けません"
+    }
+  },
+  {
+    "kind": "jump",
+    "route": {
+      "target": {
+        "scene": "s012",
+        "file": "story/chapter01.scn",
+        "span": [
+          2301,
+          2310
+        ],
+        "line_id": null
+      },
+      "reachable": false,
+      "steps": [],
+      "variables": {},
+      "calls": [],
+      "message": "開始シーンから、選択肢と条件をどう選んでも着けません"
+    }
+  },
+  {
+    "kind": "if",
+    "route": {
+      "target": {
+        "scene": "s012",
+        "file": "story/chapter01.scn",
+        "span": [
+          2317,
+          2339
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 3,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s012",
+        "file": "story/chapter01.scn",
+        "span": [
+          2340,
+          2396
+        ],
+        "line_id": "k3fg"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 3,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "jump",
+    "route": {
+      "target": {
+        "scene": "s012",
+        "file": "story/chapter01.scn",
+        "span": [
+          2397,
+          2407
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 3,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "jump",
+    "route": {
+      "target": {
+        "scene": "s012",
+        "file": "story/chapter01.scn",
+        "span": [
+          2414,
+          2424
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 1
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "show",
+    "route": {
+      "target": {
+        "scene": "s013a",
+        "file": "story/chapter01.scn",
+        "span": [
+          2560,
+          2585
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 3,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "bgm_stop",
+    "route": {
+      "target": {
+        "scene": "s013a",
+        "file": "story/chapter01.scn",
+        "span": [
+          2586,
+          2597
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 3,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s013a",
+        "file": "story/chapter01.scn",
+        "span": [
+          2598,
+          2673
+        ],
+        "line_id": "a2a1"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 3,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s013a",
+        "file": "story/chapter01.scn",
+        "span": [
+          2674,
+          2728
+        ],
+        "line_id": "a2a2"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 3,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "set",
+    "route": {
+      "target": {
+        "scene": "s013a",
+        "file": "story/chapter01.scn",
+        "span": [
+          2729,
+          2759
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 3,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "jump",
+    "route": {
+      "target": {
+        "scene": "s013a",
+        "file": "story/chapter01.scn",
+        "span": [
+          2760,
+          2767
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 3,
+        "akari.転校済み": false,
+        "flag.ルート": "灯",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "bg",
+    "route": {
+      "target": {
+        "scene": "s013b",
+        "file": "story/chapter01.scn",
+        "span": [
+          2928,
+          2952
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 1
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "bgm",
+    "route": {
+      "target": {
+        "scene": "s013b",
+        "file": "story/chapter01.scn",
+        "span": [
+          2953,
+          2967
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 1
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s013b",
+        "file": "story/chapter01.scn",
+        "span": [
+          2968,
+          3013
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 1
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s013b",
+        "file": "story/chapter01.scn",
+        "span": [
+          3014,
+          3089
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 1
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "show",
+    "route": {
+      "target": {
+        "scene": "s013b",
+        "file": "story/chapter01.scn",
+        "span": [
+          3090,
+          3115
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 1
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s013b",
+        "file": "story/chapter01.scn",
+        "span": [
+          3116,
+          3152
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 1
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "set",
+    "route": {
+      "target": {
+        "scene": "s013b",
+        "file": "story/chapter01.scn",
+        "span": [
+          3153,
+          3179
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 1
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "set",
+    "route": {
+      "target": {
+        "scene": "s013b",
+        "file": "story/chapter01.scn",
+        "span": [
+          3180,
+          3210
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 1
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "共通",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 1,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "jump",
+    "route": {
+      "target": {
+        "scene": "s013b",
+        "file": "story/chapter01.scn",
+        "span": [
+          3211,
+          3218
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 1
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "紬",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 1,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "bg",
+    "route": {
+      "target": {
+        "scene": "s020",
+        "file": "story/chapter02.scn",
+        "span": [
+          167,
+          188
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 3,
+        "akari.転校済み": false,
+        "flag.ルート": "灯",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s020",
+        "file": "story/chapter02.scn",
+        "span": [
+          189,
+          255
+        ],
+        "line_id": "b0a1"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 3,
+        "akari.転校済み": false,
+        "flag.ルート": "灯",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s020",
+        "file": "story/chapter02.scn",
+        "span": [
+          256,
+          295
+        ],
+        "line_id": "b0a2"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 3,
+        "akari.転校済み": false,
+        "flag.ルート": "灯",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "jump",
+    "route": {
+      "target": {
+        "scene": "s020",
+        "file": "story/chapter02.scn",
+        "span": [
+          296,
+          303
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 3,
+        "akari.転校済み": false,
+        "flag.ルート": "灯",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "bg",
+    "route": {
+      "target": {
+        "scene": "s021",
+        "file": "story/chapter02.scn",
+        "span": [
+          430,
+          448
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 3,
+        "akari.転校済み": false,
+        "flag.ルート": "灯",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "show",
+    "route": {
+      "target": {
+        "scene": "s021",
+        "file": "story/chapter02.scn",
+        "span": [
+          449,
+          474
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 3,
+        "akari.転校済み": false,
+        "flag.ルート": "灯",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s021",
+        "file": "story/chapter02.scn",
+        "span": [
+          475,
+          535
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 3,
+        "akari.転校済み": false,
+        "flag.ルート": "灯",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "narrate",
+    "route": {
+      "target": {
+        "scene": "s021",
+        "file": "story/chapter02.scn",
+        "span": [
+          536,
+          596
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 3,
+        "akari.転校済み": false,
+        "flag.ルート": "灯",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "jump",
+    "route": {
+      "target": {
+        "scene": "s021",
+        "file": "story/chapter02.scn",
+        "span": [
+          597,
+          604
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 3,
+        "akari.転校済み": false,
+        "flag.ルート": "灯",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "jump",
+    "route": {
+      "target": {
+        "scene": "s022",
+        "file": "story/chapter02.scn",
+        "span": [
+          766,
+          773
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 3,
+        "akari.転校済み": false,
+        "flag.ルート": "灯",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "bg",
+    "route": {
+      "target": {
+        "scene": "s040",
+        "file": "story/chapter02.scn",
+        "span": [
+          876,
+          894
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 3,
+        "akari.転校済み": false,
+        "flag.ルート": "灯",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "bgm",
+    "route": {
+      "target": {
+        "scene": "s040",
+        "file": "story/chapter02.scn",
+        "span": [
+          895,
+          909
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 3,
+        "akari.転校済み": false,
+        "flag.ルート": "灯",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "say",
+    "route": {
+      "target": {
+        "scene": "s040",
+        "file": "story/chapter02.scn",
+        "span": [
+          910,
+          966
+        ],
+        "line_id": "b4a1"
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 3,
+        "akari.転校済み": false,
+        "flag.ルート": "灯",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "set",
+    "route": {
+      "target": {
+        "scene": "s040",
+        "file": "story/chapter02.scn",
+        "span": [
+          967,
+          998
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 3,
+        "akari.転校済み": false,
+        "flag.ルート": "灯",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "ending",
+    "route": {
+      "target": {
+        "scene": "s040",
+        "file": "story/chapter02.scn",
+        "span": [
+          999,
+          1028
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 0
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 3,
+        "akari.転校済み": true,
+        "flag.ルート": "灯",
+        "flag.勇気": 1,
+        "tsumugi.好感度": 0,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "if",
+    "route": {
+      "target": {
+        "scene": "s030",
+        "file": "story/chapter03.scn",
+        "span": [
+          155,
+          177
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 1
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "紬",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 1,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "jump",
+    "route": {
+      "target": {
+        "scene": "s030",
+        "file": "story/chapter03.scn",
+        "span": [
+          178,
+          187
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 1
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "紬",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 1,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "jump",
+    "route": {
+      "target": {
+        "scene": "s030",
+        "file": "story/chapter03.scn",
+        "span": [
+          194,
+          203
+        ],
+        "line_id": null
+      },
+      "reachable": false,
+      "steps": [],
+      "variables": {},
+      "calls": [],
+      "message": "開始シーンから、選択肢と条件をどう選んでも着けません"
+    }
+  },
+  {
+    "kind": "ending",
+    "route": {
+      "target": {
+        "scene": "s060",
+        "file": "story/chapter03.scn",
+        "span": [
+          317,
+          348
+        ],
+        "line_id": null
+      },
+      "reachable": true,
+      "steps": [
+        {
+          "scene": "s011",
+          "choice": [
+            1167,
+            1199
+          ],
+          "option": 1
+        },
+        {
+          "scene": "s012",
+          "choice": [
+            1906,
+            1935
+          ],
+          "option": 0
+        }
+      ],
+      "variables": {
+        "akari.好感度": 2,
+        "akari.転校済み": false,
+        "flag.ルート": "紬",
+        "flag.勇気": 0,
+        "tsumugi.好感度": 1,
+        "周回.トゥルー解放": false
+      },
+      "calls": [],
+      "message": null
+    }
+  },
+  {
+    "kind": "ending",
+    "route": {
+      "target": {
+        "scene": "s061",
+        "file": "story/chapter03.scn",
+        "span": [
+          466,
+          493
+        ],
+        "line_id": null
+      },
+      "reachable": false,
+      "steps": [],
+      "variables": {},
+      "calls": [],
+      "message": "開始シーンから、選択肢と条件をどう選んでも着けません"
+    }
+  }
+]

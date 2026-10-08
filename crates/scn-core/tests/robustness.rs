@@ -4,7 +4,8 @@
 //! パニックしないこと、診断とASTのスパンが範囲内で文字の境界にあることを確かめる。
 //! 構文解析だけでなく、意味解析とIR（`analyze`）、索引、検証の段階1（`check`）も通す。
 //! 行IDの付与（`scn fmt`）も、同じ入力で確かめる（足した部分のほかはバイトが変わらない、など）。
-//! 素材の一覧と発注リスト（`assets`）、Ren'Py への書き出し（`renpy`）も、同じ入力でパニックしないことを確かめる。
+//! 素材の一覧と発注リスト（`assets`）、カーソル位置から再生の最短経路（`route`）、Ren'Py への書き出し（`renpy`）も、
+//! 同じ入力でパニックしないことを確かめる。
 
 mod support;
 
@@ -20,6 +21,7 @@ use scn_core::index::build_index;
 use scn_core::line_id::{LineIdGenerator, assign_line_ids};
 use scn_core::project::{MessageWindow, Project, SourceFile};
 use scn_core::renpy::{RenpyProfile, export_renpy};
+use scn_core::route::route_at;
 use scn_core::{DialogueBracket, ParseOptions, analyze, load_project, parse};
 
 /// 意味系のfixtureで使う共通のプロジェクト。本文だけを差し替えて、意味解析とIRも通す。
@@ -96,6 +98,15 @@ fn check(source: &str) {
             .filter(|r| r.state != AssetState::File)
             .count()
     );
+
+    // カーソル位置から再生の最短経路（行の始まりごと。探す数に上限があるので、必ず終わる）。
+    let mut at = 0;
+    for line in source.split_inclusive('\n') {
+        if let Some(route) = route_at(&windowed, &ir, "story/a.scn", at, &Default::default()) {
+            assert!(route.reachable || route.message.is_some());
+        }
+        at += line.len();
+    }
 
     // Ren'Py への書き出し（定義のファイルは必ず書く）。
     let export = export_renpy(&windowed, &fixture_root(), &ir, &RenpyProfile::default());

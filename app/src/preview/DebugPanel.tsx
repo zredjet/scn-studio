@@ -1,6 +1,6 @@
 // プレビューのデバッグの欄（docs/ui/mockups/06-preview.html、T1-11、D050）：現在位置、変数の今の値と編集、
-// 任意のシーンへのジャンプ、選択肢の自動選択、バックログ、知らせ。開始シーンからの最短経路での変数の
-// 復元はフェーズ2（「この状態で開始」は、今の値で始める）。
+// 任意のシーンへのジャンプ（今の値のままか、開始シーンからの最短経路で変数と舞台をそろえて。T2-4）、
+// 選択肢の自動選択、バックログ、知らせ。
 
 import { useState } from "react";
 import { keyed } from "../bible/fields.ts";
@@ -27,6 +27,8 @@ interface Props {
   readonly onPolicy: (policy: ChoicePolicy) => void;
   readonly onVariable: (key: string, value: Value) => void;
   readonly onJump: (scene: string) => void;
+  /** 開始シーンからの最短経路で、そのシーンの頭から始める。 */
+  readonly onRouteJump: (scene: string) => void;
   readonly onShowInEditor: () => void;
   readonly onShowLog: (entry: LogEntry) => void;
 }
@@ -118,6 +120,7 @@ export function DebugPanel({
   onPolicy,
   onVariable,
   onJump,
+  onRouteJump,
   onShowInEditor,
   onShowLog,
 }: Props) {
@@ -213,8 +216,18 @@ export function DebugPanel({
           >
             この状態で開始
           </button>
+          <button
+            type="button"
+            className="small-button"
+            disabled={jump === ""}
+            onClick={() => onRouteJump(jump)}
+          >
+            最短経路で開始
+          </button>
         </div>
-        <p className="preview-note">変数は、上の今の値のままで始めます。</p>
+        <p className="preview-note">
+          「この状態で開始」は、上の今の値のままで始めます。「最短経路で開始」は、開始シーンから選択肢の数がいちばん少ない道で、変数と舞台をそろえて始めます。
+        </p>
       </section>
       <section>
         <h2 className="preview-debug-heading">選択肢</h2>

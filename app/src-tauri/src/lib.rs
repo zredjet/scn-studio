@@ -25,6 +25,7 @@ use scn_core::layout::{Point, read_layout as read_layout_file};
 use scn_core::line_id::LineIdGenerator;
 use scn_core::preview;
 use scn_core::renpy;
+use scn_core::route;
 use scn_core::scaffold::create_project as scaffold_project;
 use scn_core::script;
 use scn_core::workspace::{AssetKey, Change, SaveOutcome, Workspace};
@@ -155,6 +156,8 @@ struct AppState {
     /// ファイルの監視。作品フォルダを開き直すと、前の監視を止める（捨てる）。
     watcher: Mutex<Option<RecommendedWatcher>>,
     generator: Mutex<Option<LineIdGenerator>>,
+    /// プレビューのウィンドウを開いたときに渡す、再生の頼み（ウィンドウが読み込みを終えてから受け取る）。
+    preview_request: Mutex<Option<Value>>,
 }
 
 fn locked<T>(mutex: &Mutex<T>) -> Result<MutexGuard<'_, T>, String> {
@@ -592,6 +595,104 @@ fn export_script(state: State<'_, AppState>) -> Result<Response, String> {
     }))
 }
 
+// ---- カーソル位置から再生と、プレビューの別ウィンドウ（T2-4、D055） ----
+
+/// プレビューの別ウィンドウのラベル。
+const PREVIEW_WINDOW: &str = "preview";
+
+/// 大きなスタックのスレッドで解析して、`f` に渡す。
+fn with_ir<T: Send>(
+    project: &Project,
+    f: impl FnOnce(&scn_core::Ir) -> Result<T, String> + Send,
+) -> Result<T, String> {
+    thread::scope(|scope| {
+        thread::Builder::new()
+            .name("route".into())
+            .stack_size(ANALYZE_STACK_SIZE)
+            .spawn_scoped(scope, || f(&analyze(project)))
+            .map_err(|e| format!("解析のスレッドを作れません：{e}"))?
+            .join()
+            .map_err(|_| "解析が途中で止まりました".to_owned())?
+    })
+}
+
+/// ファイルのある位置（バイト）から再生するための最短経路（保存していない本文も含む）。始められる命令が
+/// 無ければ null。`persistent` は、プレビューの永続の変数の今の値。
+#[tauri::command]
+fn route_at(
+    file: String,
+    offset: usize,
+    persistent: Option<route::Variables>,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let project = open_workspace(&mut guard)?.project();
+    let persistent = persistent.unwrap_or_default();
+    let route = with_ir(project, |ir| {
+        to_json(
+            &route::route_at(project, ir, &file, offset, &persistent),
+            "最短経路",
+        )
+    })?;
+    json_response(&route)
+}
+
+/// シーンの頭から再生するための最短経路（デバッグの欄の「最短経路で開始」）。命令の無いシーンなら null。
+#[tauri::command]
+fn route_to_scene(
+    scene: String,
+    persistent: Option<route::Variables>,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let project = open_workspace(&mut guard)?.project();
+    let persistent = persistent.unwrap_or_default();
+    let route = with_ir(project, |ir| {
+        let found =
+            route::scene_target(ir, &scene).map(|t| route::route_to(project, ir, &t, &persistent));
+        to_json(&found, "最短経路")
+    })?;
+    json_response(&route)
+}
+
+/// プレビューを別ウィンドウで開く（開いていれば前に出す）。`request` は再生の頼み：いつも預けて
+/// （ウィンドウは読み込みを終えたときに `take_preview_request` で受け取る）、開いていれば知らせる（知らせを
+/// 受けたウィンドウも、預けたものを受け取って消す）。読み込みの途中で知らせが届かなくても、失われない。
+/// ウィンドウを作るのは、Windows で固まらないよう、非同期のコマンドで行う（Tauri の注意）。
+#[tauri::command]
+async fn open_preview_window(
+    request: Option<Value>,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    if request.is_some() {
+        locked(&state.preview_request)?.clone_from(&request);
+    }
+    if let Some(window) = app.get_webview_window(PREVIEW_WINDOW) {
+        if let Some(request) = request {
+            app.emit_to(PREVIEW_WINDOW, "preview-request", request)
+                .map_err(|e| format!("プレビューのウィンドウに知らせられません：{e}"))?;
+        }
+        let _ = window.unminimize();
+        return window
+            .set_focus()
+            .map_err(|e| format!("プレビューのウィンドウを前に出せません：{e}"));
+    }
+    tauri::WebviewWindowBuilder::new(&app, PREVIEW_WINDOW, tauri::WebviewUrl::default())
+        .title("プレビュー — scn-studio")
+        .inner_size(1120.0, 780.0)
+        .build()
+        .map_err(|e| format!("プレビューのウィンドウを開けません：{e}"))?;
+    Ok(())
+}
+
+/// 開いたときの再生の頼みを受け取る（一度だけ）。
+#[tauri::command]
+fn take_preview_request(state: State<'_, AppState>) -> Result<Response, String> {
+    let request = locked(&state.preview_request)?.take();
+    json_response(&request.unwrap_or(Value::Null))
+}
+
 // ---- 素材カタログ（T2-3、D054） ----
 
 /// 素材の一覧（保存していない本文も含めて数える）。
@@ -1026,6 +1127,19 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState::default())
+        // メインウィンドウを閉じたら、プレビューのウィンドウも閉じて終える。プレビューのウィンドウを閉じたら、
+        // メインウィンドウに知らせる（再生をメインウィンドウの画面に戻す）。
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::Destroyed = event {
+                if window.label() == "main" {
+                    window.app_handle().exit(0);
+                } else if window.label() == PREVIEW_WINDOW {
+                    let _ = window
+                        .app_handle()
+                        .emit_to("main", "preview-window-closed", ());
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             open_project,
             create_project,
@@ -1048,6 +1162,10 @@ pub fn run() {
             export_script,
             export_renpy,
             asset_list,
+            route_at,
+            route_to_scene,
+            open_preview_window,
+            take_preview_request,
             add_catalog_entries,
             assign_asset_file,
             export_orders,
