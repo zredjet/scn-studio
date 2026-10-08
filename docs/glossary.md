@@ -156,6 +156,10 @@
 | エクスポート | export | エンジン用ファイルなどへの書き出し |
 | 出力プロファイル | export profile | `export/*.yaml`（Ren'Py は `export/renpy.yaml`、`RenpyProfile`。ティラノスクリプトは `export/tyrano.yaml`、`TyranoProfile`。宴は `export/utage.yaml`、`UtageProfile`） |
 | Ren'Py への書き出し | Ren'Py export | `scn export renpy`。書き出し先の `game/scn/` を作り直す（`renpy::export_renpy`） |
+| 書き出しのプラグイン | export plugin | 作品フォルダの出力プロファイル `export/<名前>.yaml` の `template`（テンプレート）か `command`（外部コマンド）での書き出し（`scn export <名前>`、`plugin`。T3-14） |
+| テンプレート | template | 書き出しのプラグインの minijinja のテンプレート（`plugin::render_template`）。AIタスクの定義の「テンプレート化」とは別 |
+| 外部コマンド | external command | 書き出しのプラグインで実行する作品フォルダのコマンド（`plugin::run_command`）。IR の JSON を標準入力で渡す |
+| PDF を組む | typeset | 印刷用の HTML から `pdf_command` で PDF を作る（`plugin::typeset`、`scn export pdf --typeset`） |
 | EPUB・縦書きPDF | book export | `scn export epub`・`scn export pdf`。道ごとの EPUB 3 と、縦書きPDFを組むための印刷用の HTML（`book::epub`・`book::print_html`。プロファイルは `export/book.yaml`、`BookProfile`） |
 | 宴への書き出し | Utage export | `scn export utage`。シナリオと設定のシート（Excel 形式）と素材を書き出し先にまるごと作り直す（`utage::export_utage`） |
 | ティラノスクリプトへの書き出し | TyranoScript export | `scn export tyrano`。書き出し先の `data/scenario/scn/` と素材の `data/*/scn/` を作り直す（`tyrano::export_tyrano`） |

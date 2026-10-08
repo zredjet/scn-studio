@@ -1,0 +1,22 @@
+---
+source: crates/scn-core/tests/plugin.rs
+expression: written
+---
+ir_version 1
+s01 改札前
+s02 待合室
+s03 鞄の理由
+s04 本と雨音
+s05 見回り
+s06 雨脚
+s07 夜明け前
+s08 始発バス
+s09 約束
+s10 もう一日
+s11 雨上がり
+s90 構内放送
+cwd_is_project true
+name list
+profile_exists true
+version_set true
+output_arg true

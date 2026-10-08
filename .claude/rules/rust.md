@@ -43,7 +43,8 @@ paths:
 | `renpy` | Ren'Py への書き出し（`scn export renpy`、アプリの「出力」）：出力プロファイル（`export/renpy.yaml`）を読み、IRから `.rpy` と写す素材を作り、書き出し先の `game/scn/` を作り直す |
 | `tyrano` | ティラノスクリプトへの書き出し（`scn export tyrano`、アプリの「出力」。T3-11）：出力プロファイル（`export/tyrano.yaml`）を読み、IRから `.ks` と写す素材と仮素材の SVG を作り、書き出し先の `data/scenario/scn/` と `data/*/scn/` を作り直す。流れはラベルとジャンプだけで書く（`[if]` の中にラベルを置かない）。プロファイルの読み方と素材の集め方は `renpy` のものを使う |
 | `utage` | 宴への書き出し（`scn export utage`、アプリの「出力」。T3-12）：出力プロファイル（`export/utage.yaml`）を読み、IRからシナリオのシート（シーンごと）と設定のシート（Character・Texture・Sound・Param）と写す素材と仮素材の PNG を作り、書き出し先をまるごと作り直す（ブックは `xlsx::xlsx_book`）。流れはラベルとジャンプだけで書く |
-| `book` | EPUB と縦書きPDF（`scn export epub`・`scn export pdf`、アプリの「出力」。T3-13）：通読（`route::read`）の本文を、EPUB 3（ZIP は `xlsx::Zip`）と、CSS 組版の道具に渡す印刷用の HTML にする。ルビ、傍点、縦中横。PDF はコアで組まない |
+| `book` | EPUB と縦書きPDF（`scn export epub`・`scn export pdf`、アプリの「出力」。T3-13）：通読（`route::read`）の本文を、EPUB 3（ZIP は `xlsx::Zip`）と、CSS 組版の道具に渡す印刷用の HTML にする。ルビ、傍点、縦中横。PDF はコアで組まず、`pdf_command` を `plugin::typeset` で実行する（T3-14） |
+| `plugin` | 書き出しのプラグイン（`scn export <名前>`、アプリの「出力」。T3-14）：出力プロファイル `export/<名前>.yaml` の読み方と一覧、minijinja のテンプレート（渡すもの、フィルタ `plain`、テンプレートのフォルダの中だけを読むローダー）、外部コマンドの実行（`run_command`：シェルを通さない、作品フォルダで、標準入力、`{output}` などの置き換えと `SCN_*`、タイムアウトで止める、標準出力と標準エラーの後ろを取っておく）。テストは自分の実行ファイルを外部コマンドとして呼ぶ（`tests/plugin.rs` の `child_command`） |
 | `assist` | 書いている最中の補助（アプリ）：文字数、今のシーンの情報（文脈パネル）、補完の材料。IR・索引・プロジェクトの宣言から導く |
 | `check` | 検証の段階1（`scn check`）。行き止まり、到達性、はみ出し、変数の読み書き、企画書のエンディング、伏線。IRと索引から調べ、IRの診断には入れない |
 | `playthrough` | 検証の段階2（自動巡回。`scn check --stage 2`、アプリの検証の画面）：開始シーンから選択肢の組み合わせを、`route` と同じ実行器（`Searcher::run` と `Observer`）で実行し、状態ごとにメモ化する。永続の変数は周回する。選べない選択肢、真にならない条件、選べる選択肢が無くなる選択、着かないシーン、仕込みを通らない伏線（W506〜W509・W704）と、カバレッジ、エンディングごとの到達条件。上限に当たったら「無い」と言う診断は出さない |
@@ -85,3 +86,4 @@ paths:
 - ファイルの読み書きはコア側のコマンドだけで行い、フロントには任意のパスを読ませない。
 - AI のキーはフロントに返さない（`ai_connections` はあるかどうかだけ）。キーとクラウドの許可は、今の作品フォルダの接続先の行き先にだけ書く（T3-5）。
 - 自律の実行中（`AppState.auto`。T3-9）は、本文を書き換えるコマンドの初めで `refuse_during_auto` を呼んで断る（ブランチならどの章も、直接なら書く章だけ）。本文を書き換えるコマンドを足したら、ここにも足す。
+- 作品フォルダのコマンド（書き出しのプラグインの `command`、`export/book.yaml` の `pdf_command`。T3-14）は、`command_approved` でこの端末で確かめたかを見て、確かめていなければ実行せずに `needs_approval` を返す（画面が人に確かめて `approve` で呼び直す）。確かめた記録はアプリの設定のフォルダの `export-commands.json` だけに書く。実行は `spawn_blocking` で、ワークスペースのロックを持ったまま待たない。

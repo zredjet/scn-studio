@@ -58,6 +58,8 @@ import {
   devReport,
   devSettings,
   exportBook,
+  exportPlugin,
+  exportPlugins,
   exportProvenance,
   exportRenpy,
   exportScript,
@@ -3046,6 +3048,9 @@ export function App() {
                     writeUtage={exportUtage}
                     writeBook={exportBook}
                     loadBookSettings={bookSettings}
+                    loadPlugins={exportPlugins}
+                    runPlugin={exportPlugin}
+                    ask={confirm}
                     loadChoices={readingChoices}
                     writeText={exportText}
                     loadProvenance={aiLines}

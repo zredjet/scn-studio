@@ -1316,3 +1316,36 @@ export type TypeEdit =
     }
   | { readonly kind: "move"; readonly key: string; readonly delta: number }
   | { readonly kind: "remove"; readonly key: string };
+
+/** 書き出しのプラグイン（作品フォルダの出力プロファイル `export/<名前>.yaml`。T3-14、D075）。 */
+export interface PluginItem {
+  readonly name: string;
+  /** プロファイルのファイル（`export/<名前>.yaml`）。 */
+  readonly profile: string;
+  /** `error` はプロファイルを読めない。 */
+  readonly kind: "template" | "command" | "error";
+  /** テンプレートのファイルか、コマンドの1行。 */
+  readonly detail: string;
+  /** 書き出し先（作品フォルダから）。 */
+  readonly output: string;
+  readonly problems: readonly string[];
+  readonly error: string | null;
+}
+
+/**
+ * プラグインと PDF の組版の実行の結果。`needs_approval`（コマンドの1行）があれば、まだ何もしていない
+ * （人に確かめてから、確かめたこととして呼び直す）。
+ */
+export interface PluginRun {
+  readonly needs_approval?: string;
+  readonly profile?: string;
+  /** 書いたファイルかフォルダ（外部コマンドが失敗したら null）。 */
+  readonly path?: string | null;
+  /** 組んだ PDF（PDF の組版だけ）。 */
+  readonly pdf?: string | null;
+  readonly problems?: readonly string[];
+  /** 外部コマンドの失敗。 */
+  readonly error?: string | null;
+  readonly stdout?: string;
+  readonly stderr?: string;
+}

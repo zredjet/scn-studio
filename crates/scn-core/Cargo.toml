@@ -9,6 +9,8 @@ publish.workspace = true
 [dependencies]
 # OS のキーチェーン（macOS のキーチェーン、Windows の資格情報マネージャー）。AI の接続のキー（T3-5）
 keyring = "4.2.0"
+# 書き出しのプラグインのテンプレート（T3-14）。tojson と break・continue を使えるようにする
+minijinja = { version = "2.24.0", features = ["json", "loop_controls"] }
 # AI の接続（T3-5）。同期の呼び出しで使い、TLS は OS のもの（native-tls）にする
 reqwest = { version = "0.13.5", default-features = false, features = ["blocking", "native-tls", "http2", "system-proxy"] }
 serde = { version = "1.0.229", features = ["derive"] }

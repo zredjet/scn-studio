@@ -18,6 +18,10 @@
 //! - `scn export utage [project-dir] [-o dir]`：宴のシナリオと設定のシート（Excel 形式）を書き出す（D073）。
 //! - `scn export epub|pdf [project-dir] [--route 名前 | --ending ID] [--horizontal] [--no-notes] [-o file]`：
 //!   道ごとの EPUB と、縦書きPDFを組むための印刷用の HTML を書き出す（D074）。
+//! - `scn export pdf … --typeset`：印刷用の HTML を書いた後に、`export/book.yaml` の `pdf_command` で PDF を組む
+//!   （D075）。
+//! - `scn export <プロファイル名> [project-dir] [-o 書き出し先] [--no-ai-drafts]`：作品フォルダの出力プロファイル
+//!   `export/<名前>.yaml` のプラグイン（テンプレートか外部コマンド）で書き出す（D075）。
 //! - `scn export orders [project-dir] [-o file]`：発注リストを CSV で書き出す（D054）。
 //! - `scn export text [project-dir] [--route 名前 | --ending ID] [--no-notes] [-o file]`：ルート単位の通読用の
 //!   テキストを書き出す（D056）。
@@ -33,6 +37,7 @@
 //! （Windowsのメインスレッドは1MB。アプリと同じ64MB）。
 
 use std::collections::BTreeMap;
+use std::ffi::OsString;
 use std::fmt;
 use std::fs;
 use std::io::{self, Write};
@@ -126,6 +131,11 @@ enum Command {
         what: AiCommand,
     },
     /// 書き出す（台本など）
+    #[command(
+        after_help = "ほかの名前は、作品フォルダの出力プロファイル export/<名前>.yaml のプラグイン（template か \
+                      command を書いたもの）で書き出します：scn export <名前> [project-dir] [-o 書き出し先] \
+                      [--no-ai-drafts]"
+    )]
     Export {
         #[command(subcommand)]
         what: ExportCommand,
@@ -283,6 +293,29 @@ enum ExportCommand {
         #[arg(long)]
         no_ai_drafts: bool,
     },
+    /// 作品フォルダの出力プロファイル export/<名前>.yaml のプラグイン（T3-14）
+    #[command(external_subcommand)]
+    Plugin(Vec<OsString>),
+}
+
+/// `scn export <プロファイル名>` の引数（作品フォルダの出力プロファイル export/<名前>.yaml のプラグイン。T3-14）。
+#[derive(Parser)]
+#[command(
+    name = "scn export <プロファイル名>",
+    about = "作品フォルダの出力プロファイル export/<名前>.yaml のプラグインで書き出す（template：テンプレートで\
+             テキストを書く。command：IR の JSON を標準入力で渡して外部コマンドを実行する）"
+)]
+struct PluginArgs {
+    /// プロジェクトのフォルダ（project.toml のあるところ）。省くと今のフォルダ
+    #[arg(default_value = ".")]
+    project: PathBuf,
+    /// 書き出し先（テンプレートはファイルで、`-` なら標準出力。外部コマンドはフォルダ）。省くとプロファイルの
+    /// output（既定は export/<名前>/ の中）
+    #[arg(long, short)]
+    output: Option<PathBuf>,
+    /// AI下書き（status: ai-draft）のシーンの台詞と地の文を省く（流れは残し、省いたことを地の文で示す）
+    #[arg(long)]
+    no_ai_drafts: bool,
 }
 
 /// `scn export epub`・`scn export pdf` の引数。
@@ -310,6 +343,10 @@ struct BookArgs {
     /// export/epub/<道の名前>.epub（PDF は export/pdf/<道の名前>.html）。`-` なら標準出力
     #[arg(long, short)]
     output: Option<PathBuf>,
+    /// 印刷用の HTML を書いた後に、export/book.yaml の pdf_command を実行して PDF（HTML と同じ名前の .pdf）を組む
+    /// （pdf だけ）
+    #[arg(long)]
+    typeset: bool,
 }
 
 /// 使い方や入出力の誤り（終了コード2）。
@@ -466,6 +503,9 @@ fn run(command: Command) -> Result<u8, CliError> {
         Command::Export {
             what: ExportCommand::Orders { project, output },
         } => run_export_orders(&project, output.as_deref()),
+        Command::Export {
+            what: ExportCommand::Plugin(args),
+        } => run_export_plugin(&args),
         Command::Export {
             what:
                 ExportCommand::Text {
@@ -971,6 +1011,29 @@ fn run_export_book(args: &BookArgs, print: bool) -> Result<u8, CliError> {
     for problem in &problems {
         eprintln!("scn: {BOOK_PROFILE}：{problem}");
     }
+    let typeset = if args.typeset {
+        if !print {
+            return Err(CliError::Refused(
+                "--typeset は scn export pdf で使います".to_owned(),
+            ));
+        }
+        if args.output.as_deref() == Some(Path::new("-")) {
+            return Err(CliError::Refused(
+                "--typeset は -o - と一緒に使えません（PDF を組むには HTML のファイルが要ります）"
+                    .to_owned(),
+            ));
+        }
+        match &profile.pdf_command {
+            Some(argv) => Some(argv.clone()),
+            None => {
+                return Err(CliError::Refused(format!(
+                    "{BOOK_PROFILE} に pdf_command（PDF を組むコマンド）がありません"
+                )));
+            }
+        }
+    } else {
+        None
+    };
     if args.horizontal {
         profile.vertical = false;
     }
@@ -1027,11 +1090,106 @@ fn run_export_book(args: &BookArgs, print: bool) -> Result<u8, CliError> {
         if let Err(e) = writeln!(out, "{}（{}）", path.display(), reading.stop) {
             return finish(Err(e), code);
         }
+        if let Some(argv) = &typeset {
+            let pdf = path.with_extension("pdf");
+            eprintln!("scn: 実行します：{}", scn_core::plugin::command_line(argv));
+            scn_core::plugin::typeset(dir, argv, profile.pdf_timeout, &path, &pdf, false)
+                .map_err(|e| CliError::Refused(e.to_string()))?;
+            if let Err(e) = writeln!(out, "{}", pdf.display()) {
+                return finish(Err(e), code);
+            }
+        }
     }
-    if print {
-        eprintln!("scn: PDF は CSS 組版の道具で組みます（例：vivliostyle build <HTML> -o <PDF>）");
+    if print && typeset.is_none() {
+        if profile.pdf_command.is_some() {
+            eprintln!("scn: --typeset で {BOOK_PROFILE} の pdf_command を実行して PDF を組みます");
+        } else {
+            eprintln!(
+                "scn: PDF は CSS 組版の道具で組みます（例：vivliostyle build <HTML> -o <PDF>。\
+                 {BOOK_PROFILE} の pdf_command に書けば --typeset で組めます）"
+            );
+        }
     }
     Ok(code)
+}
+
+/// `scn export <プロファイル名>`：作品フォルダの出力プロファイル `export/<名前>.yaml` のプラグインで書き出す
+/// （T3-14、D075）。テンプレートは書いたファイルを、外部コマンドは書き出し先のフォルダを出す。外部コマンドの
+/// 標準出力と標準エラーはそのまま流す。プロファイルやテンプレートの誤り、コマンドの失敗は2。
+fn run_export_plugin(raw: &[OsString]) -> Result<u8, CliError> {
+    use scn_core::plugin::{
+        PluginError, PluginKind, command_line, export_command, list_plugins, read_plugin,
+        render_template, write_output,
+    };
+    let Some(name) = raw.first().and_then(|n| n.to_str()) else {
+        return Err(CliError::Refused(
+            "プロファイルの名前は UTF-8 の文字で書きます".to_owned(),
+        ));
+    };
+    // 使い方の表示は `scn export <名前>` にする。
+    let shown = std::iter::once(OsString::from(format!("scn export {name}")))
+        .chain(raw.iter().skip(1).cloned());
+    let args = match PluginArgs::try_parse_from(shown) {
+        Ok(args) => args,
+        Err(e) => {
+            let _ = e.print();
+            return Ok(if e.use_stderr() { FAILURE } else { SUCCESS });
+        }
+    };
+    let dir = args.project.as_path();
+    let project = load_project(dir).map_err(CliError::Project)?;
+    let plugin = read_plugin(dir, name).map_err(|e| {
+        let mut message = e.to_string();
+        if matches!(e, PluginError::Missing(_)) {
+            let names: Vec<String> = list_plugins(dir).into_iter().map(|(n, _)| n).collect();
+            if names.is_empty() {
+                message.push_str("（プラグインのプロファイルはありません）");
+            } else {
+                message.push_str(&format!(
+                    "（プラグインのプロファイル：{}）",
+                    names.join("、")
+                ));
+            }
+        }
+        CliError::Refused(message)
+    })?;
+    for problem in &plugin.problems {
+        eprintln!("scn: {}：{problem}", plugin.profile);
+    }
+    let ir = analyze_for_export(&project, args.no_ai_drafts);
+    let code = exit_code(&ir.diagnostics);
+    match &plugin.kind {
+        PluginKind::Template { .. } => {
+            let text = render_template(dir, &plugin, &project, &ir)
+                .map_err(|e| CliError::Refused(e.to_string()))?;
+            let mut out = io::stdout().lock();
+            match args.output.as_deref() {
+                Some(path) if path == Path::new("-") => {
+                    finish(out.write_all(text.as_bytes()), code)
+                }
+                output => {
+                    let path = output.map_or_else(|| dir.join(&plugin.output), Path::to_owned);
+                    write_output(&path, &text).map_err(|e| CliError::Refused(e.to_string()))?;
+                    finish(writeln!(out, "{}", path.display()), code)
+                }
+            }
+        }
+        PluginKind::Command { argv } => {
+            if args.output.as_deref() == Some(Path::new("-")) {
+                return Err(CliError::Refused(
+                    "外部コマンドの -o は書き出し先のフォルダです（- は使えません）".to_owned(),
+                ));
+            }
+            let path = args
+                .output
+                .clone()
+                .unwrap_or_else(|| dir.join(&plugin.output));
+            eprintln!("scn: 実行します：{}", command_line(argv));
+            export_command(dir, &plugin, &ir, &path, false)
+                .map_err(|e| CliError::Refused(e.to_string()))?;
+            finish(writeln!(io::stdout().lock(), "{}", path.display()), code)
+        }
+    }
 }
 
 fn run_export_renpy(dir: &Path, output: Option<&Path>, no_ai_drafts: bool) -> Result<u8, CliError> {

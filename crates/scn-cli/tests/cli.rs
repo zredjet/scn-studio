@@ -1429,6 +1429,178 @@ fn export_epub_and_pdf() {
     let _ = fs::remove_dir_all(&dir);
 }
 
+/// 外部コマンドとして呼ぶときの `command`（このテストの実行ファイルを `scn-plugin-mode=<動き>` で呼ぶ。YAML の
+/// 流れの形の列）。
+fn child(mode: &str) -> String {
+    serde_json::to_string(&[
+        std::env::current_exe().unwrap().display().to_string(),
+        "child_command".to_owned(),
+        "--exact".to_owned(),
+        "--nocapture".to_owned(),
+        format!("scn-plugin-mode={mode}"),
+    ])
+    .unwrap()
+}
+
+/// 外部コマンドとして呼ばれたときの動き（T3-14）。ふつうのテストの実行では何もしない。
+#[test]
+fn child_command() {
+    let Some(mode) =
+        std::env::args().find_map(|a| a.strip_prefix("scn-plugin-mode=").map(str::to_owned))
+    else {
+        return;
+    };
+    let code = match mode.as_str() {
+        "write" => {
+            let ir: Value = serde_json::from_reader(std::io::stdin()).unwrap();
+            let output = PathBuf::from(std::env::var("SCN_OUTPUT").unwrap());
+            let scenes = ir["scenes"].as_array().unwrap().len();
+            fs::write(output.join("n.txt"), scenes.to_string()).unwrap();
+            println!("{scenes}シーンを書きました");
+            0
+        }
+        "fail" => {
+            eprintln!("壊れた入力です");
+            3
+        }
+        "typeset" => {
+            let input = std::env::var("SCN_INPUT").unwrap();
+            let html = fs::read_to_string(input).unwrap();
+            fs::write(
+                std::env::var("SCN_OUTPUT").unwrap(),
+                format!("PDF {}", html.len()),
+            )
+            .unwrap();
+            0
+        }
+        _ => 2,
+    };
+    std::process::exit(code);
+}
+
+/// `scn export <プロファイル名>`：テンプレートと外部コマンドのプラグイン（T3-14）。
+#[test]
+fn export_plugins() {
+    let dir = std::env::temp_dir().join(format!("scn-cli-plugin-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    copy_dir(&repo_root().join("samples/amayadori"), &dir);
+    fs::create_dir_all(dir.join("tools")).unwrap();
+    fs::write(
+        dir.join("tools/titles.txt.j2"),
+        "{% for scene in ir.scenes %}{{ scene.id }} {{ scene.title }}\n{% endfor %}",
+    )
+    .unwrap();
+    fs::write(
+        dir.join("export/titles.yaml"),
+        "template: tools/titles.txt.j2\n",
+    )
+    .unwrap();
+    fs::write(
+        dir.join("export/count.yaml"),
+        format!("command: {}\n", child("write")),
+    )
+    .unwrap();
+    fs::write(
+        dir.join("export/broken.yaml"),
+        format!("command: {}\n", child("fail")),
+    )
+    .unwrap();
+
+    let out = scn(&["export", "titles"], &dir);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    let text = fs::read_to_string(dir.join("export/titles/titles.txt")).unwrap();
+    assert!(text.starts_with("s01 改札前\ns02 待合室\n"), "{text}");
+    let out = scn(&["export", "titles", ".", "-o", "-"], &dir);
+    assert_eq!(out.stdout, text);
+
+    let out = scn(&["export", "count", "."], &dir);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    assert!(
+        out.stdout.contains("12シーンを書きました"),
+        "{}",
+        out.stdout
+    );
+    assert!(out.stderr.contains("scn: 実行します："), "{}", out.stderr);
+    assert_eq!(
+        fs::read_to_string(dir.join("export/count/n.txt")).unwrap(),
+        "12"
+    );
+
+    let out = scn(&["export", "broken"], &dir);
+    assert_eq!(out.code, FAILURE);
+    assert!(out.stderr.contains("壊れた入力です"), "{}", out.stderr);
+    assert!(out.stderr.contains("終了コード 3"), "{}", out.stderr);
+
+    let out = scn(&["export", "nothing"], &dir);
+    assert_eq!(out.code, FAILURE);
+    assert!(
+        out.stderr
+            .contains("プラグインのプロファイル：broken、count、titles"),
+        "{}",
+        out.stderr
+    );
+    assert_eq!(scn(&["export", "titles", "--bad-flag"], &dir).code, FAILURE);
+
+    // 縦書きPDFを組むコマンド（export/book.yaml の pdf_command）。
+    let out = scn(
+        &["export", "pdf", ".", "--route", "志乃", "--typeset"],
+        &dir,
+    );
+    assert_eq!(out.code, FAILURE, "pdf_command が無い");
+    fs::write(
+        dir.join("export/book.yaml"),
+        format!("pdf_command: {}\n", child("typeset")),
+    )
+    .unwrap();
+    // --typeset が無ければ、pdf_command は実行しない。
+    let out = scn(&["export", "pdf", ".", "--route", "志乃"], &dir);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    assert!(!dir.join("export/pdf/志乃ルート.pdf").exists());
+    assert!(out.stderr.contains("--typeset"), "{}", out.stderr);
+    let out = scn(
+        &["export", "pdf", ".", "--route", "志乃", "--typeset"],
+        &dir,
+    );
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    let pdf = fs::read_to_string(dir.join("export/pdf/志乃ルート.pdf")).unwrap();
+    assert!(pdf.starts_with("PDF "), "{pdf}");
+    assert_eq!(
+        scn(&["export", "epub", ".", "--typeset"], &dir).code,
+        FAILURE
+    );
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// 作品フォルダを相対のパスで渡しても、区切りを含むコマンドの名前は作品フォルダから数える（OS によらない）。
+#[test]
+fn export_plugin_relative_project() {
+    let base = std::env::temp_dir().join(format!("scn-cli-plugin-rel-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&base);
+    let dir = base.join("proj");
+    copy_dir(&repo_root().join("samples/amayadori"), &dir);
+    let exe = std::env::current_exe().unwrap();
+    let file = match exe.extension() {
+        Some(ext) => format!("child.{}", ext.to_string_lossy()),
+        None => "child".to_owned(),
+    };
+    fs::create_dir_all(dir.join("tools")).unwrap();
+    fs::copy(&exe, dir.join("tools").join(&file)).unwrap();
+    let mut argv: Vec<String> = serde_json::from_str(&child("write")).unwrap();
+    argv[0] = format!("tools/{file}");
+    fs::write(
+        dir.join("export/rel.yaml"),
+        format!("command: {}\n", serde_json::to_string(&argv).unwrap()),
+    )
+    .unwrap();
+    let out = scn(&["export", "rel", "proj"], &base);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    assert_eq!(
+        fs::read_to_string(dir.join("export/rel/n.txt")).unwrap(),
+        "12"
+    );
+    let _ = fs::remove_dir_all(&base);
+}
+
 /// `scn ai context`：タスクの文脈を組み立てて出す（LLM は呼ばない）。実行できなければ1、無いタスクは2。
 #[test]
 fn ai_context() {

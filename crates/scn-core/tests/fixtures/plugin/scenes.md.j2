@@ -1,0 +1,16 @@
+{# サンプルのテンプレート（T3-14）：シーンごとの台詞の一覧と、道の長さ。 #}
+# {{ project.title }}（{{ profile.heading | default("シーン一覧") }}）
+{% for scene in ir.scenes %}
+
+## {{ scene.id }} {{ scene.title }}{{ ("（" ~ scene.meta.route ~ "）") if scene.meta.route else "" }}
+{% for op in scene.ops if op.kind == "say" %}
+{% set bracket = project.brackets[op.style] if op.style in project.brackets else project.brackets.normal %}
+- {{ characters[op.speaker].name if op.speaker in characters else op.speaker }}{{ bracket.open }}{{ op.text | plain("narou") }}{{ bracket.close }}{{ (" ^" ~ op.line_id) if op.line_id else "" }}
+{% endfor %}
+{% endfor %}
+
+## 道
+
+{% for road in roads %}
+- {{ road.name }}：{{ road.items | selectattr("kind", "eq", "scene") | list | length }}シーン（{{ road.stop }}）
+{% endfor %}

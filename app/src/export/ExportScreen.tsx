@@ -5,20 +5,31 @@
 // game/scn/ を作り直す（CLI の `scn export renpy` と同じ）。ティラノスクリプト（T3-11、D072）も同じく、
 // export/tyrano.yaml に従って data/scenario/scn/ と素材の data/*/scn/ を作り直す。宴（T3-12、D073）は
 // export/utage.yaml に従って、シナリオと設定のシートの Excel 形式と素材を export/utage/ に書く。EPUB と縦書きPDF
-// （T3-13、D074）は、道を選んで export/epub/・export/pdf/（PDF を組むための印刷用の HTML）に書く。プレーンテキスト（T2-5、D056）は、道（共通、ルート、
-// エンディング）を選んで export/text/ に書く（CLI の `scn export text` と同じ）。
+// （T3-13、D074）は、道を選んで export/epub/・export/pdf/（PDF を組むための印刷用の HTML）に書き、export/book.yaml の
+// pdf_command があれば PDF も組む（T3-14）。書き出しのプラグイン（T3-14、D075）は、作品フォルダの export/<名前>.yaml
+// （テンプレートか外部コマンド）で書き出す。作品フォルダのコマンドは、この端末で初めて実行する前と、コマンドが
+// 変わったときに確かめる。プレーンテキスト（T2-5、D056）は、道（共通、ルート、エンディング）を選んで export/text/
+// に書く（CLI の `scn export text` と同じ）。
 
 import { useEffect, useState } from "react";
 import { keyed } from "../bible/fields.ts";
 import type { BookSettings, RenpyResult } from "../core/api.ts";
 import type {
   AiLines,
+  PluginItem,
+  PluginRun,
   ReadingChoice,
   ReadingTarget,
   ScriptFormat,
   ScriptSheet,
   Summary,
 } from "../core/types.ts";
+import {
+  outputTail,
+  pluginKindLabel,
+  pluginRunText,
+  runApproved,
+} from "./plugin.ts";
 
 interface Props {
   /** 本文が変わったら、台本を取り直す。 */
@@ -42,14 +53,26 @@ interface Props {
   readonly writeTyrano: (aiDrafts: boolean) => Promise<RenpyResult>;
   /** 宴へ書き出す（T3-12）。 */
   readonly writeUtage: (aiDrafts: boolean) => Promise<RenpyResult>;
-  /** EPUB か印刷用の HTML を書き出す（T3-13）。 */
+  /** EPUB か印刷用の HTML を書き出す（T3-13）。`typeset` なら PDF も組む（T3-14）。 */
   readonly writeBook: (
     target: ReadingTarget,
     print: boolean,
     horizontal: boolean,
     notes: boolean,
     aiDrafts: boolean,
-  ) => Promise<{ readonly path: string; readonly problems: readonly string[] }>;
+    typeset: boolean,
+    approved: string | null,
+  ) => Promise<PluginRun>;
+  /** 書き出しのプラグインの一覧（T3-14）。 */
+  readonly loadPlugins: () => Promise<PluginItem[]>;
+  /** プラグインで書き出す（T3-14）。 */
+  readonly runPlugin: (
+    name: string,
+    aiDrafts: boolean,
+    approved: string | null,
+  ) => Promise<PluginRun>;
+  /** はい・いいえを聞く（作品フォルダのコマンドを実行する前）。 */
+  readonly ask: (message: string, title: string) => Promise<boolean>;
   /** EPUB と縦書きPDFの出力プロファイルの書き方と注記（チェックの初めの値）。 */
   readonly loadBookSettings: () => Promise<BookSettings>;
   /** 通読の道の候補。 */
@@ -270,6 +293,7 @@ function BookCard({
   loadChoices,
   loadSettings,
   writeBook,
+  ask,
 }: {
   readonly summary: Summary;
   readonly loadChoices: () => Promise<ReadingChoice[]>;
@@ -279,15 +303,22 @@ function BookCard({
     print: boolean,
     horizontal: boolean,
     notes: boolean,
-  ) => Promise<{ readonly path: string; readonly problems: readonly string[] }>;
+    typeset: boolean,
+    approved: string | null,
+  ) => Promise<PluginRun>;
+  readonly ask: (message: string, title: string) => Promise<boolean>;
 }) {
   const [choices, setChoices] = useState<readonly ReadingChoice[]>([]);
   const [selected, setSelected] = useState(0);
   const [notes, setNotes] = useState(true);
   const [horizontal, setHorizontal] = useState(false);
+  /** PDF を組むコマンド（export/book.yaml の pdf_command）。 */
+  const [pdfCommand, setPdfCommand] = useState<string | null>(null);
+  const [typeset, setTypeset] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
   const [problems, setProblems] = useState<readonly string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [output, setOutput] = useState<PluginRun | null>(null);
   const [busy, setBusy] = useState(false);
   // チェックの初めの値は、出力プロファイル（export/book.yaml）の writing と notes。
   useEffect(() => {
@@ -297,6 +328,7 @@ function BookCard({
         if (!live) return;
         setHorizontal(!s.vertical);
         setNotes(s.notes);
+        setPdfCommand(s.pdf_command);
       })
       .catch(() => {});
     return () => {
@@ -321,16 +353,37 @@ function BookCard({
   const choice = choices[index];
   const write = (print: boolean) => {
     if (choice === undefined) return;
+    const typesetNow = print && typeset && pdfCommand !== null;
     setBusy(true);
-    writeBook(choice.target, print, horizontal, notes)
+    runApproved(
+      (approved) =>
+        writeBook(
+          choice.target,
+          print,
+          horizontal,
+          notes,
+          typesetNow,
+          approved,
+        ),
+      ask,
+    )
       .then((r) => {
+        if (r === null) {
+          setNotice("コマンドを実行しませんでした（何も書いていません）");
+          setOutput(null);
+          return;
+        }
+        const path = r.path ?? "";
         setNotice(
-          print
-            ? `${r.path} に書き出しました。PDF は CSS 組版の道具（Vivliostyle など）で組みます`
-            : `${r.path} に書き出しました`,
+          typeof r.pdf === "string"
+            ? `${path} に書き出し、${r.pdf} を組みました`
+            : print && !typesetNow
+              ? `${path} に書き出しました。PDF は CSS 組版の道具（Vivliostyle など）で組みます`
+              : `${path} に書き出しました`,
         );
-        setProblems(r.problems);
-        setError(null);
+        setProblems(r.problems ?? []);
+        setError(r.error ?? null);
+        setOutput(typesetNow ? r : null);
       })
       .catch((e: unknown) => setError(String(e)))
       .finally(() => setBusy(false));
@@ -397,12 +450,23 @@ function BookCard({
           />
           選んだ選択肢とエンディングを注記する
         </label>
+        {pdfCommand !== null && (
+          <label>
+            <input
+              type="checkbox"
+              checked={typeset}
+              onChange={(event) => setTypeset(event.target.checked)}
+            />
+            印刷用 HTML から PDF も組む（<code>{pdfCommand}</code>）
+          </label>
+        )}
       </div>
       {notice !== null && (
         <p className="export-notice" role="status">
           {notice}
         </p>
       )}
+      {output !== null && <CommandOutput run={output} />}
       {problems.length > 0 && (
         <div className="export-warning">
           <p className="export-list-head">
@@ -414,6 +478,182 @@ function BookCard({
             ))}
           </ul>
         </div>
+      )}
+      {error !== null && (
+        <p className="export-error" role="alert">
+          {error}
+        </p>
+      )}
+    </section>
+  );
+}
+
+/** 外部コマンドの標準出力と標準エラー（あれば）。 */
+function CommandOutput({ run }: { readonly run: PluginRun }) {
+  const stdout = run.stdout ?? "";
+  const stderr = run.stderr ?? "";
+  if (stdout === "" && stderr === "") return null;
+  return (
+    <details
+      className="ai-preview-details"
+      open={typeof run.error === "string"}
+    >
+      <summary>コマンドの出力</summary>
+      {stderr !== "" && <pre className="ai-preview">{outputTail(stderr)}</pre>}
+      {stdout !== "" && <pre className="ai-preview">{outputTail(stdout)}</pre>}
+    </details>
+  );
+}
+
+/**
+ * 書き出しのプラグイン（T3-14、D075）：作品フォルダの export/<名前>.yaml（template か command）で書き出す（CLI の
+ * `scn export <名前>` と同じ）。外部コマンドは、この端末で初めて実行する前と、コマンドが変わったときに確かめる。
+ */
+function PluginCard({
+  summary,
+  load,
+  run,
+  ask,
+}: {
+  readonly summary: Summary;
+  readonly load: () => Promise<PluginItem[]>;
+  readonly run: (name: string, approved: string | null) => Promise<PluginRun>;
+  readonly ask: (message: string, title: string) => Promise<boolean>;
+}) {
+  const [plugins, setPlugins] = useState<readonly PluginItem[]>([]);
+  const [reload, setReload] = useState(0);
+  const [results, setResults] = useState<
+    Readonly<Record<string, PluginRun | string>>
+  >({});
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    void summary;
+    void reload;
+    let live = true;
+    load()
+      .then((p) => {
+        if (!live) return;
+        setPlugins(p);
+        setError(null);
+      })
+      .catch((e: unknown) => {
+        if (live) setError(String(e));
+      });
+    return () => {
+      live = false;
+    };
+  }, [summary, reload, load]);
+  const start = (name: string) => {
+    setBusy(name);
+    runApproved((approved) => run(name, approved), ask)
+      .then((r) =>
+        setResults((all) => ({
+          ...all,
+          [name]: r ?? "コマンドを実行しませんでした",
+        })),
+      )
+      .catch((e: unknown) =>
+        setResults((all) => ({ ...all, [name]: String(e) })),
+      )
+      .finally(() => setBusy(null));
+  };
+  return (
+    <section className="export-card" aria-label="書き出しのプラグイン">
+      <div className="export-card-head">
+        <div>
+          <h2>書き出しのプラグイン</h2>
+          <p className="export-note">
+            作品フォルダの export/&lt;名前&gt;.yaml に template（minijinja
+            のテンプレート）か command（IR の JSON
+            を標準入力で受け取る外部コマンド）を書くと、ここから書き出せます（CLI
+            の scn export &lt;名前&gt;
+            と同じ）。外部コマンドは、この端末で初めて実行する前と、コマンドが変わったときに確かめます。
+          </p>
+        </div>
+        <button
+          type="button"
+          className="small-button"
+          onClick={() => setReload((n) => n + 1)}
+        >
+          一覧を読み直す
+        </button>
+      </div>
+      {plugins.length === 0 && (
+        <p className="export-note">
+          プラグインのプロファイルはありません（例：export/cast.yaml に
+          template: tools/cast.csv.j2）
+        </p>
+      )}
+      {plugins.length > 0 && (
+        <ul className="plugin-list">
+          {plugins.map((p) => {
+            const result = results[p.name];
+            return (
+              <li key={p.name} className="plugin-row">
+                <div className="plugin-head">
+                  <strong>{p.name}</strong>
+                  <span className="plugin-kind">{pluginKindLabel(p.kind)}</span>
+                  <code className="plugin-detail">
+                    {p.kind === "error" ? p.profile : p.detail}
+                  </code>
+                  <span className="flow-spacer" />
+                  <button
+                    type="button"
+                    className="primary-small"
+                    disabled={busy !== null || p.kind === "error"}
+                    onClick={() => start(p.name)}
+                  >
+                    {busy === p.name ? "書き出しています" : "書き出す"}
+                  </button>
+                </div>
+                {p.kind !== "error" && (
+                  <p className="export-note">書き出し先：{p.output}</p>
+                )}
+                {p.error !== null && (
+                  <p className="export-error" role="alert">
+                    {p.error}
+                  </p>
+                )}
+                {typeof result === "string" && (
+                  <p className="export-error" role="alert">
+                    {result}
+                  </p>
+                )}
+                {typeof result === "object" && (
+                  <>
+                    {pluginRunText(result) !== null && (
+                      <p className="export-notice" role="status">
+                        {pluginRunText(result)}
+                      </p>
+                    )}
+                    {typeof result.error === "string" && (
+                      <p className="export-error" role="alert">
+                        {result.error}
+                      </p>
+                    )}
+                    <CommandOutput run={result} />
+                  </>
+                )}
+                {(typeof result === "object"
+                  ? (result.problems ?? [])
+                  : p.problems
+                ).length > 0 && (
+                  <ul className="export-list export-warning">
+                    {keyed(
+                      typeof result === "object"
+                        ? (result.problems ?? [])
+                        : p.problems,
+                      (x) => x,
+                    ).map(([key, x]) => (
+                      <li key={key}>{x}</li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            );
+          })}
+        </ul>
       )}
       {error !== null && (
         <p className="export-error" role="alert">
@@ -526,6 +766,9 @@ export function ExportScreen({
   writeUtage,
   writeBook,
   loadBookSettings,
+  loadPlugins,
+  runPlugin,
+  ask,
   loadChoices,
   writeText,
   loadProvenance,
@@ -604,9 +847,24 @@ export function ExportScreen({
         summary={summary}
         loadChoices={loadChoices}
         loadSettings={loadBookSettings}
-        writeBook={(target, print, horizontal, notes) =>
-          writeBook(target, print, horizontal, notes, aiDrafts)
+        writeBook={(target, print, horizontal, notes, typeset, approved) =>
+          writeBook(
+            target,
+            print,
+            horizontal,
+            notes,
+            aiDrafts,
+            typeset,
+            approved,
+          )
         }
+        ask={ask}
+      />
+      <PluginCard
+        summary={summary}
+        load={loadPlugins}
+        run={(name, approved) => runPlugin(name, aiDrafts, approved)}
+        ask={ask}
       />
       <ProvenanceCard
         summary={summary}

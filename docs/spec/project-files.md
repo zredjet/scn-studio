@@ -23,7 +23,7 @@
 │  └─ files/          素材のファイル
 ├─ ideas/             アイデアメモ（1枚1ファイル）
 ├─ ai/                AIタスクの定義、出自の記録、変更の提案
-├─ export/            書き出したもの（台本 `script.csv`・`script.xlsx`、発注リスト `orders.csv`、プレーンテキスト `text/`、Ren'Py の `renpy/`、ティラノスクリプトの `tyrano/`、宴の `utage/`、EPUB の `epub/`、縦書きPDFを組む印刷用の HTML の `pdf/`）、収録の基準（`script-baseline.json`）と、出力プロファイル（`renpy.yaml`。11節、`tyrano.yaml`。12節、`utage.yaml`。13節、`book.yaml`。14節）
+├─ export/            書き出したもの（台本 `script.csv`・`script.xlsx`、発注リスト `orders.csv`、プレーンテキスト `text/`、Ren'Py の `renpy/`、ティラノスクリプトの `tyrano/`、宴の `utage/`、EPUB の `epub/`、縦書きPDFを組む印刷用の HTML の `pdf/`、プラグインの `<名前>/`）、収録の基準（`script-baseline.json`）と、出力プロファイル（`renpy.yaml`。11節、`tyrano.yaml`。12節、`utage.yaml`。13節、`book.yaml`。14節、プラグインの `<名前>.yaml`。15節）
 ├─ layout.json        フロー図のノードの位置（T1-9）
 └─ .cache/            ツールのキャッシュ（Gitに入れない）
 ```
@@ -425,7 +425,8 @@ prompt: |
 - `export/renpy/`（出力プロファイルの `output`）：Ren'Py への書き出し（T2-2、D053）。11節。
 - `export/tyrano/`（出力プロファイルの `output`）：ティラノスクリプトへの書き出し（T3-11、D072）。12節。
 - `export/utage/`（出力プロファイルの `output`）：宴への書き出し（T3-12、D073）。13節。
-- `export/epub/<道の名前>.epub`・`export/pdf/<道の名前>.html`：EPUB と、縦書きPDFを組むための印刷用の HTML（T3-13、D074）。14節。
+- `export/epub/<道の名前>.epub`・`export/pdf/<道の名前>.html`：EPUB と、縦書きPDFを組むための印刷用の HTML（T3-13、D074）。14節。`pdf_command` で組んだ PDF は `export/pdf/<道の名前>.pdf`（T3-14）。
+- `export/<名前>/`（プラグインのプロファイルの `output`）：書き出しのプラグイン（T3-14、D075）。15節。
 - `.cache/`：索引などのキャッシュ。Gitに入れない（`scn new` が `.gitignore` に書く）。
 
 ## 11. 出力プロファイル（`export/renpy.yaml`）と Ren'Py への書き出し
@@ -464,7 +465,7 @@ font: SourceHanSansLite.ttf
 | `font` | フォントのファイル（`.ttf`・`.otf`・`.ttc`。作品フォルダから数えたパスか、絶対パス） | なし | 台詞と画面の文字のフォント。Ren'Py の既定のフォントには日本語が無い |
 | `start_label` | 真偽 | `true` | `label start`（開始シーンへ飛ぶ）を書くか。自分の `label start` を持つプロジェクトに書き出すときは `false` |
 
-- 値の型が合わない、`output` が作品フォルダの外を指す、YAMLとして読めないときは、その値を読み飛ばして既定で書き出し、何を読み飛ばしたかを知らせる（`scn check` の診断にはしない。書き出しのときだけ読むため）。ほかのファイルと同じく、決まっていないキー（フェーズ3の `command` など）は黙って読み飛ばす。
+- 値の型が合わない、`output` が作品フォルダの外を指す、YAMLとして読めないときは、その値を読み飛ばして既定で書き出し、何を読み飛ばしたかを知らせる（`scn check` の診断にはしない。書き出しのときだけ読むため）。ほかのファイルと同じく、決まっていないキーは黙って読み飛ばす（プラグインのキー `template`・`command`（15節）も、組み込みの書き出しのプロファイルでは読み飛ばす）。
 
 ### 書き出すもの
 
@@ -695,6 +696,7 @@ font_size: 9pt           # 印刷用
 page_size: A5            # 印刷用（CSS の @page の size）
 page_margin: 15mm        # 印刷用
 notes: true              # 選んだ選択肢とエンディングの注記
+pdf_command: npx @vivliostyle/cli build {input} -o {output}   # PDF を組むコマンド（T3-14）
 ```
 
 | キー | 値 | 既定 | 意味 |
@@ -706,6 +708,8 @@ notes: true              # 選んだ選択肢とエンディングの注記
 | `page_size` | CSS の `@page` の `size` の値 | `A5` | 印刷用の紙の大きさ |
 | `page_margin` | CSS の長さ（単位を付ける） | `15mm` | 印刷用の紙の余白 |
 | `notes` | 真偽 | `true` | 注記（〔選択：…〕・〔エンディング：…〕）を書くか。CLI の `--no-notes` とアプリで上書きできる（アプリのチェックの初めの値はこの値） |
+| `pdf_command` | コマンド（15節の `command` と同じ書き方） | なし | 印刷用の HTML から PDF を組むコマンド（T3-14、D075）。`{input}`（印刷用の HTML）・`{output}`（PDF。HTML と同じ名前の `.pdf`）を置き換える。CLI は `scn export pdf --typeset`、アプリは「印刷用 HTML から PDF も組む」で実行する |
+| `pdf_timeout` | 秒（正の整数） | `300` | `pdf_command` のタイムアウト |
 
 - CSS の値は `;`・`{`・`}`・`<`・`>`・`"`・`\`・注釈の `/*` と改行を含まないもの（含めば読み飛ばして知らせる）。`font_size`・`page_margin` に単位の無い数（`0` を除く）を書いたときも、読み飛ばして知らせる。ほかの値の誤りも、読み飛ばして既定で書き出し、知らせる。決まっていないキーは黙って読み飛ばす。
 
@@ -725,3 +729,62 @@ notes: true              # 選んだ選択肢とエンディングの注記
 
 - 1つの HTML（CSS を中に書く）。`@page` に紙の大きさと余白、本文の文字の大きさ、書字の向き。題名（`<h1>`）と著者、本文（EPUB と同じ）。シーンの見出しの前で改ページする（最初のシーンも。題名と著者だけのページが扉になる。EPUB も同じで、`break-before: page` と `page-break-before: always` を書く）。
 - PDF は CSS 組版の道具で組む（コアは PDF を書かない）。書体のファイルを埋め込むのも組版の道具（`font` の書体を入れた環境で組む）。
+- `pdf_command` があれば、印刷用の HTML を書いた後に、15節の外部コマンドと同じ実行の仕方（作業フォルダ、シェルを通さない、タイムアウト、アプリでは初めて実行する前に確かめる）で組む。標準入力は空で、環境変数は `SCN_INPUT`・`SCN_OUTPUT`・`SCN_PROJECT`・`SCN_PROFILE`・`SCN_VERSION`。コマンドが成功しても PDF ができていない（前からあった PDF が書き換わっていない）ときは失敗にする。
+
+## 15. 書き出しのプラグイン（`export/<名前>.yaml`）
+
+T3-14、D075（設計検討書「プラグイン」）。作品フォルダの出力プロファイル `export/<名前>.yaml` に `template:`（テンプレート）か `command:`（外部コマンド）を書くと、`scn export <名前>` とアプリの「出力」の画面の「書き出しのプラグイン」から書き出せる。書き出しは一方向で、書き出したものは手で直さない（ほかの書き出しと同じ）。
+
+```yaml
+# export/cast.yaml（テンプレート）
+template: tools/cast.csv.j2
+output: export/cast/cast.csv     # 省くと export/<名前>/ にテンプレートのファイル名（.j2 などを除く）
+heading: 台詞の一覧              # 決まっていないキーは、テンプレートの profile で読める
+```
+
+```yaml
+# export/mygame.yaml（外部コマンド）
+command: python tools/my_export.py --out {output}
+output: export/mygame            # 省くと export/<名前>
+timeout: 120
+```
+
+### キー
+
+| キー | 値 | 既定 | 意味 |
+| --- | --- | --- | --- |
+| `template` | 作品フォルダの中のファイル（作品フォルダから数えたパス） | | minijinja のテンプレート。`command` とどちらか1つ |
+| `command` | 文字列か、文字列の列 | | 外部コマンドと引数。`template` とどちらか1つ |
+| `output` | `export/` の下を指す相対パス | テンプレートは `export/<名前>/<テンプレートのファイル名から .j2・.jinja・.jinja2 を除いた名前>`、外部コマンドは `export/<名前>` | 書き出し先（テンプレートはファイル、外部コマンドはフォルダ）。CLI の `-o` で上書きできる |
+| `timeout` | 秒（正の整数） | `300` | 外部コマンドのタイムアウト |
+
+- `template` も `command` も無い `export/*.yaml` は、プラグインのプロファイルではない（一覧に出さない）。両方ある、YAML として読めない、`template` が作品フォルダの外を指す、`command` が空のときは、書き出さずに知らせる。`output` と `timeout` の誤りは、読み飛ばして既定で書き出し、知らせる。`output` は `export/` の下だけを指せる（書き出しは一方向で、本文や設定を書き換えない）。`export/` の直下の `.yaml`（出力プロファイル）とテンプレートのファイルは指せない。
+- 名前は、組み込みの書き出しの名前（`book`・`epub`・`orders`・`pdf`・`renpy`・`script`・`text`・`tyrano`・`utage`）にしない（その名前のプロファイルは組み込みの書き出しが読む）。`.` で始まる名前と、`/`・`\`・`:` を含む名前も使わない。
+- CLI は `scn export <名前> [project-dir] [-o 書き出し先] [--no-ai-drafts]`。無い名前なら、プラグインのプロファイルの名前を並べて終了コード2。プロファイルとテンプレートの誤り、外部コマンドの失敗も2。エラー（E）の診断があれば1（書き出しはする）。
+
+### テンプレート
+
+- minijinja（Jinja2 の書き方）。テンプレートのフォルダの中のファイルを `{% include %}`・`{% import %}`・`{% extends %}` で読める（`..` でもシンボリックリンクでも外へは出ない）。先頭の BOM は読み飛ばす。
+- 書き方の設定：`trim_blocks` と `lstrip_blocks`（ブロックのタグの行の改行と字下げを書かない）、末尾の改行を残す。未定義の値は、`{% if %}` で確かめるのはよいが、書く・繰り返す・属性を引くと誤り（場所の行つきで知らせる）。
+- 自動のエスケープ：テンプレートのファイル名（`.j2` などを除く）の拡張子が `html`・`htm`・`xhtml`・`xml` なら HTML のエスケープ。ほかはしない。
+- 書き出すテキストは UTF-8。改行はテンプレートのとおり。
+- テンプレートに渡すもの：
+
+  | 名前 | 中身 |
+  | --- | --- |
+  | `ir` | IR（`scn ir` と同じ形。`scenes`・`edges`・`start_scene`・`diagnostics`。`--no-ai-drafts` なら AI下書きのシーンを省いたもの） |
+  | `project` | `title`（作品名）・`start_scene`・`brackets`（表示スタイルごとの括弧 `{ open, close }`。同じ表示スタイルの括弧がいくつかあれば初めのもの） |
+  | `characters` | キャラクターIDから `{ name, aliases }` |
+  | `roads` | 通読の道（`scn export text` で書く道：共通かルートの無い作品の通し、とすべてのルート。着けない道は入れない）の列。それぞれ `name`（道の名前）・`target`・`stop`（止まった理由）・`items`（通読の本文の並び。変数の埋め込みは道を実行した値）・`text`（`scn export text` と同じプレーンテキスト。注記つき） |
+  | `profile` | プロファイルの中身（決まっていないキーも読める） |
+
+- フィルタ `plain`：文中の記法の並び（IR の `text`）を文字にする。`plain`（既定。ルビは親文字だけ）、`plain("paren")`（`親文字（読み）`）、`plain("narou")`（`｜親文字《読み》`、傍点は `《《傍点》》`、本文の `《` は `｜《`。`scn export text` と同じ）。変数の埋め込みは `{=式}`、複数行の台詞の境目は改行。`{w}`・`{p}`・`{speed}`・文中の効果音は書かない。文字列はそのまま。ほかに minijinja の組み込みのフィルタ（`tojson` を含む）と `break`・`continue` が使える。
+
+### 外部コマンド
+
+- `command` の文字列は、半角の空白・タブ・改行で区切る（`"…"`・`'…'` で囲めば空白を含められる。囲みの中で `\` に特別な意味は無いので、Windows のパスをそのまま書ける）。シェルは通さない（`|`・`>`・`$変数`・`~` は使えない。使うなら `sh -c '…'` などと書く）。列で書けば区切らない。
+- コマンドの名前：区切り（`/`。Windows では `\` も）を含めば作品フォルダから数える（`tools/export.exe`。CLI に作品フォルダを相対パスで渡しても同じ）。含まなければ `PATH` から探す（OS の決まりのとおり。Windows では `.exe` 以外は拡張子まで書く：`npx.cmd`）。macOS で Finder や Dock から開いたアプリは `PATH` が短い（`/usr/bin:/bin:/usr/sbin:/sbin`）ので、Homebrew や npm で入れたコマンドは絶対パスで書く（`/opt/homebrew/bin/python3` など）。
+- 作業フォルダは作品フォルダ。標準入力に IR の JSON（`scn ir --compact` と同じ。`--no-ai-drafts` なら省いたもの）を渡す（読まずに終わってもよい）。書き出し先のフォルダは実行の前に作る（中は消さない。コマンドが書く）。
+- 引数の `{project}`（作品フォルダ）・`{output}`（書き出し先）・`{profile}`（プロファイル）・`{name}`（プロファイルの名前）・`{version}`（ツールの版）は、絶対パスなどに置き換える（左から1回だけ置き換え、入れた値の中の `{…}` は置き換えない）。同じものを環境変数 `SCN_PROJECT`・`SCN_OUTPUT`・`SCN_PROFILE`・`SCN_NAME`・`SCN_VERSION` でも渡す（ほかの環境変数は引き継ぐ）。
+- 終了コードが0なら成功、ほかは失敗（標準エラーを見せる）。タイムアウトになったら止めて失敗にする（止めるのはコマンドのプロセスだけ。コマンドが起こした別のプロセスは止まらないことがある）。CLI は標準出力と標準エラーをそのまま流す。アプリはコアから後ろの 64KB を受け取り、画面には後ろの約4000字を見せる。
+- アプリでは、作品フォルダのコマンド（`command` と `pdf_command`）を初めて実行する前と、コマンドが変わったときに、コマンドを見せて確かめる。実行するのは、人に見せたコマンドと実行のときのコマンドが同じときだけ（見せている間にプロファイルが変われば、新しいコマンドを見せて確かめ直す）。確かめたことは、この端末のアプリの設定のフォルダ（`export-commands.json`）に、作品フォルダのパスとプロファイルごとに覚える（作品フォルダには書かない）。確かめるのはコマンドの文字列だけで、コマンドが読むスクリプト（`tools/export.py` など）の中身が変わっても確かめ直さない。CLI は確かめない（人が名前を指定して実行するため。`scn export pdf` は `--typeset` を付けたときだけ `pdf_command` を実行する）。

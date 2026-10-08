@@ -1,0 +1,23 @@
+---
+source: crates/scn-core/tests/plugin.rs
+expression: written
+---
+ir_version 1
+s010 登校
+s011 昼休みの教室
+s012 放課後の屋上
+s013a 打ち明ける
+s013b 帰り道
+s014 沈黙のあと
+s020 灯の家の前
+s021 屋上の約束
+s022 雨の図書室
+s040 見送り
+s030 紬と帰る
+s060 紬エンド
+s061 すれ違い
+cwd_is_project true
+name list
+profile_exists true
+version_set true
+output_arg true

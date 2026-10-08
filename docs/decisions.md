@@ -852,3 +852,15 @@
   - 出力プロファイルは `export/book.yaml`（`writing`・`author`・`font`・`font_size`・`page_size`・`page_margin`・`notes`）を EPUB と印刷用で共通にする。
 - 理由：計画 T3-13 の手順（道ごとか1冊かは推奨案で決める、縦書きと横書き、ルビ・傍点・縦中横、ZIP は台本の書き手）と、D005・設計検討書（WebView の組版は確認用に限り、厳密な組版は書き出しで行う）。道ごとに1冊にするのは、プレーンテキストと同じ単位で、通読の道（選んだ選択肢）がそのまま本の筋になるため。コアで PDF を組むには、書体のファイルの読み込みと部分の埋め込み、縦組みの字形と約物の扱いが要り、依存も大きいので、CSS 組版の道具に任せる（CLI からも使える。原則2）。
 - 影響：`crates/scn-core/src/book.rs`（新規）、`xlsx.rs`（`Zip` をクレートの中で使う）、`scn export epub`・`scn export pdf`、`app/src-tauri`（`export_book`）、`app/src/export/ExportScreen.tsx`（EPUB・縦書きPDF のカード）、`docs/spec/project-files.md` の14節。
+
+## D075 書き出しのプラグイン（2026-10-09）
+
+- 決定：
+  - 作品フォルダの出力プロファイル `export/<名前>.yaml` に `template:`（minijinja のテンプレート）か `command:`（外部コマンド）のどちらか1つを書いたものを、書き出しのプラグインにする。`scn export <名前>`（CLI）とアプリの「出力」の画面の「書き出しのプラグイン」から書き出す。組み込みの書き出しの名前は使えない。既定の書き出し先は `export/<名前>/` の中。
+  - テンプレートには `ir`・`project`・`characters`・`roads`（通読の道）・`profile` を渡し、フィルタ `plain` で文中の記法を文字にする。`trim_blocks`・`lstrip_blocks`、末尾の改行を残す、未定義の値は書くと誤り、HTML と XML だけ自動のエスケープ。1つのファイルを書く。
+  - 外部コマンドはシェルを通さずに作品フォルダで実行し、IR の JSON を標準入力で渡す。書き出し先などは引数の置き換え（`{output}` など）と環境変数 `SCN_*` で渡す。終了コード0が成功、タイムアウト（既定300秒）で止める。書き出し先は作るが中は消さない。
+  - 縦書きPDFを組むコマンドは `export/book.yaml` の `pdf_command`（`{input}`・`{output}`）。CLI は `scn export pdf --typeset`、アプリはチェックで実行する。
+  - アプリは作品フォルダのコマンドを、この端末で初めて実行する前と、コマンドが変わったときに確かめる（アプリの設定のフォルダの `export-commands.json`）。人に見せたコマンドと実行のときのコマンドが同じときだけ実行する。CLI は確かめない。
+  - プロファイルの `output` は `export/` の下だけ（書き出しは一方向で、本文や設定を書き換えない）。
+- 理由：設計検討書「プラグイン」（単純なテキストはテンプレートだけで、足りなければ IR の JSON を標準入力で受ける外部コマンド）と、計画 T3-14 の手順（渡す形、作業フォルダ・環境変数・終了コード・タイムアウト、アプリでは初めて実行する前に確かめる）。シェルを通さないのは、macOS と Windows で同じ書き方にするため。確かめた記録を作品フォルダに書かないのは、人から受け取った作品フォルダのコマンドが黙って動かないようにするため。`pdf_command` は D074 で T3-14 に回した、印刷用の HTML を CSS 組版の道具で PDF にする段。
+- 影響：`crates/scn-core/src/plugin.rs`（新規）、`book.rs`（`pdf_command`・`pdf_timeout`）、依存に `minijinja`、`scn export <名前>`・`scn export pdf --typeset`、`app/src-tauri`（`export_plugins`・`export_plugin`・`export_book` の組版と確かめ）、`app/src/export/`（`plugin.ts`、書き出しのプラグインのカード、PDF も組むチェック）、`docs/spec/project-files.md` の14節・15節。

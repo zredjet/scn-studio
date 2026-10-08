@@ -50,6 +50,10 @@ pub struct BookProfile {
     pub page_margin: String,
     /// 注記（選んだ選択肢、エンディング）を書くか。
     pub notes: bool,
+    /// 印刷用の HTML から PDF を組むコマンドと引数（`pdf_command`。T3-14。`{input}`・`{output}` を置き換える）。
+    pub pdf_command: Option<Vec<String>>,
+    /// `pdf_command` のタイムアウト（秒）。
+    pub pdf_timeout: u64,
 }
 
 impl Default for BookProfile {
@@ -62,6 +66,8 @@ impl Default for BookProfile {
             page_size: "A5".to_owned(),
             page_margin: "15mm".to_owned(),
             notes: true,
+            pdf_command: None,
+            pdf_timeout: crate::plugin::DEFAULT_TIMEOUT,
         }
     }
 }
@@ -143,6 +149,14 @@ pub fn read_profile(root: &Path) -> (BookProfile, Vec<String>) {
             _ => profile.page_margin = value,
         }
     }
+    match yaml.get("pdf_command") {
+        None | Some(Yaml::Null) => {}
+        Some(value) => match crate::plugin::command_argv(value, "pdf_command") {
+            Ok(argv) => profile.pdf_command = Some(argv),
+            Err(e) => problems.push(e),
+        },
+    }
+    profile.pdf_timeout = crate::plugin::read_timeout(&yaml, "pdf_timeout", &mut problems);
     match yaml.get("notes") {
         None | Some(Yaml::Null) => {}
         Some(Yaml::Bool(b)) => profile.notes = *b,

@@ -29,6 +29,7 @@ use scn_core::ir::{Edge, IrDiagnostic, IrMeta};
 use scn_core::layout::{Point, read_layout as read_layout_file};
 use scn_core::line_id::LineIdGenerator;
 use scn_core::merge::{Choice, merge_text};
+use scn_core::plugin::{self, PluginKind};
 use scn_core::preview;
 use scn_core::rename::{self, RenameTarget};
 use scn_core::renpy;
@@ -1176,57 +1177,278 @@ fn export_text(
     json_response(&json!({ "path": path.display().to_string() }))
 }
 
-/// 出力プロファイル（`export/book.yaml`）の書き方と注記（「出力」の画面のチェックの初めの値。T3-13）。
+/// 出力プロファイル（`export/book.yaml`）の書き方と注記（「出力」の画面のチェックの初めの値。T3-13）と、PDF を
+/// 組むコマンド（`pdf_command`。見せるための1行。T3-14）。
 #[tauri::command]
 fn book_settings(state: State<'_, AppState>) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
     let (profile, _) = scn_core::book::read_profile(workspace.root());
-    json_response(&json!({ "vertical": profile.vertical, "notes": profile.notes }))
+    json_response(&json!({
+        "vertical": profile.vertical,
+        "notes": profile.notes,
+        "pdf_command": profile.pdf_command.as_deref().map(plugin::command_line),
+    }))
 }
 
 /// 通読の道を、EPUB（`export/epub/<道の名前>.epub`）か、縦書きPDFを組むための印刷用の HTML
 /// （`export/pdf/<道の名前>.html`）に書き出す（`scn export epub`・`scn export pdf` と同じ。T3-13、D074）。
 /// `horizontal`・`notes` はプロファイル（`export/book.yaml`）を上書きする。書いたパスとプロファイルの誤りを返す。
+/// `typeset` なら、印刷用の HTML を書いた後に `pdf_command` で PDF を組む（`scn export pdf --typeset`。T3-14）。
+/// 作品フォルダのコマンドなので、この端末で確かめていなければ、何も書かずに `needs_approval`（コマンドの1行）を
+/// 返す。`approved`（人が見て「はい」と言ったコマンドの1行）が今のコマンドと同じなら、確かめたことを覚えてから
+/// 実行する。
 #[tauri::command]
-fn export_book(
+#[allow(clippy::too_many_arguments)]
+async fn export_book(
     target: route::ReadingTarget,
     print: bool,
     horizontal: bool,
     notes: bool,
     ai_drafts: Option<bool>,
+    typeset: Option<bool>,
+    approved: Option<String>,
     state: State<'_, AppState>,
+    app: AppHandle,
 ) -> Result<Response, String> {
     use scn_core::book;
+    let (root, path, problems, command, timeout) = {
+        let mut guard = locked(&state.workspace)?;
+        let workspace = open_workspace(&mut guard)?;
+        let (project, root) = (workspace.project(), workspace.root());
+        let (mut profile, problems) = book::read_profile(root);
+        let command = match (typeset.unwrap_or(false) && print, &profile.pdf_command) {
+            (false, _) => None,
+            (true, None) => {
+                return Err(format!(
+                    "{} に pdf_command（PDF を組むコマンド）がありません",
+                    book::BOOK_PROFILE
+                ));
+            }
+            (true, Some(argv)) => {
+                if !command_approved(&app, root, book::BOOK_PROFILE, argv, approved.as_deref())? {
+                    return json_response(&json!({
+                        "needs_approval": plugin::command_line(argv),
+                        "profile": book::BOOK_PROFILE,
+                    }));
+                }
+                Some(argv.clone())
+            }
+        };
+        if horizontal {
+            profile.vertical = false;
+        }
+        profile.notes = notes;
+        let modified = scn_core::provenance::now();
+        let (label, bytes, message) = with_export_ir(project, ai_drafts.unwrap_or(true), |ir| {
+            let reading = route::read(project, ir, &target, &route::Variables::new());
+            let label = route::target_label(ir, &target);
+            let bytes = if print {
+                book::print_html(project, &reading, &label, &profile).into_bytes()
+            } else {
+                book::epub(project, &reading, &label, &profile, &modified)
+                    .map_err(|e| e.to_string())?
+            };
+            Ok((label, bytes, reading.message))
+        })?;
+        if let Some(message) = message {
+            return Err(format!("{label}：{message}"));
+        }
+        let path = if print {
+            book::book_path(root, book::PRINT_DIR, &label, "html")
+        } else {
+            book::book_path(root, book::EPUB_DIR, &label, "epub")
+        };
+        book::write_book(&path, &bytes).map_err(|e| e.to_string())?;
+        (
+            root.to_owned(),
+            path,
+            problems,
+            command,
+            profile.pdf_timeout,
+        )
+    };
+    let Some(argv) = command else {
+        return json_response(&json!({ "path": path.display().to_string(), "problems": problems }));
+    };
+    let pdf = path.with_extension("pdf");
+    let (input, output) = (path.clone(), pdf.clone());
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        plugin::typeset(&root, &argv, timeout, &input, &output, true)
+    })
+    .await
+    .map_err(|e| format!("PDF を組めません：{e}"))?;
+    let (ok, error, output) = run_outcome(result);
+    json_response(&json!({
+        "path": path.display().to_string(),
+        "problems": problems,
+        "pdf": ok.then(|| pdf.display().to_string()),
+        "error": error,
+        "stdout": output.stdout,
+        "stderr": output.stderr,
+    }))
+}
+
+// ---- 書き出しのプラグイン（T3-14、D075） ----
+
+/// 作品フォルダのコマンドを、この端末で実行してよいと確かめたもの（アプリの設定のフォルダの
+/// `export-commands.json`）。作品フォルダの実際のパスごとに、プロファイル（`export/<名前>.yaml`・
+/// `export/book.yaml`）と、確かめたコマンド（置き換える前の引数の列）を覚える。作品フォルダには書かない（人から
+/// 受け取った作品フォルダのコマンドが、確かめずに動かないように）。
+type Approvals = BTreeMap<String, BTreeMap<String, Vec<String>>>;
+
+fn approvals_file(app: &AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_config_dir()
+        .map(|d| d.join("export-commands.json"))
+        .map_err(|e| format!("アプリの設定のフォルダが分かりません：{e}"))
+}
+
+/// 作品フォルダのコマンドを確かめたか。`approved`（人に見せて「はい」と言われたコマンドの1行）が今のコマンドと
+/// 同じなら、確かめたこととして覚える（書けなければ実行しない）。見せている間にプロファイルが変わっていれば、
+/// 覚えずに確かめ直す。コマンドが変われば、確かめ直す。
+fn command_approved(
+    app: &AppHandle,
+    root: &Path,
+    profile: &str,
+    argv: &[String],
+    approved: Option<&str>,
+) -> Result<bool, String> {
+    let file = approvals_file(app)?;
+    let mut approvals: Approvals = std::fs::read_to_string(&file)
+        .ok()
+        .and_then(|text| serde_json::from_str(&text).ok())
+        .unwrap_or_default();
+    let project = std::fs::canonicalize(root)
+        .unwrap_or_else(|_| root.to_owned())
+        .display()
+        .to_string();
+    let known = approvals
+        .get(&project)
+        .and_then(|p| p.get(profile))
+        .is_some_and(|a| a.as_slice() == argv);
+    if known || approved != Some(plugin::command_line(argv).as_str()) {
+        return Ok(known);
+    }
+    approvals
+        .entry(project)
+        .or_default()
+        .insert(profile.to_owned(), argv.to_vec());
+    if let Some(dir) = file.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| format!("{} を作れません：{e}", dir.display()))?;
+    }
+    let text = serde_json::to_string_pretty(&approvals).map_err(|e| e.to_string())?;
+    std::fs::write(&file, text).map_err(|e| format!("{} に書けません：{e}", file.display()))?;
+    Ok(true)
+}
+
+/// 外部コマンドの結果を、成功か、誤りの1行と、標準出力と標準エラーにする。
+fn run_outcome(
+    result: Result<plugin::CommandOutput, plugin::PluginError>,
+) -> (bool, Option<String>, plugin::CommandOutput) {
+    match result {
+        Ok(output) => (true, None, output),
+        Err(e) => {
+            let output = e.output().cloned().unwrap_or_default();
+            (false, Some(e.to_string()), output)
+        }
+    }
+}
+
+/// 作品フォルダのプラグインのプロファイル（`export/*.yaml` のうち `template` か `command` のあるもの）の一覧。
+#[tauri::command]
+fn export_plugins(state: State<'_, AppState>) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
-    let (project, root) = (workspace.project(), workspace.root());
-    let (mut profile, problems) = book::read_profile(root);
-    if horizontal {
-        profile.vertical = false;
-    }
-    profile.notes = notes;
-    let modified = scn_core::provenance::now();
-    let (label, bytes, message) = with_export_ir(project, ai_drafts.unwrap_or(true), |ir| {
-        let reading = route::read(project, ir, &target, &route::Variables::new());
-        let label = route::target_label(ir, &target);
-        let bytes = if print {
-            book::print_html(project, &reading, &label, &profile).into_bytes()
-        } else {
-            book::epub(project, &reading, &label, &profile, &modified).map_err(|e| e.to_string())?
-        };
-        Ok((label, bytes, reading.message))
-    })?;
-    if let Some(message) = message {
-        return Err(format!("{label}：{message}"));
-    }
-    let path = if print {
-        book::book_path(root, book::PRINT_DIR, &label, "html")
-    } else {
-        book::book_path(root, book::EPUB_DIR, &label, "epub")
+    let items: Vec<Value> = plugin::list_plugins(workspace.root())
+        .into_iter()
+        .map(|(name, result)| match result {
+            Ok(p) => {
+                let (kind, detail) = match &p.kind {
+                    PluginKind::Template { template } => ("template", template.clone()),
+                    PluginKind::Command { argv } => ("command", plugin::command_line(argv)),
+                };
+                json!({
+                    "name": name,
+                    "profile": p.profile,
+                    "kind": kind,
+                    "detail": detail,
+                    "output": p.output,
+                    "problems": p.problems,
+                    "error": null,
+                })
+            }
+            Err(e) => json!({
+                "name": name,
+                "profile": format!("{}/{name}.yaml", plugin::PROFILE_DIR),
+                "kind": "error",
+                "detail": "",
+                "output": "",
+                "problems": [],
+                "error": e.to_string(),
+            }),
+        })
+        .collect();
+    json_response(&json!(items))
+}
+
+/// プラグインで書き出す（`scn export <名前>` と同じ。保存していない本文も含める）。テンプレートは書いたファイルを
+/// 返す。外部コマンドは、この端末で確かめていなければ、実行せずに `needs_approval`（コマンドの1行）を返し、
+/// `approved`（人が見て「はい」と言ったコマンドの1行）が今のコマンドと同じなら、確かめたことを覚えてから実行する。
+/// コマンドの失敗は `error` と標準出力・標準エラーで返す。
+#[tauri::command]
+async fn export_plugin(
+    name: String,
+    ai_drafts: Option<bool>,
+    approved: Option<String>,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Response, String> {
+    let (root, found, ir) = {
+        let mut guard = locked(&state.workspace)?;
+        let workspace = open_workspace(&mut guard)?;
+        let (project, root) = (workspace.project(), workspace.root());
+        let found = plugin::read_plugin(root, &name).map_err(|e| e.to_string())?;
+        match &found.kind {
+            PluginKind::Template { .. } => {
+                let text = with_export_ir(project, ai_drafts.unwrap_or(true), |ir| {
+                    plugin::render_template(root, &found, project, ir).map_err(|e| e.to_string())
+                })?;
+                let path = root.join(&found.output);
+                plugin::write_output(&path, &text).map_err(|e| e.to_string())?;
+                return json_response(&json!({
+                    "path": path.display().to_string(),
+                    "problems": found.problems,
+                }));
+            }
+            PluginKind::Command { argv } => {
+                if !command_approved(&app, root, &found.profile, argv, approved.as_deref())? {
+                    return json_response(&json!({
+                        "needs_approval": plugin::command_line(argv),
+                        "profile": found.profile,
+                    }));
+                }
+            }
+        }
+        let ir = with_export_ir(project, ai_drafts.unwrap_or(true), |ir| Ok(ir.clone()))?;
+        (root.to_owned(), found, ir)
     };
-    book::write_book(&path, &bytes).map_err(|e| e.to_string())?;
-    json_response(&json!({ "path": path.display().to_string(), "problems": problems }))
+    let output = root.join(&found.output);
+    let path = output.display().to_string();
+    let problems = found.problems.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        plugin::export_command(&root, &found, &ir, &output, true)
+    })
+    .await
+    .map_err(|e| format!("書き出せません：{e}"))?;
+    let (ok, error, output) = run_outcome(result);
+    json_response(&json!({
+        "path": ok.then_some(path),
+        "problems": problems,
+        "error": error,
+        "stdout": output.stdout,
+        "stderr": output.stderr,
+    }))
 }
 
 // ---- 素材カタログ（T2-3、D054） ----
@@ -3195,6 +3417,8 @@ pub fn run() {
             export_utage,
             book_settings,
             export_book,
+            export_plugins,
+            export_plugin,
             asset_list,
             route_at,
             route_to_scene,

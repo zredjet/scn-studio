@@ -66,6 +66,10 @@ paths:
 - プロットとフローへの支援（T3-10、D071）：ほかの画面（フロー図、企画の画面）からの実行は `ai/QuickRun.tsx`（App の `runTask` と同じ実行、クラウドでは送る中身を見せてから）。提案ノードはフロー図に重ねるだけ（`graph/model.ts` の `proposalOverlay`。位置は保存しない）で、採用・骨格・summary の書き込みはコア（`adopt_branch_proposal`・`write_ai_skeleton`・`set_scene_summary`）が行い、App が本文を置き換える（`applyPlotWritten`・`applyWrittenText`）。分類案はメモの項目の書き換え（`set_entry_field`）で当てる。却下・閉じたものは App の中だけに持つ。判断と文は `ai/model.ts` に置き、テストを付ける。
 - 指摘はアプリの中だけに持つ。エディタの印（`editor/findings.ts`）は行末の行IDで引き、本文は変えない。変換中は作り直さず、前の印をずらすだけ。並べ方・持ち方・文は `ai/model.ts` に置き、テストを付ける（`app/test/ai.test.ts`）。
 
+## 出力の画面（app/src/export/）
+
+- 書き出しはコアのコマンドが行い、画面は選んだものを渡して結果を見せるだけ。書き出しのプラグインと PDF の組版（T3-14、D075）で作品フォルダのコマンドを動かすときは、コアが `needs_approval` を返したら、コマンドを見せて人に確かめ（`confirm`）、「はい」のときだけ `approve` で呼び直す（`export/plugin.ts` の `runApproved`）。確かめ方と結果の文は `export/plugin.ts` に置き、テストを付ける（`app/test/plugin.test.ts`）。
+
 ## 検証の画面（app/src/check/）
 
 - 自動巡回と表記の検査（検証の段階2。T3-2・T3-3、D063・D064）は、検証の画面の「走らせる」で、コア（`playthrough` コマンド。`playthrough::stage2`）が行う。保存のたびには走らせない。結果の診断は検証の一覧に足し、本文が変わったら結果を捨てる（位置がずれるため）。結果の見せ方（道の例、変数の値、並べ方）は `check/playthrough.ts` に置き、テストを付ける（`app/test/check.test.ts`）。

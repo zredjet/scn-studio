@@ -45,6 +45,8 @@ import type {
   OpenedProject,
   Playthrough,
   PlotWriteResult,
+  PluginItem,
+  PluginRun,
   PreviewRequest,
   PromotedWritten,
   Promotion,
@@ -1064,22 +1066,50 @@ export function bookSettings(): Promise<BookSettings> {
 export interface BookSettings {
   readonly vertical: boolean;
   readonly notes: boolean;
+  /** PDF を組むコマンド（`pdf_command`。T3-14）の1行。無ければ null。 */
+  readonly pdf_command: string | null;
 }
 
+/**
+ * EPUB か印刷用の HTML を書き出す（T3-13）。`typeset` なら、印刷用の HTML の後に `pdf_command` で PDF を組む
+ * （T3-14。確かめていなければ `needs_approval` を返す。`approved` に人が見たコマンドの1行を渡すと、それが今の
+ * コマンドと同じときだけ実行する）。
+ */
 export function exportBook(
   target: ReadingTarget,
   print: boolean,
   horizontal: boolean,
   notes: boolean,
   aiDrafts = true,
-): Promise<{ path: string; problems: readonly string[] }> {
-  return invoke<{ path: string; problems: readonly string[] }>("export_book", {
+  typeset = false,
+  approved: string | null = null,
+): Promise<PluginRun> {
+  return invoke<PluginRun>("export_book", {
     target,
     print,
     horizontal,
     notes,
     aiDrafts,
+    typeset,
+    approved,
   });
+}
+
+/** 作品フォルダの書き出しのプラグイン（`export/*.yaml` のうち template か command のあるもの。T3-14）。 */
+export function exportPlugins(): Promise<PluginItem[]> {
+  return invoke<PluginItem[]>("export_plugins");
+}
+
+/**
+ * プラグインで書き出す（T3-14）。外部コマンドは、この端末で確かめていなければ `needs_approval` を返す。
+ * `approved` に人が見たコマンドの1行を渡すと、それが今のコマンドと同じときだけ実行する。
+ */
+export function exportPlugin(
+  name: string,
+  aiDrafts: boolean,
+  approved: string | null,
+): Promise<PluginRun> {
+  return invoke<PluginRun>("export_plugin", { name, aiDrafts, approved });
 }
 
 /** 通読の道を `export/text/<道の名前>.txt` に書き出す。 */

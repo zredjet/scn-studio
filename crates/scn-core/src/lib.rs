@@ -52,6 +52,7 @@ pub mod line_id;
 pub mod merge;
 pub mod plaintext;
 pub mod playthrough;
+pub mod plugin;
 pub mod preview;
 pub mod project;
 pub mod provenance;

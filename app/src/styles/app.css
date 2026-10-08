@@ -4250,6 +4250,43 @@ body {
   align-self: flex-start;
 }
 
+/* 書き出しのプラグイン（T3-14） */
+.plugin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plugin-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-item);
+}
+
+.plugin-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.plugin-kind {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.plugin-detail {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+
 /* EPUB・縦書きPDF のカードのボタン（T3-13） */
 .export-buttons {
   display: flex;
