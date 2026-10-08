@@ -34,6 +34,7 @@ import type {
   AssistData,
   Bracket,
   EditorSettings,
+  GraphLevel,
   IrDiagnostic,
   OpenedProject,
   RecentProject,
@@ -138,6 +139,9 @@ export function App() {
     seq: number;
   } | null>(null);
   const [quickOpen, setQuickOpen] = useState(false);
+  /** フローの画面の粒度と、`layout.json` が外で変わった回数（D048）。 */
+  const [flowLevel, setFlowLevel] = useState<GraphLevel>("scene");
+  const [layoutVersion, setLayoutVersion] = useState(0);
   /** ファイルごとの表示（覚えていないファイルは執筆表示。D046）。 */
   const [modes, setModes] = useState<ReadonlyMap<string, ViewMode>>(new Map());
   /** ディスクの中身が変わった回数（エディタに渡す savedText を作り直すため）。 */
@@ -417,6 +421,9 @@ export function App() {
             break;
           case "settings":
             changed.push("設定ファイル");
+            break;
+          case "layout":
+            setLayoutVersion((n) => n + 1);
             break;
         }
       }
@@ -848,9 +855,12 @@ export function App() {
               {screen === "flow" && (
                 <section className="screen flow-screen" aria-label="フロー">
                   <SceneGraph
-                    ir={project.summary}
-                    currentFile={currentFile}
-                    onSelect={selectScene}
+                    summary={project.summary}
+                    checks={project.checks}
+                    level={flowLevel}
+                    onLevel={setFlowLevel}
+                    layoutVersion={layoutVersion}
+                    onOpen={selectScene}
                   />
                 </section>
               )}

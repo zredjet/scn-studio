@@ -705,36 +705,428 @@ body {
 
 .scene-graph {
   flex: 1;
+  min-height: 0;
+  background: #f7f8fa;
+}
+
+/* フローの画面（docs/ui/mockups/03-flow.html。T1-9） */
+.flow-screen-body {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.flow-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.flow-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
   background: var(--paper);
 }
 
-/* xyflow の既定のノードの見た目（.react-flow__node-default）より、詳しい選択子で上書きする。 */
-.react-flow__node.scene-node {
-  white-space: pre-line;
-  font-size: 12px;
+.flow-filter {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--text-muted);
+}
+
+.flow-filter select {
+  min-height: 30px;
+  padding: 0 8px;
   border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+}
+
+.flow-filter input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.flow-spacer {
+  flex: 1;
+}
+
+.flow-problem {
+  color: var(--warn-text);
+  font-size: 12px;
+}
+
+/* ノード（xyflow の自前のノード） */
+.flow-node {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 144px;
+  height: 64px;
+  padding: 8px 12px;
+  border: 1px solid #cdd2da;
   border-radius: var(--radius-card);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 16px;
 }
 
-.react-flow__node.scene-node.current {
-  border-color: var(--accent);
+.flow-node.flow-group {
+  width: 200px;
 }
 
-.react-flow__node.scene-node.stub {
-  border-style: dashed;
-  border-color: var(--stub-line);
+.flow-node-head {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 11px;
 }
 
-.react-flow__node.scene-node.ai-draft {
-  border-color: var(--ai-line);
+.flow-node-title {
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flow-node-foot {
+  overflow: hidden;
+  color: var(--text-faint);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flow-node.selected {
+  border: 2px solid var(--accent);
+  background: var(--accent-tint-2);
+}
+
+.flow-node.selected .flow-node-head {
+  color: var(--accent-strong);
+}
+
+.flow-node.ai-draft {
+  border: 1.5px solid var(--ai-line);
+  background: var(--ai-tint-2);
+  color: #0b3f3a;
+}
+
+.flow-node.ai-draft .flow-node-foot {
+  color: var(--ai-text);
+}
+
+.flow-node.stub {
+  border: 1.5px dashed var(--stub-line);
+  color: var(--text-muted);
+}
+
+/* 選んだスタブとAI下書きも、藍の太い枠で見せる（スタブの点線とAI下書きの色は残す）。 */
+.flow-node.stub.selected {
+  border: 2px dashed var(--accent);
+  background: var(--accent-tint-2);
+}
+
+.flow-node.ai-draft.selected {
+  border: 2px solid var(--accent);
+}
+
+.flow-node.missing {
+  border: 1.5px dashed var(--warn-border);
+  background: var(--warn-tint);
+  color: var(--warn-text);
+}
+
+.flow-marks {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.flow-mark {
+  padding: 0 5px;
+  border-radius: 4px;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+}
+
+.flow-mark.start {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.flow-mark.ending {
+  border: 1px solid var(--accent-border);
+  color: var(--accent-strong);
+}
+
+/* ルートの帯（ノードの後ろ。動かさない） */
+.flow-band {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  border: 1px solid #e3e6eb;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--paper) 85%, transparent);
+  pointer-events: none;
+}
+
+.flow-band-title {
+  position: absolute;
+  top: 10px;
+  left: 16px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* 辺 */
+.flow-edge .react-flow__edge-path {
+  stroke: var(--stub-line);
+  stroke-width: 2;
+}
+
+.flow-edge.out .react-flow__edge-path {
+  stroke: var(--accent);
+}
+
+.flow-edge.call .react-flow__edge-path {
+  stroke-dasharray: 2 4;
+}
+
+.flow-edge .react-flow__edge-text {
+  fill: var(--accent-strong);
+  font-size: 12px;
+}
+
+/* 凡例 */
+.flow-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  align-items: center;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--paper);
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.flow-legend strong {
+  color: var(--text-muted);
+}
+
+.legend-item {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.legend-line {
+  width: 22px;
+  border-top: 2px solid var(--stub-line);
+}
+
+.legend-line.out {
+  border-top-color: var(--accent);
+}
+
+.legend-line.call {
+  border-top-style: dotted;
+}
+
+.legend-box {
+  width: 18px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.legend-box.ai {
+  border: 1.5px solid var(--ai-line);
   background: var(--ai-tint-2);
 }
 
-.react-flow__node.scene-node.missing {
-  border-style: dashed;
-  border-color: var(--warn-border);
-  background: var(--warn-tint);
-  color: var(--warn-text);
+.legend-box.stub {
+  border: 1.5px dashed var(--stub-line);
+}
+
+.legend-counts {
+  margin-left: auto;
+}
+
+/* フローの文脈パネル */
+.flow-panel {
+  display: flex;
+  flex: 0 0 300px;
+  flex-direction: column;
+  min-width: 260px;
+  overflow: auto;
+  border-left: 1px solid var(--border);
+  background: var(--paper);
+  font-size: 12.5px;
+}
+
+.flow-panel-empty {
+  padding: 16px;
+}
+
+.flow-panel-head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.flow-panel-head h2 {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.flow-panel-id {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.primary-small {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--accent);
+  color: #ffffff;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.flow-section {
+  padding: 0 0 8px;
+}
+
+.flow-summary {
+  margin: 0;
+  padding: 0 16px 8px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.flow-meta,
+.flow-vars {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 4px 8px;
+  margin: 0;
+  padding: 0 16px;
+}
+
+.flow-meta dt,
+.flow-vars dt {
+  color: var(--text-faint);
+}
+
+.flow-meta dd,
+.flow-vars dd {
+  margin: 0;
+}
+
+.flow-vars dd {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.flow-exits,
+.flow-entries,
+.flow-scene-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0 12px;
+  list-style: none;
+}
+
+.flow-exit {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: var(--radius-item);
+  background: #f6f7fe;
+}
+
+.flow-exit-cond {
+  color: var(--accent-strong);
+  font-size: 12px;
+}
+
+.flow-entries li {
+  padding: 0 4px;
+}
+
+.flow-badge {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.flow-badge.stub {
+  border: 1px dashed var(--stub-line);
+  color: var(--text-muted);
+}
+
+.flow-badge.ai {
+  border: 1px solid var(--ai-border);
+  background: var(--ai-tint);
+  color: var(--ai-text);
+  font-weight: 700;
+}
+
+.flow-scene-item {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.flow-scene-item:hover:not(:disabled) {
+  background: var(--accent-tint);
+}
+
+.flow-scene-id {
+  width: 48px;
+  flex: none;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
 }
 
 .statusbar {

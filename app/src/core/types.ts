@@ -49,6 +49,66 @@ export interface IrEdge {
   readonly span: ByteSpan;
 }
 
+/** 構造グラフの粒度（D048）。 */
+export type GraphLevel = "scene" | "chapter" | "route";
+
+/** 構造グラフの辺（コアの `graph::GraphEdge`）。 */
+export interface GraphEdge {
+  readonly from: string;
+  readonly to: string;
+  readonly kind: "jump" | "call";
+  readonly via: "direct" | "choice" | "if" | "else";
+  readonly label: string | null;
+  readonly cond_text: string | null;
+  /** 行き先のシーンがあるか（無ければ E501）。 */
+  readonly to_exists: boolean;
+  /** 行き先のまとまり（ルートの無いシーンや、無いシーンなら null）。 */
+  readonly to_group: string | null;
+}
+
+/** 構造グラフのまとまり（シーン、章、ルート。コアの `graph::Group`）。 */
+export interface GraphGroup {
+  /** シーンID、章のファイル、ルートの名前。ルートの無いシーンのまとまりは null。 */
+  readonly id: string | null;
+  readonly title: string | null;
+  readonly file: string | null;
+  readonly route: string | null;
+  readonly status: string | null;
+  readonly is_stub: boolean | null;
+  readonly scenes: readonly string[];
+  readonly exits: readonly GraphEdge[];
+  readonly endings: readonly string[];
+  readonly reads: readonly string[];
+  readonly writes: readonly string[];
+}
+
+/** 構造グラフ（コアの `graph::Graph`）。 */
+export interface SceneGraphData {
+  readonly level: GraphLevel;
+  readonly groups: readonly GraphGroup[];
+}
+
+export interface LayoutPoint {
+  readonly x: number;
+  readonly y: number;
+}
+
+/** フロー図の配置（`layout.json`。D048）。 */
+export type Layout = Readonly<
+  Record<GraphLevel, Readonly<Record<string, LayoutPoint>>>
+>;
+
+/** `read_layout` の結果。`problem` は読み飛ばしたもの。 */
+export interface LoadedLayout {
+  readonly layout: Layout;
+  readonly problem: string | null;
+  /**
+   * `invalid`：壊れている（ノードを動かしても上書きしない。自動整列のときだけ書き直す）。
+   * `unreadable`：読めない（書かない）。
+   */
+  readonly state: "ok" | "invalid" | "unreadable";
+}
+
 /** 表示に要る分（診断、シーンの一覧、辺）。入力が止まるたびに受け取る（D042）。 */
 export interface Summary {
   readonly start_scene: string | null;
@@ -128,6 +188,7 @@ export type Change =
       readonly deleted: boolean;
     }
   | { readonly kind: "unreadable"; readonly file: string }
+  | { readonly kind: "layout" }
   | { readonly kind: "settings" };
 
 /** `workspace-changed` の知らせ。 */

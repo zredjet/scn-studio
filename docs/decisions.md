@@ -469,3 +469,20 @@
   - 正規化と字下げは本文を書き換えるので、作品ごとに入れるかを `project.toml` に書いて見えるようにし、書いていなければ何もしない（本文を黙って変えない）。
   - 行IDは不変（設計の原則5）。写したものには新しい行IDを、移したものには元の行IDを。
 - 影響：`crates/scn-core/src/assist.rs`（新規）、`check.rs`（`overflow`）、`project.rs`（`EditorSettings`、`Bible::character_type`、`Project::character_entry`）、`syntax.rs`（`DIRECTIVES`）、`workspace.rs`（`register_character`）、テンプレートの `project.toml`、`docs/spec/project-files.md`（`[editor]`）、`app/src-tauri`（`parse_buffer` の `scene`、`scene_info`、`register_character`、`assist`・`editor` を渡す）、`app/src/editor/`（`complete.ts`、`typing.ts`、`navigate.ts`、`lineid.ts`、`writing.ts`、`state.ts`、`Editor.tsx`）、`app/src/shell/`（`ContextPanel.tsx`、`QuickOpen.tsx`、`scene.ts`、`StatusBar.tsx`）、`app/src/check/CheckList.tsx`、`docs/plan/ime-test.md`（8・9・13・17を見直し、24〜27を足した）。依存に `@codemirror/autocomplete` を加えた。
+
+## D048 構造グラフと layout.json（2026-10-08）
+
+- 決定：
+  - フローの画面は `docs/ui/mockups/03-flow.html` に合わせる。粒度（ルート・章・シーン）を切り替え、データはコアの `graph::build_graph`（Tauri の `scene_graph`）。フローの画面を開いているときだけ取り、本文が変わったら300ミリ秒待って取り直す（入力のたびの解析には入れない。D042）。
+  - シーンの粒度では、ルート（メタ情報の `route`）ごとの帯でシーンを囲み、帯を縦に積む。章とルートは入れ子にならないので、章はノードに書かない（章の粒度で見る）。ルートの無いシーンは「ルート未設定」の帯にまとめる。ルートで絞り込める。
+  - ノードは3行（ID、題名、字数と状態）。スタブは灰色の点線、AI下書きは緑青の実線、選んだノードは藍の太い枠。開始のシーンに「開始」、`@エンディング` のあるシーンに「エンディング」の札を付ける（モックに見た目が無いので足した）。
+  - 辺は折れ線と塗りの矢じり。選んだノードから出る辺は藍。呼び出しは点線で「呼出」の札。「条件を表示」で、条件（`≥` などで見せる）・選択肢の表示文（12字まで）・「それ以外」の札を出し入れする。無いシーンへの辺は仮のノードへつなぐ。
+  - 章・ルートの粒度では、まとまりをノードにし、まとまりの外へ出る辺だけをつなぐ（同じ行き先は「N本」とまとめる）。
+  - ノードをクリックすると選び、文脈パネルに出口（条件・行き先・スタブとAI下書きの札、エンディング）、入口、読み書きする変数、要約・ルート・状態・字数を出す。ダブルクリックか「本文を開く」で本文のその見出しへ移る。
+  - 動かした位置は `layout.json`（作品フォルダの直下。Gitに入れる）に保存する。形は `docs/spec/project-files.md` の10節。粒度ごとにノードのIDと整数の位置を持ち、キーは名前の順。書くのはコア（`Workspace::update_layout`。今のファイルにその粒度の位置を重ね、`write_source` を通す）。動かしたら400ミリ秒待ってまとめて書く。「自動整列」はその粒度の位置を捨てる。フロー図からの編集はしないので、ノードを消すキー・範囲選択・複数選択は使わない。
+  - 読み込みでは止まらない：無ければ空、壊れていれば（JSONでない、表でない、UTF-8でない）空にして画面に知らせ、形の合わない位置は読み飛ばして件数を知らせる。無いシーンを指す位置は残す。壊れた `layout.json`（JSONでない、表でない）は、ノードを動かしても上書きせず（Gitのマージの印などを消さないため）、「自動整列」を押したときだけ書き直す。読めない（入出力の誤り）ときは書かない。
+  - 外で `layout.json` が変わったら（`git pull` など）、ファイルの監視で知らせ（`Change::Layout`）、フローの画面が読み直す。自分で書いた変更の知らせは、ディスクの中身が最後に書いたものと同じなら無視する（読み直すと、動かしている途中のノードが戻るため）。読み直しても、まだ書いていない位置は残す。
+  - 自動の配置は、開始のノードから辺をたどった深さを横に、深さの中の順を縦に並べる（`rankOrder`。配置のライブラリは入れない。D039）。保存した位置の無いノードだけに使う。グラフを読み込んだときと粒度を変えたときに、ノードの大きさを測り終えてから全体が収まるように表示する（倍率は1まで）。
+- 理由：座標を本文と別のファイルにすると、本文の差分を汚さない（docs/design.md）。フェーズ1のフロー図は見るためのもの（D040）なので、編集（スタブの追加、辺を引く）はフェーズ2、AIの提案ノードはフェーズ3。
+- 影響：`crates/scn-core/src/layout.rs`（新規）、`workspace.rs`（`Change::Layout`）、`app/src-tauri`（`scene_graph`・`read_layout`・`write_layout`）、`app/src/graph/`（`model.ts`・`nodes.tsx`・`FlowPanel.tsx`・`SceneGraph.tsx`。`layout.ts` は `model.ts` の `rankOrder` に置き換えた）、`app/src/core/expr.ts`（式の見せ方を執筆表示と共通にした）、`docs/spec/project-files.md`（`layout.json` の形）。
+

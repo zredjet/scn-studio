@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
+use crate::layout::{LAYOUT_FILE, LayoutError, Point, update_layout};
 use crate::line_id::{AssignedLineId, LineIdGenerator, assign_line_ids};
 use crate::project::{Project, ProjectError, SourceFile, load_project, write_source};
 
@@ -29,6 +30,8 @@ pub struct Workspace {
     pending: BTreeMap<String, Option<String>>,
     /// 外で消されて閉じたファイル。アプリにまだ送っていない編集があれば、「自分の変更を残す」で開き直す。
     removed: BTreeSet<String>,
+    /// 最後に自分で書いた `layout.json` の中身。監視の知らせで、ディスクの中身がこれと同じなら無視する。
+    layout_written: Option<String>,
 }
 
 /// 外部の変更を取り込んだ結果。
@@ -47,6 +50,8 @@ pub enum Change {
     Conflict { file: String, deleted: bool },
     /// 本文のファイルが外で変わったが、読めない（UTF-8でない、書いている途中など）。取り込まずに知らせる。
     Unreadable { file: String },
+    /// フロー図の配置（`layout.json`）が変わった（`git pull` など）。アプリは読み直す（D048）。
+    Layout,
     /// 設定ファイル（`project.toml`、変数、素材カタログ、設定DB、企画書）が変わったので、設定を読み直した。
     Settings,
 }
@@ -123,6 +128,7 @@ impl Workspace {
             disk,
             pending: BTreeMap::new(),
             removed: BTreeSet::new(),
+            layout_written: None,
         })
     }
 
@@ -267,6 +273,15 @@ impl Workspace {
         }
         match parts.as_slice() {
             ["story", name] if name.ends_with(".scn") => self.story_change(&rel),
+            [LAYOUT_FILE] => {
+                let on_disk = fs::read(self.root.join(LAYOUT_FILE)).ok();
+                let mine = self.layout_written.as_deref().map(str::as_bytes);
+                if on_disk.is_some() && on_disk.as_deref() == mine {
+                    Change::None
+                } else {
+                    Change::Layout
+                }
+            }
             _ if SETTINGS_FILES.contains(&rel.as_str()) || parts.first() == Some(&"bible") => {
                 match self.reload_settings() {
                     Ok(()) => Change::Settings,
@@ -449,6 +464,19 @@ impl Workspace {
         )?;
         self.reload_settings()?;
         Ok(file)
+    }
+
+    /// フロー図の配置を保存する（[`update_layout`]）。書いた中身を覚え、その監視の知らせを無視する
+    /// （自分で書いた配置を読み直して、動かしている途中のノードを戻さないため。D048）。
+    pub fn update_layout(
+        &mut self,
+        level: &str,
+        positions: &BTreeMap<String, Point>,
+        replace: bool,
+    ) -> Result<(), LayoutError> {
+        let text = update_layout(&self.root, level, positions, replace)?;
+        self.layout_written = Some(text);
+        Ok(())
     }
 
     /// `story/` に章（空の `.scn`）を足す。`name` に `.scn` が無ければ補う。足したファイルのパスを返す。

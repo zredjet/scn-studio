@@ -8,12 +8,15 @@ import { ask, open, save } from "@tauri-apps/plugin-dialog";
 import type {
   AddedChapter,
   DevSettings,
+  GraphLevel,
   KeptFile,
+  LoadedLayout,
   OpenedProject,
   RecentProject,
   RegisteredCharacter,
   ReloadedFile,
   SavedFile,
+  SceneGraphData,
   SceneInfo,
   Summary,
   ViewMode,
@@ -100,6 +103,28 @@ export function viewModes(): Promise<Record<string, ViewMode>> {
 /** ファイルの表示を覚える（アプリの設定のフォルダに。作品フォルダには書かない。D046）。 */
 export function setViewMode(file: string, mode: ViewMode): Promise<void> {
   return invoke<void>("set_view_mode", { file, mode });
+}
+
+/** 構造グラフ（粒度ごと。D048）。 */
+export function sceneGraph(level: GraphLevel): Promise<SceneGraphData> {
+  return invoke<SceneGraphData>("scene_graph", { level });
+}
+
+/** フロー図の配置（`layout.json`）を読む。 */
+export function readLayout(): Promise<LoadedLayout> {
+  return invoke<LoadedLayout>("read_layout");
+}
+
+/**
+ * フロー図の配置を書く。`positions` をその粒度の位置に重ねる。`replace` なら、その粒度の位置を
+ * 捨ててから書く（自動整列）。
+ */
+export function writeLayout(
+  level: GraphLevel,
+  positions: Readonly<Record<string, readonly [number, number]>>,
+  replace: boolean,
+): Promise<void> {
+  return invoke<void>("write_layout", { level, positions, replace });
 }
 
 /** 最近開いた作品フォルダ（新しい順）。 */

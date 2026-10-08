@@ -31,6 +31,7 @@ import {
   WidgetType,
 } from "@codemirror/view";
 import type { SyntaxNode, Tree } from "@lezer/common";
+import { prettyExpr } from "../core/expr.ts";
 import { isComposing } from "./flags.ts";
 import { lineIdGuard, lineIdOf } from "./lineid.ts";
 
@@ -154,16 +155,6 @@ const STATUS_LABELS: Readonly<Record<string, string>> = {
   done: "完成",
   "ai-draft": "AI下書き",
 };
-
-/** 式を読みやすく見せる（見た目だけ。`>=` を `≥` など）。 */
-function prettyExpr(text: string): string {
-  return text
-    .replace(/>=/g, "≥")
-    .replace(/<=/g, "≤")
-    .replace(/!=/g, "≠")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 /** ブロック（選択肢、条件、生コード）。 */
 interface Block {

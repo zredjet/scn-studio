@@ -1,93 +1,399 @@
-// フローの画面：シーンをノード、ジャンプと呼び出しを辺にする（xyflow）。座標は自動配置で、保存しない（T1-9）。
+// フローの画面（構造グラフ。docs/ui/mockups/03-flow.html、T1-9、D048）。
+//
+// - 粒度（ルート・章・シーン）を切り替える。データはコアの構造グラフ（`scene_graph`）。フローの画面を
+//   開いているときだけ取りに行き、本文が変わったら少し待って取り直す。
+// - ノードを動かしたら、その位置を `layout.json` に保存する（コアが書く）。保存した位置の無いノードは
+//   自動で置く。「自動整列」はその粒度の保存した位置を捨てる。
+// - ノードを選ぶと文脈パネルに出口・入口・変数を出し、ダブルクリックか「本文を開く」で本文へ移る。
+// - フロー図からの編集（スタブの追加、辺を引く）はフェーズ2、AIの提案ノードはフェーズ3。
 
-import { Background, type Edge, type Node, ReactFlow } from "@xyflow/react";
-import { useMemo } from "react";
-import type { SceneSummary, Summary } from "../core/types.ts";
-import { layoutScenes } from "./layout.ts";
-
-const COLUMN = 220;
-const ROW = 84;
+import {
+  Background,
+  Controls,
+  type Edge,
+  MarkerType,
+  type Node,
+  ReactFlow,
+  useNodesInitialized,
+  useNodesState,
+  useReactFlow,
+} from "@xyflow/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { readLayout, sceneGraph, writeLayout } from "../core/api.ts";
+import type {
+  GraphLevel,
+  IrDiagnostic,
+  Layout,
+  LayoutPoint,
+  SceneGraphData,
+  SceneSummary,
+  Summary,
+} from "../core/types.ts";
+import { FlowPanel } from "./FlowPanel.tsx";
+import { buildFlow, LEVEL_LABELS, legendCounts, NO_ROUTE } from "./model.ts";
+import { nodeTypes } from "./nodes.tsx";
 
 interface Props {
-  readonly ir: Summary;
-  readonly currentFile: string | null;
-  readonly onSelect: (scene: SceneSummary) => void;
+  readonly summary: Summary;
+  readonly checks: readonly IrDiagnostic[];
+  readonly level: GraphLevel;
+  readonly onLevel: (level: GraphLevel) => void;
+  /** `layout.json` が外で変わった回数（読み直す）。 */
+  readonly layoutVersion: number;
+  /** 本文を開く。 */
+  readonly onOpen: (scene: SceneSummary) => void;
 }
 
-export function SceneGraph({ ir, currentFile, onSelect }: Props) {
-  const { nodes, edges } = useMemo(() => {
-    const placed = layoutScenes(ir);
-    const firstIndex = new Map<string, number>();
-    ir.scenes.forEach((scene, index) => {
-      if (!firstIndex.has(scene.id)) firstIndex.set(scene.id, index);
+/** 本文が変わってから、構造グラフを取り直すまでの時間（ミリ秒）。 */
+const REFRESH_DELAY_MS = 300;
+/** ノードを動かしてから、位置を保存するまでの時間（ミリ秒）。 */
+const SAVE_DELAY_MS = 400;
+
+const LEVELS: readonly GraphLevel[] = ["route", "chapter", "scene"];
+
+const EMPTY_LAYOUT: Layout = { scene: {}, chapter: {}, route: {} };
+
+/**
+ * グラフを読み込んだときと、粒度を変えたときに1回、全体が収まるように表示し直す。ノードの大きさを
+ * 測り終えてから行う（測る前だと、はみ出す）。
+ */
+function FitOnLoad({ level }: { readonly level: GraphLevel }) {
+  const initialized = useNodesInitialized();
+  const { fitView } = useReactFlow();
+  const fitted = useRef<GraphLevel | null>(null);
+  useEffect(() => {
+    if (!initialized || fitted.current === level) return;
+    fitted.current = level;
+    void fitView({ padding: 0.08, maxZoom: 1 });
+  }, [initialized, level, fitView]);
+  return null;
+}
+
+export function SceneGraph({
+  summary,
+  checks,
+  level,
+  onLevel,
+  layoutVersion,
+  onOpen,
+}: Props) {
+  const [graph, setGraph] = useState<SceneGraphData | null>(null);
+  const [layout, setLayout] = useState<Layout>(EMPTY_LAYOUT);
+  const [problem, setProblem] = useState<string | null>(null);
+  /** まだ保存していない、動かした位置（粒度ごと）。 */
+  const [moved, setMoved] = useState<
+    Record<GraphLevel, Record<string, LayoutPoint>>
+  >({
+    scene: {},
+    chapter: {},
+    route: {},
+  });
+  const [selected, setSelected] = useState<string | null>(null);
+  const [route, setRoute] = useState<string | null>(null);
+  const [showConditions, setShowConditions] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  /** まだ書いていない位置と、その粒度。 */
+  const pending = useRef<{
+    level: GraphLevel;
+    positions: Record<string, [number, number]>;
+  }>({ level, positions: {} });
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 構造グラフを取る（粒度が変わったとき、本文が変わったとき）。
+  useEffect(() => {
+    // 本文が変わったら（summary が新しくなったら）取り直す。
+    void summary;
+    const timer = setTimeout(() => {
+      sceneGraph(level)
+        .then((g) => {
+          setGraph(g);
+          setError(null);
+        })
+        .catch((e: unknown) => setError(String(e)));
+    }, REFRESH_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [level, summary]);
+
+  // 配置を読む（開いたとき、外で変わったとき）。まだ書いていない位置は残す（読み直しで戻さない）。
+  useEffect(() => {
+    void layoutVersion;
+    readLayout()
+      .then((loaded) => {
+        setLayout(loaded.layout);
+        setProblem(loaded.problem);
+        const waiting = pending.current;
+        const keep = (lv: GraphLevel, m: Record<string, LayoutPoint>) =>
+          lv !== waiting.level
+            ? {}
+            : Object.fromEntries(
+                Object.entries(m).filter(([key]) =>
+                  Object.hasOwn(waiting.positions, key),
+                ),
+              );
+        setMoved((m) => ({
+          scene: keep("scene", m.scene),
+          chapter: keep("chapter", m.chapter),
+          route: keep("route", m.route),
+        }));
+      })
+      .catch((e: unknown) => setError(String(e)));
+  }, [layoutVersion]);
+
+  // 粒度を変えたら、選択を外す（ルートの絞り込みは、シーンの粒度に戻ったときのために残す）。
+  useEffect(() => {
+    void level;
+    setSelected(null);
+  }, [level]);
+
+  const routes = useMemo(() => {
+    const list: string[] = [];
+    for (const s of summary.scenes) {
+      const r = s.meta.route ?? NO_ROUTE;
+      if (!list.includes(r)) list.push(r);
+    }
+    return list;
+  }, [summary.scenes]);
+
+  const flow = useMemo(() => {
+    if (graph === null || graph.level !== level) return null;
+    const saved = { ...layout[level], ...moved[level] };
+    return buildFlow(graph, summary, saved, {
+      selected,
+      route: level === "scene" ? route : null,
+      showConditions,
     });
-    const nodes: Node[] = placed.map(({ index, rank, order }) => {
-      const scene = ir.scenes[index];
-      const classes = ["scene-node"];
-      if (scene?.is_stub) classes.push("stub");
-      if (scene?.meta.status === "ai-draft") classes.push("ai-draft");
-      if (scene?.file === currentFile) classes.push("current");
-      return {
-        id: `scene-${index}`,
-        position: { x: rank * COLUMN, y: order * ROW },
-        data: { label: `${scene?.title ?? ""}\n#${scene?.id ?? ""}` },
-        className: classes.join(" "),
-      };
-    });
-    // 存在しないシーンへの辺（E501）は、仮のノードへつなぐ。
-    const missing = new Map<string, string>();
-    const edges: Edge[] = [];
-    ir.edges.forEach((edge, i) => {
-      const from = firstIndex.get(edge.from);
-      if (from === undefined) return;
-      let target: string;
-      const to = firstIndex.get(edge.to);
-      if (to === undefined) {
-        target = missing.get(edge.to) ?? `missing-${edge.to}`;
-        if (!missing.has(edge.to)) {
-          missing.set(edge.to, target);
-          nodes.push({
-            id: target,
-            position: {
-              x: ((placed[from]?.rank ?? 0) + 1) * COLUMN,
-              y: -ROW * missing.size,
-            },
-            data: { label: `${edge.to}（無い）` },
-            className: "scene-node missing",
-          });
-        }
-      } else {
-        target = `scene-${to}`;
+  }, [graph, level, layout, moved, summary, selected, route, showConditions]);
+
+  const built: Node[] = useMemo(
+    () =>
+      (flow?.nodes ?? []).map((n) => ({
+        id: n.id,
+        type: n.type,
+        position: { x: n.x, y: n.y },
+        data: { ...n.data, key: n.key },
+        draggable: n.key !== null,
+        selectable: n.type !== "band",
+        style:
+          n.type === "band" ? { width: n.width, height: n.height } : undefined,
+        zIndex: n.type === "band" ? -1 : undefined,
+      })),
+    [flow],
+  );
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>(built);
+  useEffect(() => setNodes(built), [built, setNodes]);
+
+  const edges: Edge[] = useMemo(
+    () =>
+      (flow?.edges ?? []).map((e) => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        type: "smoothstep",
+        label: e.label ?? undefined,
+        className: `flow-edge${e.out ? " out" : ""}${e.call ? " call" : ""}`,
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: e.out ? "#3343b8" : "#8a93a3",
+          width: 16,
+          height: 16,
+        },
+      })),
+    [flow],
+  );
+
+  /** まだ書いていない位置を、すぐに書く。 */
+  const flush = useCallback(() => {
+    if (saveTimer.current !== null) clearTimeout(saveTimer.current);
+    saveTimer.current = null;
+    const { level: target, positions } = pending.current;
+    pending.current = { level: target, positions: {} };
+    if (Object.keys(positions).length === 0) return;
+    writeLayout(target, positions, false)
+      .then(() => setError(null))
+      .catch((e: unknown) => setError(`配置を保存できません：${String(e)}`));
+  }, []);
+
+  /** 動かした位置を、少し待ってまとめて保存する。 */
+  const save = useCallback(
+    (moves: readonly { key: string; x: number; y: number }[]) => {
+      if (moves.length === 0) return;
+      // 別の粒度の書いていない位置は、先に書く（粒度を混ぜない）。
+      if (pending.current.level !== level) flush();
+      pending.current.level = level;
+      for (const { key, x, y } of moves) {
+        pending.current.positions[key] = [x, y];
       }
-      edges.push({
-        id: `edge-${i}`,
-        source: `scene-${from}`,
-        target,
-        label: edge.label ?? edge.cond_text ?? undefined,
-        animated: edge.kind === "call",
-        className: `edge-${edge.via}`,
+      setMoved((m) => {
+        const next = { ...m[level] };
+        for (const { key, x, y } of moves) next[key] = { x, y };
+        return { ...m, [level]: next };
       });
-    });
-    return { nodes, edges };
-  }, [ir, currentFile]);
+      if (saveTimer.current !== null) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(flush, SAVE_DELAY_MS);
+    },
+    [level, flush],
+  );
+
+  const arrange = useCallback(() => {
+    // この粒度の書いていない位置は捨てる（整列の後に戻ってこないように）。別の粒度のものは先に書く。
+    if (pending.current.level !== level) flush();
+    if (saveTimer.current !== null) clearTimeout(saveTimer.current);
+    saveTimer.current = null;
+    pending.current = { level, positions: {} };
+    setMoved((m) => ({ ...m, [level]: {} }));
+    setLayout((l) => ({ ...l, [level]: {} }));
+    writeLayout(level, {}, true)
+      .then(() => {
+        setError(null);
+        setProblem(null);
+      })
+      .catch((e: unknown) => setError(`配置を保存できません：${String(e)}`));
+  }, [level, flush]);
+
+  const counts = legendCounts(
+    summary,
+    checks,
+    level === "scene" ? graph : null,
+  );
+  const scenesById = useMemo(
+    () => new Map(summary.scenes.map((s) => [s.id, s])),
+    [summary.scenes],
+  );
 
   return (
-    <div className="scene-graph">
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        fitView
-        nodesConnectable={false}
-        nodesDraggable={false}
-        onNodeClick={(_, node) => {
-          const match = /^scene-(\d+)$/.exec(node.id);
-          const scene =
-            match?.[1] === undefined ? undefined : ir.scenes[Number(match[1])];
-          if (scene !== undefined) onSelect(scene);
-        }}
-      >
-        <Background />
-      </ReactFlow>
+    <div className="flow-screen-body">
+      <div className="flow-main">
+        <div className="flow-toolbar">
+          <fieldset className="mode-switch" aria-label="表示の粒度">
+            {LEVELS.map((l) => (
+              <button
+                key={l}
+                type="button"
+                aria-pressed={level === l}
+                onClick={() => onLevel(l)}
+              >
+                {LEVEL_LABELS[l]}
+              </button>
+            ))}
+          </fieldset>
+          {level === "scene" && (
+            <label className="flow-filter">
+              ルート
+              <select
+                value={route ?? ""}
+                onChange={(event) =>
+                  setRoute(
+                    event.target.value === "" ? null : event.target.value,
+                  )
+                }
+              >
+                <option value="">すべて</option>
+                {routes.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <label className="flow-filter">
+            <input
+              type="checkbox"
+              checked={showConditions}
+              onChange={(event) => setShowConditions(event.target.checked)}
+            />
+            条件を表示
+          </label>
+          <span className="flow-spacer" />
+          {problem !== null && (
+            <span className="flow-problem" role="status">
+              {problem}
+            </span>
+          )}
+          {error !== null && (
+            <span className="flow-problem" role="alert">
+              {error}
+            </span>
+          )}
+          <button type="button" className="small-button" onClick={arrange}>
+            自動整列
+          </button>
+        </div>
+        <div className="scene-graph">
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            onNodesChange={onNodesChange}
+            fitView
+            minZoom={0.2}
+            nodesConnectable={false}
+            // フロー図からの編集はフェーズ2：ノードを消すキー、範囲選択、複数選択は使わない。
+            deleteKeyCode={null}
+            selectionKeyCode={null}
+            multiSelectionKeyCode={null}
+            onNodeClick={(_, node) => {
+              // 帯（キーが無い）の中を押したら、何も選ばない。
+              setSelected((node.data as { key: string | null }).key);
+            }}
+            onNodeDoubleClick={(_, node) => {
+              if (level !== "scene") return;
+              const scene = scenesById.get(node.id);
+              if (scene !== undefined) onOpen(scene);
+            }}
+            onNodeDragStop={(_, _node, dragged) => {
+              const moves: { key: string; x: number; y: number }[] = [];
+              for (const n of dragged) {
+                const key = (n.data as { key: string | null }).key;
+                if (key !== null) {
+                  moves.push({ key, x: n.position.x, y: n.position.y });
+                }
+              }
+              save(moves);
+            }}
+            onPaneClick={() => setSelected(null)}
+          >
+            <Background />
+            <Controls showInteractive={false} />
+            <FitOnLoad level={level} />
+          </ReactFlow>
+        </div>
+        <footer className="flow-legend">
+          <strong>凡例</strong>
+          <span className="legend-item">
+            <span className="legend-line" />辺
+          </span>
+          <span className="legend-item">
+            <span className="legend-line out" />
+            選択中の出口
+          </span>
+          <span className="legend-item">
+            <span className="legend-line call" />
+            呼び出し
+          </span>
+          <span className="legend-item">
+            <span className="legend-box ai" />
+            AI下書き
+          </span>
+          <span className="legend-item">
+            <span className="legend-box stub" />
+            スタブ（本文なし）
+          </span>
+          <span className="legend-counts">
+            到達できない {counts.unreachable} · 行き止まり {counts.deadEnds} ·
+            スタブ {counts.stubs} · AI下書き {counts.aiDrafts}
+            {level === "scene" && ` · エンディング ${counts.endings}`}
+          </span>
+        </footer>
+      </div>
+      {graph !== null && graph.level === level && (
+        <FlowPanel
+          graph={graph}
+          scenes={summary.scenes}
+          selected={selected}
+          onOpen={onOpen}
+        />
+      )}
     </div>
   );
 }

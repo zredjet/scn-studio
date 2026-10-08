@@ -16,8 +16,10 @@ use std::time::Duration;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use scn_core::assist::{self, completion_data, scene_chars};
 use scn_core::check::{check, overflow};
+use scn_core::graph::{Level, build_graph};
 use scn_core::index::build_index;
 use scn_core::ir::{Edge, IrDiagnostic, IrMeta};
+use scn_core::layout::{Point, read_layout as read_layout_file};
 use scn_core::line_id::LineIdGenerator;
 use scn_core::scaffold::create_project as scaffold_project;
 use scn_core::workspace::{Change, SaveOutcome, Workspace};
@@ -379,6 +381,62 @@ fn register_character(
     }))
 }
 
+/// 構造グラフ（T1-9、D048）：粒度（`scene`・`chapter`・`route`）ごとのまとまりと辺（コアの `graph`）。
+/// フローの画面を開いているときにだけ呼ぶ（入力のたびの解析には入れない。D042）。
+#[tauri::command]
+fn scene_graph(level: String, state: State<'_, AppState>) -> Result<Response, String> {
+    let level = match level.as_str() {
+        "scene" => Level::Scene,
+        "chapter" => Level::Chapter,
+        "route" => Level::Route,
+        _ => return Err(format!("知らない粒度です：{level}")),
+    };
+    let mut guard = locked(&state.workspace)?;
+    let project = open_workspace(&mut guard)?.project();
+    let graph = thread::scope(|scope| {
+        thread::Builder::new()
+            .name("graph".into())
+            .stack_size(ANALYZE_STACK_SIZE)
+            .spawn_scoped(scope, || {
+                let ir = analyze(project);
+                let index = build_index(project, &ir);
+                to_json(&build_graph(&ir, &index, level), "構造グラフ")
+            })
+            .map_err(|e| format!("解析のスレッドを作れません：{e}"))?
+            .join()
+            .map_err(|_| "解析が途中で止まりました".to_owned())?
+    })?;
+    json_response(&graph)
+}
+
+/// フロー図の配置（`layout.json`）を読む。壊れていても止めず、読めた分と、読み飛ばしたことを返す。
+#[tauri::command]
+fn read_layout(state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let root = open_workspace(&mut guard)?.root().to_owned();
+    json_response(&to_json(&read_layout_file(&root), "配置")?)
+}
+
+/// フロー図の配置を書く。`positions` をその粒度の位置に重ねる。`replace` なら、その粒度の位置を
+/// すべて捨ててから書く（自動整列）。ほかの粒度と、無いシーンを指す位置は残す（コアの `update_layout`）。
+#[tauri::command]
+fn write_layout(
+    level: String,
+    positions: BTreeMap<String, (f64, f64)>,
+    replace: bool,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let positions = positions
+        .into_iter()
+        .map(|(id, (x, y))| (id, Point { x, y }))
+        .collect();
+    workspace
+        .update_layout(&level, &positions, replace)
+        .map_err(|e| e.to_string())
+}
+
 /// `story/` に章（空の `.scn`）を足す。
 #[tauri::command]
 fn add_chapter(name: String, state: State<'_, AppState>) -> Result<Response, String> {
@@ -642,6 +700,9 @@ pub fn run() {
             add_chapter,
             scene_info,
             register_character,
+            scene_graph,
+            read_layout,
+            write_layout,
             recent_projects,
             view_modes,
             set_view_mode,

@@ -34,6 +34,7 @@ pub mod graph;
 pub mod index;
 pub mod inline;
 pub mod ir;
+pub mod layout;
 mod line;
 pub mod line_id;
 pub mod project;
