@@ -133,9 +133,9 @@ AIのタスク（T3-5〜T3-10）は順に積み上げる。ほかは互いにほ
 
 **完了条件**
 
-- [ ] 規約と診断表が更新され、fixture がある
-- [ ] `samples/houkago` と `samples/amayadori` で、意図しない診断が出ない
-- [ ] `scripts/check-all` が成功する
+- [x] 規約と診断表が更新され、fixture がある（I204〜I206、`variants`。fixture `wording/`）
+- [x] `samples/houkago` と `samples/amayadori` で、意図しない診断が出ない（amayadori は0件、houkago は README の I204 だけ）
+- [x] `scripts/check-all` が成功する
 
 ---
 

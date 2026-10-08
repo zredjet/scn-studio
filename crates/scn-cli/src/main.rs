@@ -79,7 +79,7 @@ enum Command {
         /// プロジェクトのフォルダ（project.toml のあるところ）。省くと今のフォルダ
         #[arg(default_value = ".")]
         project: PathBuf,
-        /// 検証の段階。2 なら自動巡回（条件を実行して、選べない選択肢や着かないシーンを調べる）も行い、
+        /// 検証の段階。2 なら自動巡回（条件を実行して、選べない選択肢や着かないシーンを調べる）と表記の検査も行い、
         /// エンディングごとの到達条件を標準エラーに出す（`--json` では `playthrough` に）
         #[arg(long, default_value_t = 1, value_parser = clap::value_parser!(u8).range(1..=2))]
         stage: u8,
@@ -934,7 +934,7 @@ fn run_check(dir: &Path, stage: u8, json: bool) -> Result<u8, CliError> {
     let mut rest: Vec<IrDiagnostic> = ir.diagnostics.iter().skip(loaded).cloned().collect();
     rest.extend(check(&project, &ir, &index));
     // 検証の段階2（自動巡回。T3-2、D063）。
-    let report = (stage >= 2).then(|| scn_core::playthrough::playthrough(&project, &ir));
+    let report = (stage >= 2).then(|| scn_core::playthrough::stage2(&project, &ir));
     if let Some(report) = &report {
         rest.extend(report.diagnostics.iter().cloned());
     }

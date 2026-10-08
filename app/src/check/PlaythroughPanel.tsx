@@ -1,5 +1,5 @@
-// 検証の画面の自動巡回（検証の段階2。T3-2、D063）：ボタンで走らせ、カバレッジとエンディングごとの到達条件を
-// 出す。診断（W506〜W509、W704）は、検証の一覧に足して出す（App）。本文が変わったら結果を捨てる（位置がずれる
+// 検証の画面の自動巡回と表記の検査（検証の段階2。T3-2・T3-3、D063・D064）：ボタンで走らせ、カバレッジと
+// エンディングごとの到達条件を出す。診断（W506〜W509、W704、I204〜I206）は、検証の一覧に足して出す（App）。本文が変わったら結果を捨てる（位置がずれる
 // ため）。重いので、保存のたびには走らせない。
 
 import { keyed } from "../bible/fields.ts";
@@ -28,12 +28,12 @@ export function PlaythroughPanel({
   onRun,
 }: Props) {
   return (
-    <section className="playthrough" aria-label="自動巡回">
+    <section className="playthrough" aria-label="自動巡回と表記の検査">
       <div className="playthrough-head">
         <div>
-          <h2 className="panel-heading">自動巡回（検証の段階2）</h2>
+          <h2 className="panel-heading">自動巡回と表記の検査（検証の段階2）</h2>
           <p className="playthrough-note">
-            開始シーンから、選択肢の組み合わせを実際に実行して、選べない選択肢・真にならない条件・着かないシーン・仕込みを通らない伏線を調べます。保存していない本文も含めます。
+            開始シーンから、選択肢の組み合わせを実際に実行して、選べない選択肢・真にならない条件・着かないシーン・仕込みを通らない伏線を調べます。あわせて、一人称と用語の表記ゆれを調べます。保存していない本文も含めます。
           </p>
         </div>
         <button

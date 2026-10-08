@@ -811,7 +811,7 @@ fn playthrough(state: State<'_, AppState>) -> Result<Response, String> {
             .name("playthrough".into())
             .stack_size(ANALYZE_STACK_SIZE)
             .spawn_scoped(scope, || {
-                scn_core::playthrough::playthrough(&project, &analyze(&project))
+                scn_core::playthrough::stage2(&project, &analyze(&project))
             })
             .map_err(|e| format!("解析のスレッドを作れません：{e}"))?
             .join()

@@ -1,0 +1,9 @@
+---
+source: crates/scn-core/tests/wording.rs
+expression: "dump(&diagnostics, &dir)"
+---
+story/a.scn:4:2-4:3 I205 表記ゆれ：「燈」は「灯」と書きます（灯 の variants）
+story/a.scn:4:11-4:14 I205 表記ゆれ：「北風高」は「北風高校」と書きます（北風高校 の variants）
+story/a.scn:5:3-5:4 I205 表記ゆれ：「燈」は「灯」と書きます（灯 の variants）
+story/a.scn:6:11-6:12 I205 表記ゆれ：「燈」は「灯」と書きます（灯 の variants）
+story/a.scn:8:3-8:4 I205 表記ゆれ：「燈」は「灯」と書きます（灯 の variants）

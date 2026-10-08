@@ -26,7 +26,7 @@ use scn_core::ideas::{read_idea, stub_scene, summary_line};
 use scn_core::index::build_index;
 use scn_core::line_id::{LineIdGenerator, assign_line_ids};
 use scn_core::plaintext::plain_text;
-use scn_core::playthrough::playthrough;
+use scn_core::playthrough::stage2;
 use scn_core::project::{MessageWindow, Project, SourceFile};
 use scn_core::rename::{RenameTarget, plan_rename, symbol_at};
 use scn_core::renpy::{RenpyProfile, export_renpy};
@@ -92,6 +92,17 @@ fn check(source: &str) {
         lines: 3,
         chars_per_line: 24,
     });
+    // 表記の検査（I204〜I206）も通るように、キャラクターに一人称・避ける書き方・かなの呼び名を足す。
+    for entry in &mut windowed.bible.entries {
+        entry
+            .fields
+            .entry("first_person".to_owned())
+            .or_insert_with(|| serde_json::json!("わたし"));
+        entry
+            .fields
+            .entry("variants".to_owned())
+            .or_insert_with(|| serde_json::json!(["燈", "アカ", "ー"]));
+    }
     let ir = analyze(&windowed);
     let index = build_index(&windowed, &ir);
     serde_json::to_string(&index).expect("索引をJSONにできない");
@@ -100,8 +111,8 @@ fn check(source: &str) {
             support::assert_span_ok(source, diag.span, diag.code);
         }
     }
-    // 検証の段階2（自動巡回）。
-    let report = playthrough(&windowed, &ir);
+    // 検証の段階2（自動巡回と表記の検査）。
+    let report = stage2(&windowed, &ir);
     serde_json::to_string(&report).expect("自動巡回の結果をJSONにできない");
     for diag in &report.diagnostics {
         if diag.file == "story/a.scn" {

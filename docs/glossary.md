@@ -125,6 +125,9 @@
 | 自動巡回 | auto playthrough | 選択肢の組み合わせを実際に実行する検証（検証の段階2。`playthrough`、`scn check --stage 2`） |
 | カバレッジ | coverage | 自動巡回で着いたシーンと選べた選択肢の数（`playthrough::Coverage`） |
 | 到達条件 | ending reach | エンディングに着くか、道の例、着いたときの変数の値（`playthrough::EndingReach`） |
+| 表記ゆれ | wording variant | 同じ語の書き方の違い（一人称の `私` と `わたし`、避ける書き方 `variants`。I204・I205。`wording`） |
+| 避ける書き方 | variants | 設定DBのエントリの `variants`。本文にあれば表記ゆれとして知らせる |
+| 未登録の用語 | unregistered term | 設定DBの名前・呼び名と、かなの書き方だけが違う書き方（I206） |
 | 周回 | replay | 永続の変数の値を引き継いで、もう一度始めること。自動巡回は、エンディングで書いた永続の変数の値から周回する |
 
 ## 素材・プレビュー・出力

@@ -1,0 +1,5 @@
+---
+source: crates/scn-core/tests/wording.rs
+expression: "dump(&words, &dir)"
+---
+story/chapter01.scn:73:49-73:50 I204 表記ゆれ：灯 の一人称は「わたし」（設定DB）ですが、ここは「私」です

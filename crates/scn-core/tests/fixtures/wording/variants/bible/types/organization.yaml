@@ -1,0 +1,3 @@
+name: 組織
+fields:
+  - { key: variants, label: 避ける書き方, type: list<text> }

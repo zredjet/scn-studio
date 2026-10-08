@@ -1,0 +1,6 @@
+name: キャラクター
+builtin: character
+fields:
+  - { key: aliases, label: 呼び名, type: list<text> }
+  - { key: first_person, label: 一人称, type: text }
+  - { key: variants, label: 避ける書き方, type: list<text> }

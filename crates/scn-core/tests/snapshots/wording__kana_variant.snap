@@ -1,0 +1,7 @@
+---
+source: crates/scn-core/tests/wording.rs
+expression: "dump(&diagnostics, &dir)"
+---
+story/a.scn:4:4-4:7 I206 未登録の用語：「アカリ」は、設定DBの「あかり」（灯）と、かなの書き方だけが違います
+story/a.scn:5:2-5:5 I206 未登録の用語：「アカリ」は、設定DBの「あかり」（灯）と、かなの書き方だけが違います
+story/a.scn:5:9-5:11 I206 未登録の用語：「シノ」は、設定DBの「しの」（志乃）と、かなの書き方だけが違います

@@ -811,3 +811,16 @@ pub fn playthrough(project: &Project, ir: &Ir) -> Playthrough {
         diagnostics,
     }
 }
+
+/// 検証の段階2のすべて：自動巡回と、表記の検査（[`crate::wording`]。T3-3）。表記の診断は自動巡回の結果の
+/// 診断に足す（`scn check --stage 2` とアプリの検証の画面）。
+pub fn stage2(project: &Project, ir: &Ir) -> Playthrough {
+    let mut report = playthrough(project, ir);
+    report
+        .diagnostics
+        .extend(crate::wording::wording(project, ir));
+    report
+        .diagnostics
+        .sort_by(|a, b| (&a.file, a.span.start, a.code).cmp(&(&b.file, b.span.start, b.code)));
+    report
+}
