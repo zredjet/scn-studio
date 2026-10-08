@@ -271,6 +271,9 @@ pub enum ProjectError {
         "{path} は空のフォルダではありません。新しい作品フォルダは、無いフォルダか空のフォルダに作ります"
     )]
     NotEmpty { path: PathBuf },
+    /// 頼まれた変更をできない（名前が正しくない、本文の書き方の都合など）。何も書いていない。
+    #[error("{0}")]
+    Refused(String),
 }
 
 impl Project {

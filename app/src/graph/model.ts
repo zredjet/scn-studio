@@ -509,3 +509,19 @@ export const LEVEL_LABELS: Readonly<Record<GraphLevel, string>> = {
   chapter: "章",
   scene: "シーン",
 };
+
+/**
+ * スタブを足したときのノードの位置（T2-9）：選んだシーンの次の列の、少し下（同じ行のノードと重ねにくくする）。
+ * 選んでいなければ、いちばん右のノードの次の列。
+ */
+export function newStubPosition(
+  points: readonly { readonly x: number; readonly y: number }[],
+  from: { readonly x: number; readonly y: number } | null,
+): { x: number; y: number } {
+  const column = 192;
+  const drop = 96;
+  if (from !== null) return { x: from.x + column, y: from.y + drop };
+  if (points.length === 0) return { x: 0, y: 0 };
+  const right = points.reduce((a, b) => (b.x > a.x ? b : a));
+  return { x: right.x + column, y: right.y };
+}

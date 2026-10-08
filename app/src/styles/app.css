@@ -3185,3 +3185,21 @@ body {
 .editor-pane.font-gothic {
   --font-body: var(--font-ui);
 }
+
+/* ---- フロー図からの編集（T2-9、D060） ---- */
+
+.flow-edge-kinds {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 13px;
+}
+
+.flow-edge-kinds label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

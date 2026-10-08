@@ -16,6 +16,7 @@ import {
   entriesOf,
   legendCounts,
   NO_ROUTE,
+  newStubPosition,
   rankOrder,
   startSceneOf,
 } from "../src/graph/model.ts";
@@ -322,4 +323,22 @@ test("重なったシーンID（E108）は、先に現れたシーンの題名�
   // ルートで絞っても消えない。
   const filtered = buildFlow(graph, summary, {}, { ...OPTIONS, route: "共通" });
   assert.ok(filtered.nodes.some((n) => n.id === "a"));
+});
+
+test("スタブを足したときのノードの位置（T2-9）", () => {
+  assert.deepEqual(newStubPosition([], null), { x: 0, y: 0 });
+  assert.deepEqual(
+    newStubPosition(
+      [
+        { x: 0, y: 0 },
+        { x: 300, y: 80 },
+      ],
+      null,
+    ),
+    { x: 492, y: 80 },
+  );
+  assert.deepEqual(newStubPosition([{ x: 0, y: 0 }], { x: 10, y: 20 }), {
+    x: 202,
+    y: 116,
+  });
 });

@@ -14,6 +14,7 @@ use serde::Serialize;
 use crate::assets::{CATALOG_FILE, CatalogEditError, add_entry, assets_relative, set_file};
 use crate::bible::{FORESHADOW_TYPE, body_of, front_fields, set_body, set_field, yaml_scalar};
 use crate::concept::CONCEPT_FILE;
+use crate::flowedit::{FlowEdge, insert_edge};
 use crate::ideas::{
     ADOPTED, FORESHADOW_TYPE_TEXT, IDEAS_DIR, Promotion, is_idea_path, new_idea_file,
     new_idea_text, stub_scene, summary_line,
@@ -999,13 +1000,65 @@ impl Workspace {
         Ok(file)
     }
 
+    // ---- フロー図からの編集（T2-9、D060） ----
+
+    /// 章の末尾にスタブのシーン（見出しと要約）を足す。保存していない変更のある章、まだ取り込んでいない外部の
+    /// 変更のある章には足さない。要約はメタ情報の値として読み違えない1行だけ（`ideas::summary_line`）。
+    pub fn add_stub(
+        &mut self,
+        file: &str,
+        id: &str,
+        title: &str,
+        summary: Option<&str>,
+    ) -> Result<StoryWritten, ProjectError> {
+        let title = self.check_new_scene(file, id, title)?;
+        let summary = summary.and_then(summary_line);
+        let text = self.append_scene(file, id, &title, summary.as_deref())?;
+        Ok(StoryWritten {
+            file: file.to_owned(),
+            text,
+        })
+    }
+
+    /// フロー図で引いた辺を、本文に書き足す（ジャンプか選択肢。[`crate::flowedit`]）。書き足す章に保存していない
+    /// 変更か、まだ取り込んでいない外部の変更があれば断る。
+    pub fn add_edge(&mut self, edge: &FlowEdge) -> Result<StoryWritten, ProjectError> {
+        let insert = insert_edge(&self.project, edge).map_err(ProjectError::Refused)?;
+        let path = self.root.join(&insert.file);
+        if self.is_dirty(&insert.file) || self.pending.contains_key(&insert.file) {
+            return Err(error(
+                &path,
+                io::ErrorKind::InvalidInput,
+                "この章には保存していない変更があります。保存してから書き足してください",
+            ));
+        }
+        match read_disk(&path) {
+            Disk::Text(on_disk) if self.disk_text(&insert.file) == Some(on_disk.as_str()) => {}
+            _ => {
+                return Err(error(
+                    &path,
+                    io::ErrorKind::InvalidData,
+                    "章が外で変わっています。取り込んでから書き足してください",
+                ));
+            }
+        }
+        write_source(&self.root, &insert.file, &insert.text)?;
+        self.set_buffer(&insert.file, &insert.text);
+        self.disk
+            .insert(insert.file.clone(), Some(insert.text.clone()));
+        Ok(StoryWritten {
+            file: insert.file,
+            text: insert.text,
+        })
+    }
+
     // ---- 名前の変更と章の名前の変更・削除（T2-8、D059） ----
 
     /// 名前を変える（[`crate::rename`]）。置き換える本文のファイルは、保存していない変更ごと書く（変わるファイルを
     /// すべてそろえて書くため）。まだ取り込んでいない外部の変更のある章があれば、何も変えずに断る。
     pub fn rename(&mut self, target: &RenameTarget, new: &str) -> Result<Renamed, ProjectError> {
-        let plan = plan_rename(&self.project, &self.root, target, new)
-            .map_err(|m| error(&self.root, io::ErrorKind::InvalidInput, &m))?;
+        let plan =
+            plan_rename(&self.project, &self.root, target, new).map_err(ProjectError::Refused)?;
         // 書く前に、すべてを確かめる（途中で断って、一部だけ書かないため）。
         let read_only = |path: &Path| fs::metadata(path).is_ok_and(|m| m.permissions().readonly());
         for change in &plan.story {
@@ -1414,7 +1467,7 @@ impl Workspace {
         }
         if self.is_dirty(file) || self.pending.contains_key(file) {
             return Err(invalid(
-                "この章には保存していない変更があります。保存してから昇格してください",
+                "この章には保存していない変更があります。保存してから書き足してください",
             ));
         }
         if id.is_empty() || !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
@@ -1453,7 +1506,7 @@ impl Workspace {
                 return Err(error(
                     &path,
                     io::ErrorKind::InvalidData,
-                    "章が外で変わっています。取り込んでから昇格してください",
+                    "章が外で変わっています。取り込んでから書き足してください",
                 ));
             }
         }

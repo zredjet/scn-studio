@@ -1755,6 +1755,12 @@ export function App() {
                     onLevel={setFlowLevel}
                     layoutVersion={layoutVersion}
                     onOpen={selectScene}
+                    chapters={project.files}
+                    dirtyChapters={dirty}
+                    onStoryWritten={(result) => {
+                      onStoryWritten(result.file, result.text);
+                      showSummary(result.summary, result.checks);
+                    }}
                   />
                 </section>
               )}

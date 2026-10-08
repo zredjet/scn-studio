@@ -19,7 +19,13 @@ import {
   useReactFlow,
 } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { readLayout, sceneGraph, writeLayout } from "../core/api.ts";
+import {
+  addFlowEdge,
+  addStub,
+  readLayout,
+  sceneGraph,
+  writeLayout,
+} from "../core/api.ts";
 import type {
   GraphLevel,
   IrDiagnostic,
@@ -27,10 +33,18 @@ import type {
   LayoutPoint,
   SceneGraphData,
   SceneSummary,
+  StoryWrittenResult,
   Summary,
 } from "../core/types.ts";
+import { EdgeDialog, StubDialog } from "./FlowEditDialogs.tsx";
 import { FlowPanel } from "./FlowPanel.tsx";
-import { buildFlow, LEVEL_LABELS, legendCounts, NO_ROUTE } from "./model.ts";
+import {
+  buildFlow,
+  LEVEL_LABELS,
+  legendCounts,
+  NO_ROUTE,
+  newStubPosition,
+} from "./model.ts";
 import { nodeTypes } from "./nodes.tsx";
 
 interface Props {
@@ -42,6 +56,11 @@ interface Props {
   readonly layoutVersion: number;
   /** 本文を開く。 */
   readonly onOpen: (scene: SceneSummary) => void;
+  /** 本文の章（スタブを足す先）と、保存していない変更のある章（T2-9）。 */
+  readonly chapters: readonly string[];
+  readonly dirtyChapters: ReadonlySet<string>;
+  /** 本文に書き足した（App がエディタと表示をそろえる）。 */
+  readonly onStoryWritten: (result: StoryWrittenResult) => void;
 }
 
 /** 本文が変わってから、構造グラフを取り直すまでの時間（ミリ秒）。 */
@@ -76,7 +95,16 @@ export function SceneGraph({
   onLevel,
   layoutVersion,
   onOpen,
+  chapters,
+  dirtyChapters,
+  onStoryWritten,
 }: Props) {
+  /** スタブを足す欄を開いているか、書き足す辺（T2-9）。 */
+  const [stubOpen, setStubOpen] = useState(false);
+  const [edgeDraft, setEdgeDraft] = useState<{
+    readonly from: string;
+    readonly to: string;
+  } | null>(null);
   const [graph, setGraph] = useState<SceneGraphData | null>(null);
   const [layout, setLayout] = useState<Layout>(EMPTY_LAYOUT);
   const [problem, setProblem] = useState<string | null>(null);
@@ -315,6 +343,15 @@ export function SceneGraph({
               {error}
             </span>
           )}
+          {level === "scene" && (
+            <button
+              type="button"
+              className="small-button"
+              onClick={() => setStubOpen(true)}
+            >
+              ＋ スタブ
+            </button>
+          )}
           <button type="button" className="small-button" onClick={arrange}>
             自動整列
           </button>
@@ -327,8 +364,22 @@ export function SceneGraph({
             onNodesChange={onNodesChange}
             fitView
             minZoom={0.2}
-            nodesConnectable={false}
-            // フロー図からの編集はフェーズ2：ノードを消すキー、範囲選択、複数選択は使わない。
+            // シーンの粒度では、ノードの右の点から別のノードへ引くと、辺を書き足す（T2-9）。
+            nodesConnectable={level === "scene"}
+            // 無いシーンの仮のノードと、IDの無いシーン（`_anon_…`）にはつながない（IDで書けないため）。
+            isValidConnection={(c) =>
+              [c.source, c.target].every(
+                (id) =>
+                  id !== null &&
+                  !id.startsWith("missing:") &&
+                  !id.startsWith("_anon_"),
+              )
+            }
+            onConnect={(c) => {
+              if (c.source !== null && c.target !== null)
+                setEdgeDraft({ from: c.source, to: c.target });
+            }}
+            // ノードを消すキー、範囲選択、複数選択は使わない（本文を消さないため）。
             deleteKeyCode={null}
             selectionKeyCode={null}
             multiSelectionKeyCode={null}
@@ -386,6 +437,62 @@ export function SceneGraph({
           </span>
         </footer>
       </div>
+      {stubOpen && (
+        <StubDialog
+          chapters={chapters}
+          dirtyChapters={dirtyChapters}
+          defaultChapter={
+            selected === null ? null : (scenesById.get(selected)?.file ?? null)
+          }
+          sceneIds={summary.scenes.map((s) => s.id)}
+          onSubmit={async (file, id, title, text) => {
+            try {
+              const result = await addStub(
+                file,
+                id,
+                title,
+                text === "" ? null : text,
+              );
+              const from =
+                selected === null
+                  ? null
+                  : (nodes.find((n) => n.id === selected)?.position ?? null);
+              const at = newStubPosition(
+                nodes.filter((n) => n.type === "scene").map((n) => n.position),
+                from,
+              );
+              save([{ key: id, x: at.x, y: at.y }]);
+              onStoryWritten(result);
+              setSelected(id);
+              return null;
+            } catch (e) {
+              return String(e);
+            }
+          }}
+          onClose={() => setStubOpen(false)}
+        />
+      )}
+      {edgeDraft !== null && (
+        <EdgeDialog
+          from={edgeDraft.from}
+          to={edgeDraft.to}
+          onSubmit={async (kind, label) => {
+            const { from, to } = edgeDraft;
+            try {
+              const result = await addFlowEdge(
+                kind === "jump"
+                  ? { kind, from, to }
+                  : { kind, from, to, label },
+              );
+              onStoryWritten(result);
+              return null;
+            } catch (e) {
+              return String(e);
+            }
+          }}
+          onClose={() => setEdgeDraft(null)}
+        />
+      )}
       {graph !== null && graph.level === level && (
         <FlowPanel
           graph={graph}

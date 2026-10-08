@@ -17,6 +17,7 @@ import type {
   ConceptData,
   DevSettings,
   EntryUsage,
+  FlowEdge,
   GraphLevel,
   Idea,
   IrDiagnostic,
@@ -45,6 +46,7 @@ import type {
   SceneGraphData,
   SceneInfo,
   ScriptSheet,
+  StoryWrittenResult,
   Summary,
   VariablesData,
   VariablesWritten,
@@ -136,6 +138,21 @@ export function createEntry(
   name: string,
 ): Promise<BibleWritten> {
   return invoke<BibleWritten>("create_entry", { typeId, id, name });
+}
+
+/** 章の末尾にスタブのシーンを足す（フロー図。T2-9）。 */
+export function addStub(
+  file: string,
+  id: string,
+  title: string,
+  summary: string | null,
+): Promise<StoryWrittenResult> {
+  return invoke<StoryWrittenResult>("add_stub", { file, id, title, summary });
+}
+
+/** フロー図で引いた辺を、本文に書き足す（ジャンプか選択肢）。 */
+export function addFlowEdge(edge: FlowEdge): Promise<StoryWrittenResult> {
+  return invoke<StoryWrittenResult>("add_flow_edge", { edge });
 }
 
 /** カーソルのところ（バイト位置）の、名前を変えられるもの（F2。T2-8）。 */

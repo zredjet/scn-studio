@@ -18,6 +18,7 @@ use proptest::sample::Index;
 use scn_core::assets::{AssetState, asset_list, orders};
 use scn_core::check::check as check_project;
 use scn_core::concept::concept_data;
+use scn_core::flowedit::{FlowEdge, insert_edge};
 use scn_core::ideas::{read_idea, stub_scene, summary_line};
 use scn_core::index::build_index;
 use scn_core::line_id::{LineIdGenerator, assign_line_ids};
@@ -145,6 +146,28 @@ fn check(source: &str) {
         },
         "flag.y",
     );
+
+    // フロー図からの書き足し（どのシーンからでも、落ちずに断るか書き足す。書き足しは前の中身を残す）。
+    let ids: Vec<String> = ir.scenes.iter().map(|s| s.id.clone()).collect();
+    for from in ids.iter().take(4) {
+        for to in ids.iter().take(2) {
+            for edge in [
+                FlowEdge::Jump {
+                    from: from.clone(),
+                    to: to.clone(),
+                },
+                FlowEdge::Choice {
+                    from: from.clone(),
+                    to: to.clone(),
+                    label: "行く".to_owned(),
+                },
+            ] {
+                if let Ok(insert) = insert_edge(&windowed, &edge) {
+                    assert!(insert.text.len() > source.len());
+                }
+            }
+        }
+    }
 
     // Ren'Py への書き出し（定義のファイルは必ず書く）。
     let export = export_renpy(&windowed, &fixture_root(), &ir, &RenpyProfile::default());

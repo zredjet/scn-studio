@@ -808,3 +808,21 @@ export interface RouteStat {
   readonly minutes: number;
   readonly stop: string;
 }
+
+/** フロー図で引いた辺（コアの `flowedit::FlowEdge`、T2-9）。 */
+export type FlowEdge =
+  | { readonly kind: "jump"; readonly from: string; readonly to: string }
+  | {
+      readonly kind: "choice";
+      readonly from: string;
+      readonly to: string;
+      readonly label: string;
+    };
+
+/** 本文に書き足した結果（章と、表示に要る分）。 */
+export interface StoryWrittenResult {
+  readonly file: string;
+  readonly text: string;
+  readonly summary: Summary;
+  readonly checks: readonly IrDiagnostic[];
+}

@@ -19,6 +19,7 @@ use scn_core::assist::{self, completion_data, scene_chars};
 use scn_core::bible;
 use scn_core::check::{check, overflow};
 use scn_core::concept::concept_data;
+use scn_core::flowedit::FlowEdge;
 use scn_core::graph::{Level, build_graph};
 use scn_core::ideas::{self, Promotion};
 use scn_core::index::build_index;
@@ -1064,6 +1065,50 @@ fn add_chapter(name: String, state: State<'_, AppState>) -> Result<Response, Str
     json_response(&json!({ "file": file, "summary": summary, "checks": checks }))
 }
 
+// ---- フロー図からの編集（T2-9、D060） ----
+
+/// 書き足した章と、表示に要る分と、検証の段階1の診断。
+fn story_written(
+    workspace: &Workspace,
+    written: &scn_core::workspace::StoryWritten,
+) -> Result<Response, String> {
+    let Analyzed {
+        summary, checks, ..
+    } = analyze_summary(workspace.project(), true, None)?;
+    json_response(&json!({
+        "file": written.file,
+        "text": written.text,
+        "summary": summary,
+        "checks": checks,
+    }))
+}
+
+/// 章の末尾にスタブのシーンを足す（フロー図の「＋ スタブ」）。
+#[tauri::command]
+fn add_stub(
+    file: String,
+    id: String,
+    title: String,
+    summary: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let written = workspace
+        .add_stub(&file, &id, &title, summary.as_deref())
+        .map_err(|e| e.to_string())?;
+    story_written(workspace, &written)
+}
+
+/// フロー図で引いた辺を、本文に書き足す（ジャンプか選択肢）。
+#[tauri::command]
+fn add_flow_edge(edge: FlowEdge, state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let written = workspace.add_edge(&edge).map_err(|e| e.to_string())?;
+    story_written(workspace, &written)
+}
+
 // ---- 名前の変更と章（T2-8、D059） ----
 
 /// カーソルのところ（バイト位置）の、名前を変えられるもの（F2）。無ければ null。
@@ -1417,6 +1462,8 @@ pub fn run() {
             apply_merge,
             merge_source,
             add_chapter,
+            add_stub,
+            add_flow_edge,
             symbol_at,
             rename_preview,
             apply_rename,
