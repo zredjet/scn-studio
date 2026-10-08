@@ -1,0 +1,13 @@
+format_version = 0
+
+[ai.local]
+provider = "openai-compatible"
+base_url = "http://localhost:11434/v1"
+model = 8
+
+[ai.cloud]
+provider = "anthropic"
+model = "claude"
+
+[ai]
+broken = "x"

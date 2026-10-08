@@ -14,6 +14,7 @@
 //! - 簡易ADVプレビューのデータ（IR全体と、画面・変数・素材）：[`preview::preview_data`]
 //! - 台本の出力（`scn export script`）：[`script::script`]
 //! - 行IDの付与（`scn fmt`）：[`line_id::assign_line_ids`]
+//! - AIの接続（接続先の解決、呼び出し、キーの保管）：[`ai`]
 
 // ライブラリのコードでは、パニックしうる書き方を禁じる（`.claude/rules/rust.md`）。
 // テスト（`cfg(test)`）では使ってよい。
@@ -28,6 +29,7 @@
     )
 )]
 
+pub mod ai;
 pub mod assets;
 pub mod assist;
 pub mod ast;

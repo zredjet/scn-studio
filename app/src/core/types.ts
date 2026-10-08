@@ -477,6 +477,56 @@ export interface AiLines {
   readonly problems: number;
 }
 
+/** AIの接続先の様子（コアの `ai::ConnectionStatus`、T3-5）。キーそのものは持たない。 */
+export interface AiConnection {
+  readonly name: string;
+  /** `openai-compatible` か `anthropic`（書かれていなければ `openai-compatible`）。 */
+  readonly provider: string;
+  /** 使う URL とモデル（この端末の上書きを重ねたもの）。 */
+  readonly base_url: string | null;
+  readonly model: string | null;
+  /** `project.toml` に書かれた値。 */
+  readonly project_base_url: string | null;
+  readonly project_model: string | null;
+  /** この端末の上書き。 */
+  readonly override_base_url: string | null;
+  readonly override_model: string | null;
+  /** クラウド（ローカルと LAN 以外）の行き先。 */
+  readonly cloud: boolean;
+  /** 行き先（キーとクラウドの許可の単位）。解決できなければ null。 */
+  readonly endpoint: string | null;
+  /** この端末から送ってよい（ローカルは常に真）。 */
+  readonly allowed: boolean;
+  readonly has_key: boolean;
+  readonly needs_key: boolean;
+  /** 解決できない理由。 */
+  readonly problem: string | null;
+  readonly is_default: boolean;
+  /** 「接続を試す」で送る中身。 */
+  readonly test_preview: string | null;
+}
+
+export interface AiConnections {
+  readonly connections: readonly AiConnection[];
+  /** 端末の設定を読めなかった。 */
+  readonly settings_problem: string | null;
+  /** キーチェーンを読めなかった。 */
+  readonly key_problem: string | null;
+}
+
+/** 「接続を試す」の結果。 */
+export interface AiTestResult {
+  readonly text: string;
+  readonly usage: {
+    readonly input_tokens: number;
+    readonly output_tokens: number;
+    /** 応答に数が無く、文字数から見積もった。 */
+    readonly estimated: boolean;
+  };
+  readonly stop_reason: string | null;
+  readonly elapsed_ms: number;
+}
+
 /** 自動巡回の結果（検証の段階2。コアの `playthrough::Playthrough`、T3-2）。 */
 export interface Playthrough {
   readonly complete: boolean;

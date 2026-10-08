@@ -183,3 +183,9 @@
 | 展開メモ | beats | シーンの流れのメモ。スタブと本文の間の段 |
 | 書き込む範囲 | scope | `empty_only` など。AIが書いてよい範囲 |
 | AI実行 | ai run | 1回のタスク実行 |
+| 接続先 | connection | `project.toml` の `[ai.<名前>]`（`project::AiConnectionDecl`）と、端末の上書きを重ねて呼び出せる形にしたもの（`ai::Connection`） |
+| 接続の種類 | provider | `openai-compatible`（OpenAI 互換）/ `anthropic`（Messages API） |
+| 行き先 | endpoint | `<provider> <base_url>`。キーとクラウドへの送信の許可の単位 |
+| 端末の設定 | machine settings | アプリの設定のフォルダの `ai.toml`（`ai::MachineSettings`）。URL とモデルの上書き、クラウドの許可 |
+| 既定の接続先 | default connection | `[ai.local]`。無ければ最初のローカルの接続先 |
+| キー | api key | OS のキーチェーンに置く（`ai::KeyStore`） |

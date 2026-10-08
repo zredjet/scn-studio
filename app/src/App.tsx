@@ -13,12 +13,15 @@ import { PlaythroughPanel } from "./check/PlaythroughPanel.tsx";
 import { ConceptScreen } from "./concept/ConceptScreen.tsx";
 import {
   addChapter,
+  aiConnections,
   aiLines,
   applyMerge,
   applyRename,
   assetUrl,
+  cancelAiTest,
   confirm,
   createProject,
+  deleteAiKey,
   deleteChapter,
   devReport,
   devSettings,
@@ -52,13 +55,18 @@ import {
   sceneInfo,
   scriptSheet,
   sendTextChanged,
+  setAiCloudAllowed,
+  setAiKey,
+  setAiOverride,
   setViewMode,
   symbolAt,
+  testAiConnection,
   viewModes,
 } from "./core/api.ts";
 import type { PreviewData } from "./core/ir.ts";
 import { PositionMap } from "./core/position.ts";
 import type {
+  AiConnections,
   AssistData,
   Bracket,
   EditorSettings,
@@ -93,6 +101,13 @@ import type { Definition } from "./editor/navigate.ts";
 import { hasMixedLineBreaks, lineBreakOf } from "./editor/state.ts";
 import { ExportScreen } from "./export/ExportScreen.tsx";
 import { SceneGraph } from "./graph/SceneGraph.tsx";
+import {
+  indicator,
+  type TestRecord,
+  type TestState,
+  testTarget,
+} from "./preferences/connection.ts";
+import { PreferencesScreen } from "./preferences/PreferencesScreen.tsx";
 import { locateLine } from "./preview/locate.ts";
 import { type PreviewLine, PreviewScreen } from "./preview/PreviewScreen.tsx";
 import { SceneList } from "./scenes/SceneList.tsx";
@@ -296,6 +311,20 @@ export function App() {
   const [aiLineMap, setAiLineMap] = useState<ReadonlyMap<string, string>>(
     () => new Map(),
   );
+  /** AIの接続先（環境設定とタイトルバー。T3-5）。 */
+  const [aiState, setAiState] = useState<AiConnections | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  /** 接続先の設定（上書き・許可・キー）を変えた回数。変えたら取り直す。 */
+  const [aiVersion, setAiVersion] = useState(0);
+  /** 接続先ごとの「接続を試す」の様子と、試したときの接続先（設定が変わったら前の結果は見せない）。 */
+  const [aiTests, setAiTests] = useState<ReadonlyMap<string, TestRecord>>(
+    () => new Map(),
+  );
+  /** 試す回の番号。取り消した回・設定を変える前の回・前の作品の回の結果は捨てる。画面を読み込み直しても
+   * コアが覚えている番号と重ならないよう、時刻から始める。 */
+  const aiRun = useRef(Date.now());
+  /** 走っている回の番号（取り消しに使う）。 */
+  const aiRunning = useRef<number | null>(null);
   /** プロジェクトを開いた回数。開くたびにエディタを作り直す。 */
   const [openSeq, setOpenSeq] = useState(0);
 
@@ -1550,6 +1579,103 @@ export function App() {
     };
   }, [projectRoot, savedVersion]);
 
+  // AIの接続先を取り直す（作品を開いたとき、設定ファイルが変わったとき、環境設定で変えたとき。T3-5）。
+  useEffect(() => {
+    void settingsVersion;
+    void aiVersion;
+    if (projectRoot === null) {
+      setAiState(null);
+      return;
+    }
+    let live = true;
+    aiConnections()
+      .then((result) => {
+        if (!live) return;
+        setAiState(result);
+        setAiError(null);
+      })
+      .catch((e: unknown) => {
+        if (!live) return;
+        setAiState(null);
+        setAiError(String(e));
+      });
+    return () => {
+      live = false;
+    };
+  }, [projectRoot, settingsVersion, aiVersion]);
+  /**
+   * 走っている回を取り消し、後で届く結果を捨てる（走っていた接続先は「取り消した」にする）。
+   * `forget` は結果を忘れる接続先。`all` なら全部を忘れる。
+   */
+  const dropAiTests = useCallback((forget: readonly string[], all = false) => {
+    const running = aiRunning.current;
+    aiRunning.current = null;
+    aiRun.current += 1;
+    if (running !== null) void cancelAiTest(running);
+    setAiTests((m) => {
+      if (all) return new Map();
+      const next = new Map<string, TestRecord>();
+      for (const [name, record] of m) {
+        if (forget.includes(name)) continue;
+        next.set(
+          name,
+          record.state.kind === "running"
+            ? { ...record, state: { kind: "cancelled" } }
+            : record,
+        );
+      }
+      return next;
+    });
+  }, []);
+  // 作品を開き直したら、試した結果を忘れる（走っている回も取り消す）。
+  useEffect(() => {
+    void projectRoot;
+    dropAiTests([], true);
+  }, [projectRoot, dropAiTests]);
+  const runAiTest = useCallback(
+    (name: string) => {
+      const connection = aiState?.connections.find((c) => c.name === name);
+      if (connection === undefined) return;
+      const target = testTarget(connection);
+      // 前の設定で走っている回が残っていれば（project.toml が途中で変わったなど）、取り消す。
+      if (aiRunning.current !== null) void cancelAiTest(aiRunning.current);
+      aiRun.current += 1;
+      const run = aiRun.current;
+      aiRunning.current = run;
+      const settle = (state: TestState) => {
+        if (aiRun.current !== run) return;
+        aiRunning.current = null;
+        setAiTests((m) => new Map(m).set(name, { target, state }));
+      };
+      setAiTests((m) =>
+        new Map(m).set(name, { target, state: { kind: "running" } }),
+      );
+      testAiConnection(name, run)
+        .then((result) => settle({ kind: "ok", result }))
+        .catch((e: unknown) => settle({ kind: "failed", message: String(e) }));
+    },
+    [aiState],
+  );
+  // 取り消し：画面ではすぐに取り消したことにし、後で届く結果は捨てる。
+  const cancelTest = useCallback(() => dropAiTests([]), [dropAiTests]);
+  /** 接続先の設定を変えた：取り直し、その接続先の試した結果を忘れる（走っている回も取り消す）。 */
+  const aiChanged = useCallback(
+    (names: readonly string[]) => {
+      setAiVersion((n) => n + 1);
+      dropAiTests(names);
+    },
+    [dropAiTests],
+  );
+  /** 同じ行き先の接続先すべて（キーと許可は行き先ごとなので、どれの結果も古くなる）。 */
+  const namesOfEndpoint = (endpoint: string): string[] =>
+    (aiState?.connections ?? [])
+      .filter((c) => c.endpoint === endpoint)
+      .map((c) => c.name);
+  const aiIndicator =
+    project === null || aiState === null
+      ? null
+      : indicator(aiState.connections, aiTests);
+
   // savedVersion が変わるたびに、エディタへ渡すディスクの中身を読み直す。
   void savedVersion;
   const mode: ViewMode =
@@ -1698,6 +1824,8 @@ export function App() {
         onPlayHere={
           project === null || currentFile === null ? null : playAtCursor
         }
+        ai={aiIndicator}
+        onAi={() => selectScreen("preferences")}
       />
       {error !== null && (
         <p className="error" role="alert">
@@ -1945,6 +2073,40 @@ export function App() {
                     writeText={exportText}
                     loadProvenance={aiLines}
                     writeProvenance={exportProvenance}
+                  />
+                </section>
+              )}
+              {screen === "preferences" && (
+                <section
+                  className="screen preferences-screen"
+                  aria-label="環境設定"
+                >
+                  <PreferencesScreen
+                    data={aiState}
+                    error={aiError}
+                    tests={aiTests}
+                    onOverride={(name, baseUrl, model) =>
+                      setAiOverride(name, baseUrl, model).finally(() =>
+                        aiChanged([name]),
+                      )
+                    }
+                    onAllow={(endpoint, allowed) =>
+                      setAiCloudAllowed(endpoint, allowed).finally(() =>
+                        aiChanged(namesOfEndpoint(endpoint)),
+                      )
+                    }
+                    onSaveKey={(endpoint, key) =>
+                      setAiKey(endpoint, key).finally(() =>
+                        aiChanged(namesOfEndpoint(endpoint)),
+                      )
+                    }
+                    onDeleteKey={(endpoint) =>
+                      deleteAiKey(endpoint).finally(() =>
+                        aiChanged(namesOfEndpoint(endpoint)),
+                      )
+                    }
+                    onTest={runAiTest}
+                    onCancel={cancelTest}
                   />
                 </section>
               )}

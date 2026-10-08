@@ -8,12 +8,14 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError};
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
 use std::time::Duration;
 
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use scn_core::ai::{self, KeyStore, MachineSettings, SystemKeys};
 use scn_core::assets;
 use scn_core::assist::{self, completion_data, scene_chars};
 use scn_core::bible;
@@ -164,6 +166,32 @@ struct AppState {
     generator: Mutex<Option<LineIdGenerator>>,
     /// プレビューのウィンドウを開いたときに渡す、再生の頼み（ウィンドウが読み込みを終えてから受け取る）。
     preview_request: Mutex<Option<Value>>,
+    /// 「接続を試す」の取り消し（T3-5）。
+    ai_cancel: Mutex<AiCancel>,
+}
+
+/// 「接続を試す」の取り消し。画面が付けた回の番号で照らす（取り消しと次の回の頼みが前後して届いても、
+/// 違う回を止めない。始まる前に届いた取り消しも覚えておく）。
+#[derive(Default)]
+struct AiCancel {
+    /// 走っている回と、その取り消しの旗。
+    running: Vec<(u64, Arc<AtomicBool>)>,
+    /// 始まる前に取り消された回（新しいものを数件だけ）。
+    early: Vec<u64>,
+}
+
+/// 走っている回の登録。外れるときに消す。
+struct AiRunGuard<'a> {
+    state: &'a AppState,
+    run: u64,
+}
+
+impl Drop for AiRunGuard<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut cancel) = self.state.ai_cancel.lock() {
+            cancel.running.retain(|(r, _)| *r != self.run);
+        }
+    }
 }
 
 fn locked<T>(mutex: &Mutex<T>) -> Result<MutexGuard<'_, T>, String> {
@@ -1460,6 +1488,191 @@ fn take_changes(app: &AppHandle, paths: &BTreeSet<PathBuf>) -> Result<(), String
         .map_err(|e| format!("画面に知らせられません：{e}"))
 }
 
+// ---- AIの接続（T3-5、D066） ----
+
+/// 端末の AI の設定（アプリの設定のフォルダの `ai.toml`）。作品フォルダには書かない。
+fn ai_settings_file(app: &AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_config_dir()
+        .map(|d| d.join(ai::MACHINE_SETTINGS_FILE))
+        .map_err(|e| format!("アプリの設定のフォルダが分かりません：{e}"))
+}
+
+fn ai_decls(state: &AppState) -> Result<Vec<scn_core::project::AiConnectionDecl>, String> {
+    let mut guard = locked(&state.workspace)?;
+    Ok(open_workspace(&mut guard)?.project().settings.ai.clone())
+}
+
+/// 今の作品フォルダの接続先の行き先か（キーと許可は、その行き先にだけ書く）。
+fn known_endpoint(state: &AppState, app: &AppHandle, endpoint: &str) -> Result<(), String> {
+    let (machine, _) = ai::read_machine_settings(&ai_settings_file(app)?);
+    let known = ai_decls(state)?
+        .iter()
+        .filter_map(|d| ai::resolve(d, &machine).ok())
+        .any(|c| c.endpoint == endpoint);
+    if known {
+        Ok(())
+    } else {
+        Err(format!("接続先の行き先「{endpoint}」が見つかりません"))
+    }
+}
+
+fn update_ai_settings(
+    app: &AppHandle,
+    change: impl FnOnce(&mut MachineSettings),
+) -> Result<(), String> {
+    let path = ai_settings_file(app)?;
+    let (mut machine, problem) = ai::read_machine_settings(&path);
+    if let Some(problem) = problem {
+        // 読めないファイルを、既定の値で黙って上書きしない。
+        return Err(format!(
+            "{problem}。書き換えません（直すか消してから、もう一度行います）"
+        ));
+    }
+    change(&mut machine);
+    ai::write_machine_settings(&path, &machine)
+        .map_err(|e| format!("AIの端末の設定を書けません：{e}"))
+}
+
+/// 環境設定の接続先の一覧。キーそのものは渡さない（あるかどうかだけ）。キーチェーンを読む（確認の窓が
+/// 出ることがある）ので、メインスレッドでは動かさない。
+#[tauri::command(async)]
+fn ai_connections(state: State<'_, AppState>, app: AppHandle) -> Result<Response, String> {
+    let decls = ai_decls(&state)?;
+    let (machine, settings_problem) = ai::read_machine_settings(&ai_settings_file(&app)?);
+    let (connections, key_problem) = ai::connection_statuses(&decls, &machine, &SystemKeys);
+    json_response(&json!({
+        "connections": to_json(&connections, "接続先")?,
+        "settings_problem": settings_problem,
+        "key_problem": key_problem,
+    }))
+}
+
+/// この端末での、接続先の URL とモデルの上書き。空なら上書きをやめる。
+#[tauri::command]
+fn set_ai_override(
+    name: String,
+    base_url: Option<String>,
+    model: Option<String>,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    if !ai_decls(&state)?.iter().any(|d| d.name == name) {
+        return Err(format!("接続先「{name}」が project.toml にありません"));
+    }
+    update_ai_settings(&app, |m| {
+        m.set_override(&name, base_url.as_deref(), model.as_deref());
+    })
+}
+
+/// この端末から、クラウドの行き先へ送ることを許可する・やめる。
+#[tauri::command]
+fn set_ai_cloud_allowed(
+    endpoint: String,
+    allowed: bool,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    known_endpoint(&state, &app, &endpoint)?;
+    update_ai_settings(&app, |m| m.set_cloud_allowed(&endpoint, allowed))
+}
+
+/// キーを OS のキーチェーンに保存する（フロントからコアへ渡すだけで、返さない）。
+#[tauri::command(async)]
+fn set_ai_key(
+    endpoint: String,
+    key: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    known_endpoint(&state, &app, &endpoint)?;
+    SystemKeys.set(&endpoint, &key).map_err(|e| e.to_string())
+}
+
+#[tauri::command(async)]
+fn delete_ai_key(
+    endpoint: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    known_endpoint(&state, &app, &endpoint)?;
+    SystemKeys.delete(&endpoint).map_err(|e| e.to_string())
+}
+
+/// 接続を試す：決まった短い問い（`ai::test_request`）を送り、応答とトークン数と時間を返す。
+/// 呼び出しは別のスレッドで行い、その間もほかのコマンドが動く。`run` は画面が付けた回の番号（取り消しに使う）。
+#[tauri::command]
+async fn ai_test(
+    name: String,
+    run: u64,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Response, String> {
+    // 取り消しの旗は最初に登録する（作品やキーチェーンを読む間に届いた取り消しも効くように）。
+    let cancel = Arc::new(AtomicBool::new(false));
+    {
+        let mut slot = locked(&state.ai_cancel)?;
+        if let Some(at) = slot.early.iter().position(|r| *r == run) {
+            slot.early.remove(at);
+            cancel.store(true, Ordering::Relaxed);
+        }
+        slot.running.push((run, Arc::clone(&cancel)));
+    }
+    let _registered = AiRunGuard { state: &state, run };
+    let decls = ai_decls(&state)?;
+    let (machine, _) = ai::read_machine_settings(&ai_settings_file(&app)?);
+    let decl = decls
+        .iter()
+        .find(|d| d.name == name)
+        .ok_or_else(|| format!("接続先「{name}」が project.toml にありません"))?;
+    let conn = ai::resolve(decl, &machine)?;
+    let key = match SystemKeys.get(&conn.endpoint) {
+        Ok(key) => key,
+        // キーの要らないローカルの OpenAI 互換は、キーチェーンを読めなくても試す。
+        Err(_) if !conn.cloud && conn.provider == ai::Provider::OpenaiCompatible => None,
+        Err(e) => return Err(e.to_string()),
+    };
+    let flag = Arc::clone(&cancel);
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        let started = std::time::Instant::now();
+        let done = ai::complete(
+            &conn,
+            key.as_deref(),
+            &ai::test_request(),
+            &ai::CallOptions::default(),
+            &flag,
+            &mut |_| {},
+        );
+        (done, started.elapsed())
+    })
+    .await
+    .map_err(|e| format!("接続を試せません：{e}"))?;
+    let (done, elapsed) = result;
+    let done = done.map_err(|e| e.to_string())?;
+    json_response(&json!({
+        "text": done.text,
+        "usage": to_json(&done.usage, "トークン数")?,
+        "stop_reason": done.stop_reason,
+        "elapsed_ms": u64::try_from(elapsed.as_millis()).unwrap_or(u64::MAX),
+    }))
+}
+
+/// 「接続を試す」の回を取り消す（次のデータの合間で止まる）。まだ始まっていなければ、始まったときに止める。
+#[tauri::command]
+fn cancel_ai_test(run: u64, state: State<'_, AppState>) -> Result<(), String> {
+    /// 覚えておく、始まる前の取り消しの数。
+    const EARLY_LIMIT: usize = 16;
+    let mut slot = locked(&state.ai_cancel)?;
+    if let Some((_, cancel)) = slot.running.iter().find(|(r, _)| *r == run) {
+        cancel.store(true, Ordering::Relaxed);
+    } else {
+        slot.early.push(run);
+        let over = slot.early.len().saturating_sub(EARLY_LIMIT);
+        slot.early.drain(..over);
+    }
+    Ok(())
+}
+
 // ---- 最近開いた作品フォルダ ----
 
 /// 最近開いた作品フォルダ（アプリの設定のフォルダの `recent.json`）。作品フォルダの中には書かない。
@@ -1686,6 +1899,13 @@ pub fn run() {
             playthrough,
             ai_lines,
             export_provenance,
+            ai_connections,
+            set_ai_override,
+            set_ai_cloud_allowed,
+            set_ai_key,
+            delete_ai_key,
+            ai_test,
+            cancel_ai_test,
             export_script,
             export_renpy,
             asset_list,

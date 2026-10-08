@@ -1,0 +1,362 @@
+//! 接続先の解決（T3-5、D066）：作品フォルダの `project.toml` の `[ai.<名前>]` に、端末の設定（URL・モデルの
+//! 上書きと、クラウドへの送信の許可）を重ね、呼び出せる形にする。
+
+use std::collections::{BTreeMap, BTreeSet};
+use std::net::{Ipv4Addr, Ipv6Addr};
+use std::path::Path;
+
+use reqwest::Url;
+use serde::{Deserialize, Serialize};
+
+use super::client::{request_preview, test_request};
+use super::keys::KeyStore;
+use crate::project::AiConnectionDecl;
+
+/// OpenAI 互換の API（チャットの補完）。Ollama、LM Studio、llama.cpp のサーバー、互換のクラウドをまとめて扱う。
+pub const OPENAI_COMPATIBLE: &str = "openai-compatible";
+/// Anthropic の Messages API（ネイティブのアダプタ）。
+pub const ANTHROPIC: &str = "anthropic";
+/// `provider = "anthropic"` で `base_url` を書かないときの URL。
+pub const ANTHROPIC_BASE_URL: &str = "https://api.anthropic.com/v1";
+/// 既定の接続先の名前（設計検討書「接続」：既定はローカル）。
+pub const DEFAULT_CONNECTION: &str = "local";
+/// 端末の設定のファイル名（アプリの設定のフォルダに置く。作品フォルダには置かない）。
+pub const MACHINE_SETTINGS_FILE: &str = "ai.toml";
+
+/// 接続の種類。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Provider {
+    OpenaiCompatible,
+    Anthropic,
+}
+
+impl Provider {
+    pub fn parse(name: &str) -> Option<Self> {
+        match name {
+            OPENAI_COMPATIBLE => Some(Self::OpenaiCompatible),
+            ANTHROPIC => Some(Self::Anthropic),
+            _ => None,
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::OpenaiCompatible => OPENAI_COMPATIBLE,
+            Self::Anthropic => ANTHROPIC,
+        }
+    }
+}
+
+/// 端末の設定（アプリの設定のフォルダの `ai.toml`）。チームで共有しないものだけを持つ。キーは持たない。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MachineSettings {
+    /// 接続先の名前ごとの上書き（すべての作品フォルダに効く）。
+    #[serde(default)]
+    pub connections: BTreeMap<String, Override>,
+    #[serde(default)]
+    pub cloud: CloudSettings,
+}
+
+/// この端末での、接続先の URL とモデルの上書き。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Override {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+}
+
+impl Override {
+    fn is_empty(&self) -> bool {
+        self.base_url.is_none() && self.model.is_none()
+    }
+}
+
+/// クラウドへの送信の許可。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CloudSettings {
+    /// 送ってよい行き先（[`Connection::endpoint`]）。
+    #[serde(default)]
+    pub allowed: BTreeSet<String>,
+}
+
+impl MachineSettings {
+    /// 接続先の上書きを置き換える。空の値は上書きしない（両方空なら上書きをやめる）。
+    pub fn set_override(&mut self, name: &str, base_url: Option<&str>, model: Option<&str>) {
+        let value = |v: Option<&str>| {
+            v.map(str::trim)
+                .filter(|v| !v.is_empty())
+                .map(str::to_owned)
+        };
+        let item = Override {
+            base_url: value(base_url),
+            model: value(model),
+        };
+        if item.is_empty() {
+            self.connections.remove(name);
+        } else {
+            self.connections.insert(name.to_owned(), item);
+        }
+    }
+
+    /// クラウドへの送信を許可する・やめる。
+    pub fn set_cloud_allowed(&mut self, endpoint: &str, allowed: bool) {
+        if allowed {
+            self.cloud.allowed.insert(endpoint.to_owned());
+        } else {
+            self.cloud.allowed.remove(endpoint);
+        }
+    }
+}
+
+/// 端末の設定を読む。無ければ既定。読めなければ既定と、知らせる文。
+pub fn read_machine_settings(path: &Path) -> (MachineSettings, Option<String>) {
+    let text = match std::fs::read_to_string(path) {
+        Ok(text) => text,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return (MachineSettings::default(), None);
+        }
+        Err(e) => {
+            return (
+                MachineSettings::default(),
+                Some(format!(
+                    "AIの端末の設定（{}）を読めません：{e}",
+                    path.display()
+                )),
+            );
+        }
+    };
+    match toml::from_str(text.trim_start_matches('\u{feff}')) {
+        Ok(settings) => (settings, None),
+        Err(e) => (
+            MachineSettings::default(),
+            Some(format!(
+                "AIの端末の設定（{}）を読めません：{}",
+                path.display(),
+                e.message()
+            )),
+        ),
+    }
+}
+
+/// 端末の設定を書く（アプリが書くファイルなので、丸ごと書き直す）。
+pub fn write_machine_settings(path: &Path, settings: &MachineSettings) -> Result<(), String> {
+    let body = toml::to_string(settings).map_err(|e| e.to_string())?;
+    let text = format!(
+        "# scn-studio の AI の接続の、この端末だけの設定（アプリが書きます。キーは OS のキーチェーンに置きます）\n{body}"
+    );
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| format!("{}：{e}", dir.display()))?;
+    }
+    std::fs::write(path, text).map_err(|e| format!("{}：{e}", path.display()))
+}
+
+/// 呼び出せる形にした接続先。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Connection {
+    pub name: String,
+    pub provider: Provider,
+    /// API の URL（末尾の `/` を除く）。
+    pub base_url: String,
+    pub model: String,
+    /// クラウド（ローカルとLAN以外）の行き先。
+    pub cloud: bool,
+    /// 行き先（`<provider> <base_url>`）。キーチェーンのアカウントと、クラウドへの送信の許可の単位。
+    pub endpoint: String,
+    /// この端末で、クラウドへの送信を許可した（ローカルの行き先では常に真）。
+    pub allowed: bool,
+}
+
+/// 接続先の宣言に端末の上書きを重ね、呼び出せる形にする。足りない・誤った値は、知らせる文で返す。
+pub fn resolve(decl: &AiConnectionDecl, machine: &MachineSettings) -> Result<Connection, String> {
+    let name = &decl.name;
+    let over = machine.connections.get(name);
+    let provider_name = decl.provider.as_deref().unwrap_or(OPENAI_COMPATIBLE);
+    let provider = Provider::parse(provider_name).ok_or_else(|| {
+        format!(
+            "[ai.{name}] の provider「{provider_name}」には対応していません（{OPENAI_COMPATIBLE} か {ANTHROPIC}）"
+        )
+    })?;
+    let base_url = over
+        .and_then(|o| o.base_url.clone())
+        .or_else(|| decl.base_url.clone())
+        .or_else(|| (provider == Provider::Anthropic).then(|| ANTHROPIC_BASE_URL.to_owned()))
+        .ok_or_else(|| format!("[ai.{name}] に base_url がありません"))?;
+    let written = base_url.trim();
+    let url = Url::parse(written)
+        .map_err(|e| format!("[ai.{name}] の base_url「{written}」を URL として読めません：{e}"))?;
+    if !matches!(url.scheme(), "http" | "https") {
+        return Err(format!(
+            "[ai.{name}] の base_url は http か https の URL で書きます"
+        ));
+    }
+    // 読んだ URL の書き方にそろえる（`HTTP:/host` のような書き方でも、行き先と http の判断を誤らないため）。
+    let base_url = url.as_str().trim_end_matches('/').to_owned();
+    let model = over
+        .and_then(|o| o.model.clone())
+        .or_else(|| decl.model.clone())
+        .map(|m| m.trim().to_owned())
+        .filter(|m| !m.is_empty())
+        .ok_or_else(|| format!("[ai.{name}] に model がありません"))?;
+    let cloud = provider == Provider::Anthropic || !url.host().is_some_and(|h| is_local_host(&h));
+    let endpoint = format!("{} {base_url}", provider.name());
+    let allowed = !cloud || machine.cloud.allowed.contains(&endpoint);
+    Ok(Connection {
+        name: name.clone(),
+        provider,
+        base_url,
+        model,
+        cloud,
+        endpoint,
+        allowed,
+    })
+}
+
+/// 端末の外へ出ない行き先か（この端末と、LAN の中）。localhost、`*.localhost`、`*.local`、ループバック、
+/// プライベートとリンクローカルのアドレス。
+pub fn is_local_host(host: &url::Host<&str>) -> bool {
+    match host {
+        url::Host::Domain(name) => {
+            let name = name.trim_end_matches('.').to_ascii_lowercase();
+            name == "localhost" || name.ends_with(".localhost") || name.ends_with(".local")
+        }
+        url::Host::Ipv4(ip) => is_local_v4(*ip),
+        url::Host::Ipv6(ip) => is_local_v6(*ip),
+    }
+}
+
+fn is_local_v4(ip: Ipv4Addr) -> bool {
+    ip.is_loopback() || ip.is_private() || ip.is_link_local() || ip.is_unspecified()
+}
+
+fn is_local_v6(ip: Ipv6Addr) -> bool {
+    if let Some(v4) = ip.to_ipv4_mapped() {
+        return is_local_v4(v4);
+    }
+    let first = ip.segments().first().copied().unwrap_or(0);
+    ip.is_loopback()
+        || ip.is_unspecified()
+        // 一意のローカル（fc00::/7）とリンクローカル（fe80::/10）
+        || (first & 0xfe00) == 0xfc00
+        || (first & 0xffc0) == 0xfe80
+}
+
+/// 既定の接続先：`[ai.local]` があればそれ、無ければ最初のローカルの接続先、無ければ最初の接続先。
+pub fn default_connection<'a>(
+    decls: &'a [AiConnectionDecl],
+    machine: &MachineSettings,
+) -> Option<&'a str> {
+    if let Some(local) = decls.iter().find(|d| d.name == DEFAULT_CONNECTION) {
+        return Some(&local.name);
+    }
+    decls
+        .iter()
+        .find(|d| resolve(d, machine).is_ok_and(|c| !c.cloud))
+        .or_else(|| decls.first())
+        .map(|d| d.name.as_str())
+}
+
+/// 環境設定の画面に出す接続先の様子。キーそのものは持たない（フロントに渡さない）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ConnectionStatus {
+    pub name: String,
+    /// 使う接続の種類（書かれていなければ `openai-compatible`）。
+    pub provider: String,
+    /// 使う URL とモデル（上書きを重ねたもの）。解決できなければ書かれた値。
+    pub base_url: Option<String>,
+    pub model: Option<String>,
+    /// `project.toml` に書かれた値。
+    pub project_base_url: Option<String>,
+    pub project_model: Option<String>,
+    /// この端末の上書き。
+    pub override_base_url: Option<String>,
+    pub override_model: Option<String>,
+    pub cloud: bool,
+    /// 行き先（解決できたときだけ）。
+    pub endpoint: Option<String>,
+    pub allowed: bool,
+    /// キーチェーンにキーがある。
+    pub has_key: bool,
+    /// キーが要る（Messages API。OpenAI 互換は、キーがあれば送る）。
+    pub needs_key: bool,
+    /// 解決できない理由。
+    pub problem: Option<String>,
+    pub is_default: bool,
+    /// 「接続を試す」で送る中身（解決できたときだけ）。
+    pub test_preview: Option<String>,
+}
+
+/// 接続先の様子の一覧と、キーチェーンを読めなかったときの知らせ。
+pub fn connection_statuses(
+    decls: &[AiConnectionDecl],
+    machine: &MachineSettings,
+    keys: &dyn KeyStore,
+) -> (Vec<ConnectionStatus>, Option<String>) {
+    let default = default_connection(decls, machine);
+    let mut key_problem = None;
+    let statuses = decls
+        .iter()
+        .map(|decl| {
+            let over = machine.connections.get(&decl.name);
+            let resolved = resolve(decl, machine);
+            let (base_url, model, cloud, endpoint, allowed, provider) = match &resolved {
+                Ok(c) => (
+                    Some(c.base_url.clone()),
+                    Some(c.model.clone()),
+                    c.cloud,
+                    Some(c.endpoint.clone()),
+                    c.allowed,
+                    c.provider.name().to_owned(),
+                ),
+                Err(_) => (
+                    over.and_then(|o| o.base_url.clone())
+                        .or_else(|| decl.base_url.clone()),
+                    over.and_then(|o| o.model.clone())
+                        .or_else(|| decl.model.clone()),
+                    false,
+                    None,
+                    false,
+                    decl.provider
+                        .clone()
+                        .unwrap_or_else(|| OPENAI_COMPATIBLE.to_owned()),
+                ),
+            };
+            let has_key = match &endpoint {
+                Some(endpoint) => match keys.get(endpoint) {
+                    Ok(key) => key.is_some(),
+                    Err(e) => {
+                        key_problem.get_or_insert_with(|| e.to_string());
+                        false
+                    }
+                },
+                None => false,
+            };
+            let needs_key = resolved
+                .as_ref()
+                .is_ok_and(|c| c.provider == Provider::Anthropic);
+            ConnectionStatus {
+                name: decl.name.clone(),
+                provider,
+                base_url,
+                model,
+                project_base_url: decl.base_url.clone(),
+                project_model: decl.model.clone(),
+                override_base_url: over.and_then(|o| o.base_url.clone()),
+                override_model: over.and_then(|o| o.model.clone()),
+                cloud,
+                endpoint,
+                allowed,
+                has_key,
+                needs_key,
+                test_preview: resolved
+                    .as_ref()
+                    .ok()
+                    .map(|c| request_preview(c, &test_request())),
+                problem: resolved.err(),
+                is_default: default == Some(decl.name.as_str()),
+            }
+        })
+        .collect();
+    (statuses, key_problem)
+}

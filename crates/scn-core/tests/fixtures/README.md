@@ -151,6 +151,7 @@
 | `toml_broken/` | `project.toml` の構文の誤り。既定の設定（括弧は「」）で読む | E801 |
 | `toml_version/` | 対応していない `format_version`。v0として読む | E803 |
 | `toml_items/` | `format_version`・`start_scene`・`[dialogue.brackets]` の形の誤り。括弧が1組も読めなければ既定の「」 | E802 |
+| `toml_ai/` | `[ai.*]` の型の誤り（`model` が文字列でない、接続先が表でない）。その接続先だけを読み飛ばす（T3-5、D066） | E802 |
 | `toml_brackets/` | 表示スタイルが英字でない組と、括弧が重なる組を読み飛ばし、読めた組を使う | E802 |
 | `toml_dialogue_scalar/` | `dialogue` が表でない。既定の「」を使う | E802 |
 | `toml_editor/` | `[editor]` の値が真偽でない。入力補助を切として扱う（D047） | E802 |

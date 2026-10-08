@@ -1,7 +1,17 @@
-// タイトルバー：作品名、再生（プレビュー。T1-11）とここから再生（T2-4）、作品フォルダを開く・新しく作る、
-// 最近開いたもの。
+// タイトルバー：作品名、AIの接続先（T3-5）、再生（プレビュー。T1-11）とここから再生（T2-4）、
+// 作品フォルダを開く・新しく作る、最近開いたもの。
 
 import type { RecentProject } from "../core/types.ts";
+import type { AiIndicator } from "../preferences/connection.ts";
+
+/** 接続の印の形（色だけで区別しない）。 */
+const AI_MARK: Readonly<Record<AiIndicator["state"], string>> = {
+  ok: "●",
+  failed: "×",
+  running: "…",
+  unknown: "○",
+  unusable: "！",
+};
 
 interface Props {
   readonly title: string | null;
@@ -13,6 +23,9 @@ interface Props {
   readonly onPlay: (() => void) | null;
   /** ここから再生（エディタのカーソルの行から）。カーソルが無ければ null。 */
   readonly onPlayHere: (() => void) | null;
+  /** 既定の AI の接続先（作品フォルダを開いていなければ null）。押すと環境設定を開く。 */
+  readonly ai: AiIndicator | null;
+  readonly onAi: () => void;
 }
 
 export function TitleBar({
@@ -23,12 +36,28 @@ export function TitleBar({
   onOpenRecent,
   onPlay,
   onPlayHere,
+  ai,
+  onAi,
 }: Props) {
   return (
     <header className="titlebar">
       <span className="app-name">scn-studio</span>
       {title !== null && <span className="project-title">{title}</span>}
       <span className="titlebar-spacer" />
+      {ai !== null && (
+        <button
+          type="button"
+          className={`ai-indicator ${ai.state}`}
+          title={ai.detail}
+          aria-label={`${ai.text}：${ai.detail}。環境設定を開く`}
+          onClick={onAi}
+        >
+          <span className="ai-mark" aria-hidden="true">
+            {AI_MARK[ai.state]}
+          </span>
+          {ai.text}
+        </button>
+      )}
       {onPlay !== null && (
         <button
           type="button"

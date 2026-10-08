@@ -56,10 +56,25 @@ pub struct Settings {
     /// 本文の読み方に関わる設定を、書かれたとおりに読めなかった：`project.toml` そのものが読めない（E801）、
     /// `format_version` の誤り（E802、E803）、`[dialogue]` と `[dialogue.brackets]` の誤り（E802）。
     /// 台詞の括弧が既定に戻って行の読み方が変わるので、行IDを付けない（D042、D045）。
-    /// `title`・`start_scene`・`[message_window]`・`[screen]`・`[editor]` の誤りは含めない。
+    /// `title`・`start_scene`・`[message_window]`・`[screen]`・`[editor]`・`[ai.*]` の誤りは含めない。
     pub reading_errors: bool,
     /// エディタの入力補助（`[editor]`。T1-8、D047）。
     pub editor: EditorSettings,
+    /// AIの接続先（`[ai.<名前>]`。T3-5）。名前の順。型の合わない接続先（E802）は含めない。
+    pub ai: Vec<AiConnectionDecl>,
+}
+
+/// AIの接続先の宣言（`project.toml` の `[ai.<名前>]`。T3-5、D066）。値は書かれたとおりに持ち、
+/// 知らない `provider` や足りない値は、使うときに知らせる（[`crate::ai::resolve`]）。
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct AiConnectionDecl {
+    /// 接続先の名前（`[ai.local]` なら `local`）。AIタスクの `model` が指す。
+    pub name: String,
+    /// 接続の種類（`openai-compatible` か `anthropic`）。
+    pub provider: Option<String>,
+    /// API の URL（`/v1` まで）。
+    pub base_url: Option<String>,
+    pub model: Option<String>,
 }
 
 /// エディタの入力補助の設定（`project.toml` の `[editor]`）。キーが無ければ切（D047）。
@@ -83,6 +98,7 @@ impl Default for Settings {
             screen: None,
             reading_errors: false,
             editor: EditorSettings::default(),
+            ai: Vec::new(),
         }
     }
 }
@@ -820,6 +836,7 @@ impl Loader<'_> {
                 "editor は [editor] の表で書きます。入力補助を切として扱います",
             ),
         }
+        settings.ai = self.ai_connections(&text, table.get("ai"));
         // ここから下（`[dialogue]`）の誤りは、本文の読み方に関わる。
         let diags_before_dialogue = self.diags.len();
         let brackets = match table.get("dialogue") {
@@ -852,6 +869,68 @@ impl Loader<'_> {
         }
         settings.reading_errors |= self.diags.len() > diags_before_dialogue;
         settings
+    }
+
+    /// `[ai.<名前>]` を読む（T3-5、D066）。表でない接続先と、`provider`・`base_url`・`model` が文字列でない
+    /// 接続先は、E802 を出して読み飛ばす。ほかのキーは読まない。
+    fn ai_connections(&mut self, text: &str, value: Option<&toml::Value>) -> Vec<AiConnectionDecl> {
+        let file = "project.toml";
+        let table = match value {
+            None => return Vec::new(),
+            Some(toml::Value::Table(table)) => table,
+            Some(_) => {
+                self.diag(
+                    file,
+                    Code::E802,
+                    key_span(text, 0, "ai"),
+                    "ai は [ai.<名前>] の表で書きます。AIの接続先を読みません",
+                );
+                return Vec::new();
+            }
+        };
+        let mut out = Vec::new();
+        for (name, value) in table {
+            let header = text.find(&format!("[ai.{name}]")).unwrap_or(0);
+            let toml::Value::Table(conn) = value else {
+                self.diag(
+                    file,
+                    Code::E802,
+                    key_span(text, 0, name),
+                    format!("[ai.{name}] は表で書きます。この接続先を読み飛ばします"),
+                );
+                continue;
+            };
+            let mut decl = AiConnectionDecl {
+                name: name.clone(),
+                ..AiConnectionDecl::default()
+            };
+            let mut ok = true;
+            for (key, slot) in [
+                ("provider", &mut decl.provider),
+                ("base_url", &mut decl.base_url),
+                ("model", &mut decl.model),
+            ] {
+                match conn.get(key) {
+                    None => {}
+                    Some(toml::Value::String(value)) => *slot = Some(value.clone()),
+                    Some(_) => {
+                        self.diag(
+                            file,
+                            Code::E802,
+                            key_span(text, header, key),
+                            format!(
+                                "[ai.{name}] の {key} は文字列で書きます。この接続先を読み飛ばします"
+                            ),
+                        );
+                        ok = false;
+                    }
+                }
+            }
+            if ok {
+                out.push(decl);
+            }
+        }
+        out
     }
 
     /// `[dialogue.brackets]` を読む（仕様書6節）。キーは互いに違う開き括弧と閉じ括弧の2文字、

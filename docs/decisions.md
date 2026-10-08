@@ -741,3 +741,16 @@
   - アプリ：エディタで、今の出自が `ai` の行に緑青の実線、`ai-edited` の行に緑青の点線を付ける（色だけで分けない。行IDで引く。見た目だけ）。`ai/provenance.jsonl` が外で変わったら印を取り直す（ワークスペースの変更の知らせ `provenance`）。出力の画面に「AIの出自」（数と、`export/provenance.csv` への書き出し）。CLI の `scn provenance`。
 - 理由：AI が書いた行と人が直した行を、後から一覧・出力できるようにする（設計検討書「出力の扱いと出自の記録」。賞や公募の申告）。記録を書き足すだけにするのは、Git の差分を小さくし、外部の道具が書いた行を壊さないため。
 - 影響：`crates/scn-core/src/provenance.rs`（新規）、`workspace.rs`（保存で ai-edited）、`scn-cli`（`fmt --provenance`、`provenance`）、`app/src-tauri`（`ai_lines`・`export_provenance`、保存の結果）、`app/src/editor/provenance.ts`（新規）・`Editor.tsx`、`App.tsx`、`export/ExportScreen.tsx`、CSS、`docs/spec/project-files.md` の9節、`crates/scn-core/templates/CLAUDE.md` と両サンプルの `CLAUDE.template.md`。
+
+## D066 AIの接続とキーの保管（2026-10-08）
+
+- 決定：
+  - コアに `ai` を作る：接続先の解決（`project.toml` の `[ai.<名前>]` に、端末の設定を重ねる）、呼び出し（OpenAI 互換のチャットの補完を基本のアダプタにし、ネイティブのアダプタとして Anthropic の Messages API）、キーの保管（`keyring`。OS のキーチェーン）。HTTP は `reqwest` の同期の呼び出し（`blocking`）で、TLS は OS のもの（`native-tls`。Windows と macOS で別の道具が要らない）。アプリは別のスレッドで呼ぶ。
+  - 置き場所：チームで共有するもの（種類、URL、モデル）は作品フォルダの `project.toml` の `[ai.<名前>]`。端末ごとのもの（URL とモデルの上書き、クラウドへの送信の許可）はアプリの設定のフォルダの `ai.toml`。キーは OS のキーチェーン（行き先 `<provider> <base_url>` ごと）。
+  - `[ai.*]` の型の誤りは E802（その接続先を読み飛ばす）。知らない `provider` や足りない値は、使うときに知らせる。
+  - ストリーミング（SSE）で頼み、返さないサーバーはまとめて読む。タイムアウトはつなぐまで10秒、次のデータまで180秒（全体は区切らない）。取り消しはデータの合間。トークン数は `usage`、無ければ文字数から見積もる（`estimated`）。
+  - クラウド（`anthropic` と、ローカル・LAN 以外の OpenAI 互換）へは、端末で許可した行き先にだけ送る。`http://` のクラウドへはキーを送らない（URL は読んだ書き方にそろえてから見分ける）。別の URL へ移るよう返されてもついて行かない（許可していない行き先へキーと本文を送らないため）。知らせる文からキーを取り除く。読めない端末の設定は書き換えない。
+  - 既定の接続先は `[ai.local]`（無ければ最初のローカル、無ければ最初の接続先）。
+  - アプリ：左端のバーに「環境設定」（接続先ごとに、使う URL とモデル、上書き、キーの保存と削除、クラウドの許可、「接続を試す」（決まった短い問い。クラウドは送る中身を見せて確かめてから送る。取り消せる））。タイトルバーに既定の接続先と、試した結果の印（形でも分ける）。
+- 理由：設計検討書「接続」（共通のインターフェース、キーはキーチェーン、既定はローカル、クラウドは明示的に有効化、送信内容を事前に確認）。チームで共有する作品フォルダにキーや個人の URL を入れない。同期の呼び出しにするのは、コアを CLI と言語サーバーからも同じに使うため（コアに非同期の実行環境を持ち込まない）。全体の時間を区切らないのは、長い生成を止めないため。
+- 影響：`crates/scn-core/src/ai/`（新規）、`project.rs`（`[ai.*]`）、依存（`reqwest`・`keyring`・`url`）、`app/src-tauri`（`ai_connections` ほか）、`app/src/preferences/`（新規）・`TitleBar.tsx`・`LeftBar.tsx`・`App.tsx`、`docs/spec/project-files.md` の2節、fixture `settings/toml_ai/`。

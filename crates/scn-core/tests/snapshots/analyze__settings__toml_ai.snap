@@ -1,0 +1,6 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "dump_with_disk(&ir, &dir)"
+---
+project.toml:13:1-13:7 E802 [ai.broken] は表で書きます。この接続先を読み飛ばします
+project.toml:6:1-6:6 E802 [ai.local] の model は文字列で書きます。この接続先を読み飛ばします

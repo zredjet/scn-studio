@@ -12,7 +12,9 @@ export type Screen =
   | "check"
   | "export"
   /** プレビュー（タイトルバーの「再生」から開く。T1-11）。 */
-  | "preview";
+  | "preview"
+  /** 環境設定（AIの接続先。T3-5）。 */
+  | "preferences";
 
 const ITEMS: readonly { screen: Screen; label: string; later?: string }[] = [
   { screen: "concept", label: "企画" },
@@ -23,6 +25,7 @@ const ITEMS: readonly { screen: Screen; label: string; later?: string }[] = [
   { screen: "variables", label: "変数" },
   { screen: "check", label: "検証" },
   { screen: "export", label: "出力" },
+  { screen: "preferences", label: "環境設定" },
 ];
 
 interface Props {

@@ -8,7 +8,9 @@ import { ask, open, save } from "@tauri-apps/plugin-dialog";
 import type { PreviewData } from "./ir.ts";
 import type {
   AddedChapter,
+  AiConnections,
   AiLines,
+  AiTestResult,
   AssetKey,
   AssetKind,
   AssetList,
@@ -493,6 +495,50 @@ export function aiLines(): Promise<AiLines> {
 /** AIが書いた行の一覧を `export/provenance.csv` に書き出す。 */
 export function exportProvenance(): Promise<{ path: string; rows: number }> {
   return invoke<{ path: string; rows: number }>("export_provenance");
+}
+
+/** AIの接続先の一覧（環境設定。T3-5）。キーはあるかどうかだけ。 */
+export function aiConnections(): Promise<AiConnections> {
+  return invoke<AiConnections>("ai_connections");
+}
+
+/** この端末での、接続先の URL とモデルの上書き（空ならやめる）。 */
+export function setAiOverride(
+  name: string,
+  baseUrl: string | null,
+  model: string | null,
+): Promise<void> {
+  return invoke<void>("set_ai_override", { name, baseUrl, model });
+}
+
+/** この端末から、クラウドの行き先へ送ることを許可する・やめる。 */
+export function setAiCloudAllowed(
+  endpoint: string,
+  allowed: boolean,
+): Promise<void> {
+  return invoke<void>("set_ai_cloud_allowed", { endpoint, allowed });
+}
+
+/** キーを OS のキーチェーンに保存する（コアは返さない）。 */
+export function setAiKey(endpoint: string, key: string): Promise<void> {
+  return invoke<void>("set_ai_key", { endpoint, key });
+}
+
+export function deleteAiKey(endpoint: string): Promise<void> {
+  return invoke<void>("delete_ai_key", { endpoint });
+}
+
+/** 接続を試す（決まった短い問いを送る）。`run` は回の番号（取り消しに使う）。 */
+export function testAiConnection(
+  name: string,
+  run: number,
+): Promise<AiTestResult> {
+  return invoke<AiTestResult>("ai_test", { name, run });
+}
+
+/** 「接続を試す」の回を取り消す。 */
+export function cancelAiTest(run: number): Promise<void> {
+  return invoke<void>("cancel_ai_test", { run });
 }
 
 /** 自動巡回（検証の段階2。T3-2）。保存していない本文も含む。 */
