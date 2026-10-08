@@ -13,6 +13,7 @@
 | `variables.yaml` | 変数4つ |
 | `assets/catalog.yaml` | 素材カタログ（すべて仮素材） |
 | `ai/provenance.jsonl` | 出自の記録 |
+| `ai/*.yaml` | 組み込みのAIタスクの定義（9つ。`scn new` のひな形と同じ。T3-6） |
 | `CLAUDE.template.md` | 作品フォルダに置くAIエージェント向けの指示書（作品では `CLAUDE.md` にする）。ツールのリポジトリでは、開発作業中に読み込まれないよう、この名前で置いている（`scn new` が作ったまま） |
 
 `scn new` が作る `FORMAT.md` は置いていない（ツールの版が上がると古くなるため。作品フォルダで `scn format-doc` を実行すると作れる）。

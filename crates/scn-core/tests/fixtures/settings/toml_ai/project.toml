@@ -8,6 +8,7 @@ model = 8
 [ai.cloud]
 provider = "anthropic"
 model = "claude"
+context_tokens = 0
 
 [ai]
 broken = "x"

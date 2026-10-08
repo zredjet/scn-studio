@@ -1,0 +1,13 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "dump_with_disk(&ir, &dir)"
+---
+ai/broken.yaml:2:1-2:1 E801 ai/broken.yaml のYAMLを読めません：did not find expected ',' or ']' at line 2 column 1, while parsing a flow sequence at line 1 column 7。このファイルを読み飛ばします
+ai/items.yaml:2:1-2:6 E802 ai/items.yaml の level「write」は review・propose・generate・auto のどれかで書きます。review として扱います
+ai/items.yaml:3:1-3:6 E802 ai/items.yaml の model は文字列で書きます。読み飛ばします
+ai/items.yaml:5:1-5:7 E802 ai/items.yaml の output「diff」は、level に合いません（review は findings・summary、propose は diff・proposals、generate と auto は draft）。既定の形にします
+ai/items.yaml:4:1-4:8 E802 ai/items.yaml の context の「plot」は知らない項目です（scene・characters・characters.<項目>・terms・variables・previous_summaries・concept・style・route_summaries・chapter_summaries・scene_summaries）。読み飛ばします
+ai/items.yaml:7:1-7:15 E802 ai/items.yaml の max_iterations は正の整数で書きます。読み飛ばします
+ai/items.yaml:6:1-6:7 E802 ai/items.yaml の budget は { tokens: 数 } の形で書きます。読み飛ばします
+ai/items.yaml:1:1-1:1 E802 ai/items.yaml に prompt がありません。このタスクは実行できません
+ai/list.yaml:1:1-1:1 E802 ai/list.yaml は、name・level・context・prompt などのキーで書きます。このタスクを読み飛ばします

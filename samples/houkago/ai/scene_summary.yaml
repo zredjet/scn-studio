@@ -1,0 +1,8 @@
+name: シーン要約
+level: review
+model: local
+context: [scene, characters.first_person]
+output: summary
+prompt: |
+  シーンの出来事を、2〜3文（100字程度）で要約してください。誰が何をして、何が変わったかを書き、
+  感想や評価は書かないでください。要約の文だけを返してください。

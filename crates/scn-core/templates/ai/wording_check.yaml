@@ -1,0 +1,9 @@
+name: 表記ゆれと誤字
+level: review
+model: local
+context: [scene, style, terms, characters.first_person]
+output: findings
+prompt: |
+  シーンの本文の誤字・脱字と、文体の方針の「表記」に外れた書き方を、行IDつきで指摘してください。
+  一人称と用語の表記ゆれのうち機械的に見つかるものは `scn check --stage 2` が出すので、
+  それ以外（送り仮名、漢字とかなの書き分け、記号の使い方など）を見てください。

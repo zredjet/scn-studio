@@ -1,0 +1,7 @@
+name: 誤りのあるタスク
+level: write
+model: 3
+context: [scene, plot, characters.speech]
+output: diff
+budget: 1000
+max_iterations: 0

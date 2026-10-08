@@ -21,3 +21,14 @@ chars_per_line = 24
 [editor]
 normalize_ellipsis = true   # 「...」「・・・」を「……」に、「--」を「――」にする
 indent_narration = true     # 地の文の段落頭に全角空白を入れる（Enter でその行を離れるとき）
+
+# AIの接続先（アプリとAIタスクの model が使う。FORMAT.md の作品フォルダの規約の2節）。使うときにコメントを外す。
+# キーはここに書かず、アプリの環境設定で OS のキーチェーンに保存する。
+# [ai.local]
+# provider = "openai-compatible"
+# base_url = "http://localhost:11434/v1"   # Ollama の例
+# model = "[ローカルモデル名]"
+#
+# [ai.cloud]
+# provider = "anthropic"
+# model = "[クラウドモデル名]"

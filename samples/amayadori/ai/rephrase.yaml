@@ -1,0 +1,8 @@
+name: 言い換え候補
+level: propose
+model: local
+context: [scene, style, characters.speech, characters.first_person]
+output: diff
+prompt: |
+  シーンの中で、文体の方針と口調メモに照らして直すとよくなる行を選び、行ごとに言い換えの案を
+  1つずつ出してください。直す必要の無い行は出さないでください。

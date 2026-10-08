@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 
 use yaml_serde::Value;
 
+use crate::ai::{AiTask, parse_task};
 use crate::bible::{FieldType, value_problems};
 use crate::diag::{Code, Diagnostic, Span};
 use crate::syntax::{DialogueBracket, ParseOptions};
@@ -35,6 +36,8 @@ pub struct Project {
     pub concept: Option<Concept>,
     /// `story/` の下（下のフォルダも）の `*.scn`。パスの辞書順に並べてある。読めなかったファイル（E801）は含まない。
     pub files: Vec<SourceFile>,
+    /// AIタスクの定義（`ai/*.yaml`。T3-6）。ファイル名の順。読めなかったファイル（E801）は含まない。
+    pub ai_tasks: Vec<AiTask>,
     /// 読み込みの診断（E801〜W805）。読んだ順に並べてある。
     pub load_diagnostics: Vec<LoadDiagnostic>,
 }
@@ -75,6 +78,8 @@ pub struct AiConnectionDecl {
     /// API の URL（`/v1` まで）。
     pub base_url: Option<String>,
     pub model: Option<String>,
+    /// 文脈の長さ（トークン数。T3-6）。無ければ接続の種類の既定。
+    pub context_tokens: Option<u64>,
 }
 
 /// エディタの入力補助の設定（`project.toml` の `[editor]`）。キーが無ければ切（D047）。
@@ -340,6 +345,7 @@ pub fn load_project(root: &Path) -> Result<Project, ProjectError> {
     let (variables, variables_unreadable) = loader.variables();
     let catalog = loader.catalog();
     let concept = loader.concept();
+    let ai_tasks = loader.ai_tasks();
     let files = loader.story()?;
     Ok(Project {
         settings,
@@ -350,6 +356,7 @@ pub fn load_project(root: &Path) -> Result<Project, ProjectError> {
         catalog,
         concept,
         files,
+        ai_tasks,
         load_diagnostics: loader.diags,
     })
 }
@@ -671,6 +678,50 @@ impl Loader<'_> {
         }
     }
 
+    // ---- AIタスクの定義（T3-6） ----
+
+    /// `ai/*.yaml` を読む（下のフォルダは読まない）。読めないファイルは E801、項目の誤りは E802。
+    fn ai_tasks(&mut self) -> Vec<AiTask> {
+        let dir = self.root.join("ai");
+        let Ok(entries) = fs::read_dir(&dir) else {
+            return Vec::new();
+        };
+        let mut paths: Vec<PathBuf> = entries
+            .filter_map(Result::ok)
+            .map(|e| e.path())
+            .filter(|p| p.is_file() && p.extension().is_some_and(|e| e == "yaml"))
+            .collect();
+        paths.sort();
+        let mut tasks = Vec::new();
+        for path in paths {
+            let file = self.relative(&path);
+            let Some(id) = path.file_stem().map(|s| s.to_string_lossy().into_owned()) else {
+                continue;
+            };
+            let Some(text) = self.read(&path) else {
+                continue;
+            };
+            let Some(root) = self.yaml(&file, &text, &text) else {
+                continue;
+            };
+            if !root.is_mapping() {
+                self.diag(
+                    &file,
+                    Code::E802,
+                    Span::new(0, 0),
+                    format!("{file} は、name・level・context・prompt などのキーで書きます。このタスクを読み飛ばします"),
+                );
+                continue;
+            }
+            let (task, problems) = parse_task(&id, &file, &root);
+            for (key, message) in problems {
+                self.diag(&file, Code::E802, key_span(&text, 0, key), message);
+            }
+            tasks.push(task);
+        }
+        tasks
+    }
+
     // ---- project.toml ----
 
     fn settings(&mut self, bytes: &[u8]) -> Settings {
@@ -924,6 +975,23 @@ impl Loader<'_> {
                         );
                         ok = false;
                     }
+                }
+            }
+            match conn.get("context_tokens") {
+                None => {}
+                Some(toml::Value::Integer(n)) if *n > 0 => {
+                    decl.context_tokens = u64::try_from(*n).ok();
+                }
+                Some(_) => {
+                    self.diag(
+                        file,
+                        Code::E802,
+                        key_span(text, header, "context_tokens"),
+                        format!(
+                            "[ai.{name}] の context_tokens は正の整数で書きます。この接続先を読み飛ばします"
+                        ),
+                    );
+                    ok = false;
                 }
             }
             if ok {

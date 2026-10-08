@@ -1,0 +1,9 @@
+name: ルート骨格を作る
+level: generate
+model: cloud
+context: [concept, style, route_summaries, characters, variables]
+scope: empty_only
+prompt: |
+  企画書のエンディングとキャラの欲求・葛藤から、指定したルートの骨格を、スタブシーン
+  （見出し、メタ情報の summary と route、選択肢とジャンプ。本文は書かない）として作ってください。
+  今あるシーンは変更せず、足すシーンだけを書いてください。

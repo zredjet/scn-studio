@@ -516,9 +516,16 @@ fn read_bible(state: State<'_, AppState>) -> Result<Response, String> {
 fn entry_usage(path: String, state: State<'_, AppState>) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let project = open_workspace(&mut guard)?.project();
-    let usage = with_index(project, |ir, index| {
+    let mut usage = with_index(project, |ir, index| {
         to_json(&bible::entry_usage(project, ir, index, &path), "逆引き")
     })?;
+    // 「AIに渡す内容」（T3-6）：どのタスクに、どの部分が渡るか。
+    if let Value::Object(map) = &mut usage {
+        map.insert(
+            "ai".to_owned(),
+            to_json(&ai::entry_context(project, &path), "AIに渡す内容")?,
+        );
+    }
     json_response(&usage)
 }
 

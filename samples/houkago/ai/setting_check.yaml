@@ -1,0 +1,9 @@
+name: 設定矛盾チェック
+level: review
+model: local
+context: [scene, characters, terms, variables, previous_summaries]
+output: findings
+prompt: |
+  シーンの本文が、キャラクターと用語の設定、変数の意味、前のシーンまでの流れと
+  食い違っていないか確かめ、食い違っている行を行IDつきで指摘してください。
+  設定に書かれていないことは、食い違いとして扱わないでください。

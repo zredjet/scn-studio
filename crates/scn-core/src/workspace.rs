@@ -560,7 +560,11 @@ impl Workspace {
                 self.settings_written.remove(&rel);
                 Change::Ideas
             }
-            _ if SETTINGS_FILES.contains(&rel.as_str()) || parts.first() == Some(&"bible") => {
+            // AIタスクの定義（`ai/` の直下の `*.yaml`。T3-6）も設定として読み直す。
+            _ if SETTINGS_FILES.contains(&rel.as_str())
+                || parts.first() == Some(&"bible")
+                || matches!(parts.as_slice(), ["ai", name] if name.ends_with(".yaml")) =>
+            {
                 let on_disk = fs::read(self.root.join(&rel)).ok();
                 let mine = self.settings_written.get(&rel).map(String::as_bytes);
                 if on_disk.is_some() && on_disk.as_deref() == mine {

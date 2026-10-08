@@ -15,7 +15,7 @@ const SPEC: &str = include_str!("../../../docs/spec/scn-format-v0.md");
 const PROJECT_FILES: &str = include_str!("../../../docs/spec/project-files.md");
 
 /// 作品フォルダの中に置くファイル（パスと中身）。`{{title}}` は作品名にする。
-const TEMPLATES: [(&str, &str); 9] = [
+const TEMPLATES: [(&str, &str); 18] = [
     ("project.toml", include_str!("../templates/project.toml")),
     ("CLAUDE.md", include_str!("../templates/CLAUDE.md")),
     ("concept.md", include_str!("../templates/concept.md")),
@@ -33,6 +33,43 @@ const TEMPLATES: [(&str, &str); 9] = [
         include_str!("../templates/character.yaml"),
     ),
     ("ai/provenance.jsonl", ""),
+    // 組み込みの AI タスク（T3-6、D067）。
+    (
+        "ai/draft_chapter.yaml",
+        include_str!("../templates/ai/draft_chapter.yaml"),
+    ),
+    (
+        "ai/draft_stub.yaml",
+        include_str!("../templates/ai/draft_stub.yaml"),
+    ),
+    (
+        "ai/rephrase.yaml",
+        include_str!("../templates/ai/rephrase.yaml"),
+    ),
+    (
+        "ai/route_skeleton.yaml",
+        include_str!("../templates/ai/route_skeleton.yaml"),
+    ),
+    (
+        "ai/scene_summary.yaml",
+        include_str!("../templates/ai/scene_summary.yaml"),
+    ),
+    (
+        "ai/setting_check.yaml",
+        include_str!("../templates/ai/setting_check.yaml"),
+    ),
+    (
+        "ai/thin_branches.yaml",
+        include_str!("../templates/ai/thin_branches.yaml"),
+    ),
+    (
+        "ai/tone_check.yaml",
+        include_str!("../templates/ai/tone_check.yaml"),
+    ),
+    (
+        "ai/wording_check.yaml",
+        include_str!("../templates/ai/wording_check.yaml"),
+    ),
     (".gitignore", include_str!("../templates/gitignore")),
 ];
 

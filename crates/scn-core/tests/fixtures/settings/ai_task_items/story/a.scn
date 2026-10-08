@@ -1,0 +1,4 @@
+// expect: E801 E802
+// AIタスクの定義の誤り：知らない level・context の項目、level に合わない output、prompt が無い、budget の形、表でない定義、YAML の構文の誤り
+## a #s001
+灯「やあ」 ^aaaa

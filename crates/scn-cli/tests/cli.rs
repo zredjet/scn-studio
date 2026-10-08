@@ -1326,3 +1326,77 @@ fn export_renpy() {
     assert_eq!(scn(&["export", "renpy", "story"], &dir).code, 2);
     let _ = fs::remove_dir_all(&dir);
 }
+
+/// `scn ai context`：タスクの文脈を組み立てて出す（LLM は呼ばない）。実行できなければ1、無いタスクは2。
+#[test]
+fn ai_context() {
+    let dir = repo_root().join("samples/houkago");
+    let out = scn(
+        &["ai", "context", "tone_check", ".", "--scene", "s012"],
+        &dir,
+    );
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    assert!(out.stdout.starts_with("=== system ===\n"), "{}", out.stdout);
+    assert!(out.stdout.contains("# 依頼"), "{}", out.stdout);
+    assert!(
+        out.stdout.contains("灯「やっと来た。遅いよ」 ^k3f9"),
+        "{}",
+        out.stdout
+    );
+    assert!(out.stderr.contains("文脈の長さ 8192"), "{}", out.stderr);
+
+    let out = scn(&["ai", "context", "tone_check", "."], &dir);
+    assert_eq!(out.code, HAS_ERRORS);
+    assert!(out.stderr.contains("シーンを選びます"), "{}", out.stderr);
+    assert_eq!(out.stdout, "");
+
+    let out = scn(
+        &[
+            "ai",
+            "context",
+            "draft_stub",
+            ".",
+            "--scene",
+            "s014",
+            "--tokens",
+            "1200",
+        ],
+        &dir,
+    );
+    assert_eq!(out.code, HAS_ERRORS, "{}", out.stderr);
+    assert!(
+        out.stderr.contains("文体（文体見本）を削りません"),
+        "{}",
+        out.stderr
+    );
+    assert!(
+        out.stderr.contains("削った：企画書（concept）"),
+        "{}",
+        out.stderr
+    );
+
+    let out = scn(
+        &[
+            "ai",
+            "context",
+            "setting_check",
+            ".",
+            "--scene",
+            "s012",
+            "--json",
+        ],
+        &dir,
+    );
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    let value: serde_json::Value = serde_json::from_str(&out.stdout).unwrap();
+    assert_eq!(value["task"], "setting_check");
+    assert_eq!(value["sections"][0]["item"], "previous_summaries");
+
+    let out = scn(&["ai", "context", "nothing", "."], &dir);
+    assert_eq!(out.code, FAILURE);
+    assert!(
+        out.stderr.contains("ai/nothing.yaml がありません"),
+        "{}",
+        out.stderr
+    );
+}

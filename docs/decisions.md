@@ -754,3 +754,20 @@
   - アプリ：左端のバーに「環境設定」（接続先ごとに、使う URL とモデル、上書き、キーの保存と削除、クラウドの許可、「接続を試す」（決まった短い問い。クラウドは送る中身を見せて確かめてから送る。取り消せる））。タイトルバーに既定の接続先と、試した結果の印（形でも分ける）。
 - 理由：設計検討書「接続」（共通のインターフェース、キーはキーチェーン、既定はローカル、クラウドは明示的に有効化、送信内容を事前に確認）。チームで共有する作品フォルダにキーや個人の URL を入れない。同期の呼び出しにするのは、コアを CLI と言語サーバーからも同じに使うため（コアに非同期の実行環境を持ち込まない）。全体の時間を区切らないのは、長い生成を止めないため。
 - 影響：`crates/scn-core/src/ai/`（新規）、`project.rs`（`[ai.*]`）、依存（`reqwest`・`keyring`・`url`）、`app/src-tauri`（`ai_connections` ほか）、`app/src/preferences/`（新規）・`TitleBar.tsx`・`LeftBar.tsx`・`App.tsx`、`docs/spec/project-files.md` の2節、fixture `settings/toml_ai/`。
+
+## D067 AIタスクの定義と文脈の組み立て（2026-10-08）
+
+- 決定：
+  - `ai/*.yaml` の形を規約にする（`name`・`level`・`model`・`context`・`output`・`scope`・`branch`・`checks`・`max_iterations`・`budget`・`prompt`）。タスクの名前はファイル名。誤りは設定ファイルの診断（E801・E802。新しいコードは足さない）にし、キーを既定にして続ける。`model` の接続先や `checks` の名前は使うときに確かめる。`output` に `summary`（シーン要約）と `draft`（生成と自律の書き込み）を足し、段階に合わない組み合わせは E802。
+  - 文脈の項目：`scene`・`characters`（`characters.<項目>` で項目を選ぶ）・`terms`・`variables`・`previous_summaries`・`concept`・`style`・`route_summaries`・`chapter_summaries`・`scene_summaries`。前のシーンまでの道は、シーンの辺の上の最短の道（条件は見ない）。用語は、名前か呼び名がシーンの本文に出るエントリ。参照の項目はエントリの名前にする。
+  - 削る順番：前のシーンまでの要約 → シーン・章・ルートの要約 → 用語 → キャラクター（一人称と口調メモだけにしてから節ごと。書いた項目があれば、そのうちだけ）→ 変数 → 企画書 → 文体。今のシーンと依頼は削らない。生成と自律では文体を `context` に書いていなくても入れて削らず、`style.md` が無いか入りきらなければ実行しない。
+  - 話者も `@立ち絵` も無いシーン（スタブ）では、本文（メタ情報の summary を含む）に名前か呼び名が出るキャラクターを登場キャラとする（スタブの下書きに口調メモを渡すため）。
+  - 章やルートを対象にする指定は T3-9 で足す（今はシーンだけ）。`scn new` の `project.toml` には `[ai.local]`・`[ai.cloud]` の例をコメントで置く（組み込みのタスクの `model` が指す）。
+  - 文脈の長さは接続先の `context_tokens`（`[ai.<名前>]` に足す。既定は OpenAI 互換 8192、`anthropic` 200000）から、返す分（4分の1、多くて4096）を除いたもの。トークン数は文字数から見積もる。
+  - シーンの要約は `.cache/summaries.json` に、シーンの本文のハッシュと一緒に置く。本文が変わったらメタ情報の `summary`（無ければ題名）に戻し、作り直すよう知らせる。
+  - 組み込みのタスク9つ（設定矛盾チェック、口調チェック、表記ゆれと誤字、シーン要約、分岐の薄さの指摘、言い換え候補、スタブの本文を下書き、ルート骨格を作る、章を下書きまで仕上げる）を `scn new` のひな形と両サンプルの `ai/` に置く（同じ中身をテストで確かめる）。
+  - `scn ai context <タスク>`：LLM を呼ばずに、組み立てた文脈を見る。
+  - 設定DBの画面：逆引きの欄に「AIに渡す内容」（どのタスクに、どの項目が何字で渡るか。コアの `ai::entry_context`）。キャラクターのフォームの「＋ 差分を追加」で、素材カタログに立ち絵の差分を仮素材として足す（`add_catalog_entries`）。
+- 理由：設計検討書「文脈の組み立て」「AIタスクのテンプレート化」「生成の進め方」。ローカルの LLM の短い文脈でも動くように、削る順番を決めて、上から下への粒度（企画 → 要約 → 本文）を保つ。誤りを止めずに知らせるのは原則4。
+- 影響：`crates/scn-core/src/ai/task.rs`・`context.rs`（新規）、`project.rs`（`ai_tasks`、`context_tokens`）、`workspace.rs`（`ai/*.yaml` が外で変わったら設定を読み直す）、`scaffold.rs` と `templates/ai/`、両サンプルの `ai/`、`scn-cli`（`ai context`）、`app/src-tauri`（逆引きに `ai`）、`app/src/bible/`（`aicontext.ts`、`UsagePanel.tsx`、`BibleScreen.tsx`、`fields.ts`）、`docs/spec/project-files.md` の2・9・10節。
+

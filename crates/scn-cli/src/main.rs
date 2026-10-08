@@ -116,6 +116,11 @@ enum Command {
         #[arg(long)]
         check: bool,
     },
+    /// AIタスクの補助（LLM は呼ばない）
+    Ai {
+        #[command(subcommand)]
+        what: AiCommand,
+    },
     /// 書き出す（台本など）
     Export {
         #[command(subcommand)]
@@ -150,6 +155,27 @@ enum Command {
         /// 一覧を CSV（UTF-8 の BOM 付き、CRLF）で書き出す先。`-` なら標準出力
         #[arg(long, short)]
         output: Option<PathBuf>,
+    },
+}
+
+#[derive(Subcommand)]
+enum AiCommand {
+    /// タスクの定義から組み立てた文脈（LLM に渡す指示と依頼）を出す。LLM は呼ばない
+    Context {
+        /// タスクの名前（`ai/<名前>.yaml` の名前）
+        task: String,
+        /// プロジェクトのフォルダ（project.toml のあるところ）。省くと今のフォルダ
+        #[arg(default_value = ".")]
+        project: PathBuf,
+        /// 今のシーンのID（文脈に scene・previous_summaries を入れるタスクで）
+        #[arg(long)]
+        scene: Option<String>,
+        /// 文脈の長さ（トークン数）。省くと、タスクの接続先の context_tokens
+        #[arg(long)]
+        tokens: Option<u64>,
+        /// JSONで出す
+        #[arg(long)]
+        json: bool,
     },
 }
 
@@ -299,6 +325,16 @@ fn run(command: Command) -> Result<u8, CliError> {
             json,
             output,
         } => run_provenance(&project, json, output.as_deref()),
+        Command::Ai {
+            what:
+                AiCommand::Context {
+                    task,
+                    project,
+                    scene,
+                    tokens,
+                    json,
+                },
+        } => run_ai_context(&project, &task, scene.as_deref(), tokens, json),
         Command::Export {
             what:
                 ExportCommand::Script {
@@ -995,6 +1031,112 @@ struct CliProvenance<'a> {
     model: &'a str,
     at: &'a str,
     text: &'a str,
+}
+
+/// `scn ai context`：タスクの文脈を組み立てて出す。あらまし（節、削った節、知らせ）は標準エラーに、指示と依頼は
+/// 標準出力に。実行できない（入りきらない、シーンが要る）ときは終了コード1。
+fn run_ai_context(
+    dir: &Path,
+    task_id: &str,
+    scene: Option<&str>,
+    tokens: Option<u64>,
+    json: bool,
+) -> Result<u8, CliError> {
+    use scn_core::ai;
+    let project = load_project(dir).map_err(CliError::Project)?;
+    let Some(task) = project.ai_tasks.iter().find(|t| t.id == task_id) else {
+        let names: Vec<&str> = project.ai_tasks.iter().map(|t| t.id.as_str()).collect();
+        return Err(CliError::Refused(format!(
+            "ai/{task_id}.yaml がありません（タスク：{}）",
+            if names.is_empty() {
+                "なし".to_owned()
+            } else {
+                names.join("、")
+            }
+        )));
+    };
+    let context_tokens = match tokens {
+        Some(n) => n,
+        None => {
+            let machine = ai::MachineSettings::default();
+            let name = task.model.clone().or_else(|| {
+                ai::default_connection(&project.settings.ai, &machine).map(str::to_owned)
+            });
+            let resolved = name.as_deref().and_then(|name| {
+                project
+                    .settings
+                    .ai
+                    .iter()
+                    .find(|d| d.name == name)
+                    .map(|d| ai::resolve(d, &machine))
+            });
+            match resolved {
+                Some(Ok(conn)) => conn.context_tokens,
+                Some(Err(problem)) => {
+                    eprintln!(
+                        "{problem}。文脈の長さを {} とします",
+                        ai::DEFAULT_CONTEXT_TOKENS
+                    );
+                    ai::DEFAULT_CONTEXT_TOKENS
+                }
+                None => {
+                    eprintln!(
+                        "接続先「{}」が project.toml にありません。文脈の長さを {} とします",
+                        name.as_deref().unwrap_or("（なし）"),
+                        ai::DEFAULT_CONTEXT_TOKENS
+                    );
+                    ai::DEFAULT_CONTEXT_TOKENS
+                }
+            }
+        }
+    };
+    let ir = analyze(&project);
+    let sources = ai::read_sources(dir);
+    let assembled = ai::assemble(&project, &ir, &sources, task, scene, context_tokens);
+    let code = if assembled.problem.is_some() {
+        HAS_ERRORS
+    } else {
+        SUCCESS
+    };
+    let mut out = io::stdout().lock();
+    if json {
+        let text = serde_json::to_string_pretty(&assembled)
+            .map_err(|e| CliError::Write(io::Error::other(e)))?;
+        return finish(writeln!(out, "{text}"), code);
+    }
+    eprintln!(
+        "タスク {}（{}）、文脈の長さ {}、上限 {}、見積もり {}",
+        task.id, task.name, assembled.context_tokens, assembled.limit, assembled.tokens
+    );
+    for s in &assembled.sections {
+        eprintln!("  入れた：{}（{}）{}", s.title, s.item, s.tokens);
+    }
+    for t in &assembled.trimmed {
+        let how = if t.how == "shortened" {
+            "短くした"
+        } else {
+            "削った"
+        };
+        eprintln!("  {how}：{}（{}）{}", t.title, t.item, t.tokens);
+    }
+    for n in &assembled.notes {
+        eprintln!("  知らせ：{n}");
+    }
+    if let Some(problem) = &assembled.problem {
+        eprintln!("実行できません：{problem}");
+    }
+    if assembled.system.is_empty() {
+        // 組み立てる前に止まった（タスクに prompt が無い、シーンが要る）。
+        return Ok(code);
+    }
+    finish(
+        write!(
+            out,
+            "=== system ===\n{}\n\n=== user ===\n{}\n",
+            assembled.system, assembled.user
+        ),
+        code,
+    )
 }
 
 /// AIが書いた行の一覧を出す（T3-4、D065）。`-o` で CSV に書き出す。出自の記録の読めない行と数を標準エラーに。

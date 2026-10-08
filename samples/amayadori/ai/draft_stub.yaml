@@ -1,0 +1,9 @@
+name: スタブの本文を下書き
+level: generate
+model: cloud
+context: [concept, style, previous_summaries, scene, characters, terms, variables]
+scope: empty_only
+prompt: |
+  指定したスタブシーンの本文を、メタ情報の summary と前のシーンまでの流れに沿って、
+  文体の方針と文体見本に合わせて書いてください。見出しとメタ情報、選択肢とジャンプは変えずに、
+  本文の行（台詞と地の文）だけを書いてください。人が書いた行は変更しないでください。

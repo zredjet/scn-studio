@@ -171,6 +171,7 @@ fn local(provider: Provider, base_url: String) -> Connection {
         model: "test-model".to_owned(),
         cloud: false,
         allowed: true,
+        context_tokens: ai::DEFAULT_CONTEXT_TOKENS,
     }
 }
 
@@ -507,6 +508,7 @@ fn decl(
         provider: provider.map(str::to_owned),
         base_url: base_url.map(str::to_owned),
         model: model.map(str::to_owned),
+        context_tokens: None,
     }
 }
 
@@ -591,6 +593,29 @@ fn resolve_connections() {
     assert!(conn.allowed);
     machine.set_override("local", Some(""), None);
     assert!(machine.connections.is_empty());
+}
+
+/// 文脈の長さ（T3-6）：書いた値、無ければ接続の種類の既定。
+#[test]
+fn context_tokens() {
+    let machine = MachineSettings::default();
+    let mut local = decl("local", None, Some("http://localhost:11434/v1"), Some("m"));
+    assert_eq!(
+        ai::resolve(&local, &machine).unwrap().context_tokens,
+        ai::DEFAULT_CONTEXT_TOKENS
+    );
+    local.context_tokens = Some(32_768);
+    assert_eq!(
+        ai::resolve(&local, &machine).unwrap().context_tokens,
+        32_768
+    );
+    let cloud = decl("cloud", Some("anthropic"), None, Some("c"));
+    assert_eq!(
+        ai::resolve(&cloud, &machine).unwrap().context_tokens,
+        ai::ANTHROPIC_CONTEXT_TOKENS
+    );
+    assert_eq!(ai::context_limit(8192), 6144);
+    assert_eq!(ai::context_limit(200_000), 195_904);
 }
 
 #[test]

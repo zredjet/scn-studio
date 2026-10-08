@@ -46,7 +46,7 @@ paths:
 | `playthrough` | 検証の段階2（自動巡回。`scn check --stage 2`、アプリの検証の画面）：開始シーンから選択肢の組み合わせを、`route` と同じ実行器（`Searcher::run` と `Observer`）で実行し、状態ごとにメモ化する。永続の変数は周回する。選べない選択肢、真にならない条件、選べる選択肢が無くなる選択、着かないシーン、仕込みを通らない伏線（W506〜W509・W704）と、カバレッジ、エンディングごとの到達条件。上限に当たったら「無い」と言う診断は出さない |
 | `wording` | 表記の検査（検証の段階2。T3-3）：本文の文字から、一人称の表記ゆれ（I204）、避ける書き方（`variants`。I205）、かなだけ違う未登録の用語（I206）。語の区切りを前後の文字で見て、語の一部には出さない。比べるときだけかなをそろえ、本文は変えない。`playthrough::stage2` が自動巡回とまとめる |
 | `provenance` | 出自の記録（`ai/provenance.jsonl`。T3-4）：読む（いちばん後ろの記録が今の出自）、書き足す（今の中身の後ろに足すだけ）、保存の前後で直した AI の行（`ai-edited`）、AI の行の一覧と CSV（`scn provenance`、アプリの「出力」）。`scn fmt --provenance` も使う |
-| `ai` | AIの接続（T3-5。`ai/` の下の `connection`・`client`・`keys`）：接続先の解決（`project.toml` の `[ai.<名前>]` に端末の設定 `ai.toml` を重ねる。ローカルかクラウドか、既定の接続先）、呼び出し（`complete`。OpenAI 互換と Messages API、SSE、タイムアウト、取り消し、トークン数）、キーの保管（`KeyStore`。アプリは OS のキーチェーンの `SystemKeys`、テストは `MemoryKeys`）。同期の呼び出し（`reqwest` の `blocking`）なので、非同期の実行環境の中からは直接呼ばない（アプリは `spawn_blocking`）。テストは `tests/ai.rs` の模擬のサーバーで、実際の LLM を呼ばない |
+| `ai` | AIの接続（T3-5。`ai/` の下の `connection`・`client`・`keys`）：接続先の解決（`project.toml` の `[ai.<名前>]` に端末の設定 `ai.toml` を重ねる。ローカルかクラウドか、既定の接続先）、呼び出し（`complete`。OpenAI 互換と Messages API、SSE、タイムアウト、取り消し、トークン数）、キーの保管（`KeyStore`。アプリは OS のキーチェーンの `SystemKeys`、テストは `MemoryKeys`）。同期の呼び出し（`reqwest` の `blocking`）なので、非同期の実行環境の中からは直接呼ばない（アプリは `spawn_blocking`）。テストは `tests/ai.rs` の模擬のサーバーで、実際の LLM を呼ばない。AIタスクの定義（`task`。`ai/*.yaml` を `project` が読む）と文脈の組み立て（`context`。節の並べ方、削る順番 `TRIM_ORDER`、シーンの要約のキャッシュ、設定DBのエントリが渡る内容）も `ai/` の下（T3-6）。文脈のスナップショットは `tests/ai_context.rs` |
 | `line_id` | 行IDの付与（`scn fmt`、保存のとき）。I302 の出る行の末尾に ` ^ID` を足すだけで、ほかのバイトは変えない |
 
 - 設定ファイルを書き換える関数（`bible`・`vardecl`・`typedef`・`assets` のカタログ）は、先頭の BOM を除いて書き換え、BOM を戻す。

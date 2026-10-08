@@ -1,0 +1,9 @@
+name: 分岐の薄さの指摘
+level: review
+model: cloud
+context: [concept, route_summaries, variables]
+output: findings
+prompt: |
+  ルートごとの要約と変数の定義から、選んでも結果がほとんど変わらない選択肢、ルート間の分量の差、
+  企画書のエンディングとキャラの葛藤に結びついていない分岐を、シーンIDつきで指摘してください。
+  到達できるかどうかは推し量らず、要約に書かれたことだけから判断してください。

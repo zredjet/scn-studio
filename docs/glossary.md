@@ -189,3 +189,10 @@
 | 端末の設定 | machine settings | アプリの設定のフォルダの `ai.toml`（`ai::MachineSettings`）。URL とモデルの上書き、クラウドの許可 |
 | 既定の接続先 | default connection | `[ai.local]`。無ければ最初のローカルの接続先 |
 | キー | api key | OS のキーチェーンに置く（`ai::KeyStore`） |
+| タスクの定義 | task definition | `ai/*.yaml` の1つ（`ai::AiTask`）。名前はファイル名 |
+| 文脈 | context | LLM に渡す指示と依頼（`ai::Assembled`）。タスクの `context` の項目から組み立てる |
+| 文脈の項目 | context item | `scene`・`characters`・`terms` など（`ai::ContextItem`） |
+| 文脈の長さ | context tokens | 接続先の `context_tokens`。返す分を除いたものが文脈の上限（`ai::context_limit`） |
+| 削る順番 | trim order | 文脈が上限に入らないときに節を削る順（`ai::TRIM_ORDER`） |
+| 要約のキャッシュ | summary cache | `.cache/summaries.json`（`ai::SummaryCache`）。シーンの本文のハッシュと一緒に置く |
+| AIに渡す内容 | entry context | 設定DBのエントリが、どのタスクにどの部分で渡るか（`ai::EntryContext`） |

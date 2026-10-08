@@ -1,9 +1,10 @@
 // 設定DBの画面の右の欄「逆引き」（docs/ui/mockups/04-bible.html、T1-10、D049）：数のカード、登場シーン
 // （キャラクター以外は名前の出る行）、参照している先と参照されている元。データはコアの `bible::entry_usage`。
-// 「AIに渡す内容」はフェーズ3。
+// 「AIに渡す内容」（T3-6）はコアの `ai::entry_context`。
 
 import { useState } from "react";
 import type { EntryRef, EntryUsage } from "../core/types.ts";
+import { aiContextText } from "./aicontext.ts";
 import { keyed } from "./fields.ts";
 
 interface Props {
@@ -62,6 +63,7 @@ export function UsagePanel({
     );
   }
   const scenes = all ? usage.scenes : usage.scenes.slice(0, FIRST_SCENES);
+  const ai = aiContextText(usage.ai);
   const typeName = (r: EntryRef) =>
     r.kind === "scene"
       ? "シーン"
@@ -149,6 +151,22 @@ export function UsagePanel({
             ),
           )}
         </ul>
+      )}
+      <h3 className="bible-usage-subheading">AIに渡す内容</h3>
+      {ai === null ? (
+        <p className="context-empty">
+          このエントリを文脈に入れるAIタスクはありません（ai/*.yaml の context
+          に characters・terms を書くと入ります）。
+        </p>
+      ) : (
+        <>
+          <p className="bible-ai-lead">{ai.lead}</p>
+          <ul className="bible-ai-tasks">
+            {ai.tasks.map((t) => (
+              <li key={t}>{t}</li>
+            ))}
+          </ul>
+        </>
       )}
     </aside>
   );

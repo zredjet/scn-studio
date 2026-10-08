@@ -349,3 +349,19 @@ export function bodyOfText(text: string): string {
   }
   return body;
 }
+
+/**
+ * 立ち絵の差分の新しい名前の誤り（「＋ 差分を追加」。T3-6）。空、空白を含む（`@立ち絵 灯 笑顔 左` の区切りと
+ * 取り違える）、もうある、なら理由。足せるなら null。
+ */
+export function expressionNameProblem(
+  name: string,
+  existing: readonly string[],
+): string | null {
+  const trimmed = name.trim();
+  if (trimmed === "") return "差分の名前を入れます";
+  if (/[\s\u3000]/u.test(trimmed))
+    return "差分の名前に空白は使えません（@立ち絵 の区切りになります）";
+  if (existing.includes(trimmed)) return `${trimmed} はもうあります`;
+  return null;
+}

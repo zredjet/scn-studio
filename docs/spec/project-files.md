@@ -76,9 +76,10 @@ provider = "anthropic"              # base_url を書かなければ https://api
 model = "claude-sonnet-5-5"
 ```
 
-- 名前は AIタスクの `model`（`model: local`・`model: cloud`）が指す。チームで共有してよいもの（種類、URL、モデル）だけを書く。キーは書かない。
+- 名前は AIタスクの `model`（`model: local`・`model: cloud`）が指す。チームで共有してよいもの（種類、URL、モデル、文脈の長さ）だけを書く。キーは書かない。
+- `context_tokens`（正の整数。T3-6、D067）：モデルの文脈の長さ（トークン数）。AIタスクの文脈は、ここから返す分を除いた長さに収める（9節）。無ければ OpenAI 互換は 8192（ローカルの LLM の短い文脈でも動くように）、`anthropic` は 200000。
 - `provider`：`openai-compatible`（OpenAI 互換のチャットの補完 `<base_url>/chat/completions`。Ollama、LM Studio、llama.cpp のサーバー、互換のクラウド）か `anthropic`（Messages API `<base_url>/messages`）。`base_url` は `/v1` までを書く。読んだ URL の書き方にそろえて使う（`HTTP://Host/v1/` は `http://host/v1`。末尾の `/` は除く）。
-- 誤りの扱い：`ai` が表でない、`[ai.<名前>]` が表でない、`provider`・`base_url`・`model` が文字列でない、は E802 を出してその接続先を読み飛ばす（本文の読み方には関わらない）。ほかのキーは読まない。知らない `provider`、`base_url` の無い OpenAI 互換、http・https でない URL、`model` が無い・空、は読み込みでは知らせず、使うとき（環境設定の画面、呼び出し）に知らせる（AI を使わない人に警告を出さない）。
+- 誤りの扱い：`ai` が表でない、`[ai.<名前>]` が表でない、`provider`・`base_url`・`model` が文字列でない、`context_tokens` が正の整数でない、は E802 を出してその接続先を読み飛ばす（本文の読み方には関わらない）。ほかのキーは読まない。知らない `provider`、`base_url` の無い OpenAI 互換、http・https でない URL、`model` が無い・空、は読み込みでは知らせず、使うとき（環境設定の画面、呼び出し）に知らせる（AI を使わない人に警告を出さない）。
 - 既定の接続先：`[ai.local]` があればそれ、無ければ最初のローカルの接続先、無ければ最初の接続先（名前の順）。タイトルバーに出す。
 - ローカルとクラウド：`anthropic` はいつもクラウド。OpenAI 互換は、`base_url` のホストが `localhost`・`*.localhost`・`*.local`・ループバック・プライベート（`10/8`・`172.16/12`・`192.168/16`・`fc00::/7`）・リンクローカルならローカル（この端末と LAN の中）、それ以外はクラウド。
 - 端末側の設定（アプリの設定のフォルダの `ai.toml`。作品フォルダには置かない。アプリの環境設定の画面が書く）：
@@ -253,7 +254,7 @@ promoted_to: scene/s012
 
 ## 9. AI（`ai/`）
 
-- `ai/*.yaml`：AIタスクの定義（`docs/design.md` の「AIタスクのテンプレート化」。アプリでの実行はフェーズ3）。
+- `ai/*.yaml`：AIタスクの定義（`docs/design.md` の「AIタスクのテンプレート化」。T3-6、D067）。下の「AIタスクの定義」。
 - `ai/provenance.jsonl`：AIが書いた行の出自の記録。1行に1つのJSON。
 
   ```json
@@ -278,7 +279,76 @@ promoted_to: scene/s012
   - `scn provenance [project-dir] [--json] [-o 書き出し先]` とアプリの「出力」の画面の「AIの出自」：本文にある行のうち、今の出自が `ai`・`ai-edited` の行の一覧（行ID、ファイル、シーン、出自、タスク、モデル、日時、本文）と数。`-o`（アプリは `export/provenance.csv`）で CSV（UTF-8 の BOM 付き、CRLF。台本と同じ形）に書く。賞や公募の申告に使う。
 - `ai/proposals/`：AIエージェントが、人の書いた行への変更案を置く（日付つきのMarkdown。対象の行ID、今の文、案、理由）。
 
+### AIタスクの定義（`ai/*.yaml`。T3-6、D067）
+
+```yaml
+# ai/tone_check.yaml
+name: 口調チェック
+level: review
+model: local
+context: [scene, characters.speech, characters.first_person]
+output: findings
+prompt: |
+  以下のシーンの台詞が、各キャラの口調メモと一人称に沿っているか確認し、
+  外れている行を行IDつきで指摘してください。
+```
+
+- タスクの名前はファイル名から拡張子を除いたもの（`tone_check`）。出自の記録の `task` と、ほかのタスクの `checks` が指す。`ai/` の直下の `*.yaml` だけを読む（`ai/proposals/` などの下のフォルダは読まない）。
+
+| キー | 型 | 内容 |
+| --- | --- | --- |
+| `name` | 文字列 | 表示の名前。無ければタスクの名前 |
+| `level` | 文字列 | 関わり方の段階：`review`（指摘）・`propose`（提案）・`generate`（生成）・`auto`（自律）。無ければ `review` |
+| `model` | 文字列 | 接続先の名前（`project.toml` の `[ai.<名前>]`）。無ければ既定の接続先（2節） |
+| `context` | 名前のリスト | 文脈に入れる項目（下の表）。無ければ `[scene]` |
+| `output` | 文字列 | 出力の形。`review` は `findings`（行IDつきの指摘。既定）か `summary`（シーンの要約。`.cache/` に入れる）、`propose` は `diff`（行IDつきの差分。既定）か `proposals`（提案ノード）、`generate`・`auto` は `draft`（本文への書き込み。既定） |
+| `scope` | 文字列 | 書き込んでよい範囲（`generate`・`auto`）。今は `empty_only`（スタブと空き）だけで、既定も `empty_only` |
+| `branch` | 文字列 | 大きな実行のブランチ名のひな形（`ai/{task}-{date}`） |
+| `checks` | 名前のリスト | 自律で通す点検（`check` と、ほかのタスクの名前） |
+| `max_iterations` | 正の整数 | 自律の反復の上限 |
+| `budget` | 表 | `{ tokens: 正の整数 }`。1回の実行のトークン数の上限 |
+| `prompt` | 文字列 | 依頼の文（必須） |
+
+- 誤りの扱い：YAML として読めない、UTF-8 でないファイルは E801（そのタスクを読み飛ばす）。対応表でない定義は E802（読み飛ばす）。キーの型の誤り・知らない値は E802 を出して、そのキーを既定にする（知らない `level` は `review`、`level` に合わない `output` は段階の既定、知らない `context` の項目はその項目だけを読み飛ばす）。`prompt` が無ければ E802（タスクは一覧に出すが、実行できない）。ほかのキーは読まない。`model` の接続先が無い、`checks` の名前が無い、は使うときに知らせる（AI を使わない作品に警告を出さない）。
+- 文脈の項目：
+
+| 項目 | 入れるもの |
+| --- | --- |
+| `scene` | 今のシーンの本文（見出しから同じファイルの次の見出しの手前まで。行IDつきのまま）。このタスクはシーンを選んで実行する |
+| `characters` | 登場キャラ（今のシーンで話者・`@立ち絵`・`@退場` に出た順。話者も `@立ち絵` も無いシーン（スタブなど）では、シーンの本文（メタ情報の summary を含む）に名前か呼び名が出るキャラクターを出た順に。シーンが無ければ全員）のエントリ：型の定義の順の項目（参照はエントリの名前にする）と本文 |
+| `characters.<項目>` | 登場キャラの、書いた項目だけ（`characters.speech`、`characters.first_person` など。`characters.body` は本文）。複数書ける |
+| `terms` | 言及された用語：キャラクター以外のエントリのうち、名前か呼び名（`aliases`）が今のシーンの本文（見出しからの全体。メタ情報やコメントも含む）に出るもの（シーンが無ければ全部）。項目と本文 |
+| `variables` | 関係する変数の宣言（今のシーンで読み書きする変数。シーンが無ければ全部）：型、値、既定、範囲、スコープ、説明 |
+| `previous_summaries` | 前のシーンまでの要約：開始シーンから今のシーンまでの、シーンの辺の上の最短の道（条件は見ない）にあるシーンの要約 |
+| `concept` | 企画書（`concept.md`）の全体 |
+| `style` | 文体（`style.md`）の全体（文体見本を含む）。生成と自律（`generate`・`auto`）のタスクでは、書いていなくても入れ、`style.md` が無ければ実行しない |
+| `route_summaries`・`chapter_summaries`・`scene_summaries` | シーンの要約を、ルート（メタ情報の `route`）ごと・章（ファイル）ごと・全部を順に |
+
+- 組み立て方：節は「企画書、文体、ルート・章・シーンの要約、前のシーンまでの要約、キャラクター、用語、変数、今のシーン」の順（上から下へ）に並べ、後ろに依頼（`prompt` と対象のシーン）を置く。指示（system）には、共作者としての決まり（人の行を書き換えない）、`.scn` 形式のあらまし、出力の形の指示（`output` ごと）を書く。
+- 文脈の長さ：接続先の `context_tokens`（2節）から、返す分（4分の1、多くて4096）を除いたものを上限にする。トークン数は文字数から見積もる（英数字4字で1、ほかは1字で1）。上限に入らなければ、前のシーンまでの要約 → シーンの要約 → 章の要約 → ルートの要約 → 用語 → キャラクター（まず一人称と口調メモだけにし（`characters.<項目>` なら、書いた項目のうちの一人称と口調メモだけ）、次に節ごと）→ 変数 → 企画書 → 文体 の順に削る。今のシーンと依頼は削らない。生成と自律（`generate`・`auto`）では文体を削らない（設計検討書「生成の進め方」：文体見本は必ず入れる）。それでも入らなければ、実行せずに知らせる。
+- シーンの要約：`.cache/summaries.json`（10節）の要約を、要約を作ったときのシーンの本文と今の本文が同じとき（ハッシュが合うとき）だけ使う。無いか本文が変わっていれば、メタ情報の `summary`、それも無ければ題名だけにする（本文が変わったシーンは、作り直すよう知らせる）。要約を作るのは `output: summary` のタスク（シーン要約）。
+- 組み込みのタスク：`scn new` は次の9つの定義を置く（サンプルにもある）。中身は直してよく、足してもよい（設計検討書「AIタスクのテンプレート化」）。
+
+| 名前 | 内容 | `level` | `output` |
+| --- | --- | --- | --- |
+| `setting_check` | 設定矛盾チェック | `review` | `findings` |
+| `tone_check` | 口調チェック | `review` | `findings` |
+| `wording_check` | 表記ゆれと誤字 | `review` | `findings` |
+| `scene_summary` | シーン要約 | `review` | `summary` |
+| `thin_branches` | 分岐の薄さの指摘 | `review` | `findings` |
+| `rephrase` | 言い換え候補 | `propose` | `diff` |
+| `draft_stub` | スタブの本文を下書き | `generate` | `draft` |
+| `route_skeleton` | ルート骨格を作る | `generate` | `draft` |
+| `draft_chapter` | 章を下書きまで仕上げる | `auto` | `draft` |
+
+- 対象：今はシーンだけを選べる（`scene`・`previous_summaries` に使う）。章やルートを対象にするタスク（`draft_chapter`・`route_skeleton`）の対象の指定は、生成と自律を作るとき（T3-9）に足す。
+- `scn ai context <タスク> [project-dir] [--scene ID] [--tokens N] [--json]`：組み立てた文脈（指示と依頼）を出す（LLM は呼ばない）。節と削った節は標準エラーに出す。実行できなければ終了コード1。
+- 設定DBの画面の「AIに渡す内容」：エントリが、どのタスクにどの部分（項目と字数）で渡るか。キャラクターは登場するシーンで（`characters`）、ほかのエントリは名前が出るシーンで（`terms`）。
+
+
 ## 10. ツールが作るファイル
+
+- `.cache/summaries.json`：シーンの要約のキャッシュ（T3-6、D067）。シーンIDごとに、要約と、要約を作ったときのシーンの本文のハッシュ（FNV-1a 64 ビットの16進）を持つ（`{"scenes": {"s010": {"hash": "…", "summary": "…"}}}`）。シーン要約のタスクが書く。消してもよい（作り直す）。`scn new` の `.gitignore` は `.cache/` を Git に入れない。読めなければ知らせて、キャッシュを使わない。
 
 - `FORMAT.md`：`.scn` の仕様（`scn-format-v0.md` の1〜16節）と、この規約をまとめたもの。`scn new` が作り、ツールの版が上がったら `scn format-doc` で書き直す（D044）。手で直さない。
 - `CLAUDE.md`：`scn new` が共通のひな形から作る。作品のきまり（視点、口調など）は、作品ごとに書き足す。

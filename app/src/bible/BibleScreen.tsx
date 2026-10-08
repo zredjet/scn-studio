@@ -7,10 +7,12 @@
 //   画面が知っているファイルの中身を添える（外で変わっていれば、コアが重ねるか、書かずに知らせる）。
 // - エントリを新しく作る（「＋」）。未登録の話者の登録（T1-8）もここへ渡される。
 // - 型定義の編集（項目を足す・直す・並べ替える・消す）と、型を作る（「＋ 型」。T2-10、D061）。
-// - 差分の追加、AIに渡す内容は作らない（フェーズ3）。
+// - 立ち絵の差分は素材カタログから。「＋ 差分を追加」はカタログに仮素材の差分を足す（T3-6。コアの
+//   `add_catalog_entries`）。AIに渡す内容は逆引きの欄に出す（T3-6）。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  addCatalogEntries,
   confirm,
   createEntry,
   createType,
@@ -37,6 +39,7 @@ import {
   bodyOfText,
   diagnosticsByKey,
   entryName,
+  expressionNameProblem,
   type FieldChange,
   fileLabel,
   formFields,
@@ -125,6 +128,12 @@ export function BibleScreen({
   /** 型を作る欄。 */
   const [newType, setNewType] = useState<{
     id: string;
+    name: string;
+    error: string | null;
+  } | null>(null);
+  /** 立ち絵の差分を足す欄（キャラクターのエントリのIDと、入れている名前）。 */
+  const [newExpression, setNewExpression] = useState<{
+    character: string;
     name: string;
     error: string | null;
   } | null>(null);
@@ -262,6 +271,31 @@ export function BibleScreen({
       live = false;
     };
   }, [entryPath, data, scenes]);
+
+  /** 立ち絵の差分を素材カタログに足す（仮素材。T3-6）。 */
+  const addExpression = (character: string, name: string) => {
+    const existing = latest.current?.expressions[character] ?? [];
+    const problem = expressionNameProblem(name, existing);
+    if (problem !== null) {
+      setNewExpression({ character, name, error: problem });
+      return;
+    }
+    setStatus({ kind: "saving" });
+    addCatalogEntries([{ kind: "expression", character, name: name.trim() }])
+      .then(async (result) => {
+        onWritten(result);
+        if (result.edit.kind === "unsupported") {
+          setStatus({ kind: "error", message: result.edit.message });
+          return;
+        }
+        const next = await readBible();
+        latest.current = next;
+        setData(next);
+        setNewExpression(null);
+        setStatus({ kind: "saved" });
+      })
+      .catch((e: unknown) => setStatus({ kind: "error", message: String(e) }));
+  };
 
   /** 書いた結果を画面に入れる。 */
   const applied = useCallback(
@@ -857,6 +891,60 @@ export function BibleScreen({
                             );
                           })}
                         </div>
+                      )}
+                      {newExpression?.character === entry.id ? (
+                        <div className="bible-expression-add">
+                          <input
+                            type="text"
+                            aria-label="新しい差分の名前"
+                            value={newExpression.name}
+                            placeholder="照れ"
+                            onChange={(e) =>
+                              setNewExpression({
+                                character: entry.id,
+                                name: e.target.value,
+                                error: null,
+                              })
+                            }
+                          />
+                          <button
+                            type="button"
+                            className="small-button"
+                            disabled={status.kind === "saving"}
+                            onClick={() =>
+                              addExpression(entry.id, newExpression.name)
+                            }
+                          >
+                            カタログに足す
+                          </button>
+                          <button
+                            type="button"
+                            className="small-button"
+                            onClick={() => setNewExpression(null)}
+                          >
+                            やめる
+                          </button>
+                          {newExpression.error !== null && (
+                            <span className="bible-field-error" role="alert">
+                              {newExpression.error}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="bible-add-expression"
+                          title="素材カタログに、このキャラクターの立ち絵の差分を仮素材として足します"
+                          onClick={() =>
+                            setNewExpression({
+                              character: entry.id,
+                              name: "",
+                              error: null,
+                            })
+                          }
+                        >
+                          ＋ 差分を追加
+                        </button>
                       )}
                     </div>
                   )}

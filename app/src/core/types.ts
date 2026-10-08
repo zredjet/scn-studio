@@ -407,6 +407,23 @@ export interface EntryUsage {
   readonly refs_out: readonly EntryRef[];
   readonly refs_in: readonly EntryRef[];
   readonly variables: readonly VariableRow[];
+  /** AIに渡す内容（コアの `ai::entry_context`、T3-6）。 */
+  readonly ai: EntryAiContext | null;
+}
+
+/** 設定DBのエントリが AI タスクの文脈に渡る内容（コアの `ai::EntryContext`）。 */
+export interface EntryAiContext {
+  /** キャラクターとして（登場するシーンで）渡る。いいえなら用語として（名前が出るシーンで）。 */
+  readonly character: boolean;
+  /** 全部を渡すときの部分（項目のラベルと字数）。 */
+  readonly parts: readonly { readonly label: string; readonly chars: number }[];
+  /** このエントリを文脈に入れるタスク。 */
+  readonly tasks: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly labels: readonly string[];
+    readonly chars: number;
+  }[];
 }
 
 /** 変数の画面の中身（`read_variables`）。 */

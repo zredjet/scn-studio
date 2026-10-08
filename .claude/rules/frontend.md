@@ -56,6 +56,8 @@ paths:
 
 - AI の接続先（T3-5、D066）：一覧と書き換えはコア（`ai_connections`・`set_ai_override`・`set_ai_cloud_allowed`・`set_ai_key`・`delete_ai_key`）。キーは入力をコアへ渡すだけで、画面は受け取らない（入力欄は保存したら空にする）。クラウドの「接続を試す」は、送る中身（コアの `test_preview`）を見せてから送る。使う前に足りないもの・タイトルバーの印の判断は `preferences/connection.ts` に置き、テストを付ける（`app/test/preferences.test.ts`）。印は色だけでなく形でも分ける。
 
+- 設定DBの「AIに渡す内容」（T3-6）はコアの `ai::entry_context`（逆引きの `entry_usage` と一緒に受け取る）を `bible/aicontext.ts` で文にする。「＋ 差分を追加」は素材カタログに書く（`add_catalog_entries`）。名前の確かめ方は `bible/fields.ts` の `expressionNameProblem`。どちらもテストを付ける（`app/test/bible.test.ts`）。
+
 ## 検証の画面（app/src/check/）
 
 - 自動巡回と表記の検査（検証の段階2。T3-2・T3-3、D063・D064）は、検証の画面の「走らせる」で、コア（`playthrough` コマンド。`playthrough::stage2`）が行う。保存のたびには走らせない。結果の診断は検証の一覧に足し、本文が変わったら結果を捨てる（位置がずれるため）。結果の見せ方（道の例、変数の値、並べ方）は `check/playthrough.ts` に置き、テストを付ける（`app/test/check.test.ts`）。

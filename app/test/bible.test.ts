@@ -3,12 +3,14 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { aiContextText } from "../src/bible/aicontext.ts";
 import {
   addItem,
   appended,
   bodyOfText,
   diagnosticsByKey,
   entryName,
+  expressionNameProblem,
   formFields,
   initialOf,
   isComposingKey,
@@ -230,4 +232,41 @@ test("フロントマターの後ろの本文（コアの body_of と同じ読�
   assert.equal(bodyOfText("本文だけ\n"), "本文だけ\n");
   assert.equal(bodyOfText("---\nid: a\n"), "---\nid: a\n");
   assert.equal(bodyOfText("---  \nid: a\n---\t\n"), "");
+});
+
+test("立ち絵の差分の新しい名前（＋ 差分を追加）：空、空白、もうある名前は断る", () => {
+  assert.equal(expressionNameProblem(" 照れ ", ["笑顔"]), null);
+  assert.equal(expressionNameProblem("  ", []), "差分の名前を入れます");
+  assert.match(expressionNameProblem("照れ 顔", []) ?? "", /空白/);
+  assert.match(expressionNameProblem("照れ\u3000顔", []) ?? "", /空白/);
+  assert.equal(expressionNameProblem("笑顔", ["笑顔"]), "笑顔 はもうあります");
+});
+
+test("AIに渡す内容の文：部分と字数、渡るシーン、タスクごと", () => {
+  assert.equal(aiContextText(null), null);
+  const ai = {
+    character: true,
+    parts: [
+      { label: "一人称", chars: 3 },
+      { label: "口調メモ", chars: 40 },
+      { label: "本文", chars: 60 },
+    ],
+    tasks: [
+      {
+        id: "tone_check",
+        name: "口調チェック",
+        labels: ["一人称", "口調メモ"],
+        chars: 43,
+      },
+    ],
+  };
+  assert.deepEqual(aiContextText(ai), {
+    lead: "一人称・口調メモ・本文（約103字）。登場するシーンでAIタスクを実行すると、この内容が文脈に入ります（シーンを選ばないタスクでは、いつも入ります）。",
+    tasks: ["口調チェック：一人称・口調メモ（約43字）"],
+  });
+  assert.equal(aiContextText({ ...ai, tasks: [] }), null);
+  assert.match(
+    aiContextText({ ...ai, character: false })?.lead ?? "",
+    /名前が出るシーン/,
+  );
 });

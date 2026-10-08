@@ -18,6 +18,10 @@ pub const OPENAI_COMPATIBLE: &str = "openai-compatible";
 pub const ANTHROPIC: &str = "anthropic";
 /// `provider = "anthropic"` で `base_url` を書かないときの URL。
 pub const ANTHROPIC_BASE_URL: &str = "https://api.anthropic.com/v1";
+/// 文脈の長さ（`context_tokens`）を書かないときの既定（OpenAI 互換。ローカルの LLM の短い文脈でも動くように）。
+pub const DEFAULT_CONTEXT_TOKENS: u64 = 8192;
+/// 文脈の長さを書かないときの既定（Messages API）。
+pub const ANTHROPIC_CONTEXT_TOKENS: u64 = 200_000;
 /// 既定の接続先の名前（設計検討書「接続」：既定はローカル）。
 pub const DEFAULT_CONNECTION: &str = "local";
 /// 端末の設定のファイル名（アプリの設定のフォルダに置く。作品フォルダには置かない）。
@@ -166,6 +170,8 @@ pub struct Connection {
     pub endpoint: String,
     /// この端末で、クラウドへの送信を許可した（ローカルの行き先では常に真）。
     pub allowed: bool,
+    /// 文脈の長さ（トークン数）。
+    pub context_tokens: u64,
 }
 
 /// 接続先の宣言に端末の上書きを重ね、呼び出せる形にする。足りない・誤った値は、知らせる文で返す。
@@ -202,6 +208,10 @@ pub fn resolve(decl: &AiConnectionDecl, machine: &MachineSettings) -> Result<Con
     let cloud = provider == Provider::Anthropic || !url.host().is_some_and(|h| is_local_host(&h));
     let endpoint = format!("{} {base_url}", provider.name());
     let allowed = !cloud || machine.cloud.allowed.contains(&endpoint);
+    let context_tokens = decl.context_tokens.unwrap_or(match provider {
+        Provider::OpenaiCompatible => DEFAULT_CONTEXT_TOKENS,
+        Provider::Anthropic => ANTHROPIC_CONTEXT_TOKENS,
+    });
     Ok(Connection {
         name: name.clone(),
         provider,
@@ -210,6 +220,7 @@ pub fn resolve(decl: &AiConnectionDecl, machine: &MachineSettings) -> Result<Con
         cloud,
         endpoint,
         allowed,
+        context_tokens,
     })
 }
 

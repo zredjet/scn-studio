@@ -506,6 +506,20 @@ fn external_settings_change() {
     assert_eq!(ws.project().variables.len(), 1);
     assert_eq!(ws.text("story/a.scn"), Some("## a #s1\n編集\n"));
     assert!(ws.is_dirty("story/a.scn"));
+    // AIタスクの定義（`ai/` の直下の `*.yaml`。T3-6）を足す・直すと読み直す。下のフォルダは読まない。
+    fs::create_dir_all(dir.join("ai/proposals")).unwrap();
+    write(&dir, "ai/tone.yaml", "name: 口調\nprompt: p\n");
+    assert_eq!(
+        ws.external_change(&dir.join("ai/tone.yaml")),
+        Change::Settings
+    );
+    assert_eq!(ws.project().ai_tasks.len(), 1);
+    assert_eq!(ws.text("story/a.scn"), Some("## a #s1\n編集\n"));
+    write(&dir, "ai/proposals/x.yaml", "a: 1\n");
+    assert_eq!(
+        ws.external_change(&dir.join("ai/proposals/x.yaml")),
+        Change::None
+    );
     // 作品フォルダの外や、本文でも設定でもないファイルは無視する。
     write(&dir, "FORMAT.md", "x");
     assert_eq!(ws.external_change(&dir.join("FORMAT.md")), Change::None);

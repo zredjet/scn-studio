@@ -3656,3 +3656,50 @@ body {
 .ai-indicator.running .ai-mark {
   color: var(--chrome-text-muted);
 }
+
+/* 設定DBの「AIに渡す内容」（T3-6） */
+.bible-ai-lead {
+  margin: 0;
+  padding: 0 16px 6px;
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+
+.bible-ai-tasks {
+  margin: 0 0 16px;
+  padding: 0 16px 0 34px;
+  color: var(--ai-text);
+  font-size: 12px;
+}
+
+/* 設定DBの「＋ 差分を追加」（T3-6。モック 04-bible.html の点線のボタン） */
+.bible-add-expression {
+  align-self: flex-start;
+  margin-top: 6px;
+  padding: 6px 12px;
+  border: 1.5px dashed var(--border-control);
+  border-radius: var(--radius-item);
+  background: var(--paper);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.bible-expression-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.bible-expression-add input {
+  width: 160px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  font: inherit;
+  font-size: 12.5px;
+}
