@@ -691,3 +691,14 @@
   - `scn ir --compact`：整形しない JSON を出す（`docs/progress.md` の「フェーズ2へ」。入れ子の深い本文で、字下げで出力が大きくならないように）。
 - 理由：フェーズ1でテキストで直すことにした型定義と変数の宣言を、フォームでも直せるようにする（設計検討書「設定DB」「変数」）。テキストが正なので、フォームは直した行だけを差し替え、書けない書き方はテキストに戻す（原則1、D049 と同じ）。値の検査は、壊れたまま書けるように警告にする（原則4）。台本の Excel 形式は、CSV を Excel で開くと行IDが数に変わる問題（D051）を避けるため。再収録候補は、ボイスの収録が行IDに依存するので、行IDごとに中身の変化を見る（原則5）。基準を書き出しのたびに更新すると、2回書き出しただけで候補が消えるので、収録に出したときにだけ記録する。サブディレクトリは、長い作品で章が増えたときに分けるため（D036 で後回しにしたもの）。
 - 影響：`crates/scn-core/src/typedef.rs`・`vardecl.rs`・`xlsx.rs`（新規）、`bible.rs`（書き換えの部品を `pub(crate)` に、`EditError::Invalid`）、`project.rs`（`story/` を下のフォルダまで読む、W807、`write_bytes`、BOM の読み飛ばし）、`assets.rs`・`renpy.rs`（BOM）、`ir.rs`（`anonymous_stem`、仮のIDの番号）、`renpy.rs`（章のファイル名）、`script.rs`（Excel 形式、`ScriptFormat`、収録の基準）、`workspace.rs`（`set_variable_field`・`add_variable`・`type_text`・`edit_type`・`create_type`、章のフォルダ）、`diag.rs`（W807）、`scn-cli`（`ir --compact`、`export script --format --baseline`）、`app/src-tauri`、`app/src/bible/TypeEditor.tsx`・`typeform.ts`、`app/src/variables/form.ts`・`VariablesScreen.tsx`、`app/src/export/ExportScreen.tsx`、仕様書（5節、16節、17節）と作品フォルダの規約（1節、3節、5節、10節）。
+
+## D062 フェーズ2のゲート判定とフェーズ3の計画（2026-10-08）
+
+- 決定：
+  - ゲートの条件1「書き出したRen'Pyのプロジェクトが起動し、最後まで遊べる」は、自動で確かめられる範囲で満たした。T2-10 の後に `scripts/renpy-check`（Ren'Py 8.5.2 の SDK）を走らせ直し、両サンプルとも lint の誤りなし、自動プレイで houkago は akari_end・tsumugi_end・bad_end（s030 から）・行き止まりのスタブ、amayadori は rain_end・bus_end・stay_end まで進んだ。書き出しのスナップショットのテストもある（T2-2）。人が起動して遊ぶことは H9 で確認待ち。
+  - 条件2（フェーズ1から持ち越した人の確認 H1〜H8 と、2OSのIMEテスト）は確認待ち。フェーズ2で足した人の確認（H9〜H17）も確認待ち。人の指示に沿い、確認待ちのままフェーズ3へ進む（D052 と同じ）。確認で問題が見つかれば、フェーズ3の T3-1 で直す。
+  - フェーズ3の計画は `docs/plan/phase3.md` の草案で進める。設計検討書のロードマップのフェーズ3にはゲートが無いので、閉じる条件（設計検討書のフェーズ3の内容がそろう、AIの一連の流れを OpenAI 互換の接続とネイティブの接続（サンプルの `anthropic`）で通せる、書き出し（縦書きPDFを含む）とVS Codeでの確認、持ち越した人の確認とフェーズ3で足す人の確認）を置いた。タスクは T3-1（人の確認の取り込み）〜T3-17（締めくくり）。AIのタスク（T3-5〜T3-10）は順に積み上げ、ほかは番号の順に進める。レビューで、設定DBの画面の「AIに渡す内容」と「＋ 差分を追加」（D049 でフェーズ3に回したもの）を T3-6 に、`project.toml` の `[ai.*]` の予約とネイティブのアダプタ（サンプルの `anthropic`）を T3-5 に、ルート骨格の生成を T3-10 に、サンプルの診断の約束と記号的な解析の判断を T3-2 に入れた。縦書きPDFは、WebView の組版を確認用に限る D005 に沿って、OS の印刷で作る案を採らない。
+  - 設計検討書にフェーズ4は無い。フェーズ3の締めくくり（T3-17）で、設計検討書の範囲の外に書き残したもの（MCPサーバー、配布、CIなど）を人に示して止まる。
+  - フェーズ3の新しい依存は、設計検討書の「アーキテクチャ」に名前のあるもの（`reqwest`、`keyring`、`minijinja`、`tower-lsp`）を使う。Git の操作は `git` コマンドを呼び、VS Code拡張の依存は `packages/vscode-scn` の中に閉じる。自動のテストで実際のLLMを呼ばず、テストの中の模擬のサーバー（OpenAI 互換と、ネイティブの Anthropic の Messages API）で確かめる。クラウドへの送信は、人が接続先ごとに有効にしたときだけ。
+- 理由：人が戻るまで止まらずに進めるという指示のため（D052）。設計検討書の範囲を閉じる地点をはっきりさせ、範囲の外へ黙って進まないため。AIのテストを決定的にし、費用と外部への送信を起こさないため。
+- 影響：`docs/plan/phase3.md`（新規）、`docs/plan/phase2.md`（T2-11 の印）、`CLAUDE.md`・`README.md`（現在のフェーズ）、`docs/progress.md`、`docs/review-for-human.md`。

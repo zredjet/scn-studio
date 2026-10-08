@@ -2,7 +2,7 @@
 
 分岐する物語（ADV・ビジュアルノベル）のための執筆ツール。Tauri製のデスクトップアプリで、対象OSはWindowsとmacOS（Linuxは対象外）。シナリオは独自のテキスト形式 `.scn` で書き、設定DB・構造グラフ・プレビュー・エクスポート・AI支援を、同じテキストから導いたデータの上に載せる。
 
-現在は**フェーズ2（制作に使える）**。計画は `docs/plan/phase2.md`、進捗は `docs/progress.md`。フェーズ1（執筆の核）の計画は `docs/plan/phase1.md`、フェーズ0（形式を固める）の計画と記録は `docs/plan/phase0.md` に残している。人の確認を待っていることは `docs/review-for-human.md` にまとめている。
+現在は**フェーズ3（支援と拡張）**。計画は `docs/plan/phase3.md`、進捗は `docs/progress.md`。フェーズ2（制作に使える）の計画は `docs/plan/phase2.md`、フェーズ1（執筆の核）の計画は `docs/plan/phase1.md`、フェーズ0（形式を固める）の計画と記録は `docs/plan/phase0.md` に残している。人の確認を待っていることは `docs/review-for-human.md` にまとめている。
 
 ## 作業を始めるとき
 
