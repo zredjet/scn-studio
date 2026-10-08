@@ -1,0 +1,10 @@
+name: アイテム
+fields:
+  - { key: price, label: 値段, type: number }
+  - { key: lost, label: なくした, type: bool }
+  - { key: since, label: 手に入れた日, type: date }
+  - { key: kind, label: 種類, type: select, options: [鍵, 手紙] }
+  - { key: marks, label: 印, type: multiselect, options: [大事, 秘密] }
+  - { key: tags, label: 札, type: list<text> }
+  - { key: scene, label: 出てくるシーン, type: ref<scene> }
+  - { key: memo, label: メモ, type: longtext }

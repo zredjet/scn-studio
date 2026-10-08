@@ -1,18 +1,18 @@
 // 文脈パネル（docs/ui/mockups/02-editor.html の「シーン情報」）：今のシーンの登場キャラ（一人称と口調メモ）、
 // 読み書きした変数、使った素材と、このファイルの問題。データはコアの assist::scene_info（T1-8、D047）。
 
-import { useEffect, useRef } from "react";
 import { CheckList } from "../check/CheckList.tsx";
 import type { IrDiagnostic, SceneInfo } from "../core/types.ts";
 
 interface Props {
   readonly scene: SceneInfo | null;
-  /** 定義へ移る操作で選ばれたキャラクター（カードを見せて目立たせる）。 */
-  readonly focusCharacter: { readonly id: string; readonly seq: number } | null;
   readonly diagnostics: readonly IrDiagnostic[];
   readonly files: readonly string[];
   readonly onSelectDiagnostic: (d: IrDiagnostic) => void;
-  readonly onRegister: (d: IrDiagnostic, id: string) => Promise<string | null>;
+  /** 未登録の話者を設定DBの画面で登録する。 */
+  readonly onRegister: (name: string) => void;
+  /** キャラクターを設定DBの画面で開く。 */
+  readonly onOpenCharacter: (id: string) => void;
 }
 
 const ASSET_KIND = {
@@ -32,20 +32,12 @@ function usage(reads: number, writes: number): string {
 
 export function ContextPanel({
   scene,
-  focusCharacter,
   diagnostics,
   files,
   onSelectDiagnostic,
   onRegister,
+  onOpenCharacter,
 }: Props) {
-  const cards = useRef(new Map<string, HTMLElement>());
-  useEffect(() => {
-    if (focusCharacter === null) return;
-    cards.current
-      .get(focusCharacter.id)
-      ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [focusCharacter]);
-
   // 立ち絵は、キャラクターごとに「灯/笑顔、灯/真顔」とまとめる。
   const assets: { kind: string; name: string; registered: boolean }[] = [];
   for (const a of scene?.assets ?? []) {
@@ -62,21 +54,20 @@ export function ContextPanel({
             <p className="context-empty">このシーンには出ていません。</p>
           )}
           {scene.characters.map((c) => (
-            <section
-              key={c.id}
-              ref={(el) => {
-                if (el === null) cards.current.delete(c.id);
-                else cards.current.set(c.id, el);
-              }}
-              className={`character-card${focusCharacter?.id === c.id ? " focused" : ""}`}
-              aria-label={c.name}
-            >
+            <section key={c.id} className="character-card" aria-label={c.name}>
               <div className="character-head">
                 <span className="character-initial" aria-hidden="true">
                   {[...c.name][0] ?? ""}
                 </span>
                 <div className="character-name">
-                  <strong>{c.name}</strong>
+                  <button
+                    type="button"
+                    className="character-open"
+                    title="設定DBで開く"
+                    onClick={() => onOpenCharacter(c.id)}
+                  >
+                    {c.name}
+                  </button>
                   <span>
                     {c.id} · このシーンで台詞 {c.lines}行
                   </span>

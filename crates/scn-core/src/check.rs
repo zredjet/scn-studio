@@ -2,18 +2,17 @@
 //!
 //! IRと索引とプロジェクトの宣言から、メッセージウィンドウからのはみ出し（W203）、行き止まり（W503）、
 //! 開始シーンから着けないシーン（W504）、エンディングに着かないシーン（W505）、書き込むだけ・読まれるだけの
-//! 変数（W605・W606）、企画書とのエンディングの食い違い（W701・W702）、回収の無い伏線（W703）を出す。
+//! 変数（W605・W606）、企画書とのエンディングの食い違い（W701・W702）、回収の無い伏線（W703）、
+//! 参照先の無い設定DBの参照（W806）を出す。
 //! 条件は見ず、辺（ジャンプと呼び出し）だけをたどる（`docs/design.md` の「到達性解析の進め方」の段階1）。
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
+use crate::bible::{FORESHADOW_TYPE, broken_references};
 use crate::diag::{Code, Span};
 use crate::index::Index;
 use crate::ir::{Ir, IrDiagnostic, IrInline, IrScene, Op};
 use crate::project::{MessageWindow, Project};
-
-/// 伏線の型のID（`bible/types/foreshadow.yaml`。D043）。
-const FORESHADOW_TYPE: &str = "foreshadow";
 
 /// 検証の段階1の診断を返す。ファイルと位置の順に並べる。
 pub fn check(project: &Project, ir: &Ir, index: &Index) -> Vec<IrDiagnostic> {
@@ -27,6 +26,9 @@ pub fn check(project: &Project, ir: &Ir, index: &Index) -> Vec<IrDiagnostic> {
     checker.variables(project, index);
     checker.endings(project, ir);
     checker.foreshadows(project, ir);
+    for (file, span, message) in broken_references(project, ir) {
+        checker.diag(Code::W806, &file, span, message);
+    }
     let mut diags = checker.diags;
     diags.sort_by(|a, b| (&a.file, a.span.start).cmp(&(&b.file, b.span.start)));
     diags

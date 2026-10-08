@@ -7,18 +7,23 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ask, open, save } from "@tauri-apps/plugin-dialog";
 import type {
   AddedChapter,
+  BibleData,
+  BibleWritten,
   DevSettings,
+  EntryUsage,
   GraphLevel,
+  JsonValue,
   KeptFile,
   LoadedLayout,
   OpenedProject,
   RecentProject,
-  RegisteredCharacter,
   ReloadedFile,
   SavedFile,
   SceneGraphData,
   SceneInfo,
   Summary,
+  VariablesData,
+  VariablesWritten,
   ViewMode,
   WorkspaceChanged,
 } from "./types.ts";
@@ -57,12 +62,69 @@ export async function sceneInfo(scene: string): Promise<SceneInfo | null> {
   return result.scene;
 }
 
-/** 未登録の話者を、設定DBのキャラクターとして登録する（D047）。 */
-export function registerCharacter(
+// ---- 設定DBと変数（T1-10、D049） ----
+
+/** 設定DBの中身。 */
+export function readBible(): Promise<BibleData> {
+  return invoke<BibleData>("read_bible");
+}
+
+/** エントリの逆引き（無いエントリなら null）。 */
+export function entryUsage(path: string): Promise<EntryUsage | null> {
+  return invoke<EntryUsage | null>("entry_usage", { path });
+}
+
+/**
+ * エントリの1つの項目を直す（直したキーの値だけを差し替える）。`seen` は画面が知っているファイルの中身。
+ * 外でその項目も変わっていれば、書かずに衝突になる。
+ */
+export function setEntryField(
+  path: string,
+  key: string,
+  value: JsonValue,
+  seen: string,
+): Promise<BibleWritten> {
+  return invoke<BibleWritten>("set_entry_field", { path, key, value, seen });
+}
+
+/** エントリの本文（フロントマターの後ろ）を直す。 */
+export function setEntryBody(
+  path: string,
+  body: string,
+  seen: string,
+): Promise<BibleWritten> {
+  return invoke<BibleWritten>("set_entry_body", { path, body, seen });
+}
+
+/** エントリのファイル全体を書く（ソース表示）。`seen` が null なら上書きする。 */
+export function writeEntrySource(
+  path: string,
+  text: string,
+  seen: string | null,
+): Promise<BibleWritten> {
+  return invoke<BibleWritten>("write_entry_source", { path, text, seen });
+}
+
+/** エントリを新しく作る（未登録の話者の登録も。D047、D049）。 */
+export function createEntry(
+  typeId: string,
   id: string,
   name: string,
-): Promise<RegisteredCharacter> {
-  return invoke<RegisteredCharacter>("register_character", { id, name });
+): Promise<BibleWritten> {
+  return invoke<BibleWritten>("create_entry", { typeId, id, name });
+}
+
+/** 変数の画面の中身。 */
+export function readVariables(): Promise<VariablesData> {
+  return invoke<VariablesData>("read_variables");
+}
+
+/** `variables.yaml` を書く。`seen` が null なら上書きする。 */
+export function writeVariables(
+  text: string,
+  seen: string | null,
+): Promise<VariablesWritten> {
+  return invoke<VariablesWritten>("write_variables", { text, seen });
 }
 
 /**

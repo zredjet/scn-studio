@@ -5,8 +5,9 @@
 // 変換が終わってから反映する（whenIdle）。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type BibleRequest, BibleScreen } from "./bible/BibleScreen.tsx";
 import { CheckList } from "./check/CheckList.tsx";
-import { countBySeverity, unregisteredSpeaker } from "./check/group.ts";
+import { countBySeverity } from "./check/group.ts";
 import {
   addChapter,
   confirm,
@@ -22,7 +23,6 @@ import {
   pickNewProjectFolder,
   pickProjectFolder,
   recentProjects,
-  registerCharacter,
   reloadFile,
   saveFile,
   sceneInfo,
@@ -64,6 +64,7 @@ import { StatusBar } from "./shell/StatusBar.tsx";
 import { fileChars, sceneAt } from "./shell/scene.ts";
 import { TitleBar } from "./shell/TitleBar.tsx";
 import { Welcome } from "./shell/Welcome.tsx";
+import { VariablesScreen } from "./variables/VariablesScreen.tsx";
 
 interface ProjectView {
   readonly root: string;
@@ -100,6 +101,11 @@ function withoutFiles(
   return new Set([...set].filter((f) => !files.has(f)));
 }
 
+/** 設定DBのエントリか `variables.yaml` か（検証の画面から、その画面を開ける）。 */
+function isSettingsFile(file: string): boolean {
+  return file.startsWith("bible/entries/") || file === "variables.yaml";
+}
+
 function withoutConflict(
   map: ReadonlyMap<string, Conflict>,
   file: string,
@@ -133,11 +139,14 @@ export function App() {
   /** カーソルのあるシーンと、その情報（文脈パネル）。 */
   const [currentScene, setCurrentScene] = useState<string | null>(null);
   const [scene, setScene] = useState<SceneInfo | null>(null);
-  /** 定義へ移る操作で選んだキャラクター（文脈パネルのカード）。 */
-  const [focusCharacter, setFocusCharacter] = useState<{
-    id: string;
-    seq: number;
-  } | null>(null);
+  /** 設定DBの画面への頼み（エントリを開く、作る。D049）。 */
+  const [bibleRequest, setBibleRequest] = useState<BibleRequest | null>(null);
+  /** 設定ファイルが外で変わった回数（設定DBと変数の画面が読み直す）。 */
+  const [settingsVersion, setSettingsVersion] = useState(0);
+  /** 保存していない、設定ファイルのソース表示の変更（画面ごと）。閉じる前の確認に使う。 */
+  const [settingsDrafts, setSettingsDrafts] = useState<ReadonlySet<string>>(
+    new Set(),
+  );
   const [quickOpen, setQuickOpen] = useState(false);
   /** フローの画面の粒度と、`layout.json` が外で変わった回数（D048）。 */
   const [flowLevel, setFlowLevel] = useState<GraphLevel>("scene");
@@ -170,6 +179,8 @@ export function App() {
     modes,
     currentScene,
     assist,
+    settingsDrafts,
+    screen,
   });
   latest.current = {
     project,
@@ -179,6 +190,8 @@ export function App() {
     modes,
     currentScene,
     assist,
+    settingsDrafts,
+    screen,
   };
 
   const replaceText = useCallback(
@@ -281,7 +294,8 @@ export function App() {
     setEditorSettings(opened.editor);
     setCurrentScene(null);
     setScene(null);
-    setFocusCharacter(null);
+    setBibleRequest(null);
+    setSettingsDrafts(new Set());
     setModes(new Map());
     void viewModes()
       .then((m) => setModes(new Map(Object.entries(m))))
@@ -310,7 +324,11 @@ export function App() {
 
   /** 保存していない変更があれば、捨ててよいかを聞く。 */
   const confirmDiscard = useCallback(async () => {
-    if (latest.current.dirty.size === 0) return true;
+    if (
+      latest.current.dirty.size === 0 &&
+      latest.current.settingsDrafts.size === 0
+    )
+      return true;
     return confirm(
       "保存していない変更があります。保存せずに続けますか？",
       "保存していない変更",
@@ -421,6 +439,7 @@ export function App() {
             break;
           case "settings":
             changed.push("設定ファイル");
+            setSettingsVersion((n) => n + 1);
             break;
           case "layout":
             setLayoutVersion((n) => n + 1);
@@ -636,24 +655,77 @@ export function App() {
     [refreshScene],
   );
 
-  /** 未登録の話者を設定DBに登録する（D047）。エラーの文を返す。 */
+  /** 設定DBの画面を開いて頼む（D049）。 */
+  const requestBible = useCallback((make: (seq: number) => BibleRequest) => {
+    setBibleRequest((r) => make((r?.seq ?? 0) + 1));
+    setScreen("bible");
+  }, []);
+
+  /** 未登録の話者を、設定DBの画面の「作る」の欄で登録する（D047、D049）。 */
   const onRegister = useCallback(
-    async (d: IrDiagnostic, id: string): Promise<string | null> => {
-      const name = unregisteredSpeaker(d);
-      if (name === null) return "登録できる話者ではありません";
-      try {
-        const result = await registerCharacter(id, name);
-        setAssist(result.assist);
-        showSummary(result.summary, result.checks);
-        whenIdle(() =>
-          setNotice(`${name} を設定DBに登録しました（${result.file}）`),
-        );
-        return null;
-      } catch (e) {
-        return String(e);
-      }
+    (name: string) =>
+      requestBible((seq) => ({ kind: "new", typeId: null, name, seq })),
+    [requestBible],
+  );
+
+  /** 設定DBか変数を書いた後：補完の材料と、解析の結果を入れる。 */
+  const onSettingsWritten = useCallback(
+    (result: {
+      readonly assist: AssistData;
+      readonly summary: Summary;
+      readonly checks: readonly IrDiagnostic[];
+    }) => {
+      setAssist(result.assist);
+      showSummary(result.summary, result.checks);
     },
-    [showSummary, whenIdle],
+    [showSummary],
+  );
+
+  const onSettingsDraft = useCallback((screenName: string, value: boolean) => {
+    setSettingsDrafts((set) => {
+      if (set.has(screenName) === value) return set;
+      const next = new Set(set);
+      if (value) next.add(screenName);
+      else next.delete(screenName);
+      return next;
+    });
+  }, []);
+  /**
+   * 設定DBか変数の画面から移る前に、その画面のソース表示に保存していない変更があれば、捨ててよいかを聞く。
+   */
+  const leaveSettings = useCallback((go: () => void) => {
+    const { settingsDrafts: drafts } = latest.current;
+    const here = latest.current.screen;
+    const draft =
+      (here === "bible" && drafts.has("bible")) ||
+      (here === "variables" && drafts.has("variables"));
+    if (!draft) {
+      go();
+      return;
+    }
+    void confirm(
+      "ソース表示に保存していない変更があります。捨てて移りますか？",
+      "保存していない変更",
+    ).then((ok) => {
+      if (ok) go();
+    });
+  }, []);
+  const selectScreen = useCallback(
+    (next: Screen) => {
+      if (next === latest.current.screen) return;
+      leaveSettings(() => setScreen(next));
+    },
+    [leaveSettings],
+  );
+  const onBibleRequestHandled = useCallback(() => setBibleRequest(null), []);
+
+  const onBibleDraft = useCallback(
+    (value: boolean) => onSettingsDraft("bible", value),
+    [onSettingsDraft],
+  );
+  const onVariablesDraft = useCallback(
+    (value: boolean) => onSettingsDraft("variables", value),
+    [onSettingsDraft],
   );
 
   /** 本文の画面で、あるファイルのある位置へ移る。 */
@@ -675,12 +747,17 @@ export function App() {
     [project, currentFile],
   );
 
+  const openFromSettings = useCallback(
+    (file: string, offset: number) => leaveSettings(() => goTo(file, offset)),
+    [leaveSettings, goTo],
+  );
+
   const selectScene = useCallback(
     (scene: SceneSummary) => goTo(scene.file, scene.span[0]),
     [goTo],
   );
 
-  /** 定義へ移る：シーンIDはそのシーンへ、話者名は文脈パネルのキャラクターのカードへ（D047）。 */
+  /** 定義へ移る：シーンIDはそのシーンへ、話者名は設定DBの画面のそのキャラクターへ（D047、D049）。 */
   const onDefinition = useCallback(
     (definition: Definition) => {
       if (definition.kind === "scene") {
@@ -700,9 +777,23 @@ export function App() {
         setNotice(`${name} は設定DBに登録されていません`);
         return;
       }
-      setFocusCharacter((f) => ({ id: character.id, seq: (f?.seq ?? 0) + 1 }));
+      requestBible((seq) => ({ kind: "character", id: character.id, seq }));
     },
-    [project, selectScene],
+    [project, selectScene, requestBible],
+  );
+
+  /** 検証の画面で診断を選んだ：本文ならその行へ、設定DBのエントリと変数ならその画面へ。 */
+  const onSelectDiagnostic = useCallback(
+    (d: IrDiagnostic) => {
+      if (d.file.startsWith("bible/entries/")) {
+        requestBible((seq) => ({ kind: "entry", path: d.file, seq }));
+      } else if (d.file === "variables.yaml") {
+        setScreen("variables");
+      } else {
+        goTo(d.file, d.span[0]);
+      }
+    },
+    [goTo, requestBible],
   );
 
   // クイックオープン（Mod-P）。エディタの外にフォーカスがあるときも開く。
@@ -765,7 +856,7 @@ export function App() {
           <LeftBar
             screen={screen}
             problems={counts.error + counts.warning}
-            onSelect={setScreen}
+            onSelect={selectScreen}
           />
         )}
         <main className="workspace">
@@ -843,13 +934,15 @@ export function App() {
                 </section>
                 <ContextPanel
                   scene={scene}
-                  focusCharacter={focusCharacter}
                   diagnostics={allDiagnostics.filter(
                     (d) => d.file === currentFile,
                   )}
                   files={project.files}
                   onSelectDiagnostic={(d) => goTo(d.file, d.span[0])}
                   onRegister={onRegister}
+                  onOpenCharacter={(id) =>
+                    requestBible((seq) => ({ kind: "character", id, seq }))
+                  }
                 />
               </section>
               {screen === "flow" && (
@@ -864,14 +957,42 @@ export function App() {
                   />
                 </section>
               )}
+              {screen === "bible" && (
+                <section className="screen bible-screen" aria-label="設定DB">
+                  <BibleScreen
+                    scenes={project.summary.scenes}
+                    diagnostics={allDiagnostics}
+                    settingsVersion={settingsVersion}
+                    request={bibleRequest}
+                    onWritten={onSettingsWritten}
+                    onOpenLocation={openFromSettings}
+                    onUnsaved={onBibleDraft}
+                    onRequestHandled={onBibleRequestHandled}
+                  />
+                </section>
+              )}
+              {screen === "variables" && (
+                <section className="screen variables-screen" aria-label="変数">
+                  <VariablesScreen
+                    scenes={project.summary.scenes}
+                    diagnostics={allDiagnostics}
+                    characters={assist?.characters ?? []}
+                    settingsVersion={settingsVersion}
+                    onWritten={onSettingsWritten}
+                    onOpenLocation={openFromSettings}
+                    onUnsaved={onVariablesDraft}
+                  />
+                </section>
+              )}
               {screen === "check" && (
                 <section className="screen check-screen" aria-label="検証">
                   <CheckList
                     heading="検証（プロジェクト全体）"
                     diagnostics={allDiagnostics}
                     files={project.files}
-                    onSelect={(d) => goTo(d.file, d.span[0])}
+                    onSelect={onSelectDiagnostic}
                     onRegister={onRegister}
+                    canOpen={isSettingsFile}
                   />
                 </section>
               )}
@@ -882,7 +1003,7 @@ export function App() {
       {quickOpen && project !== null && (
         <QuickOpen
           scenes={project.summary.scenes}
-          onSelect={selectScene}
+          onSelect={(s) => leaveSettings(() => selectScene(s))}
           onClose={() => setQuickOpen(false)}
         />
       )}

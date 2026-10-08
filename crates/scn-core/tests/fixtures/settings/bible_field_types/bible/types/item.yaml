@@ -1,0 +1,5 @@
+name: アイテム
+fields:
+  - { key: owner, label: 持ち主, type: txt }
+  - { key: tags, label: 札, type: list<text }
+  - { key: price, label: 値段, type: number }

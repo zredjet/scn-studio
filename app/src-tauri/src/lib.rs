@@ -15,6 +15,7 @@ use std::time::Duration;
 
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use scn_core::assist::{self, completion_data, scene_chars};
+use scn_core::bible;
 use scn_core::check::{check, overflow};
 use scn_core::graph::{Level, build_graph};
 use scn_core::index::build_index;
@@ -357,10 +358,116 @@ fn scene_info(scene: String, state: State<'_, AppState>) -> Result<Response, Str
     json_response(&json!({ "scene": scene }))
 }
 
-/// 未登録の話者を、設定DBのキャラクターとして登録する（D047）。補完の材料と、表示に要る分と、
-/// 検証の段階1の診断を返す。
+// ---- 設定DBと変数（T1-10、D049） ----
+
+/// 設定DBの中身（設定DBの画面）。型、読めたエントリ、エントリのファイル（読めなかったものを含む。
+/// ソース表示で直せるように）、キャラクターの型、立ち絵の差分の名前。フロントの型は `BibleData`。
+fn bible_data(workspace: &Workspace) -> Value {
+    let project = workspace.project();
+    let bible = &project.bible;
+    let files: Vec<Value> = workspace
+        .entry_files()
+        .into_iter()
+        .map(|(path, text)| {
+            let entry = bible.entries.iter().find(|e| e.path == path);
+            json!({ "path": path, "text": text, "entry": entry })
+        })
+        .collect();
+    json!({
+        "character_type": bible.character_type(),
+        "types": bible.types,
+        "files": files,
+        "expressions": project.catalog.characters,
+    })
+}
+
+/// 設定DBか変数を書いた後に返すもの：書いた結果、設定DBの中身、補完の材料、表示に要る分、検証の段階1の診断。
+fn after_settings_write(workspace: &Workspace, edit: Value) -> Result<Response, String> {
+    let Analyzed {
+        summary, checks, ..
+    } = analyze_summary(workspace.project(), true, None)?;
+    json_response(&json!({
+        "edit": edit,
+        "bible": bible_data(workspace),
+        "assist": completion_data(workspace.project()),
+        "summary": summary,
+        "checks": checks,
+    }))
+}
+
+/// 設定DBの中身（設定DBの画面を開いたとき、設定が外で変わったとき）。
 #[tauri::command]
-fn register_character(
+fn read_bible(state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    json_response(&bible_data(workspace))
+}
+
+/// エントリの逆引き（登場シーン、参照、紐づく変数）。無いエントリなら null。
+#[tauri::command]
+fn entry_usage(path: String, state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let project = open_workspace(&mut guard)?.project();
+    let usage = with_index(project, |ir, index| {
+        to_json(&bible::entry_usage(project, ir, index, &path), "逆引き")
+    })?;
+    json_response(&usage)
+}
+
+/// エントリの1つの項目を直す（直したキーの値だけを差し替える。D049）。`seen` はフロントが知っている
+/// ファイルの中身。
+#[tauri::command]
+fn set_entry_field(
+    path: String,
+    key: String,
+    value: Value,
+    seen: String,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let edit = workspace
+        .set_entry_field(&path, &key, &value, &seen)
+        .map_err(|e| e.to_string())?;
+    after_settings_write(workspace, to_json(&edit, "書いた結果")?)
+}
+
+/// エントリの本文（フロントマターの後ろ）を直す。
+#[tauri::command]
+fn set_entry_body(
+    path: String,
+    body: String,
+    seen: String,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let edit = workspace
+        .set_entry_body(&path, &body, &seen)
+        .map_err(|e| e.to_string())?;
+    after_settings_write(workspace, to_json(&edit, "書いた結果")?)
+}
+
+/// エントリのファイル全体を書く（ソース表示）。`seen` が null なら上書きする。
+#[tauri::command]
+fn write_entry_source(
+    path: String,
+    text: String,
+    seen: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let edit = workspace
+        .write_entry_source(&path, &text, seen.as_deref())
+        .map_err(|e| e.to_string())?;
+    after_settings_write(workspace, to_json(&edit, "書いた結果")?)
+}
+
+/// エントリを新しく作る（未登録の話者の登録も、ここから。D047、D049）。
+#[tauri::command]
+fn create_entry(
+    type_id: String,
     id: String,
     name: String,
     state: State<'_, AppState>,
@@ -368,17 +475,70 @@ fn register_character(
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
     let file = workspace
-        .register_character(&id, &name)
+        .create_entry(&type_id, &id, &name)
+        .map_err(|e| e.to_string())?;
+    after_settings_write(workspace, json!({ "kind": "created", "path": file }))
+}
+
+/// 変数の画面の中身：`variables.yaml` の中身（無ければ null）と、変数の一覧（読み書きの位置を含む）。
+fn variables_data(workspace: &Workspace) -> Result<Value, String> {
+    let project = workspace.project();
+    let text = workspace.variables_text().map_err(|e| e.to_string())?;
+    let rows = with_index(project, |_, index| {
+        to_json(&bible::variable_rows(project, index), "変数の一覧")
+    })?;
+    Ok(json!({ "text": text, "rows": rows }))
+}
+
+#[tauri::command]
+fn read_variables(state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    json_response(&variables_data(workspace)?)
+}
+
+/// `variables.yaml` を書く（宣言はテキストで直す。フォームはフェーズ2）。`seen` が null なら上書きする。
+#[tauri::command]
+fn write_variables(
+    text: String,
+    seen: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let edit = workspace
+        .write_variables(&text, seen.as_deref())
         .map_err(|e| e.to_string())?;
     let Analyzed {
         summary, checks, ..
     } = analyze_summary(workspace.project(), true, None)?;
     json_response(&json!({
-        "file": file,
+        "edit": to_json(&edit, "書いた結果")?,
+        "variables": variables_data(workspace)?,
         "assist": completion_data(workspace.project()),
         "summary": summary,
         "checks": checks,
     }))
+}
+
+/// 大きなスタックのスレッドで解析して索引を作り、`f` に渡す（IRはこのスレッドの中で捨てる）。
+fn with_index<T: Send>(
+    project: &Project,
+    f: impl FnOnce(&scn_core::Ir, &scn_core::index::Index) -> Result<T, String> + Send,
+) -> Result<T, String> {
+    thread::scope(|scope| {
+        thread::Builder::new()
+            .name("index".into())
+            .stack_size(ANALYZE_STACK_SIZE)
+            .spawn_scoped(scope, || {
+                let ir = analyze(project);
+                let index = build_index(project, &ir);
+                f(&ir, &index)
+            })
+            .map_err(|e| format!("解析のスレッドを作れません：{e}"))?
+            .join()
+            .map_err(|_| "解析が途中で止まりました".to_owned())?
+    })
 }
 
 /// 構造グラフ（T1-9、D048）：粒度（`scene`・`chapter`・`route`）ごとのまとまりと辺（コアの `graph`）。
@@ -699,7 +859,14 @@ pub fn run() {
             keep_mine,
             add_chapter,
             scene_info,
-            register_character,
+            read_bible,
+            entry_usage,
+            set_entry_field,
+            set_entry_body,
+            write_entry_source,
+            create_entry,
+            read_variables,
+            write_variables,
             scene_graph,
             read_layout,
             write_layout,

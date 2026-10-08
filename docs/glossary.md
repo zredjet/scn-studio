@@ -27,6 +27,12 @@
 | 呼び名 | alias | キャラクターの別名。話者の解決に使う |
 | 欲求・葛藤 | want / conflict | キャラクターの項目。プロット系AIの文脈 |
 | 伏線 | foreshadow | 型の1つ。仕込み（setup）と回収（payoff） |
+| 項目の型 | field type | `text`・`ref<型ID>`・`list<型>` など（コアの `FieldType`） |
+| 参照切れ | broken reference | 参照先の無い参照（W806） |
+| 逆引き | usage | エントリが使われている場所（登場シーン、名前の出る行、参照している・されている） |
+| フロントマター | front matter | エントリの先頭の `---` で囲んだYAML |
+| 本文（エントリの） | body | フロントマターの後ろのMarkdown |
+| 紐づく変数 | character variables | キャラクターIDを名前空間にした変数 |
 
 ## 構造と本文
 

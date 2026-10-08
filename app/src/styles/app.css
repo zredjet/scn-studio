@@ -219,11 +219,6 @@ body {
   background: var(--paper);
 }
 
-.character-card.focused {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
-}
-
 .character-head {
   display: flex;
   gap: 10px;
@@ -253,6 +248,22 @@ body {
 .character-name span {
   color: var(--text-faint);
   font-size: 12px;
+}
+
+.character-open {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.character-open:hover {
+  color: var(--accent);
+  text-decoration: underline;
 }
 
 .character-fields {
@@ -1154,4 +1165,861 @@ body {
 
 .unsaved {
   color: var(--accent);
+}
+
+/* ---- 設定DBの画面（docs/ui/mockups/04-bible.html、T1-10、D049） ---- */
+
+.bible-screen-body,
+.variables-screen-body {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.bible-small-heading {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.bible-types {
+  display: flex;
+  flex: 0 1 220px;
+  flex-direction: column;
+  min-width: 200px;
+  overflow: auto;
+  background: var(--panel-bg);
+  border-right: 1px solid var(--border);
+}
+
+.bible-types-head {
+  padding: 12px 12px 8px 16px;
+}
+
+.bible-type-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 8px;
+}
+
+.bible-type-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bible-type-item:hover {
+  background: var(--border-soft);
+}
+
+.bible-type-item[aria-pressed="true"] {
+  background: var(--accent-tint);
+  color: var(--accent-strong);
+  font-weight: 500;
+}
+
+.bible-count {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.bible-type-item[aria-pressed="true"] .bible-count {
+  color: inherit;
+}
+
+.bible-type-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.bible-type-file {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  overflow-wrap: anywhere;
+}
+
+.bible-type-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  font-size: 12.5px;
+}
+
+.bible-type-row {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.bible-type-row dt {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bible-type-row dd {
+  max-width: 65%;
+  margin: 0;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.bible-types-foot {
+  margin: auto 0 0;
+  padding: 12px 16px;
+  color: var(--text-faint);
+  font-size: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.bible-entries {
+  display: flex;
+  flex: 0 1 240px;
+  flex-direction: column;
+  min-width: 210px;
+  overflow: auto;
+  background: var(--paper);
+  border-right: 1px solid var(--border);
+}
+
+.bible-search-row {
+  display: flex;
+  gap: 6px;
+  padding: 12px;
+}
+
+.bible-search {
+  display: flex;
+  flex: 1;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  padding: 5px 10px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  color: var(--text-faint);
+}
+
+.bible-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+}
+
+.bible-add {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.bible-add:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.bible-create {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 12px 12px;
+  padding: 12px;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-item);
+  background: var(--accent-tint-2);
+  font-size: 12.5px;
+}
+
+.bible-create-title {
+  font-weight: 700;
+}
+
+.bible-create label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--text-2);
+}
+
+.bible-create input {
+  min-height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  font: inherit;
+}
+
+.bible-create-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.bible-entry-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0 8px 12px;
+  list-style: none;
+}
+
+.bible-entry-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bible-entry-item:hover {
+  background: var(--panel-bg);
+}
+
+.bible-entry-item[aria-pressed="true"] {
+  background: var(--accent-tint);
+}
+
+.bible-initial {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--app-bg);
+  color: var(--text-2);
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.bible-entry-item[aria-pressed="true"] .bible-initial {
+  background: var(--paper);
+  color: var(--accent-strong);
+}
+
+.bible-initial.large {
+  width: 48px;
+  height: 48px;
+  background: var(--accent-tint);
+  color: var(--accent-strong);
+  font-size: 22px;
+}
+
+.bible-entry-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.bible-entry-name {
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bible-entry-sub {
+  color: var(--text-faint);
+  font-size: 11.5px;
+}
+
+.bible-entry-item[aria-pressed="true"] .bible-entry-sub {
+  color: var(--text-2);
+}
+
+.bible-main,
+.variables-main {
+  display: flex;
+  flex: 999 1 520px;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--paper);
+}
+
+.bible-head,
+.variables-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  padding: 16px 28px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.bible-head-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.bible-head h1,
+.variables-head h1 {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.bible-path {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.bible-status {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.bible-status.error {
+  max-width: 360px;
+  color: var(--danger-text);
+}
+
+.bible-file-problems {
+  margin: 0;
+  padding: 8px 28px;
+  list-style: none;
+  font-size: 12.5px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.bible-file-problems .error {
+  color: var(--danger-text);
+}
+
+.bible-file-problems .warning {
+  color: var(--warn-text);
+}
+
+.bible-form-scroll {
+  flex: 1;
+  overflow: auto;
+}
+
+.bible-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 720px;
+  padding: 20px 28px 48px;
+}
+
+.bible-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bible-label {
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.bible-label-note {
+  margin-left: 8px;
+  color: var(--text-faint);
+  font-weight: 400;
+}
+
+.bible-field input:not([type="checkbox"]),
+.bible-field select,
+.bible-ref select {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-item);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+}
+
+.bible-field textarea,
+.bible-body {
+  padding: 8px 10px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-item);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.7;
+  resize: vertical;
+}
+
+.bible-body {
+  padding: 10px 12px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.bible-field input::placeholder,
+.bible-field textarea::placeholder {
+  color: var(--line-number);
+}
+
+.bible-field [aria-invalid="true"] {
+  border-color: var(--danger-text);
+}
+
+.bible-field-error,
+.bible-field-problem {
+  font-size: 12px;
+}
+
+.bible-field-error,
+.bible-field-problem.error {
+  color: var(--danger-text);
+}
+
+.bible-field-problem.warning {
+  color: var(--warn-text);
+}
+
+.bible-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  min-height: 36px;
+  box-sizing: border-box;
+  padding: 4px 6px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-item);
+}
+
+.bible-chips.readonly {
+  border-style: dashed;
+}
+
+.bible-chips input:not([type="checkbox"]) {
+  flex: 1;
+  min-width: 80px;
+  min-height: 26px;
+  border: 0;
+  outline: none;
+}
+
+.bible-chips select {
+  min-height: 28px;
+  border: 0;
+  color: var(--text-muted);
+}
+
+.bible-chip {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-control);
+  background: var(--panel-bg);
+  font-size: 13px;
+}
+
+.bible-chip.missing {
+  background: var(--warn-tint);
+  color: var(--warn-text);
+}
+
+.bible-chip button {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.bible-chip .bible-chip-link {
+  width: auto;
+  height: auto;
+  color: var(--accent-strong);
+  font: inherit;
+}
+
+.bible-chip .bible-chip-link:disabled {
+  color: inherit;
+  cursor: default;
+}
+
+.bible-ref {
+  display: flex;
+  gap: 8px;
+}
+
+.bible-ref select {
+  flex: 1;
+  border-color: var(--accent-border);
+  background: var(--accent-tint-2);
+  color: var(--accent-strong);
+}
+
+.bible-check {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 14px;
+}
+
+.bible-multi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.bible-readonly {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px dashed var(--warn-border);
+  border-radius: var(--radius-item);
+  background: var(--warn-tint);
+  color: var(--warn-text);
+  font-size: 12.5px;
+}
+
+.bible-extra {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 12.5px;
+}
+
+.bible-extra div {
+  display: contents;
+}
+
+.bible-extra dt {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.bible-extra dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.bible-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-item);
+}
+
+.bible-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.bible-table thead tr {
+  background: var(--panel-bg);
+  color: var(--text-muted);
+  text-align: left;
+}
+
+.bible-table th {
+  padding: 6px 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.bible-table td {
+  padding: 6px 10px;
+  border-top: 1px solid var(--border-soft);
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.bible-table td.variables-desc {
+  white-space: normal;
+}
+
+.bible-table .mono {
+  font-family: var(--font-mono);
+}
+
+.bible-source {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.bible-source-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 28px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.bible-source-bar button {
+  white-space: nowrap;
+}
+
+.bible-source-label {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.bible-source-text {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 16px 28px;
+  border: 0;
+  outline: none;
+  background: var(--panel-bg-2);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.7;
+  resize: none;
+}
+
+.bible-usage {
+  display: flex;
+  flex: 1 1 260px;
+  flex-direction: column;
+  min-width: 240px;
+  overflow: auto;
+  background: var(--panel-bg-2);
+  border-left: 1px solid var(--border);
+}
+
+.bible-usage-heading {
+  margin: 0;
+  padding: 16px 16px 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.bible-usage-subheading {
+  margin: 0;
+  padding: 18px 16px 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.bible-usage-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.bible-usage-card {
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-item);
+  background: var(--paper);
+}
+
+.bible-usage-card strong {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.bible-usage-card strong.mono {
+  font-family: var(--font-mono);
+}
+
+.bible-usage-card span {
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.bible-usage-scenes,
+.bible-refs {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0 8px;
+  list-style: none;
+}
+
+.bible-usage-scene,
+.bible-ref-item {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bible-usage-scene:hover,
+.bible-ref-item:hover:not(:disabled) {
+  background: var(--accent-tint);
+  color: var(--accent-strong);
+}
+
+.bible-ref-item:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.bible-usage-id {
+  flex: none;
+  width: 44px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+
+.bible-usage-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bible-usage-count,
+.bible-ref-note {
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.bible-ref-note {
+  margin-left: auto;
+}
+
+.bible-usage-more {
+  margin: 4px 8px 0;
+  padding: 4px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* ---- 変数の画面（T1-10、D049。モックが無いので「紐づく変数」の表に合わせる） ---- */
+
+.variables-table-scroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  overflow: auto;
+  padding: 16px 28px 48px;
+}
+
+.variables-search {
+  flex: none;
+  max-width: 320px;
+}
+
+.variables-table tr.selected td {
+  background: var(--accent-tint);
+}
+
+.variables-name {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.variables-name:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.variables-who {
+  margin-left: 6px;
+  color: var(--text-faint);
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+}
+
+.variables-desc {
+  min-width: 160px;
+  color: var(--text-2);
+}
+
+.variables-selected {
+  margin: 0;
+  padding: 0 16px 4px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.variables-selected-desc {
+  margin: 0;
+  padding: 0 16px 8px;
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+
+.flow-badge.warn {
+  background: var(--warn-tint);
+  color: var(--warn-text);
 }

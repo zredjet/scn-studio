@@ -1,0 +1,6 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "dump_with_disk(&ir, &dir)"
+---
+bible/types/item.yaml:3:7-3:17 E802 項目 owner の型 txt を読めません（text・longtext・number・bool・date・select・multiselect・asset・ref<型>・list<型> のどれか）。その項目を読み飛ばします
+bible/types/item.yaml:4:7-4:16 E802 項目 tags の型 list<text を読めません（text・longtext・number・bool・date・select・multiselect・asset・ref<型>・list<型> のどれか）。その項目を読み飛ばします

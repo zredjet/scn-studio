@@ -363,7 +363,7 @@ fn project_without_toml() {
 }
 
 /// 設定ファイルの診断（E801〜W804）。
-const SETTINGS_CODES: [&str; 4] = ["E801", "E802", "E803", "W804"];
+const SETTINGS_CODES: [&str; 5] = ["E801", "E802", "E803", "W804", "W805"];
 
 /// 設定ファイルのfixture（`settings/<名前>/`。それぞれが1つのプロジェクト）。
 fn settings_fixtures() -> Vec<(String, PathBuf)> {

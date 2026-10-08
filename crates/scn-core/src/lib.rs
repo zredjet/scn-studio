@@ -10,6 +10,7 @@
 //! - 構造の一覧（`scn graph`）：[`graph::build_graph`]
 //! - 作品フォルダのひな形（`scn new`、`scn format-doc`）：[`scaffold`]
 //! - 開いている作品フォルダ（アプリの保存と、外部の変更の取り込み）：[`workspace::Workspace`]
+//! - 設定DBと変数の画面（項目の型と値の検査、フロントマターの書き換え、逆引き）：[`bible`]
 //! - 行IDの付与（`scn fmt`）：[`line_id::assign_line_ids`]
 
 // ライブラリのコードでは、パニックしうる書き方を禁じる（`.claude/rules/rust.md`）。
@@ -27,6 +28,7 @@
 
 pub mod assist;
 pub mod ast;
+pub mod bible;
 pub mod check;
 pub mod diag;
 pub mod expr;

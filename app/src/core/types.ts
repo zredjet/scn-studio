@@ -258,9 +258,159 @@ export interface SceneInfo {
   }[];
 }
 
-/** `register_character` の結果。 */
-export interface RegisteredCharacter {
+// ---- 設定DBと変数（T1-10、D049） ----
+
+/** JSONの値（設定DBのフロントマターの値）。 */
+export type JsonValue =
+  | null
+  | boolean
+  | number
+  | string
+  | readonly JsonValue[]
+  | { readonly [key: string]: JsonValue };
+
+/** 項目の型（コアの `bible::FieldType`）。 */
+export type FieldKind =
+  | {
+      readonly kind:
+        | "text"
+        | "longtext"
+        | "number"
+        | "bool"
+        | "date"
+        | "select"
+        | "multiselect"
+        | "asset";
+    }
+  | { readonly kind: "ref"; readonly target: string }
+  | { readonly kind: "list"; readonly item: FieldKind };
+
+/** 型の項目の定義。 */
+export interface FieldDef {
+  readonly key: string;
+  readonly label: string;
+  /** 書かれたとおりの型。 */
+  readonly type: string;
+  readonly kind: FieldKind;
+  readonly options: readonly string[];
+}
+
+/** 設定DBの型（`bible/types/<型>.yaml`）。 */
+export interface EntryType {
+  readonly id: string;
+  readonly name: string;
+  readonly builtin: string | null;
+  readonly fields: readonly FieldDef[];
+}
+
+/** 設定DBのエントリ（読めたもの）。 */
+export interface Entry {
+  readonly type_id: string;
+  readonly id: string;
+  readonly path: string;
+  readonly fields: Readonly<Record<string, JsonValue>>;
+  /** フロントマターのキーの位置（診断の位置と同じ）。 */
+  readonly key_spans: Readonly<Record<string, readonly [number, number]>>;
+  readonly body: string;
+}
+
+/** エントリのファイル（読めなかったものを含む）。 */
+export interface EntryFile {
+  readonly path: string;
+  /** ファイルの中身。UTF-8で読めなければ null。 */
+  readonly text: string | null;
+  /** 読めたエントリ。読めなければ（E801・E802）null。 */
+  readonly entry: Entry | null;
+}
+
+/** 設定DBの中身（`read_bible`）。 */
+export interface BibleData {
+  readonly character_type: string;
+  readonly types: readonly EntryType[];
+  readonly files: readonly EntryFile[];
+  /** キャラクターIDごとの立ち絵の差分（素材カタログ）。 */
+  readonly expressions: Readonly<Record<string, readonly string[]>>;
+}
+
+/** 設定DBと変数を書いた結果（コアの `workspace::EntryEdit` と、エントリを作ったとき）。 */
+export type EntryEdit =
+  | { readonly kind: "saved"; readonly text: string }
+  | { readonly kind: "conflict"; readonly text: string }
+  | { readonly kind: "unsupported"; readonly message: string }
+  | { readonly kind: "created"; readonly path: string };
+
+/** 設定DBを書いた後に受け取るもの。 */
+export interface BibleWritten {
+  readonly edit: EntryEdit;
+  readonly bible: BibleData;
+  readonly assist: AssistData;
+  readonly summary: Summary;
+  readonly checks: readonly IrDiagnostic[];
+}
+
+/** 本文の中の位置（コアの `index::Location`）。 */
+export interface Location {
+  readonly scene: string;
   readonly file: string;
+  readonly span: readonly [number, number];
+}
+
+/** 変数の一覧の1行（コアの `bible::VariableRow`）。 */
+export interface VariableRow {
+  readonly key: string;
+  readonly declared: boolean;
+  readonly type: string | null;
+  readonly values: readonly string[];
+  readonly default: string | null;
+  readonly range: readonly [number, number] | null;
+  readonly scope: string | null;
+  readonly desc: string | null;
+  /** `variables.yaml` の中の宣言の位置。 */
+  readonly span: readonly [number, number] | null;
+  readonly reads: readonly Location[];
+  readonly writes: readonly Location[];
+}
+
+/** 項目の参照（コアの `bible::EntryRef`）。 */
+export interface EntryRef {
+  readonly field: string;
+  readonly label: string;
+  readonly kind: "entry" | "scene";
+  readonly type_id: string | null;
+  readonly id: string;
+  readonly name: string | null;
+  readonly path: string | null;
+  readonly exists: boolean;
+}
+
+/** エントリの逆引き（コアの `bible::EntryUsage`）。 */
+export interface EntryUsage {
+  readonly character: boolean;
+  readonly scenes: readonly {
+    readonly scene: string;
+    readonly title: string;
+    readonly file: string;
+    readonly span: readonly [number, number];
+    readonly count: number;
+  }[];
+  readonly lines: number;
+  readonly first: string | null;
+  readonly refs_out: readonly EntryRef[];
+  readonly refs_in: readonly EntryRef[];
+  readonly variables: readonly VariableRow[];
+}
+
+/** 変数の画面の中身（`read_variables`）。 */
+export interface VariablesData {
+  /** `variables.yaml` の中身（無ければ null）。 */
+  readonly text: string | null;
+  readonly rows: readonly VariableRow[];
+}
+
+/** `variables.yaml` を書いた後に受け取るもの。 */
+export interface VariablesWritten {
+  readonly edit: EntryEdit;
+  readonly variables: VariablesData;
   readonly assist: AssistData;
   readonly summary: Summary;
   readonly checks: readonly IrDiagnostic[];

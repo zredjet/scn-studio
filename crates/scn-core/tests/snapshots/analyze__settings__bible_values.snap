@@ -1,0 +1,12 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "dump_with_disk(&ir, &dir)"
+---
+bible/entries/item/bad.md:4:1-4:6 W805 bad の値段（price）は、数で書きます
+bible/entries/item/bad.md:5:1-5:5 W805 bad のなくした（lost）は、true か false で書きます
+bible/entries/item/bad.md:6:1-6:6 W805 bad の手に入れた日（since）は、日付（YYYY-MM-DD）で書きます
+bible/entries/item/bad.md:7:1-7:5 W805 bad の種類（kind）は、選択肢（鍵・手紙）のどれかで書きます
+bible/entries/item/bad.md:8:1-8:6 W805 bad の印（marks）は、選択肢（大事・秘密）のリストで書きます
+bible/entries/item/bad.md:9:1-9:5 W805 bad の札（tags）は、リスト（[a, b] の形）で書きます（text のリスト）
+bible/entries/item/bad.md:10:1-10:6 W805 bad の出てくるシーン（scene）は、参照先のIDで書きます
+bible/entries/item/bad.md:11:1-11:5 W805 bad のメモ（memo）は、文字列で書きます

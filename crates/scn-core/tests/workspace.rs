@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use scn_core::line_id::LineIdGenerator;
-use scn_core::workspace::{Change, SaveOutcome, Saved, Workspace};
+use scn_core::workspace::{Change, EntryEdit, SaveOutcome, Saved, Workspace};
 
 fn temp_project(name: &str, files: &[(&str, &[u8])]) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("scn-core-ws-{}-{name}", std::process::id()));
@@ -532,5 +532,239 @@ fn add_chapter() {
     assert!(ws.add_chapter("a.scn").is_err());
     assert!(ws.add_chapter("../x").is_err());
     assert!(ws.add_chapter("").is_err());
+    let _ = fs::remove_dir_all(&dir);
+}
+
+// ---- 設定DBと変数（T1-10、D049） ----
+
+const CHARACTER_TYPE: &[u8] = "name: キャラクター\nbuiltin: character\nfields:\n  - { key: aliases, label: 呼び名, type: list<text> }\n  - { key: speech, label: 口調メモ, type: longtext }\n".as_bytes();
+const AKARI: &str = "---\n# 主人公の幼なじみ\nid: akari\nname: 灯   # 表示名\naliases: [あかり]\nspeech: 明るい\n---\n本文。\n";
+
+fn bible_project(name: &str) -> PathBuf {
+    temp_project(
+        name,
+        &[
+            ("project.toml", TOML),
+            ("bible/types/character.yaml", CHARACTER_TYPE),
+            ("bible/types/place.yaml", "name: 場所\n".as_bytes()),
+            ("bible/entries/character/akari.md", AKARI.as_bytes()),
+            ("story/a.scn", "## a #s1\nあかり「やあ」 ^aaaa\n".as_bytes()),
+        ],
+    )
+}
+
+const AKARI_FILE: &str = "bible/entries/character/akari.md";
+
+/// 項目を直すと、その項目の値だけが変わり、設定を読み直す。自分で書いた変更の知らせは無視する。
+#[test]
+fn set_entry_field_writes_only_that_key() {
+    let dir = bible_project("entry-field");
+    let mut ws = Workspace::open(&dir).unwrap();
+    let edit = ws
+        .set_entry_field(
+            AKARI_FILE,
+            "aliases",
+            &serde_json::json!(["あかり", "灯ちゃん"]),
+            AKARI,
+        )
+        .unwrap();
+    let written = AKARI.replace("aliases: [あかり]", "aliases: [あかり, 灯ちゃん]");
+    assert_eq!(
+        edit,
+        EntryEdit::Saved {
+            text: written.clone()
+        }
+    );
+    assert_eq!(fs::read_to_string(dir.join(AKARI_FILE)).unwrap(), written);
+    let akari = &ws.project().characters[0];
+    assert_eq!(akari.aliases, ["あかり", "灯ちゃん"]);
+    assert_eq!(ws.external_change(&dir.join(AKARI_FILE)), Change::None);
+    // その後の外の変更は拾う。外で自分の書いた中身に戻されたとき（取り消し）も拾う。
+    write(&dir, AKARI_FILE, AKARI);
+    assert_eq!(ws.external_change(&dir.join(AKARI_FILE)), Change::Settings);
+    write(&dir, AKARI_FILE, &written);
+    assert_eq!(ws.external_change(&dir.join(AKARI_FILE)), Change::Settings);
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// 外で変わっていても、直した項目が外で変わっていなければ、外の中身に重ねて書く。直した項目も外で
+/// 変わっていれば、書かずに今の中身を返す。
+#[test]
+fn set_entry_field_merges_or_conflicts() {
+    let dir = bible_project("entry-merge");
+    let mut ws = Workspace::open(&dir).unwrap();
+    let outside = AKARI.replace("speech: 明るい", "speech: 外で直した");
+    write(&dir, AKARI_FILE, &outside);
+    let edit = ws
+        .set_entry_field(AKARI_FILE, "name", &serde_json::json!("あかり"), AKARI)
+        .unwrap();
+    let merged = outside.replace("name: 灯 ", "name: あかり ");
+    assert_eq!(
+        edit,
+        EntryEdit::Saved {
+            text: merged.clone()
+        }
+    );
+    let edit = ws
+        .set_entry_field(AKARI_FILE, "speech", &serde_json::json!("静か"), AKARI)
+        .unwrap();
+    assert_eq!(
+        edit,
+        EntryEdit::Conflict {
+            text: merged.clone()
+        }
+    );
+    assert_eq!(fs::read_to_string(dir.join(AKARI_FILE)).unwrap(), merged);
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// フォームで書き換えられない書き方なら、書かずに知らせる。エントリでないパスは読み書きしない。
+#[test]
+fn entry_edits_refuse_unsupported_and_other_paths() {
+    let dir = bible_project("entry-refuse");
+    let flow = "---\n{id: akari, name: 灯}\n---\n";
+    write(&dir, AKARI_FILE, flow);
+    let mut ws = Workspace::open(&dir).unwrap();
+    assert!(matches!(
+        ws.set_entry_field(AKARI_FILE, "name", &serde_json::json!("x"), flow)
+            .unwrap(),
+        EntryEdit::Unsupported { .. }
+    ));
+    assert_eq!(fs::read_to_string(dir.join(AKARI_FILE)).unwrap(), flow);
+    for bad in [
+        "story/a.scn",
+        "project.toml",
+        "bible/types/character.yaml",
+        "bible/entries/character/../../project.toml",
+        "bible/entries/../x.md",
+        "bible/entries/character/.hidden.md",
+        "/etc/passwd",
+    ] {
+        assert!(ws.write_entry_source(bad, "x", None).is_err(), "{bad}");
+    }
+    assert_eq!(
+        fs::read_to_string(dir.join("project.toml"))
+            .unwrap()
+            .as_bytes(),
+        TOML
+    );
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// 本文とソースの書き換え。本文は外で本文が変わっていなければ重ねて書き、ソースは外で変わっていれば
+/// 書かない（上書きを選べば書く）。改行は今のファイルにそろえる。
+#[test]
+fn entry_body_and_source() {
+    let dir = bible_project("entry-body");
+    let crlf = AKARI.replace('\n', "\r\n");
+    write(&dir, AKARI_FILE, &crlf);
+    let mut ws = Workspace::open(&dir).unwrap();
+    let edit = ws
+        .set_entry_body(AKARI_FILE, "新しい本文\n", &crlf)
+        .unwrap();
+    let EntryEdit::Saved { text } = edit else {
+        panic!("{edit:?}");
+    };
+    assert!(text.ends_with("---\r\n新しい本文\r\n"));
+    assert!(text.starts_with("---\r\n# 主人公の幼なじみ\r\n"));
+    // 古い中身を知っているまま本文を直すと、本文が外（今）と違うので衝突。
+    assert!(matches!(
+        ws.set_entry_body(AKARI_FILE, "別の本文", &crlf).unwrap(),
+        EntryEdit::Conflict { .. }
+    ));
+    assert!(matches!(
+        ws.write_entry_source(AKARI_FILE, "---\nid: akari\nname: 灯\n---\n", Some(&crlf))
+            .unwrap(),
+        EntryEdit::Conflict { .. }
+    ));
+    let edit = ws
+        .write_entry_source(AKARI_FILE, "---\nid: akari\nname: 灯\n---\n", None)
+        .unwrap();
+    assert_eq!(
+        edit,
+        EntryEdit::Saved {
+            text: "---\r\nid: akari\r\nname: 灯\r\n---\r\n".to_owned()
+        }
+    );
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// エントリを新しく作る。型の定義のある型だけ。IDは英数字と `_`。同じIDは断る。
+#[test]
+fn create_entry() {
+    let dir = bible_project("entry-create");
+    let mut ws = Workspace::open(&dir).unwrap();
+    assert!(ws.create_entry("item", "key", "鍵").is_err());
+    assert!(ws.create_entry("../x", "key", "鍵").is_err());
+    assert!(ws.create_entry("place", "屋上", "屋上").is_err());
+    let file = ws.create_entry("place", "rooftop", "屋上").unwrap();
+    assert_eq!(file, "bible/entries/place/rooftop.md");
+    assert_eq!(
+        fs::read_to_string(dir.join(&file)).unwrap(),
+        "---\nid: rooftop\nname: 屋上\n---\n"
+    );
+    assert!(ws.project().bible.entries.iter().any(|e| e.id == "rooftop"));
+    assert!(ws.create_entry("place", "rooftop", "別").is_err());
+    assert_eq!(ws.external_change(&dir.join(&file)), Change::None);
+    // 素のままでは数や null として読まれるIDは、引用して書く（ファイル名と id がそろう）。
+    for id in ["0x1F", "1e3", "null", "true", "001"] {
+        let file = ws.create_entry("place", id, "場所").unwrap();
+        let entry = ws
+            .project()
+            .bible
+            .entries
+            .iter()
+            .find(|e| e.path == file)
+            .unwrap();
+        assert_eq!(entry.fields.get("id"), Some(&serde_json::json!(id)), "{id}");
+    }
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// `variables.yaml` をテキストで直す。外で変わっていれば書かない。設定を読み直す。
+#[test]
+fn write_variables() {
+    let dir = bible_project("variables");
+    let mut ws = Workspace::open(&dir).unwrap();
+    assert_eq!(ws.variables_text().unwrap(), None);
+    let edit = ws
+        .write_variables("flag.a:\n  type: int\n  default: 1\n", Some(""))
+        .unwrap();
+    assert!(matches!(edit, EntryEdit::Saved { .. }));
+    assert_eq!(ws.project().variables[0].default.as_deref(), Some("1"));
+    assert_eq!(
+        ws.external_change(&dir.join("variables.yaml")),
+        Change::None
+    );
+    assert!(matches!(
+        ws.write_variables("x", Some("")).unwrap(),
+        EntryEdit::Conflict { .. }
+    ));
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// エントリのファイルの一覧は、読めないものも含める（ソース表示で直せるように）。
+#[test]
+fn entry_files_include_unreadable_entries() {
+    let dir = bible_project("entry-files");
+    write(
+        &dir,
+        "bible/entries/character/broken.md",
+        "---\nid: [\n---\n",
+    );
+    fs::write(dir.join("bible/entries/character/latin1.md"), b"\xff").unwrap();
+    let ws = Workspace::open(&dir).unwrap();
+    let files = ws.entry_files();
+    assert_eq!(
+        files
+            .iter()
+            .map(|(p, t)| (p.as_str(), t.is_some()))
+            .collect::<Vec<_>>(),
+        [
+            (AKARI_FILE, true),
+            ("bible/entries/character/broken.md", true),
+            ("bible/entries/character/latin1.md", false),
+        ]
+    );
     let _ = fs::remove_dir_all(&dir);
 }

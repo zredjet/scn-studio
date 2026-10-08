@@ -12,8 +12,8 @@ use scn_core::ir::IrDiagnostic;
 use scn_core::{analyze, load_project};
 
 /// 検証の段階1の診断（仕様書16節の「段階」が1のもの）。
-const CHECK_CODES: [&str; 9] = [
-    "W203", "W503", "W504", "W505", "W605", "W606", "W701", "W702", "W703",
+const CHECK_CODES: [&str; 10] = [
+    "W203", "W503", "W504", "W505", "W605", "W606", "W701", "W702", "W703", "W806",
 ];
 
 fn fixtures_dir() -> PathBuf {

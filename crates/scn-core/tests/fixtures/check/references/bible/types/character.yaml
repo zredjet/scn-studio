@@ -1,0 +1,6 @@
+name: キャラクター
+builtin: character
+fields:
+  - { key: org, label: 所属, type: ref<organization> }
+  - { key: scenes, label: 出番, type: list<ref<scene>> }
+  - { key: pet, label: ペット, type: ref<animal> }

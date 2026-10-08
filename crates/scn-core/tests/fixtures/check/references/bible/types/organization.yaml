@@ -1,0 +1,3 @@
+name: 組織
+fields:
+  - { key: members, label: 主な人物, type: list<ref<character>> }

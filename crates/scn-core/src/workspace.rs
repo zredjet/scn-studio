@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
+use crate::bible::{body_of, front_fields, set_body, set_field, yaml_scalar};
 use crate::layout::{LAYOUT_FILE, LayoutError, Point, update_layout};
 use crate::line_id::{AssignedLineId, LineIdGenerator, assign_line_ids};
 use crate::project::{Project, ProjectError, SourceFile, load_project, write_source};
@@ -32,6 +33,9 @@ pub struct Workspace {
     removed: BTreeSet<String>,
     /// 最後に自分で書いた `layout.json` の中身。監視の知らせで、ディスクの中身がこれと同じなら無視する。
     layout_written: Option<String>,
+    /// 自分で書いた設定ファイル（設定DBのエントリ、`variables.yaml`）の中身。書いたときに設定を読み直して
+    /// いるので、監視の知らせで、ディスクの中身がこれと同じなら無視する。
+    settings_written: BTreeMap<String, String>,
 }
 
 /// 外部の変更を取り込んだ結果。
@@ -74,6 +78,33 @@ pub enum SaveOutcome {
     Conflict {
         deleted: bool,
     },
+}
+
+/// 設定DBと `variables.yaml` を書いた結果（T1-10、D049）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum EntryEdit {
+    /// 書いた。`text` は書いた中身。
+    Saved { text: String },
+    /// 外で変わっていた（直した項目や本文も外で変わっていた）ので、書かなかった。`text` は今のディスクの中身。
+    Conflict { text: String },
+    /// フォームでは書き換えられない書き方なので、書かなかった（ソース表示で直す）。
+    Unsupported { message: String },
+}
+
+/// 変数の宣言のファイル。
+const VARIABLES_FILE: &str = "variables.yaml";
+
+/// `text` の改行を、`current`（今のファイル）の改行にそろえる。画面の入力欄は `\n` で返すため。
+fn same_newlines(current: &str, text: &str) -> String {
+    let crlf = current
+        .find('\n')
+        .is_some_and(|at| at > 0 && current.as_bytes().get(at - 1) == Some(&b'\r'));
+    if crlf {
+        text.replace("\r\n", "\n").replace('\n', "\r\n")
+    } else {
+        text.to_owned()
+    }
 }
 
 /// 設定ファイル（変われば設定を読み直す）。`bible/` の中はすべて。
@@ -129,6 +160,7 @@ impl Workspace {
             pending: BTreeMap::new(),
             removed: BTreeSet::new(),
             layout_written: None,
+            settings_written: BTreeMap::new(),
         })
     }
 
@@ -279,10 +311,19 @@ impl Workspace {
                 if on_disk.is_some() && on_disk.as_deref() == mine {
                     Change::None
                 } else {
+                    // 外で変わった。後で自分の書いた中身に戻されても（取り消しなど）、読み直すように忘れる。
+                    self.layout_written = None;
                     Change::Layout
                 }
             }
             _ if SETTINGS_FILES.contains(&rel.as_str()) || parts.first() == Some(&"bible") => {
+                let on_disk = fs::read(self.root.join(&rel)).ok();
+                let mine = self.settings_written.get(&rel).map(String::as_bytes);
+                if on_disk.is_some() && on_disk.as_deref() == mine {
+                    return Change::None;
+                }
+                // 外で変わった。後で自分の書いた中身に戻されても（取り消しなど）、読み直すように忘れる。
+                self.settings_written.remove(&rel);
                 match self.reload_settings() {
                     Ok(()) => Change::Settings,
                     Err(_) => Change::None,
@@ -426,13 +467,180 @@ impl Workspace {
         Ok(())
     }
 
-    /// 未登録の話者（W202）を、設定DBのキャラクターとして登録する（T1-8、D047）。
-    /// `bible/entries/<キャラクターの型>/<id>.md` に、`id` と `name` だけのエントリを書き、設定を読み直す。
-    /// `id` は英数字と `_`（変数の名前空間や立ち絵の差分のキーにもなるため）。書いたファイルのパスを返す。
+    /// 未登録の話者（W202）を、設定DBのキャラクターとして登録する（T1-8、D047）。キャラクターの型で
+    /// [`Workspace::create_entry`] を呼ぶ。
     pub fn register_character(&mut self, id: &str, name: &str) -> Result<String, ProjectError> {
-        let dir = format!("bible/entries/{}", self.project.bible.character_type());
+        let type_id = self.project.bible.character_type().to_owned();
+        self.create_entry(&type_id, id, name)
+    }
+
+    // ---- 設定DBと変数（T1-10、D049） ----
+
+    /// 設定DBのエントリのパス（`bible/entries/<型>/<名前>.md`）を確かめる。ほかのパスは読み書きしない
+    /// （フロントに任意のパスを読ませない。`.claude/rules/rust.md`）。
+    fn entry_path(&self, file: &str) -> Result<PathBuf, ProjectError> {
+        let parts: Vec<&str> = file.split('/').collect();
+        let safe = |part: &str| !part.is_empty() && !part.starts_with('.') && !part.contains('\\');
+        match parts.as_slice() {
+            ["bible", "entries", type_id, name]
+                if safe(type_id) && safe(name) && name.ends_with(".md") =>
+            {
+                Ok(self.root.join(file))
+            }
+            _ => Err(error(
+                &self.root.join(file),
+                io::ErrorKind::InvalidInput,
+                "設定DBのエントリのパスではありません",
+            )),
+        }
+    }
+
+    /// ディスクの中身を読む。無ければ（外で消された）エラー。
+    fn read_settings_file(&self, path: &Path) -> Result<String, ProjectError> {
+        match read_disk(path) {
+            Disk::Text(text) => Ok(text),
+            Disk::Missing => Err(error(
+                path,
+                io::ErrorKind::NotFound,
+                "ファイルがありません（外で消されたかもしれません）",
+            )),
+            Disk::Unreadable => Err(error(path, io::ErrorKind::InvalidData, "UTF-8で読めません")),
+        }
+    }
+
+    /// 設定ファイルを書き、覚えて（監視の知らせを無視するため）、設定を読み直す。
+    fn write_settings_file(&mut self, file: &str, text: &str) -> Result<(), ProjectError> {
+        write_source(&self.root, file, text)?;
+        self.settings_written
+            .insert(file.to_owned(), text.to_owned());
+        self.reload_settings()
+    }
+
+    /// 設定DBのエントリのファイル（読めたかどうかによらず、`bible/entries/<型>/*.md` のすべて）。
+    /// パスの順。中身がUTF-8で読めなければ `None`。
+    pub fn entry_files(&self) -> Vec<(String, Option<String>)> {
+        let mut files = Vec::new();
+        let Ok(types) = fs::read_dir(self.root.join("bible/entries")) else {
+            return files;
+        };
+        for type_dir in types.flatten() {
+            let type_path = type_dir.path();
+            if !type_path.is_dir() {
+                continue;
+            }
+            let Some(type_id) = type_path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+            else {
+                continue;
+            };
+            let Ok(entries) = fs::read_dir(&type_path) else {
+                continue;
+            };
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().into_owned();
+                if name.starts_with('.') || !name.ends_with(".md") {
+                    continue;
+                }
+                let text = match read_disk(&entry.path()) {
+                    Disk::Text(text) => Some(text),
+                    _ => None,
+                };
+                files.push((format!("bible/entries/{type_id}/{name}"), text));
+            }
+        }
+        files.sort();
+        files
+    }
+
+    /// エントリの1つの項目の値を書き換える（[`set_field`]）。`seen` は、フロントが知っているディスクの中身。
+    /// 外で変わっていても、その項目が外で変わっていなければ、今の中身に重ねて書く。その項目も外で
+    /// 変わっていれば書かずに [`EntryEdit::Conflict`] を返す。
+    pub fn set_entry_field(
+        &mut self,
+        file: &str,
+        key: &str,
+        value: &serde_json::Value,
+        seen: &str,
+    ) -> Result<EntryEdit, ProjectError> {
+        let path = self.entry_path(file)?;
+        let current = self.read_settings_file(&path)?;
+        if current != seen {
+            let before = front_fields(seen).ok().and_then(|f| f.get(key).cloned());
+            let now = front_fields(&current)
+                .ok()
+                .and_then(|f| f.get(key).cloned());
+            if before != now {
+                return Ok(EntryEdit::Conflict { text: current });
+            }
+        }
+        match set_field(&current, key, value) {
+            Ok(text) => {
+                self.write_settings_file(file, &text)?;
+                Ok(EntryEdit::Saved { text })
+            }
+            Err(e) => Ok(EntryEdit::Unsupported {
+                message: e.to_string(),
+            }),
+        }
+    }
+
+    /// エントリの本文（フロントマターの後ろ）を書き換える。外で変わっていても、本文が外で変わっていなければ
+    /// 今の中身に重ねて書く。本文も外で変わっていれば書かずに [`EntryEdit::Conflict`] を返す。
+    pub fn set_entry_body(
+        &mut self,
+        file: &str,
+        body: &str,
+        seen: &str,
+    ) -> Result<EntryEdit, ProjectError> {
+        let path = self.entry_path(file)?;
+        let current = self.read_settings_file(&path)?;
+        if current != seen && body_of(&current) != body_of(seen) {
+            return Ok(EntryEdit::Conflict { text: current });
+        }
+        let text = set_body(&current, body);
+        self.write_settings_file(file, &text)?;
+        Ok(EntryEdit::Saved { text })
+    }
+
+    /// エントリのファイル全体を書く（ソース表示）。`seen` が今の中身と違えば（外で変わった）、書かずに
+    /// [`EntryEdit::Conflict`] を返す。`seen` が `None` なら上書きする（人が「上書きする」を選んだ）。
+    /// 改行は、今のファイルの改行にそろえる（画面の入力欄は `\n` で返すため）。
+    pub fn write_entry_source(
+        &mut self,
+        file: &str,
+        text: &str,
+        seen: Option<&str>,
+    ) -> Result<EntryEdit, ProjectError> {
+        let path = self.entry_path(file)?;
+        let current = self.read_settings_file(&path)?;
+        if seen.is_some_and(|seen| seen != current) {
+            return Ok(EntryEdit::Conflict { text: current });
+        }
+        let text = same_newlines(&current, text);
+        self.write_settings_file(file, &text)?;
+        Ok(EntryEdit::Saved { text })
+    }
+
+    /// エントリを新しく作る：`bible/entries/<型>/<id>.md` に、`id` と `name` だけのフロントマターを書き、
+    /// 設定を読み直す。型は型定義のある型か、キャラクターの型。`id` は英数字と `_`（変数の名前空間や
+    /// 立ち絵の差分のキーにもなるため）。書いたファイルのパスを返す。
+    pub fn create_entry(
+        &mut self,
+        type_id: &str,
+        id: &str,
+        name: &str,
+    ) -> Result<String, ProjectError> {
+        let bible = &self.project.bible;
+        let dir = format!("bible/entries/{type_id}");
         let invalid =
             |message: &str| error(&self.root.join(&dir), io::ErrorKind::InvalidInput, message);
+        let known =
+            bible.types.iter().any(|t| t.id == type_id) || type_id == bible.character_type();
+        if !known || type_id.is_empty() || type_id.starts_with('.') || type_id.contains(['/', '\\'])
+        {
+            return Err(invalid("型の定義（bible/types/<型>.yaml）の無い型です"));
+        }
         if id.is_empty() || !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
             return Err(invalid("IDは英数字と _ で書きます"));
         }
@@ -442,28 +650,61 @@ impl Workspace {
         }
         let file = format!("{dir}/{id}.md");
         let path = self.root.join(&file);
-        let taken = self.project.characters.iter().any(|c| c.id == id);
+        let taken = bible
+            .entries
+            .iter()
+            .any(|e| e.type_id == type_id && e.id == id);
         if taken || path.exists() {
             return Err(error(
                 &path,
                 io::ErrorKind::AlreadyExists,
-                "同じIDのキャラクターがあります",
+                "同じIDのエントリがあります",
             ));
         }
+        // `0x1F`・`1e3`・`null` のように、素のままでは文字列として読めないIDは引用して書く。
+        let text = set_field(
+            &format!("---\nid: {}\n---\n", yaml_scalar(id)),
+            "name",
+            &serde_json::Value::String(name.to_owned()),
+        )
+        .map_err(|e| invalid(&e.to_string()))?;
         let folder = self.root.join(&dir);
         fs::create_dir_all(&folder).map_err(|source| ProjectError::Write {
             path: folder,
             source,
         })?;
-        // 名前はJSONの文字列にして書く（YAMLとしても読める。`:` などを含んでも崩れない）。
-        let quoted = serde_json::to_string(name).unwrap_or_default();
-        write_source(
-            &self.root,
-            &file,
-            &format!("---\nid: {id}\nname: {quoted}\n---\n"),
-        )?;
-        self.reload_settings()?;
+        self.write_settings_file(&file, &text)?;
         Ok(file)
+    }
+
+    /// `variables.yaml` の中身（無ければ `None`）。
+    pub fn variables_text(&self) -> Result<Option<String>, ProjectError> {
+        let path = self.root.join(VARIABLES_FILE);
+        match read_disk(&path) {
+            Disk::Text(text) => Ok(Some(text)),
+            Disk::Missing => Ok(None),
+            Disk::Unreadable => Err(error(
+                &path,
+                io::ErrorKind::InvalidData,
+                "UTF-8で読めません",
+            )),
+        }
+    }
+
+    /// `variables.yaml` を書く（変数の宣言はテキストで直す。フォームはフェーズ2）。`seen` が今の中身（無ければ
+    /// 空の文字列）と違えば、書かずに [`EntryEdit::Conflict`] を返す。`None` なら上書きする。
+    pub fn write_variables(
+        &mut self,
+        text: &str,
+        seen: Option<&str>,
+    ) -> Result<EntryEdit, ProjectError> {
+        let current = self.variables_text()?.unwrap_or_default();
+        if seen.is_some_and(|seen| seen != current) {
+            return Ok(EntryEdit::Conflict { text: current });
+        }
+        let text = same_newlines(&current, text);
+        self.write_settings_file(VARIABLES_FILE, &text)?;
+        Ok(EntryEdit::Saved { text })
     }
 
     /// フロー図の配置を保存する（[`update_layout`]）。書いた中身を覚え、その監視の知らせを無視する

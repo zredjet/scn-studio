@@ -1,8 +1,7 @@
 // 検証の画面：プロジェクト全体の診断（読み込み・構文解析・意味解析と、検証の段階1）。
-// 本文の診断を選ぶと、本文の画面のその行へ移る。未登録の話者（W202）は、その場で設定DBに登録できる
-// （IDを入力してもらう。D047）。
+// 本文の診断を選ぶと、本文の画面のその行へ移る（設定DBのエントリと変数の診断は、その画面を開く）。
+// 未登録の話者（W202）は、設定DBの画面の「作る」の欄に名前を入れて開く（D047、D049）。
 
-import { useState } from "react";
 import type { IrDiagnostic } from "../core/types.ts";
 import { groupDiagnostics, unregisteredSpeaker } from "./group.ts";
 
@@ -13,76 +12,30 @@ interface Props {
   readonly onSelect: (diagnostic: IrDiagnostic) => void;
   /** 見出しを出すか（文脈パネルでは出さない）。 */
   readonly heading?: string;
-  /** 未登録の話者を登録する。エラーの文を返す（登録できれば null）。省くと「登録」を出さない。 */
-  readonly onRegister?: (
-    diagnostic: IrDiagnostic,
-    id: string,
-  ) => Promise<string | null>;
+  /** 未登録の話者を設定DBの画面で登録する（話者名を渡す）。省くと「登録」を出さない。 */
+  readonly onRegister?: (name: string) => void;
+  /** 本文のファイルのほかに、選んで開けるファイル（設定DBのエントリ、変数）。 */
+  readonly canOpen?: (file: string) => boolean;
 }
 
 const LABEL = { error: "エラー", warning: "警告", info: "情報" } as const;
 
-/** 未登録の話者を登録するための、IDの入力欄。 */
-function RegisterForm({
-  diagnostic,
+/** 未登録の話者を、設定DBの画面で登録する（名前を入れた「作る」の欄を開く。D047、D049）。 */
+function RegisterButton({
   name,
   onRegister,
 }: {
-  readonly diagnostic: IrDiagnostic;
   readonly name: string;
   readonly onRegister: NonNullable<Props["onRegister"]>;
 }) {
-  const [open, setOpen] = useState(false);
-  const [id, setId] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  if (!open) {
-    return (
-      <button
-        type="button"
-        className="small-button check-register"
-        onClick={() => setOpen(true)}
-      >
-        「{name}」を設定DBに登録
-      </button>
-    );
-  }
   return (
-    <form
-      className="check-register-form"
-      onSubmit={(event) => {
-        event.preventDefault();
-        void onRegister(diagnostic, id.trim()).then((message) => {
-          setError(message);
-          if (message === null) setOpen(false);
-        });
-      }}
+    <button
+      type="button"
+      className="small-button check-register"
+      onClick={() => onRegister(name)}
     >
-      <span>「{name}」のID</span>
-      <label>
-        （英数字と _）
-        <input
-          value={id}
-          onChange={(event) => setId(event.target.value)}
-          pattern="[A-Za-z0-9_]+"
-          required
-        />
-      </label>
-      <button type="submit" className="small-button">
-        登録
-      </button>
-      <button
-        type="button"
-        className="small-button"
-        onClick={() => setOpen(false)}
-      >
-        やめる
-      </button>
-      {error !== null && (
-        <span className="check-register-error" role="alert">
-          {error}
-        </span>
-      )}
-    </form>
+      「{name}」を設定DBに登録…
+    </button>
   );
 }
 
@@ -92,6 +45,7 @@ export function CheckList({
   onSelect,
   heading,
   onRegister,
+  canOpen,
 }: Props) {
   const groups = groupDiagnostics(diagnostics, files);
   return (
@@ -107,8 +61,14 @@ export function CheckList({
                 <button
                   type="button"
                   className={`check-item ${d.severity}`}
-                  disabled={!group.story}
-                  title={group.story ? "この行へ移る" : undefined}
+                  disabled={!group.story && canOpen?.(group.file) !== true}
+                  title={
+                    group.story
+                      ? "この行へ移る"
+                      : canOpen?.(group.file) === true
+                        ? "開く"
+                        : undefined
+                  }
                   onClick={() => onSelect(d)}
                 >
                   <span className="check-code">{d.code}</span>
@@ -118,8 +78,7 @@ export function CheckList({
                 {group.story &&
                   onRegister !== undefined &&
                   unregisteredSpeaker(d) !== null && (
-                    <RegisterForm
-                      diagnostic={d}
+                    <RegisterButton
                       name={unregisteredSpeaker(d) ?? ""}
                       onRegister={onRegister}
                     />

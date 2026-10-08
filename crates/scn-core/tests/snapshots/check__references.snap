@@ -1,0 +1,8 @@
+---
+source: crates/scn-core/tests/check.rs
+expression: "dump(&diagnostics, &dir)"
+---
+bible/entries/character/akari.md:4:1-4:4 W806 akari の所属（org）の参照先 nowhere_high がありません（組織）
+bible/entries/character/akari.md:5:1-5:7 W806 akari の出番（scenes）の参照先 s9 がありません（シーン）
+bible/entries/character/akari.md:6:1-6:4 W806 akari のペット（pet）の参照先 tama がありません（型 animal の定義もありません）
+bible/entries/organization/school.md:4:1-4:8 W806 school の主な人物（members）の参照先 ghost がありません（キャラクター）

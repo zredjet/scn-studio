@@ -324,7 +324,7 @@ pub fn analyze(project: &Project) -> Ir {
         start_scene: project.settings.start_scene.clone(),
         scenes,
         edges: builder.edges,
-        // 読み込みの診断（設定ファイル。E801〜W804）を先に、本文の診断をファイルと位置の順に並べる。
+        // 読み込みの診断（設定ファイル。E801〜W805）を先に、本文の診断をファイルと位置の順に並べる。
         diagnostics: project
             .load_diagnostics
             .iter()

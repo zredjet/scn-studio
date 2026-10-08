@@ -12,8 +12,8 @@ export type Screen =
 const ITEMS: readonly { screen: Screen; label: string; later?: string }[] = [
   { screen: "text", label: "本文" },
   { screen: "flow", label: "フロー" },
-  { screen: "bible", label: "設定", later: "T1-10で作ります" },
-  { screen: "variables", label: "変数", later: "T1-10で作ります" },
+  { screen: "bible", label: "設定" },
+  { screen: "variables", label: "変数" },
   { screen: "check", label: "検証" },
   { screen: "export", label: "出力", later: "T1-12で作ります" },
 ];

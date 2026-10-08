@@ -1,7 +1,7 @@
 //! プロジェクトフォルダの読み込み。
 //!
 //! `project.toml`、設定DB（`bible/`）、`variables.yaml`、`assets/catalog.yaml`、
-//! `story/*.scn` を読む。設定ファイルの誤りは、読み込みのエラーで止めずに診断にし（E801〜W804）、
+//! `story/*.scn` を読む。設定ファイルの誤りは、読み込みのエラーで止めずに診断にし（E801〜W805）、
 //! 読めた部分で解析を続ける（D042）。無いファイルは空として扱う。`project.toml` の無いフォルダは
 //! プロジェクトではないので、エラーにする。
 
@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 
 use yaml_serde::Value;
 
+use crate::bible::{FieldType, value_problems};
 use crate::diag::{Code, Diagnostic, Span};
 use crate::syntax::{DialogueBracket, ParseOptions};
 
@@ -34,7 +35,7 @@ pub struct Project {
     pub concept: Option<Concept>,
     /// `story/*.scn`。パスの辞書順に並べてある。読めなかったファイル（E801）は含まない。
     pub files: Vec<SourceFile>,
-    /// 読み込みの診断（E801〜W804）。読んだ順に並べてある。
+    /// 読み込みの診断（E801〜W805）。読んだ順に並べてある。
     pub load_diagnostics: Vec<LoadDiagnostic>,
 }
 
@@ -128,7 +129,7 @@ impl Bible {
 }
 
 /// 設定DBの型（`bible/types/<型>.yaml`）。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct EntryType {
     /// ファイル名から拡張子を除いたもの。エントリのフォルダ名と同じ。
     pub id: String,
@@ -139,18 +140,21 @@ pub struct EntryType {
 }
 
 /// 型の項目の定義（`fields` の1つ）。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct FieldDef {
     pub key: String,
     pub label: String,
-    /// 書かれたとおりの型（`text`、`list<ref<scene>>` など）。値の検査はT1-10で行う。
+    /// 書かれたとおりの型（`text`、`list<ref<scene>>` など）。
+    #[serde(rename = "type")]
     pub ty: String,
-    /// `select` の選択肢。
+    /// 読んだ型。値の検査（W805・W806）とフォームに使う（T1-10）。
+    pub kind: FieldType,
+    /// `select`・`multiselect` の選択肢。
     pub options: Vec<String>,
 }
 
 /// 設定DBのエントリ（`bible/entries/<型>/<ID>.md`）。
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct Entry {
     /// 型（エントリのフォルダ名）。
     pub type_id: String,
@@ -182,6 +186,12 @@ pub struct VarDecl {
     pub ty: VarType,
     /// `scope`（`save`・`persistent`）。書かれていなければ `None`。
     pub scope: Option<String>,
+    /// `default`（文字列・数・真偽を文字列にしたもの）。表示に使う（T1-10）。
+    pub default: Option<String>,
+    /// `range`（`[最小, 最大]` の整数）。形が合わなければ `None`。表示に使う（T1-10）。
+    pub range: Option<(i64, i64)>,
+    /// `desc`（用途の説明）。
+    pub desc: Option<String>,
     /// `variables.yaml` の中の、宣言のキーの位置。
     pub span: Span,
 }
@@ -294,6 +304,10 @@ pub fn load_project(root: &Path) -> Result<Project, ProjectError> {
     let settings = loader.settings(&toml_text);
     let bible = loader.bible()?;
     let characters = loader.characters(&bible);
+    // 値が項目の型に合うか（W805。T1-10、D049）。
+    for (file, span, message) in value_problems(&bible) {
+        loader.diag(&file, Code::W805, span, message);
+    }
     let (variables, variables_unreadable) = loader.variables();
     let catalog = loader.catalog();
     let concept = loader.concept();
@@ -482,6 +496,31 @@ fn key_span(text: &str, from: usize, key: &str) -> Span {
         }
     }
     Span::new(0, 0)
+}
+
+/// 型定義の中の、項目の定義（`key: <key>`）の位置。見つからなければ `fields` のキーの位置。
+fn field_span(text: &str, key: &str) -> Span {
+    let quoted = serde_json::to_string(key).unwrap_or_default();
+    for written in [
+        format!("key: {key}"),
+        format!("key: {quoted}"),
+        format!("key: '{key}'"),
+    ] {
+        let mut from = 0;
+        while let Some(at) = text.get(from..).and_then(|rest| rest.find(&written)) {
+            let start = from + at;
+            let end = start + written.len();
+            let next = text.get(end..).and_then(|rest| rest.chars().next());
+            let before = text.get(..start).and_then(|head| head.chars().next_back());
+            if next.is_none_or(|c| !(c.is_alphanumeric() || c == '_'))
+                && before.is_none_or(|c| !(c.is_alphanumeric() || c == '_'))
+            {
+                return Span::new(start, end);
+            }
+            from = end;
+        }
+    }
+    key_span(text, 0, "fields")
 }
 
 /// 先頭の `---` の行から、次の `---` の行までを取り出す。中身と、中身の始まりの位置と、
@@ -907,6 +946,17 @@ impl Loader<'_> {
                         );
                         continue;
                     };
+                    let Some(kind) = FieldType::parse(&ty) else {
+                        self.diag(
+                            &file,
+                            Code::E802,
+                            field_span(&text, &key),
+                            format!(
+                                "項目 {key} の型 {ty} を読めません（text・longtext・number・bool・date・select・multiselect・asset・ref<型>・list<型> のどれか）。その項目を読み飛ばします"
+                            ),
+                        );
+                        continue;
+                    };
                     let label = item
                         .get("label")
                         .and_then(scalar)
@@ -921,6 +971,7 @@ impl Loader<'_> {
                         key,
                         label,
                         ty,
+                        kind,
                         options,
                     });
                 }
@@ -1164,10 +1215,22 @@ impl Loader<'_> {
                 }
             };
             let scope = def.get("scope").and_then(scalar);
+            let default = def.get("default").and_then(scalar);
+            let range = match def.get("range") {
+                Some(Value::Sequence(items)) => match items.as_slice() {
+                    [min, max] => min.as_i64().zip(max.as_i64()),
+                    _ => None,
+                },
+                _ => None,
+            };
+            let desc = def.get("desc").and_then(scalar);
             decls.push(VarDecl {
                 key,
                 ty,
                 scope,
+                default,
+                range,
+                desc,
                 span,
             });
         }
