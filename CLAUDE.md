@@ -41,6 +41,7 @@ crates/scn-core/        パーサ、AST、意味解析、IR、診断
 crates/scn-cli/         CLI `scn`
 crates/scn-lsp/         言語サーバー（`scn lsp`。T3-15）
 packages/lezer-scn/     ハイライト用のLezer文法
+packages/vscode-scn/    VS Code拡張（T3-16。配布はしない）
 app/                    Tauri＋React（src-tauri/ と src/）
 ```
 
@@ -85,7 +86,10 @@ app/                    Tauri＋React（src-tauri/ と src/）
   - Biomeはルートで全体を一度に検査する（`docs/` と `samples/` は対象外）。各パッケージには `lint` を置かず、`typecheck` と `test` のスクリプトを置く。ルートの `pnpm typecheck` と `pnpm test` が、それを持つパッケージをすべて走らせる
 - Lezer文法（`packages/lezer-scn`）：`pnpm -C packages/lezer-scn test`（文法から構文解析器を作り直してから、`node --test` でテスト）／`pnpm -C packages/lezer-scn build`（構文解析器を作るだけ）
   - 作った `src/parser.ts`・`src/parser.terms.ts` はコミットしない（`typecheck` と `test` が先に作る）
-  - サンプルの行の種類の期待値（`test/expected/*.txt`）を作り直す：`UPDATE_EXPECTED=1 pnpm -C packages/lezer-scn test`。差分を読んで確かめてから受け入れる
+  - サンプルの行の種類の期待値（`test/expected/*.txt`）を作り直す：`UPDATE_EXPECTED=1 pnpm -C packages/lezer-scn test`。差分を読んで確かめてから受け入れる（VS Code拡張の文法のテストも、この期待値と突き合わせる）
+- VS Code拡張（`packages/vscode-scn`）：`pnpm -C packages/vscode-scn typecheck`（型検査と、esbuild で `out/extension.cjs` にまとめる）／`pnpm -C packages/vscode-scn test`（TextMate の文法（サンプルの全行の行の種類が Lezer の期待値と同じ、文中の記法と式の scope）と行IDの見つけ方のテスト）。どちらも `scripts/check-all` に入っている
+  - 拡張の起動のテスト（`scripts/check-all` には入らない。VS Code の窓が短い間開く）：`cargo build -p scn-cli && pnpm -C packages/vscode-scn test:vscode`（VS Code は環境変数 `VSCODE_EXECUTABLE`、無ければ macOS の `/Applications/Visual Studio Code.app`、それも無ければダウンロード。`scn` は `SCN_BIN` か `target/debug/scn`）
+  - パッケージにして入れる手順は `packages/vscode-scn/README.md`（`npx @vscode/vsce package --no-dependencies …`）
 - アプリ（`app/`、Tauri＋React）：`pnpm -C app tauri dev`（開発用に起動する。デバッグビルドでは起動時に `samples/houkago` を開く）／`pnpm -C app test`（位置の変換、グラフの配置、エディタ、置き換え、執筆表示、行IDを守る扱い、入力補助、検証の画面、設定DBの画面、変数と型定義のフォーム、素材カタログの画面、企画の画面、マージの画面、名前の変更とパレットなどエディタの残り、環境設定の AI の接続先の表示、AI実行の画面、プレビューのランタイムと縦書きの組み方のテスト。プレビューと「ここから再生」のテストはコアのスナップショット（`crates/scn-core/tests/snapshots/preview__*.snap`・`route__*.snap`）を読むので、`cargo test -p scn-core` の後に走らせる）／`pnpm -C app build`（フロントのビルド）
   - 開発用の環境変数：`SCN_DEV_PROJECT=<作品フォルダ>`（起動時に開く）、`SCN_MEASURE_IPC=1`（開いた後に、入力が止まったときの受け渡しの時間を10回測ってターミナルに書く）。解析の速さを見るときは、Rustをリリースビルドにする `pnpm -C app tauri dev --release` で測る
   - Rust側（`app/src-tauri`、パッケージ名 `scn-app`）はCargoのワークスペースに入っているので、`cargo test --workspace`・`cargo clippy --workspace` の対象になる

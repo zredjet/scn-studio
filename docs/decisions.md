@@ -873,3 +873,12 @@
   - 補完・定義へ移動・参照・ホバーは、コアの新しいモジュール（`complete`・`navigate`）で返す。補完の決まりはアプリのエディタと同じ（アプリの判断をコアに移したもの）。名前の変更はアプリと同じ `plan_rename` で組み、ファイルの名前が変わるもの（エントリのID）は断る。
 - 理由：計画 T3-15（保守の状況を確かめてフォークを使うかを決める、アプリと同じコアの処理、位置の変換は境界の1か所）と、設計検討書「アーキテクチャ」（言語サービスを LSP で公開し、同じ処理を Tauri からも呼ぶ）。元の `tower-lsp` は 0.20（2023年）から更新が無く、フォークは 0.23 まで保守されている。別のクレートにするのは、コアに非同期の実行環境を持ち込まず、CLI の依存を増やしすぎないため。
 - 影響：`crates/scn-lsp`（新規）、`crates/scn-core/src/complete.rs`・`navigate.rs`（新規）、`rename.rs`（`Symbol::span`、`occurrences`）、`layout.rs`（`renamed_layout_text`）、`workspace.rs`（`relative` を公開）、`scn lsp`、ワークスペースのメンバー。
+
+## D077 VS Code拡張（2026-10-09）
+
+- 決定：
+  - `packages/vscode-scn` に VS Code 拡張を作る：言語の登録、TextMate の文法（行の種類は Lezer の文法と同じ）、言語サーバー（設定 `scn.path` の `scn lsp`）への接続、行IDの装飾（薄く・隠す・そのまま。設定 `scn.lineIds` と切り替えのコマンド）。拡張は起動と見た目だけで、処理は言語サーバー（コア）にある。
+  - TypeScript で書き、esbuild で1つのファイルにまとめる。依存のインストールスクリプトは実行しない。
+  - 文法のテスト（VS Code と同じ処理系で字句に分け、サンプルの全行の行の種類を Lezer の期待値と突き合わせる）と拡張のビルドは `scripts/check-all` に入れる。拡張の起動のテストは別のコマンド（`test:vscode`）。パッケージは手順だけを書き、配布しない。
+- 理由：計画 T3-16（言語サーバーにつなぐ、ハイライト、行IDを目立たなくする、文法のテストと拡張のビルドを check-all に、パッケージにする手順を書く）と、設計検討書の「未決事項とリスク」の行IDの見た目。行の種類を Lezer と突き合わせるのは、アプリとエディタでハイライトの考え方がずれないようにするため。esbuild でまとめるのは、pnpm の依存の置き方を vsce がうまく扱えないため。
+- 影響：`packages/vscode-scn`（新規）、`pnpm-workspace.yaml`（`allowBuilds`）、`pnpm-lock.yaml`、CLAUDE.md のコマンドと構成、`.claude/rules/frontend.md`。

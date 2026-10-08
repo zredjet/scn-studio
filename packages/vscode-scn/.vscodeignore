@@ -1,0 +1,9 @@
+# パッケージ（.vsix）に入れないもの。拡張は out/extension.cjs にまとめてある（esbuild）。
+src/**
+test/**
+test-vscode/**
+node_modules/**
+.vscode-test/**
+tsconfig.json
+*.vsix
+.gitignore

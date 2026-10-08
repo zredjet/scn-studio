@@ -2,3 +2,7 @@
 packages:
   - "packages/*"
   - "app"
+# 依存のインストールスクリプトは実行しない。esbuild（VS Code拡張のまとめ。T3-16）は OS ごとのバイナリを
+# 別のパッケージ（@esbuild/<OS>）で入れるので、スクリプトが無くても動く。
+allowBuilds:
+  esbuild: false

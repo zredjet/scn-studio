@@ -1,0 +1,4 @@
+# まとめた拡張（pnpm run build）とパッケージ、起動のテストの作業フォルダ
+out/
+*.vsix
+.vscode-test/

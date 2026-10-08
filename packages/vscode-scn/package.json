@@ -1,0 +1,109 @@
+{
+  "name": "vscode-scn",
+  "displayName": "scn-studio（.scn）",
+  "description": "分岐する物語の .scn を VS Code で書く：ハイライト、言語サーバー（scn lsp）、行IDを目立たなくする装飾",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "publisher": "scn-studio",
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "main": "./out/extension.cjs",
+  "activationEvents": [],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "restrictedConfigurations": [
+        "scn.path"
+      ],
+      "description": "信頼していないフォルダでは、フォルダの設定の scn.path を使わない（ユーザーの設定の scn を使う）。ハイライトと言語サーバーは動く。"
+    }
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "scn",
+        "aliases": [
+          "scn",
+          "SCN"
+        ],
+        "extensions": [
+          ".scn"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "scn",
+        "scopeName": "source.scn",
+        "path": "./syntaxes/scn.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "scn-studio",
+      "properties": {
+        "scn.path": {
+          "type": "string",
+          "default": "scn",
+          "markdownDescription": "言語サーバーに使う `scn` のコマンド（`scn lsp` を実行する）。`PATH` に無ければ絶対パスで書く（例：`~/.cargo/bin/scn` は `/Users/<名前>/.cargo/bin/scn`）"
+        },
+        "scn.lineIds": {
+          "type": "string",
+          "enum": [
+            "dim",
+            "hide",
+            "show"
+          ],
+          "enumDescriptions": [
+            "薄く表示する",
+            "隠す（カーソルのある行では表示する）",
+            "そのまま表示する"
+          ],
+          "default": "dim",
+          "description": "行ID（行末の ^xxxx）の見せ方"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "scn.toggleLineIds",
+        "title": "行IDの見せ方を切り替える（薄く → 隠す → そのまま）",
+        "category": "scn"
+      },
+      {
+        "command": "scn.restartServer",
+        "title": "言語サーバーを再起動する",
+        "category": "scn"
+      }
+    ],
+    "configurationDefaults": {
+      "[scn]": {
+        "editor.wordBasedSuggestions": "off"
+      }
+    }
+  },
+  "scripts": {
+    "build": "esbuild src/extension.ts --bundle --platform=node --format=cjs --target=node20 --external:vscode --outfile=out/extension.cjs",
+    "typecheck": "tsc --noEmit && pnpm run build",
+    "test": "node --test --test-reporter=spec \"test/**/*.test.ts\"",
+    "test:vscode": "pnpm run build && node test-vscode/run.mjs"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^10.1.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.1",
+    "@types/vscode": "1.100.0",
+    "@vscode/test-electron": "^3.1.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.3.2"
+  }
+}

@@ -1,0 +1,579 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "scn",
+  "scopeName": "source.scn",
+  "comment": ".scn のハイライト（T3-16）。行の種類は packages/lezer-scn の文法と同じに分ける（仕様書4節。テストが Lezer の期待値と突き合わせる）。見た目のためだけで、意味の判断（台詞かどうか、参照が正しいか）は言語サーバーに任せる。台詞の括弧は「」と『』だけを見る（作品ごとの [dialogue.brackets] は読めない）。",
+  "patterns": [
+    {
+      "include": "#raw"
+    },
+    {
+      "include": "#comment"
+    },
+    {
+      "include": "#scene-heading"
+    },
+    {
+      "include": "#chapter-heading"
+    },
+    {
+      "include": "#expression-directive"
+    },
+    {
+      "include": "#choice-directive"
+    },
+    {
+      "include": "#directive"
+    },
+    {
+      "include": "#option"
+    },
+    {
+      "include": "#jump"
+    },
+    {
+      "include": "#escaped-line"
+    },
+    {
+      "include": "#dialogue"
+    },
+    {
+      "include": "#narration"
+    },
+    {
+      "include": "#line-id"
+    }
+  ],
+  "repository": {
+    "line-id": {
+      "match": "(?<=[ ])\\^[0-9A-Za-z]+(?=[ \\t]*$)",
+      "name": "comment.line-id.scn"
+    },
+    "comment": {
+      "match": "^[ \\t]*//.*$",
+      "name": "comment.line.double-slash.scn"
+    },
+    "chapter-heading": {
+      "match": "^[ \\t]*(#)[ ](.*?)(?:[ ]+(\\^[0-9A-Za-z]+))?[ \\t]*$",
+      "captures": {
+        "0": {
+          "name": "markup.heading.chapter.scn"
+        },
+        "1": {
+          "name": "punctuation.definition.heading.scn"
+        },
+        "2": {
+          "name": "entity.name.section.chapter.scn"
+        },
+        "3": {
+          "name": "comment.line-id.scn"
+        }
+      }
+    },
+    "scene-heading": {
+      "comment": "見出しの直後の `---` だけをメタ情報にする（本文の `---` は地の文。Lezer と同じ）。",
+      "begin": "^[ \\t]*(##)[ ](.*?)(?:[ ](#[A-Za-z0-9_]+))?(?:[ ]+(\\^[0-9A-Za-z]+))?[ \\t]*$",
+      "beginCaptures": {
+        "0": {
+          "name": "markup.heading.scene.scn"
+        },
+        "1": {
+          "name": "punctuation.definition.heading.scn"
+        },
+        "2": {
+          "name": "entity.name.section.scene.scn"
+        },
+        "3": {
+          "name": "entity.name.tag.scene-id.scn"
+        },
+        "4": {
+          "name": "comment.line-id.scn"
+        }
+      },
+      "end": "^(?![ \\t]*---(?:[ ]+\\^[0-9A-Za-z]+)?[ \\t]*$)",
+      "patterns": [
+        {
+          "include": "#meta"
+        }
+      ]
+    },
+    "meta": {
+      "begin": "^[ \\t]*(---)(?:[ ]+(\\^[0-9A-Za-z]+))?[ \\t]*$",
+      "end": "^[ \\t]*(---)(?:[ ]+(\\^[0-9A-Za-z]+))?[ \\t]*$|(?=^[ \\t]*## )|(?=^(?![ \\t]*(?:[^\\s:]+:(?:[ ]|$)|//|$)))",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.meta.scn"
+        },
+        "2": {
+          "name": "comment.line-id.scn"
+        }
+      },
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.meta.scn"
+        },
+        "2": {
+          "name": "comment.line-id.scn"
+        }
+      },
+      "name": "meta.block.scene-meta.scn",
+      "patterns": [
+        {
+          "include": "#comment"
+        },
+        {
+          "match": "^[ \\t]*([^\\s:]+)(:)(?:[ ]+(.*?))?(?:[ ]+(\\^[0-9A-Za-z]+))?[ \\t]*$",
+          "captures": {
+            "1": {
+              "name": "variable.other.meta-key.scn"
+            },
+            "2": {
+              "name": "punctuation.separator.key-value.scn"
+            },
+            "3": {
+              "name": "string.unquoted.meta-value.scn"
+            },
+            "4": {
+              "name": "comment.line-id.scn"
+            }
+          }
+        }
+      ]
+    },
+    "raw": {
+      "begin": "^[ \\t]*(@)(raw)(?=[ \\t　]|$)(.*)$",
+      "end": "^[ \\t　]*(@)(end)[ \\t　]*$|(?=^## )",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.control.directive.scn"
+        },
+        "2": {
+          "name": "keyword.control.directive.scn"
+        },
+        "3": {
+          "name": "string.unquoted.argument.scn"
+        },
+        "0": {
+          "name": "meta.raw.start.scn"
+        }
+      },
+      "endCaptures": {
+        "1": {
+          "name": "keyword.control.directive.scn"
+        },
+        "2": {
+          "name": "keyword.control.directive.scn"
+        },
+        "0": {
+          "name": "meta.raw.end.scn"
+        }
+      },
+      "contentName": "meta.embedded.block.raw.scn"
+    },
+    "expression-directive": {
+      "begin": "^[ \\t]*(@)(if|elif|設定|set)(?=[ \\t　]|$)",
+      "end": "$",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.control.directive.scn"
+        },
+        "2": {
+          "name": "keyword.control.directive.scn"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#line-id"
+        },
+        {
+          "include": "#expression"
+        }
+      ],
+      "name": "meta.directive.scn"
+    },
+    "choice-directive": {
+      "begin": "^[ \\t]*(@)(選択|choice)(?=[ \\t　]|$)",
+      "end": "$",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.control.directive.scn"
+        },
+        "2": {
+          "name": "keyword.control.directive.scn"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#line-id"
+        },
+        {
+          "include": "#inline"
+        }
+      ],
+      "name": "meta.directive.scn"
+    },
+    "directive": {
+      "begin": "^[ \\t]*(@)([^\\s　]+)",
+      "end": "$",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.control.directive.scn"
+        },
+        "2": {
+          "name": "keyword.control.directive.scn"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#line-id"
+        },
+        {
+          "match": "\"[^\"]*\"?",
+          "name": "string.quoted.double.argument.scn"
+        },
+        {
+          "match": "[^\\s　\"]+",
+          "name": "string.unquoted.argument.scn"
+        }
+      ],
+      "name": "meta.directive.scn"
+    },
+    "option": {
+      "begin": "^[ \\t]*(-)(?=[ ]|$)",
+      "end": "$",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.list.option.scn"
+        }
+      },
+      "name": "meta.option.scn",
+      "patterns": [
+        {
+          "include": "#line-id"
+        },
+        {
+          "match": "(?<=[ ])(->)[ \\t]*([A-Za-z0-9_]*)(?=(?:[ ]+\\^[0-9A-Za-z]+)?[ \\t]*$)",
+          "captures": {
+            "1": {
+              "name": "keyword.operator.jump.scn"
+            },
+            "2": {
+              "name": "entity.name.tag.scene-ref.scn"
+            }
+          }
+        },
+        {
+          "begin": "(?<=[ ])(if)(?=[ ])",
+          "end": "(?=[ ]->[ \\t]*[A-Za-z0-9_]*(?:[ ]+\\^[0-9A-Za-z]+)?[ \\t]*$|[ ]+\\^[0-9A-Za-z]+[ \\t]*$|$)",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.control.conditional.scn"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#expression"
+            }
+          ]
+        },
+        {
+          "include": "#inline"
+        }
+      ]
+    },
+    "jump": {
+      "match": "^[ \\t]*(->)[ \\t]*([A-Za-z0-9_]*)(.*?)(?:[ ]+(\\^[0-9A-Za-z]+))?[ \\t]*$",
+      "captures": {
+        "0": {
+          "name": "meta.jump.scn"
+        },
+        "1": {
+          "name": "keyword.operator.jump.scn"
+        },
+        "2": {
+          "name": "entity.name.tag.scene-ref.scn"
+        },
+        "3": {
+          "name": "invalid.illegal.scene-ref.scn"
+        },
+        "4": {
+          "name": "comment.line-id.scn"
+        }
+      }
+    },
+    "escaped-line": {
+      "begin": "^[ \\t]*(\\\\)",
+      "end": "$",
+      "beginCaptures": {
+        "1": {
+          "name": "constant.character.escape.scn"
+        }
+      },
+      "name": "meta.paragraph.narration.scn",
+      "patterns": [
+        {
+          "include": "#line-id"
+        },
+        {
+          "include": "#inline"
+        }
+      ]
+    },
+    "narration": {
+      "begin": "^(?=[ \\t]*[^ \\t\\r\\n])",
+      "end": "$",
+      "name": "meta.paragraph.narration.scn",
+      "patterns": [
+        {
+          "include": "#line-id"
+        },
+        {
+          "include": "#inline"
+        }
+      ]
+    },
+    "inline": {
+      "patterns": [
+        {
+          "match": "\\{\\{|\\}\\}",
+          "name": "constant.character.escape.brace.scn"
+        },
+        {
+          "match": "[|｜]《",
+          "name": "constant.character.escape.ruby.scn"
+        },
+        {
+          "match": "(《《)(.*?)(》》)",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.emphasis.scn"
+            },
+            "2": {
+              "name": "markup.bold.emphasis-dots.scn"
+            },
+            "3": {
+              "name": "punctuation.definition.emphasis.scn"
+            }
+          }
+        },
+        {
+          "match": "([|｜])([^|｜《\\n]+)(《)(?!《)([^《》\\n]+)(》)",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.ruby.scn"
+            },
+            "2": {
+              "name": "markup.underline.ruby-base.scn"
+            },
+            "3": {
+              "name": "punctuation.definition.ruby.scn"
+            },
+            "4": {
+              "name": "string.other.ruby-reading.scn"
+            },
+            "5": {
+              "name": "punctuation.definition.ruby.scn"
+            }
+          }
+        },
+        {
+          "match": "([\\p{Han}々〆ヵヶ]+)(《)(?!《)([^《》\\n]+)(》)",
+          "captures": {
+            "1": {
+              "name": "markup.underline.ruby-base.scn"
+            },
+            "2": {
+              "name": "punctuation.definition.ruby.scn"
+            },
+            "3": {
+              "name": "string.other.ruby-reading.scn"
+            },
+            "4": {
+              "name": "punctuation.definition.ruby.scn"
+            }
+          }
+        },
+        {
+          "match": "(\\{=)([^}]*)(\\})",
+          "captures": {
+            "1": {
+              "name": "punctuation.section.interpolation.begin.scn"
+            },
+            "2": {
+              "name": "variable.other.interpolation.scn"
+            },
+            "3": {
+              "name": "punctuation.section.interpolation.end.scn"
+            }
+          }
+        },
+        {
+          "match": "\\{(?:w|p|se|speed)(?:[ ][^}]*)?\\}",
+          "name": "support.function.inline-command.scn"
+        }
+      ]
+    },
+    "expression": {
+      "patterns": [
+        {
+          "match": "\"(?:\\\\\"|[^\"])*\"?",
+          "name": "string.quoted.double.scn"
+        },
+        {
+          "match": "(?<![\\p{L}\\p{N}_])(?:true|false)(?![\\p{L}\\p{N}_])",
+          "name": "constant.language.boolean.scn"
+        },
+        {
+          "match": "(?<![\\p{L}\\p{N}_])(?:and|or|not)(?![\\p{L}\\p{N}_])",
+          "name": "keyword.operator.logical.scn"
+        },
+        {
+          "match": "(?<![\\p{L}_])\\d+(?![\\p{L}\\p{N}_])",
+          "name": "constant.numeric.scn"
+        },
+        {
+          "match": "==|!=|>=|<=|>|<",
+          "name": "keyword.operator.comparison.scn"
+        },
+        {
+          "match": "\\+=|-=|=",
+          "name": "keyword.operator.assignment.scn"
+        },
+        {
+          "match": "[+\\-*/]",
+          "name": "keyword.operator.arithmetic.scn"
+        },
+        {
+          "match": "[()]",
+          "name": "punctuation.section.parens.scn"
+        },
+        {
+          "match": "[\\p{L}_][\\p{L}\\p{N}_]*(?:\\.[\\p{L}_][\\p{L}\\p{N}_]*)?",
+          "name": "variable.other.scn"
+        }
+      ]
+    },
+    "dialogue": {
+      "patterns": [
+        {
+          "include": "#dialogue-kagi"
+        },
+        {
+          "include": "#dialogue-nijuu"
+        }
+      ]
+    },
+    "dialogue-kagi": {
+      "begin": "^[ \\t]*([^\\s　「」『』（）]{1,20})(（[^）]*）)?(「)(?=(?:[^「」]|「[^「」]*」)*」(?:[ \\t　]*\\{(?:w|p|se|speed)(?:[ ][^}]*)?\\})*[ \\t　]*(?:[ ]+\\^[0-9A-Za-z]+)?[ \\t]*$|[^」]*$)",
+      "end": "(」)(.*?)(?=(?:[ ]+\\^[0-9A-Za-z]+)?[ \\t]*$)|(?=^[ \\t]*$)|(?=^[ \\t]*(?:##[ ]|@|->|-(?:[ ]|$)))",
+      "beginCaptures": {
+        "1": {
+          "name": "entity.name.function.speaker.scn"
+        },
+        "2": {
+          "name": "entity.other.display-name.scn"
+        },
+        "3": {
+          "name": "punctuation.definition.string.begin.dialogue.scn"
+        }
+      },
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.string.end.dialogue.scn"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#inline"
+            }
+          ]
+        }
+      },
+      "name": "meta.dialogue.scn",
+      "contentName": "string.quoted.dialogue.scn",
+      "patterns": [
+        {
+          "include": "#nested-kagi"
+        },
+        {
+          "include": "#line-id"
+        },
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#inline"
+        }
+      ]
+    },
+    "dialogue-nijuu": {
+      "begin": "^[ \\t]*([^\\s　「」『』（）]{1,20})(（[^）]*）)?(『)(?=(?:[^『』]|『[^『』]*』)*』(?:[ \\t　]*\\{(?:w|p|se|speed)(?:[ ][^}]*)?\\})*[ \\t　]*(?:[ ]+\\^[0-9A-Za-z]+)?[ \\t]*$|[^』]*$)",
+      "end": "(』)(.*?)(?=(?:[ ]+\\^[0-9A-Za-z]+)?[ \\t]*$)|(?=^[ \\t]*$)|(?=^[ \\t]*(?:##[ ]|@|->|-(?:[ ]|$)))",
+      "beginCaptures": {
+        "1": {
+          "name": "entity.name.function.speaker.scn"
+        },
+        "2": {
+          "name": "entity.other.display-name.scn"
+        },
+        "3": {
+          "name": "punctuation.definition.string.begin.dialogue.scn"
+        }
+      },
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.string.end.dialogue.scn"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#inline"
+            }
+          ]
+        }
+      },
+      "name": "meta.dialogue.scn",
+      "contentName": "string.quoted.dialogue.scn",
+      "patterns": [
+        {
+          "include": "#nested-nijuu"
+        },
+        {
+          "include": "#line-id"
+        },
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#inline"
+        }
+      ]
+    },
+    "nested-kagi": {
+      "comment": "台詞の中の同じ種類の括弧は入れ子として数える（仕様書6節）。",
+      "begin": "「",
+      "end": "」|(?=^[ \\t]*$)|(?=^[ \\t]*(?:##[ ]|@|->|-(?:[ ]|$)))",
+      "patterns": [
+        {
+          "include": "#nested-kagi"
+        },
+        {
+          "include": "#inline"
+        }
+      ]
+    },
+    "nested-nijuu": {
+      "comment": "台詞の中の同じ種類の括弧は入れ子として数える（仕様書6節）。",
+      "begin": "『",
+      "end": "』|(?=^[ \\t]*$)|(?=^[ \\t]*(?:##[ ]|@|->|-(?:[ ]|$)))",
+      "patterns": [
+        {
+          "include": "#nested-nijuu"
+        },
+        {
+          "include": "#inline"
+        }
+      ]
+    }
+  }
+}

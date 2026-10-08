@@ -87,6 +87,7 @@
 | ソース表示 | source view | 生のテキストと行番号を見せる表示 |
 | 入力補助 | input assist | 括弧の補い、正規化、段落頭の字下げ（`typing.ts`、D047） |
 | 補完 | completion | 候補の窓。キャラ名、命令、引数、シーンID（`complete.ts`。言語サーバーはコアの `complete::complete_at`） |
+| VS Code拡張 | VS Code extension | `packages/vscode-scn`。TextMate の文法、言語サーバーへの接続、行IDの装飾（T3-16） |
 | 言語サーバー | language server | `scn lsp`（`crates/scn-lsp`）。LSP で診断・補完・定義へ移動・参照・名前の変更・ホバーを出す（T3-15） |
 | 定義へ移動 | definition | 名前の定義の場所へ移る（`navigate::definition`。アプリは F12） |
 | 参照 | references | 名前のすべての現れ（`navigate::references`、`rename::occurrences`） |

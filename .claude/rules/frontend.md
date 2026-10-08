@@ -29,6 +29,12 @@ paths:
 - 解析の依頼は、入力が止まってから行う（目安200ミリ秒のデバウンス）。変換中に解析結果で表示が変わらないようにする。
 - ハイライトは `packages/lezer-scn` の文法で行う。Lezerは見た目のためだけに使い、意味の判断（台詞かどうか、参照が正しいか）はコアの結果に任せる。
 
+## VS Code拡張（packages/vscode-scn）
+
+- 拡張は起動と見た目だけ。処理は言語サーバー（`scn lsp`、コア）に置く。拡張で `.scn` を解析しない（行IDの装飾の位置を探すのは、見た目のための正規表現だけ。`src/lineids.ts`）。
+- TextMate の文法（`syntaxes/scn.tmLanguage.json`）の行の種類は、Lezer の文法と同じに分ける。どちらかを変えたら、`test/grammar.test.ts`（サンプルの全行の行の種類を Lezer の期待値と突き合わせる）を通す。
+- 拡張は esbuild で1つのファイル（`out/extension.cjs`）にまとめる（依存は入れずにパッケージにする）。依存のインストールスクリプトは実行しない（`pnpm-workspace.yaml` の `allowBuilds`）。
+
 ## Lezer文法（packages/lezer-scn）
 
 - 壊れた入力でもハイライトが崩れきらないよう、寛容に書く。行単位で状態が戻るようにする。
