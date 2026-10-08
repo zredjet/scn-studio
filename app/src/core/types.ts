@@ -196,7 +196,9 @@ export type Change =
   | { readonly kind: "settings" }
   /** アイデアメモ（`ideas/*.md`）が外で変わった（T2-6）。 */
   | { readonly kind: "ideas" }
-  | { readonly kind: "provenance" };
+  | { readonly kind: "provenance" }
+  /** 外部のAIエージェントの提案（`ai/proposals/*.md`）が変わった（T3-8）。 */
+  | { readonly kind: "proposals" };
 
 /** `workspace-changed` の知らせ。 */
 export interface WorkspaceChanged {
@@ -637,6 +639,8 @@ export interface AiRunOutcome {
   readonly model: string;
   readonly findings: readonly AiFinding[];
   readonly summary: string | null;
+  /** 提案（`output: diff`。T3-8）。 */
+  readonly proposals: readonly AiProposal[];
   readonly unread: readonly string[];
   readonly text: string;
   readonly completion: {
@@ -650,6 +654,71 @@ export interface AiRunOutcome {
   /** シーンの要約をキャッシュに書けなかった理由。 */
   readonly summary_problem: string | null;
 }
+
+/** 行ごとの提案（コアの `ai::Proposal`、T3-8）。 */
+export interface AiProposal {
+  readonly line: string;
+  readonly before: string | null;
+  readonly after: string;
+  readonly reason: string | null;
+}
+
+/** 提案を今の本文と照らしたもの（コアの `ai::ProposalView`）。 */
+export interface AiProposalView {
+  readonly proposal: AiProposal;
+  readonly file: string | null;
+  readonly scene: string | null;
+  readonly span: readonly [number, number] | null;
+  readonly current: string | null;
+  readonly status:
+    | { readonly kind: "ready" }
+    | { readonly kind: "same" }
+    | { readonly kind: "blocked"; readonly reason: string };
+  readonly diff: readonly {
+    readonly kind: "equal" | "delete" | "insert";
+    readonly text: string;
+  }[];
+}
+
+/** `ai/proposals/` の1つのファイル（コアの `ai::ProposalFile`）。 */
+export interface AiProposalFile {
+  readonly path: string;
+  readonly task: string | null;
+  readonly model: string | null;
+  readonly at: string | null;
+  readonly proposals: readonly AiProposal[];
+  readonly problems: readonly string[];
+}
+
+/** 提案を採用した結果（`adopt_proposals`）。 */
+export type AdoptResult =
+  | {
+      readonly kind: "saved";
+      readonly text: string;
+      readonly applied: readonly string[];
+      readonly skipped: readonly {
+        readonly line: string;
+        readonly reason: string;
+      }[];
+      readonly provenance_problem: string | null;
+      readonly summary: Summary;
+      readonly checks: readonly IrDiagnostic[];
+    }
+  | {
+      readonly kind: "conflict";
+      readonly deleted: boolean;
+      readonly skipped: readonly {
+        readonly line: string;
+        readonly reason: string;
+      }[];
+    }
+  | {
+      readonly kind: "none";
+      readonly skipped: readonly {
+        readonly line: string;
+        readonly reason: string;
+      }[];
+    };
 
 /** 自動巡回の結果（検証の段階2。コアの `playthrough::Playthrough`、T3-2）。 */
 export interface Playthrough {

@@ -289,7 +289,7 @@ fn run_summary_task() {
     assert!(outcome.findings.is_empty() && outcome.unread.is_empty());
 }
 
-/// 実行できない：提案・生成・自律（T3-8・T3-9）、シーンが要るのに無い。送る前に断る。
+/// 実行できない：提案ノード（T3-10）、生成・自律（T3-9）、シーンが要るのに無い。送る前に断る。
 #[test]
 fn run_refuses_before_sending() {
     let project = houkago();
@@ -298,7 +298,7 @@ fn run_refuses_before_sending() {
     let conn = connection("http://127.0.0.1:9/v1".to_owned());
     let cancel = AtomicBool::new(false);
     for (id, scene) in [
-        ("rephrase", Some("s012")),
+        ("branch_ideas", Some("s012")),
         ("draft_stub", Some("s014")),
         ("draft_chapter", None),
     ] {
@@ -450,4 +450,39 @@ fn cloud_runs_need_confirmed_content() {
     .unwrap();
     assert!(outcome.findings.is_empty());
     assert!(received.lock().unwrap().contains("s012"));
+}
+
+/// 提案のタスク（`output: diff`。T3-8）：応答から行IDつきの差分を読む。
+#[test]
+fn run_diff_task() {
+    let project = houkago();
+    let ir = analyze(&project);
+    let sources =
+        ai::read_sources(&PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../samples/houkago"));
+    let task = project
+        .ai_tasks
+        .iter()
+        .find(|t| t.id == "rephrase")
+        .unwrap();
+    let (url, _) = serve(
+        "{\"line\": \"k3fg\", \"before\": \"灯「やっぱり、君には言っておく」\", \"after\": \"灯「やっぱり、君には言っとく」\", \"reason\": \"軽口\"}",
+    );
+    let cancel = AtomicBool::new(false);
+    let outcome = ai::run_task(
+        &project,
+        &ir,
+        &sources,
+        task,
+        Some("s012"),
+        &connection(url),
+        None,
+        None,
+        &options(),
+        &cancel,
+        &mut |_| {},
+    )
+    .unwrap();
+    assert_eq!(outcome.proposals.len(), 1);
+    assert_eq!(outcome.proposals.first().unwrap().line, "k3fg");
+    assert!(outcome.findings.is_empty() && outcome.unread.is_empty());
 }

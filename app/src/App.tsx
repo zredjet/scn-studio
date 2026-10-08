@@ -14,6 +14,8 @@ import {
   type HistoryEntry,
   historyStatus,
   mergeFindings,
+  type ProposalSet,
+  proposalsByFile,
   type RunResult,
   type RunState,
   tokensText,
@@ -26,6 +28,7 @@ import { PlaythroughPanel } from "./check/PlaythroughPanel.tsx";
 import { ConceptScreen } from "./concept/ConceptScreen.tsx";
 import {
   addChapter,
+  adoptProposals,
   aiConnections,
   aiLines,
   aiTaskList,
@@ -61,6 +64,7 @@ import {
   prepareAiTask,
   previewData,
   readingChoices,
+  proposalFiles as readProposalFiles,
   recentProjects,
   reloadFile,
   renameChapter,
@@ -84,6 +88,8 @@ import type { PreviewData } from "./core/ir.ts";
 import { PositionMap } from "./core/position.ts";
 import type {
   AiConnections,
+  AiProposalFile,
+  AiProposalView,
   AiTaskInfo,
   AssistData,
   Bracket,
@@ -359,6 +365,15 @@ export function App() {
   );
   const [aiHistory, setAiHistory] = useState<readonly HistoryEntry[]>([]);
   const [aiFindings, setAiFindings] = useState<readonly FindingRecord[]>([]);
+  /** 外部のAIエージェントが置いた提案（`ai/proposals/*.md`。T3-8）と、外で変わった回数。 */
+  const [aiProposalFiles, setAiProposalFiles] = useState<
+    readonly AiProposalFile[]
+  >([]);
+  const [proposalsVersion, setProposalsVersion] = useState(0);
+  /** 却下した提案（まとまりの id ごと。画面を切り替えても残す）。 */
+  const [rejectedProposals, setRejectedProposals] = useState<
+    ReadonlyMap<string, ReadonlySet<number>>
+  >(() => new Map());
   /** プロジェクトを開いた回数。開くたびにエディタを作り直す。 */
   const [openSeq, setOpenSeq] = useState(0);
 
@@ -685,6 +700,10 @@ export function App() {
           case "provenance":
             // 出自の記録が外で変わった：AI の行の印を取り直す（T3-4）。
             setSavedVersion((n) => n + 1);
+            break;
+          case "proposals":
+            // 外部のAIエージェントの提案が変わった：一覧を読み直す（T3-8）。
+            setProposalsVersion((n) => n + 1);
             break;
           case "layout":
             setLayoutVersion((n) => n + 1);
@@ -1700,6 +1719,7 @@ export function App() {
     setAiResults(new Map());
     setAiHistory([]);
     setAiFindings([]);
+    setRejectedProposals(new Map());
   }, [projectRoot, openSeq]);
   // 実行の進み具合（届いた文字の数）。
   useEffect(() => {
@@ -1773,6 +1793,8 @@ export function App() {
               scene,
               summary: outcome.summary,
               summaryProblem: outcome.summary_problem,
+              proposals: outcome.proposals,
+              model: outcome.model,
               unread: outcome.unread,
               tokens: tokensText(outcome.completion.usage),
             },
@@ -1814,6 +1836,106 @@ export function App() {
     const text = buffers.current.get(file);
     if (text === undefined) return;
     const offset = findingOffset(text, r.finding);
+    setScreen("text");
+    setCurrentFile(file);
+    const p = latest.current.project;
+    if (p !== null && file !== latest.current.currentFile)
+      setAnalysis(analysisFor(p.summary, file, text));
+    if (offset !== null) setFocus((f) => ({ offset, seq: (f?.seq ?? 0) + 1 }));
+  }, []);
+  // 提案ファイルの一覧（作品を開いたとき、外で変わったとき）。
+  useEffect(() => {
+    void proposalsVersion;
+    void openSeq;
+    if (projectRoot === null) {
+      setAiProposalFiles([]);
+      return;
+    }
+    let live = true;
+    readProposalFiles()
+      .then((files) => {
+        if (live) setAiProposalFiles(files);
+      })
+      .catch(() => {
+        if (live) setAiProposalFiles([]);
+      });
+    return () => {
+      live = false;
+    };
+  }, [projectRoot, proposalsVersion, openSeq]);
+  /**
+   * 提案を採用する（人の操作。T3-8）：章ごとに、今の本文に採用できる行だけを当てて保存し（コア）、エディタの本文を
+   * 置き換える。外部の変更とぶつかっている章には採用しない。結果の文を返す。
+   */
+  const adopt = useCallback(
+    async (
+      set: ProposalSet,
+      views: readonly AiProposalView[],
+    ): Promise<string> => {
+      const parts: string[] = [];
+      for (const [file, proposals] of proposalsByFile(views)) {
+        if (latest.current.conflicts.has(file)) {
+          parts.push(
+            `${file} は外部の変更とぶつかっています。選んでから採用します`,
+          );
+          continue;
+        }
+        const text = buffers.current.get(file);
+        if (text === undefined) continue;
+        const result = await adoptProposals(
+          file,
+          text,
+          saved.current.get(file) ?? null,
+          proposals,
+          set.task,
+          set.model,
+        );
+        if (result.kind === "saved") {
+          saved.current.set(file, result.text);
+          buffers.current.set(file, result.text);
+          mergeBases.current.delete(file);
+          setDirty((d) => withoutFiles(d, new Set([file])));
+          if (file === latest.current.currentFile)
+            replaceText(file, result.text, text, text);
+          setSavedVersion((n) => n + 1);
+          showSummary(result.summary, result.checks);
+          parts.push(
+            `${file}：${result.applied.length}行を採用して保存しました`,
+          );
+          if (result.provenance_problem !== null)
+            parts.push(
+              `出自の記録（ai/provenance.jsonl）を書けませんでした：${result.provenance_problem}`,
+            );
+        } else if (result.kind === "conflict") {
+          setConflicts((map) =>
+            new Map(map).set(file, { deleted: result.deleted }),
+          );
+          parts.push(
+            `${file} は外部で${result.deleted ? "削除" : "変更"}されていたので、採用していません`,
+          );
+        }
+        for (const s of result.skipped)
+          parts.push(`^${s.line} は採用しませんでした：${s.reason}`);
+      }
+      return parts.join("\n");
+    },
+    [replaceText, showSummary],
+  );
+  const toggleReject = useCallback((setId: string, index: number) => {
+    setRejectedProposals((map) => {
+      const next = new Set(map.get(setId) ?? []);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return new Map(map).set(setId, next);
+    });
+  }, []);
+  /** 提案の行へ移る（行IDで今の本文の中を探す）。 */
+  const goToProposal = useCallback((view: AiProposalView) => {
+    const file = view.file;
+    if (file === null) return;
+    const text = buffers.current.get(file);
+    if (text === undefined) return;
+    const offset = locateLine(text, view.proposal.line, view.span?.[0] ?? -1);
     setScreen("text");
     setCurrentFile(file);
     const p = latest.current.project;
@@ -2290,6 +2412,12 @@ export function App() {
                     onGoToFinding={goToFinding}
                     onDismissFinding={dismissFinding}
                     onOpenPreferences={() => selectScreen("preferences")}
+                    proposalFiles={aiProposalFiles}
+                    textVersion={savedVersion}
+                    onAdopt={adopt}
+                    onGoToProposal={goToProposal}
+                    rejected={rejectedProposals}
+                    onToggleReject={toggleReject}
                   />
                 </section>
               )}

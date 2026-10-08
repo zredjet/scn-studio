@@ -195,6 +195,8 @@
 | 文脈の長さ | context tokens | 接続先の `context_tokens`。返す分を除いたものが文脈の上限（`ai::context_limit`） |
 | 削る順番 | trim order | 文脈が上限に入らないときに節を削る順（`ai::TRIM_ORDER`） |
 | 要約のキャッシュ | summary cache | `.cache/summaries.json`（`ai::SummaryCache`）。シーンの本文のハッシュと一緒に置く |
+| 提案（行ごとの） | proposal | 行ID・今の文・案・理由（`ai::Proposal`）。アプリの `output: diff` と `ai/proposals/*.md` |
+| 採用 | adopt | 提案を人が選んで本文に当てる（`workspace::adopt_proposals`）。行IDは変えず、出自を `ai` と記録する |
 | 指摘（AIの） | finding | AI のタスクが返した、行IDつきの指摘（`ai::Finding`）。アプリの中だけに持つ |
 | 実行の結果 | run outcome | 1回の実行の指摘・要約・読めなかった行・トークン数（`ai::RunOutcome`） |
 | AIに渡す内容 | entry context | 設定DBのエントリが、どのタスクにどの部分で渡るか（`ai::EntryContext`） |

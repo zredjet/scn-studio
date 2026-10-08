@@ -516,6 +516,12 @@ fn external_settings_change() {
     assert_eq!(ws.project().ai_tasks.len(), 1);
     assert_eq!(ws.text("story/a.scn"), Some("## a #s1\n編集\n"));
     write(&dir, "ai/proposals/x.yaml", "a: 1\n");
+    // 提案のファイル（T3-8）は、提案の一覧を読み直す知らせ。
+    write(&dir, "ai/proposals/x.md", "## ^aaaa\n");
+    assert_eq!(
+        ws.external_change(&dir.join("ai/proposals/x.md")),
+        Change::Proposals
+    );
     assert_eq!(
         ws.external_change(&dir.join("ai/proposals/x.yaml")),
         Change::None

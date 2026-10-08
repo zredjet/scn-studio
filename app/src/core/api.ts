@@ -8,9 +8,13 @@ import { ask, open, save } from "@tauri-apps/plugin-dialog";
 import type { PreviewData } from "./ir.ts";
 import type {
   AddedChapter,
+  AdoptResult,
   AiConnections,
   AiLines,
   AiPrepared,
+  AiProposal,
+  AiProposalFile,
+  AiProposalView,
   AiRunOutcome,
   AiTaskInfo,
   AiTestResult,
@@ -570,6 +574,40 @@ export function runAiTask(
   digest: string | null,
 ): Promise<AiRunOutcome> {
   return invoke<AiRunOutcome>("ai_run", { task, scene, run, digest });
+}
+
+/** 外部のAIエージェントが置いた提案（`ai/proposals/*.md`。T3-8）。 */
+export function proposalFiles(): Promise<readonly AiProposalFile[]> {
+  return invoke<readonly AiProposalFile[]>("proposal_files");
+}
+
+/** 提案を今の本文（保存していない本文も）と照らす。 */
+export function viewProposals(
+  proposals: readonly AiProposal[],
+): Promise<readonly AiProposalView[]> {
+  return invoke<readonly AiProposalView[]>("view_proposals", { proposals });
+}
+
+/**
+ * 提案を採用する（人の操作）。`text` は今の本文、`disk` は知っているディスクの中身。採用できる行だけを置き換えて
+ * 保存し、採用した行の出自を `ai` として記録する。
+ */
+export function adoptProposals(
+  file: string,
+  text: string,
+  disk: string | null,
+  proposals: readonly AiProposal[],
+  task: string,
+  model: string,
+): Promise<AdoptResult> {
+  return invoke<AdoptResult>("adopt_proposals", {
+    file,
+    text,
+    disk,
+    proposals,
+    task,
+    model,
+  });
 }
 
 /** AIタスクの実行の進み具合（届いた文字の数）。 */

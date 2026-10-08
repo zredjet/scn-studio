@@ -784,3 +784,14 @@
 - 理由：設計検討書「出力の扱いと出自の記録」（指摘は行IDつきで返させ、エディタ上に注釈として出す）。指摘をファイルに書かないのは、テキストが正（原則1）で、指摘は本文から導けない一時のものだから。崩れた応答を止めずに読むのは、ローカルの LLM の出力が形に従わないことがあるため。
 - 影響：`crates/scn-core/src/ai/run.rs`（新規）、`app/src-tauri`（`ai_tasks`・`ai_prepare`・`ai_run`・`cancel_ai`、進み具合の知らせ `ai-run-progress`）、`app/src/ai/`（新規。`AiScreen.tsx`・`model.ts`）、`app/src/editor/findings.ts`（新規）・`Editor.tsx`・`provenance.ts`、`shell/ContextPanel.tsx`・`LeftBar.tsx`、`App.tsx`、CSS、`docs/spec/project-files.md` の9節。
 
+## D069 提案と行ごとの採用（2026-10-08）
+
+- 決定：
+  - 提案は行IDつきの差分（行ID、今の文、案、理由）。アプリの提案のタスク（`output: diff`）の応答（1行に1つの JSON）と、外部のAIエージェントが置く `ai/proposals/*.md`（フロントマターの `task`・`model`・`at` と、`## ^行ID` ごとの `- 今：`・`- 案：`・`- 理由：`）を、コアの `ai::Proposal` にそろえる。作品フォルダの指示書の手順にもこの形を書いた。
+  - 採用は人の操作だけ（原則6）。コアが採用できる行だけを、行頭の字下げと行IDを残して置き換え、その章を保存し（ワークスペースの保存。行IDの付与と ai-edited の記録も同じ）、採用した行の出自を `ai`（タスクとモデル）として書き足す。採用しないとき：行IDが無い・重なっている（ほかの章も、コメントと `@raw` の中は数えない）、複数行の台詞、今の行が提案の「今」と違う、「今」が無い、案が空・改行・行IDを含む、行の種類が変わる、当てた後の章の有効な行IDの集まりが変わるか構文の誤り・警告が増える、もう案と同じ。外部の変更とぶつかったとき・書けなかったときは採用せず、本文を戻す。段落頭の全角空白は、案に無ければ残す（AI が字下げとして落としやすいため）。
+  - 差分の見せ方は、CodeMirror の差分の拡張（`@codemirror/merge`）を足さず、コアが `similar` で文字ごとの差分を作り、画面のカードで「今」（削る文字に取り消し線）と「案」（足す文字に下線）を見せる。行ごとに「採用」「却下」「行へ移動」、まとめて「採用できるものをすべて採用」。
+  - アプリの提案はアプリの中だけ（指摘と同じ）。`ai/proposals/` の提案はファイルから読み、採用・却下してもファイルは書き換えない（変更の知らせ `proposals` で一覧を読み直す）。
+  - 提案ノード（`output: proposals`）は T3-10。
+- 理由：設計検討書「関わり方の段階」「出力の扱いと出自の記録」（人が書いた行への書き換えは差分で見せ、行ごとに採用か却下を選ぶ）。行IDを変えないのは原則5。案をそのまま採用した行は AI が書いた文なので `ai` にする（人が後で直せば ai-edited になる）。差分の拡張を足さないのは、採用を行IDと出自の記録で管理するため（エディタの中で直接当てる仕組みは、行IDを守る扱いと合わない）。
+- 影響：`crates/scn-core/src/ai/proposal.rs`（新規）、`run.rs`（JSON の項目の読み方を共通に、`output: diff` を実行する）、`workspace.rs`（`adopt_proposals`、変更の知らせ `Proposals`）、`app/src-tauri`（`proposal_files`・`view_proposals`・`adopt_proposals`）、`app/src/ai/ProposalPanel.tsx`（新規）・`AiScreen.tsx`・`model.ts`、`App.tsx`、CSS、`docs/spec/project-files.md` の9節、作品フォルダの指示書（ひな形と両サンプル）。
+

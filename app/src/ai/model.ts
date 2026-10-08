@@ -4,6 +4,9 @@ import type {
   AiAssembled,
   AiFinding,
   AiPrepared,
+  AiProposal,
+  AiProposalFile,
+  AiProposalView,
   AiTask,
   AiTaskInfo,
 } from "../core/types.ts";
@@ -139,6 +142,9 @@ export type RunResult =
       readonly scene: string | null;
       readonly summary: string | null;
       readonly summaryProblem: string | null;
+      /** 提案（`output: diff`。T3-8）と、出自に記録するモデル。 */
+      readonly proposals: readonly AiProposal[];
+      readonly model: string;
       readonly unread: readonly string[];
       readonly tokens: string;
     }
@@ -175,6 +181,10 @@ export function historyStatus(
         return result.summary === null
           ? "要約を読めません"
           : "要約を作りました";
+      if (output === "diff")
+        return result.proposals.length === 0
+          ? "提案なし"
+          : `提案 ${result.proposals.length}件`;
       return findings === 0 ? "指摘なし" : `指摘 ${findings}件`;
     case "failed":
       return "失敗";
@@ -216,4 +226,72 @@ export function preparedFor(
     prepared.assembled.task === task &&
     prepared.assembled.scene === scene
   );
+}
+
+/** 提案のまとまり（実行の結果か、`ai/proposals/` のファイル。T3-8）。 */
+export interface ProposalSet {
+  /** `run-12`・`file:ai/proposals/x.md`。 */
+  readonly id: string;
+  readonly label: string;
+  /** 採用した行の出自の記録に書くタスクとモデル。 */
+  readonly task: string;
+  readonly model: string;
+  readonly proposals: readonly AiProposal[];
+}
+
+/** 提案の中身から作る鍵（ファイルが外で書き換わったら、別のまとまりとして照らし直し、却下も忘れる）。 */
+export function proposalsKey(proposals: readonly AiProposal[]): string {
+  let hash = 0x811c9dc5;
+  for (const ch of JSON.stringify(proposals)) {
+    hash ^= ch.codePointAt(0) ?? 0;
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16);
+}
+
+/** `ai/proposals/` のファイルの提案のまとまり。タスクとモデルが書かれていなければ、外部のものとして記録する。 */
+export function fileProposalSet(file: AiProposalFile): ProposalSet {
+  return {
+    id: `file:${file.path}:${proposalsKey(file.proposals)}`,
+    label: file.path.replace(/^ai\/proposals\//, ""),
+    task: file.task ?? "external:proposals",
+    model: file.model ?? "unknown",
+    proposals: file.proposals,
+  };
+}
+
+/** 提案の様子の文。 */
+export function proposalStatusText(view: AiProposalView): string {
+  switch (view.status.kind) {
+    case "ready":
+      return "採用できます";
+    case "same":
+      return "採用済み（今の文と同じ）";
+    case "blocked":
+      return view.status.reason;
+  }
+}
+
+/** 採用できる提案（却下したものを除く）の、並びの番号。 */
+export function adoptableIndexes(
+  views: readonly AiProposalView[],
+  rejected: ReadonlySet<number>,
+): number[] {
+  return views.flatMap((v, i) =>
+    v.status.kind === "ready" && !rejected.has(i) ? [i] : [],
+  );
+}
+
+/** 採用する提案を、章のファイルごとにまとめる（ファイルの分からない提案は除く）。 */
+export function proposalsByFile(
+  views: readonly AiProposalView[],
+): Map<string, AiProposal[]> {
+  const out = new Map<string, AiProposal[]>();
+  for (const v of views) {
+    if (v.file === null) continue;
+    const list = out.get(v.file) ?? [];
+    list.push(v.proposal);
+    out.set(v.file, list);
+  }
+  return out;
 }

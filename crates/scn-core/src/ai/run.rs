@@ -13,6 +13,7 @@ use serde_json::Value;
 use super::client::{AiError, CallOptions, ChatMessage, ChatRequest, Completion, Role, complete};
 use super::connection::Connection;
 use super::context::{Assembled, ContextSources, assemble};
+use super::proposal::{Proposal, proposal_of};
 use super::task::{AiTask, TaskLevel, TaskOutput};
 use crate::Span;
 use crate::index::build_index;
@@ -91,36 +92,46 @@ fn finding_of(value: &Value) -> Option<RawFinding> {
     })
 }
 
-/// JSON の配列か `{"findings": [...]}` として読む。読めなければ `None`。
-fn findings_of_json(text: &str) -> Option<(Vec<RawFinding>, Vec<String>)> {
+/// JSON の配列か `{"<key>": [...]}` として読む。読めなければ `None`。
+fn items_of_json<T>(
+    text: &str,
+    key: &str,
+    item: &dyn Fn(&Value) -> Option<T>,
+) -> Option<(Vec<T>, Vec<String>)> {
     let value = serde_json::from_str::<Value>(text.trim()).ok()?;
     let items = value
         .as_array()
-        .or_else(|| value.get("findings").and_then(Value::as_array))?;
+        .or_else(|| value.get(key).and_then(Value::as_array))?;
     let mut found = Vec::new();
     let mut unread = Vec::new();
-    for item in items {
-        match finding_of(item) {
+    for value in items {
+        match item(value) {
             Some(f) => found.push(f),
-            None => unread.push(item.to_string()),
+            None => unread.push(value.to_string()),
         }
     }
     Some((found, unread))
 }
 
-/// 応答の文から指摘を読む。読めなかった行（空でないもの）も返す。
-pub fn parse_findings(text: &str) -> (Vec<RawFinding>, Vec<String>) {
+/// 応答の文から、1行に1つの JSON の項目を読む（指摘と提案に共通）。JSON の配列・`{"<key>": [...]}`・
+/// コードブロックの囲み・前置きの文・箇条書きの印・末尾のカンマも読む。読めなかった行（空でないもの）も返す。
+pub fn parse_json_items<T>(
+    text: &str,
+    key: &str,
+    item: &dyn Fn(&Value) -> Option<T>,
+) -> (Vec<T>, Vec<String>) {
     let text = without_fences(text);
-    // まるごと JSON の配列か、`{"findings": [...]}` なら、それを読む。前置きの文があれば、最初の `[`（`{`）から
+    // まるごと JSON の配列か、`{"<key>": [...]}` なら、それを読む。前置きの文があれば、最初の `[`（`{`）から
     // 最後の `]`（`}`）までを読んでみる（整形した配列を、行ごとには読めないため）。
-    if let Some(read) = findings_of_json(&text) {
+    if let Some(read) = items_of_json(&text, key, item) {
         return read;
     }
     for (open, close) in [('[', ']'), ('{', '}')] {
-        // 指摘が1件以上読めたときだけ採る（指摘の文の中の `[…]` を配列と取り違えない）。
+        // 項目が1つ以上読めたときだけ採る（文の中の `[…]` を配列と取り違えない）。
         if let (Some(start), Some(end)) = (text.find(open), text.rfind(close))
             && let Some(inner) = text.get(start..=end)
-            && let Some(read) = findings_of_json(inner).filter(|(found, _)| !found.is_empty())
+            && let Some(read) =
+                items_of_json(inner, key, item).filter(|(found, _)| !found.is_empty())
         {
             let before = text.get(..start).unwrap_or_default().trim();
             let after = text.get(end + 1..).unwrap_or_default().trim();
@@ -137,7 +148,7 @@ pub fn parse_findings(text: &str) -> (Vec<RawFinding>, Vec<String>) {
         }
     }
     if let Ok(value) = serde_json::from_str::<Value>(text.trim())
-        && let Some(f) = finding_of(&value)
+        && let Some(f) = item(&value)
     {
         return (vec![f], Vec::new());
     }
@@ -156,13 +167,23 @@ pub fn parse_findings(text: &str) -> (Vec<RawFinding>, Vec<String>) {
             .starts_with('{')
             .then(|| serde_json::from_str::<Value>(body).ok())
             .flatten()
-            .and_then(|v| finding_of(&v));
+            .and_then(|v| item(&v));
         match parsed {
             Some(f) => found.push(f),
             None => unread.push(trimmed.to_owned()),
         }
     }
     (found, unread)
+}
+
+/// 応答の文から指摘を読む。読めなかった行（空でないもの）も返す。
+pub fn parse_findings(text: &str) -> (Vec<RawFinding>, Vec<String>) {
+    parse_json_items(text, "findings", &finding_of)
+}
+
+/// 応答の文から提案（行IDつきの差分。T3-8）を読む。読めなかった行も返す。
+pub fn parse_diff(text: &str) -> (Vec<Proposal>, Vec<String>) {
+    parse_json_items(text, "proposals", &proposal_of)
 }
 
 /// 指摘の行IDとシーンから、本文の位置を引く。`target` は実行の対象のシーン。
@@ -236,6 +257,8 @@ pub struct RunOutcome {
     pub findings: Vec<Finding>,
     /// シーンの要約（`output: summary`）。
     pub summary: Option<String>,
+    /// 提案（`output: diff`。T3-8）。
+    pub proposals: Vec<Proposal>,
     /// 応答のうち、読めなかった行。
     pub unread: Vec<String>,
     /// 応答の文（そのまま）。
@@ -263,13 +286,13 @@ pub enum RunError {
 
 /// 実行できる段階か（今は指摘の段階だけ）。
 pub fn runnable(task: &AiTask) -> Result<(), String> {
-    match task.level {
-        TaskLevel::Review => Ok(()),
-        TaskLevel::Propose => Err(format!(
-            "{} は提案（propose）のタスクです。提案の実行は T3-8 で作ります",
+    match (task.level, task.output) {
+        (TaskLevel::Review, _) | (TaskLevel::Propose, TaskOutput::Diff) => Ok(()),
+        (TaskLevel::Propose, _) => Err(format!(
+            "{} は提案ノード（proposals）を出すタスクです。フロー図の提案ノードは T3-10 で作ります",
             task.name
         )),
-        TaskLevel::Generate | TaskLevel::Auto => Err(format!(
+        (TaskLevel::Generate | TaskLevel::Auto, _) => Err(format!(
             "{} は生成・自律のタスクです。生成と自律の実行は T3-9 で作ります",
             task.name
         )),
@@ -341,6 +364,7 @@ pub fn run_task(
         on_text,
     )?;
     let text = completion.text.clone();
+    let mut proposals = Vec::new();
     let (findings, summary, unread) = match task.output {
         TaskOutput::Summary => {
             let summary = parse_summary(&text);
@@ -350,6 +374,11 @@ pub fn run_task(
                 Vec::new()
             };
             (Vec::new(), summary, unread)
+        }
+        TaskOutput::Diff => {
+            let (found, unread) = parse_diff(&text);
+            proposals = found;
+            (Vec::new(), None, unread)
         }
         _ => {
             let (raw, unread) = parse_findings(&text);
@@ -363,6 +392,7 @@ pub fn run_task(
         model: conn.model.clone(),
         findings,
         summary,
+        proposals,
         unread,
         text,
         completion,

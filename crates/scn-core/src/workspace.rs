@@ -26,7 +26,8 @@ use crate::project::{
     Project, ProjectError, SourceFile, load_project, scn_paths, without_bom, write_source,
 };
 use crate::provenance::{
-    PROVENANCE_FILE, append_provenance, edited_ai_lines, now as provenance_now, read_provenance,
+    AI, PROVENANCE_FILE, Record, append_provenance, edited_ai_lines, now as provenance_now,
+    read_provenance,
 };
 use crate::rename::{RenameTarget, plan_rename};
 use crate::scaffold::CONCEPT_TEMPLATE;
@@ -112,6 +113,8 @@ pub enum Change {
     /// 出自の記録（`ai/provenance.jsonl`）が変わった（外部のエージェントが書き足した、`git pull` など）。
     /// アプリは AI の行の印を取り直す（T3-4）。
     Provenance,
+    /// 外部のAIエージェントの提案（`ai/proposals/*.md`）が変わった。アプリは提案の一覧を読み直す（T3-8）。
+    Proposals,
 }
 
 /// 書いた本文。
@@ -125,6 +128,19 @@ pub struct Saved {
     pub provenance: Vec<String>,
     /// 出自の記録を読めなかった・書けなかったわけ（保存は済んでいる）。
     pub provenance_problem: Option<String>,
+}
+
+/// 提案を採用した結果（T3-8、D069）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Adopted {
+    /// 保存した（採用した行が1つ以上あった）。
+    pub saved: Option<Saved>,
+    /// まだ取り込んでいない外部の変更があったので、採用しなかった（`true` なら外で消された）。
+    pub conflict: Option<bool>,
+    /// 置き換えた行ID。
+    pub applied: Vec<String>,
+    /// 採用しなかった行IDと理由。
+    pub skipped: Vec<(String, String)>,
 }
 
 /// 保存の結果。
@@ -522,6 +538,86 @@ impl Workspace {
         }
     }
 
+    /// 提案を採用する（T3-8、D069）：今の本文に当て（採用できる行だけを、字下げと行IDを残して置き換える）、保存し、
+    /// 置き換えた行の出自を `ai`（タスクとモデル）として書き足す。人の行を直接書き換えないために、採用は人の操作
+    /// （アプリのボタン）からだけ呼ぶ。外部の変更とぶつかっていれば、本文を戻して採用しない。
+    pub fn adopt_proposals(
+        &mut self,
+        file: &str,
+        proposals: &[crate::ai::Proposal],
+        task: &str,
+        model: &str,
+        seen: Option<&str>,
+        generator: &mut LineIdGenerator,
+    ) -> Result<Adopted, ProjectError> {
+        let path = self.root.join(file);
+        let Some(current) = self.text(file).map(str::to_owned) else {
+            return Err(not_open(&path));
+        };
+        // 本文全体で見て採用できない行ID（ほかの章との行IDの重なり、複数行の台詞）。
+        let ids: Vec<&str> = proposals.iter().map(|p| p.line.as_str()).collect();
+        let blocked =
+            crate::ai::project_blocks(&self.project, &crate::analyze(&self.project), &ids);
+        let options = self.project.parse_options();
+        let applied = crate::ai::apply_proposals(&current, proposals, &blocked, &options);
+        if applied.applied.is_empty() {
+            return Ok(Adopted {
+                saved: None,
+                conflict: None,
+                applied: Vec::new(),
+                skipped: applied.skipped,
+            });
+        }
+        self.set_buffer(file, &applied.text);
+        // 書けなかったときも、採用した本文をワークスペースに残さない（エディタは元のまま）。
+        let outcome = match self.save(file, seen, generator) {
+            Ok(outcome) => outcome,
+            Err(e) => {
+                self.set_buffer(file, &current);
+                return Err(e);
+            }
+        };
+        match outcome {
+            SaveOutcome::Conflict { deleted } => {
+                self.set_buffer(file, &current);
+                Ok(Adopted {
+                    saved: None,
+                    conflict: Some(deleted),
+                    applied: Vec::new(),
+                    skipped: applied.skipped,
+                })
+            }
+            SaveOutcome::Saved(mut saved) => {
+                let at = provenance_now();
+                let records: Vec<Record> = applied
+                    .applied
+                    .iter()
+                    .map(|line| Record {
+                        line: line.clone(),
+                        origin: AI.to_owned(),
+                        task: task.to_owned(),
+                        model: model.to_owned(),
+                        at: at.clone(),
+                    })
+                    .collect();
+                if let Err(e) = append_provenance(&self.root, &records) {
+                    let ids: Vec<String> =
+                        applied.applied.iter().map(|id| format!("^{id}")).collect();
+                    saved.provenance_problem = Some(format!(
+                        "{e}（採用した行 {} を記録できませんでした）",
+                        ids.join("、")
+                    ));
+                }
+                Ok(Adopted {
+                    saved: Some(saved),
+                    conflict: None,
+                    applied: applied.applied,
+                    skipped: applied.skipped,
+                })
+            }
+        }
+    }
+
     /// 外部の変更（ファイルの監視の知らせ）を取り込む。
     pub fn external_change(&mut self, path: &Path) -> Change {
         let Some(rel) = self.relative(path) else {
@@ -551,6 +647,7 @@ impl Workspace {
                 }
             }
             _ if rel == PROVENANCE_FILE => Change::Provenance,
+            ["ai", "proposals", name] if name.ends_with(".md") => Change::Proposals,
             _ if is_idea_path(&rel) => {
                 let on_disk = fs::read(self.root.join(&rel)).ok();
                 let mine = self.settings_written.get(&rel).map(String::as_bytes);

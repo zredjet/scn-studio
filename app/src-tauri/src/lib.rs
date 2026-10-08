@@ -1867,6 +1867,92 @@ async fn ai_run(
     json_response(&value)
 }
 
+/// 外部のAIエージェントが置いた提案（`ai/proposals/*.md`。T3-8）。
+#[tauri::command]
+fn proposal_files(state: State<'_, AppState>) -> Result<Response, String> {
+    let root = {
+        let mut guard = locked(&state.workspace)?;
+        open_workspace(&mut guard)?.root().to_owned()
+    };
+    json_response(&to_json(&ai::read_proposal_files(&root), "提案")?)
+}
+
+/// 提案を今の本文（保存していない本文も）と照らす：ファイル、シーン、今の文、採用できるか、差分。
+#[tauri::command(async)]
+fn view_proposals(
+    proposals: Vec<ai::Proposal>,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let project = {
+        let mut guard = locked(&state.workspace)?;
+        open_workspace(&mut guard)?.project().clone()
+    };
+    let views = thread::scope(|scope| {
+        thread::Builder::new()
+            .name("proposals".into())
+            .stack_size(ANALYZE_STACK_SIZE)
+            .spawn_scoped(scope, || {
+                let ir = analyze(&project);
+                ai::view_proposals(&project, &ir, &proposals)
+            })
+            .map_err(|e| format!("解析のスレッドを作れません：{e}"))?
+            .join()
+            .map_err(|_| "提案の照らし合わせが途中で止まりました".to_owned())
+    })?;
+    json_response(&to_json(&views, "提案")?)
+}
+
+/// 提案を採用する（人の操作。T3-8）：`text` を今の本文にして、採用できる行だけを置き換えて保存し、採用した行の
+/// 出自を `ai` として書き足す。`disk` はフロントが知っているディスクの中身（外部の変更を見分ける）。
+#[tauri::command]
+fn adopt_proposals(
+    file: String,
+    text: String,
+    disk: Option<String>,
+    proposals: Vec<ai::Proposal>,
+    task: String,
+    model: String,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    if !workspace.set_buffer(&file, &text) {
+        return Err(format!("作品フォルダに無いファイルです：{file}"));
+    }
+    let adopted = {
+        let mut generator = locked(&state.generator)?;
+        let generator = generator.get_or_insert_with(LineIdGenerator::new);
+        workspace
+            .adopt_proposals(&file, &proposals, &task, &model, disk.as_deref(), generator)
+            .map_err(|e| e.to_string())?
+    };
+    let skipped: Vec<Value> = adopted
+        .skipped
+        .iter()
+        .map(|(line, reason)| json!({ "line": line, "reason": reason }))
+        .collect();
+    if let Some(deleted) = adopted.conflict {
+        return json_response(
+            &json!({ "kind": "conflict", "deleted": deleted, "skipped": skipped }),
+        );
+    }
+    let Some(saved) = adopted.saved else {
+        return json_response(&json!({ "kind": "none", "skipped": skipped }));
+    };
+    let Analyzed {
+        summary, checks, ..
+    } = analyze_summary(workspace.project(), true, None)?;
+    json_response(&json!({
+        "kind": "saved",
+        "text": saved.text,
+        "applied": adopted.applied,
+        "skipped": skipped,
+        "provenance_problem": saved.provenance_problem,
+        "summary": summary,
+        "checks": checks,
+    }))
+}
+
 /// 走っている回（「接続を試す」と AI タスクの実行）を取り消す（次のデータの合間で止まる）。まだ始まっていなければ、
 /// 始まったときに止める。
 #[tauri::command]
@@ -2120,6 +2206,9 @@ pub fn run() {
             ai_tasks,
             ai_prepare,
             ai_run,
+            proposal_files,
+            view_proposals,
+            adopt_proposals,
             export_script,
             export_renpy,
             asset_list,

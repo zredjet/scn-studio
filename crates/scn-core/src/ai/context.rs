@@ -319,7 +319,8 @@ fn output_instruction(output: TaskOutput) -> &'static str {
         TaskOutput::Summary => "要約の文だけを返してください。",
         TaskOutput::Diff => {
             "案は1行に1つの JSON で返してください：{\"line\": \"行ID（^ を除く）\", \"before\": \"今の文\", \"after\": \"案\", \"reason\": \"理由\"}。
-行IDのある行だけを対象にし、行IDは変えないでください。"
+行IDのある行だけを対象にし、行IDは変えないでください。
+before と after は、行頭の字下げと行末の ^行ID を除いた行の中身にしてください（段落頭の全角空白は含めます）。行を分ける・消す・種類を変える案は出さないでください。"
         }
         TaskOutput::Proposals => {
             "提案ごとに `### 提案 1` のような見出しを置き、その下に、足すスタブシーン（見出し、メタ情報の summary、選択肢とジャンプ）を .scn の形で書いてください。"

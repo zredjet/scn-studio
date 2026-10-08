@@ -3924,3 +3924,89 @@ body {
 .ai-result .context-heading {
   padding-left: 0;
 }
+
+/* 提案と行ごとの採用（T3-8） */
+.ai-proposals {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-proposals-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ai-proposal {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px dashed var(--ai-line);
+  border-radius: var(--radius-item);
+  background: var(--ai-tint-2);
+  font-size: 13px;
+}
+
+.ai-proposal.same,
+.ai-proposal.rejected {
+  border-style: solid;
+  border-color: var(--border-soft);
+  background: var(--paper);
+  opacity: 0.75;
+}
+
+.ai-proposal.blocked {
+  border-color: var(--warn-border);
+  background: var(--warn-tint);
+}
+
+.ai-proposal-head {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  font-size: 12px;
+}
+
+.ai-proposal-status {
+  margin-left: auto;
+  color: var(--text-2);
+}
+
+.ai-proposal-line {
+  margin: 0;
+  font-family: var(--font-body);
+  white-space: pre-wrap;
+}
+
+.ai-proposal-label {
+  display: inline-block;
+  width: 2em;
+  color: var(--text-faint);
+  font-family: var(--font-ui);
+  font-size: 11px;
+}
+
+.ai-proposal-line del {
+  background: #fde8e8;
+  color: var(--danger-text);
+  text-decoration: line-through;
+}
+
+.ai-proposal-line ins {
+  background: var(--ai-tint);
+  color: var(--ai-text);
+  text-decoration: underline;
+}
+
+.ai-proposal-reason {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.ai-proposals .export-notice {
+  white-space: pre-wrap;
+}

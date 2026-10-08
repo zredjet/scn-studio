@@ -3,9 +3,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  adoptableIndexes,
   blocker,
   estimateText,
   type FindingRecord,
+  fileProposalSet,
   findingLines,
   findingOffset,
   findingsForScene,
@@ -14,9 +16,17 @@ import {
   mergeFindings,
   needsScene,
   preparedFor,
+  proposalStatusText,
+  proposalsByFile,
+  proposalsKey,
   tokensText,
 } from "../src/ai/model.ts";
-import type { AiFinding, AiTask, AiTaskInfo } from "../src/core/types.ts";
+import type {
+  AiFinding,
+  AiProposalView,
+  AiTask,
+  AiTaskInfo,
+} from "../src/core/types.ts";
 
 function task(over: Partial<AiTask>): AiTask {
   return {
@@ -183,6 +193,8 @@ test("履歴と数の文", () => {
     scene: "s012",
     summary: null,
     summaryProblem: null,
+    proposals: [],
+    model: "m",
     unread: [],
     tokens: "",
   };
@@ -268,4 +280,79 @@ test("見た送る中身は、同じタスクと対象のときだけ使う", ()
   assert.equal(preparedFor(prepared, "tone_check", "s013a"), false);
   assert.equal(preparedFor(prepared, "setting_check", "s012"), false);
   assert.equal(preparedFor(null, "tone_check", "s012"), false);
+});
+
+function view(
+  line: string,
+  status: AiProposalView["status"],
+  file: string | null = "story/a.scn",
+): AiProposalView {
+  return {
+    proposal: { line, before: "a", after: "b", reason: null },
+    file,
+    scene: "s1",
+    span: [0, 1],
+    current: "a",
+    status,
+    diff: [],
+  };
+}
+
+test("提案：ファイルのまとまり、様子の文、採用できるもの、章ごとのまとめ", () => {
+  const set = fileProposalSet({
+    path: "ai/proposals/2026-10-08-tone.md",
+    task: null,
+    model: null,
+    at: null,
+    proposals: [],
+    problems: [],
+  });
+  assert.deepEqual(
+    [set.id, set.label, set.task, set.model],
+    [
+      `file:ai/proposals/2026-10-08-tone.md:${proposalsKey([])}`,
+      "2026-10-08-tone.md",
+      "external:proposals",
+      "unknown",
+    ],
+  );
+  // ファイルの中身が外で変わったら、別のまとまり（照らし直し、却下を忘れる）。
+  const one = [{ line: "a", before: "x", after: "y", reason: null }];
+  assert.notEqual(proposalsKey(one), proposalsKey([]));
+  assert.equal(proposalsKey(one), proposalsKey(one.map((p) => ({ ...p }))));
+  const views = [
+    view("a1", { kind: "ready" }),
+    view("a2", { kind: "same" }),
+    view("a3", { kind: "blocked", reason: "本文が変わっています" }),
+    view("a4", { kind: "ready" }, "story/b.scn"),
+    view("a5", { kind: "ready" }),
+    view("a6", { kind: "ready" }, null),
+  ];
+  assert.deepEqual(views.slice(0, 3).map(proposalStatusText), [
+    "採用できます",
+    "採用済み（今の文と同じ）",
+    "本文が変わっています",
+  ]);
+  assert.deepEqual(adoptableIndexes(views, new Set([4])), [0, 3, 5]);
+  const byFile = proposalsByFile(views);
+  assert.deepEqual(
+    [...byFile].map(([file, list]) => [file, list.map((p) => p.line)]),
+    [
+      ["story/a.scn", ["a1", "a2", "a3", "a5"]],
+      ["story/b.scn", ["a4"]],
+    ],
+  );
+  const ok = {
+    kind: "ok" as const,
+    run: 1,
+    scene: "s012",
+    summary: null,
+    summaryProblem: null,
+    proposals: [{ line: "x", before: "a", after: "b", reason: null }],
+    model: "m",
+    unread: [],
+    tokens: "",
+  };
+  assert.equal(historyStatus(ok, 0, "diff"), "提案 1件");
+  assert.equal(historyStatus({ ...ok, proposals: [] }, 0, "diff"), "提案なし");
 });
