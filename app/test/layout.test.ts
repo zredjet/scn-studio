@@ -13,6 +13,7 @@ function scene(id: string): SceneSummary {
     span: [0, 0],
     meta: { summary: null, status: null, route: null, tags: [], extra: {} },
     is_stub: false,
+    chars: 0,
   };
 }
 

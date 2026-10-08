@@ -1,5 +1,5 @@
-// 執筆表示で行IDを守る（D046）。執筆表示では行IDを隠すので、人が気づかないうちに行IDがずれたり、
-// 文の途中に残ったりしないようにする。ソース表示では行IDが見えるので、ここの扱いは入れない（T1-8で決める）。
+// 行IDを守る（D046、D047）。執筆表示では行IDを隠すので、人が気づかないうちに行IDがずれたり、
+// 文の途中に残ったりしないようにする。ソース表示の扱いは下（行の分割と結合のときだけ）。
 //
 // - カーソルは行IDに入らない（行IDの手前で止まる。行IDの手前で → を押すと次の行の頭へ移る）。
 // - 人の編集の後、編集にかかった行の行IDを、仕様書9節のきまりに合わせて置き直す：
@@ -13,6 +13,13 @@
 //   - 行を消したとき、中身が空になったときは、IDも消す。
 // - 行IDの手前で Delete を押すと、次の行と結合する（行IDを消さない）。
 // 変換中の編集、取り消しとやり直し、プログラムによる置き換え（保存で付いた行ID、読み込み直し）には手を出さない。
+//
+// ソース表示（T1-8、D047）：行IDが見えるので、行の分割と結合（改行を足す・消す編集）のときだけ、
+// 仕様書9節のきまりどおりに置き直す。行IDの文字を書き換える編集（重なった行IDを直すなど）は妨げず、
+// カーソルも止めない。
+//
+// 執筆表示で写す（コピー）ときは、行IDを外す（貼り付けた行には、保存のときに新しい行IDが付く）。
+// 切り取りは行の移動なので、行IDごと写す（設計の原則5。D047）。
 //
 // 行IDの位置は、Lezer の構文木の `LineId`（前の空白を含む）から取る。見た目のための文法だが、行IDの形は
 // コアと同じ規則（仕様書9節）で切り出している。
@@ -31,7 +38,7 @@ import {
   type Transaction,
   type TransactionSpec,
 } from "@codemirror/state";
-import { type Command, keymap } from "@codemirror/view";
+import { type Command, EditorView, keymap } from "@codemirror/view";
 import type { SyntaxNode, Tree } from "@lezer/common";
 import { programmatic } from "./flags.ts";
 import type { Replacement } from "./replace.ts";
@@ -183,8 +190,12 @@ export function lineIdFixes(
   state: EditorState,
   changes: ChangeSet,
   doc: Text,
+  restore = true,
 ): Replacement[] {
-  const olds = touchedIds(state, changes);
+  // `restore` が false（ソース表示）なら、書き換えられた行IDは置き直しの対象にしない。
+  const olds = touchedIds(state, changes).filter(
+    (old) => restore || intact(changes, old.id),
+  );
   if (olds.length === 0) return [];
   const placed: Placed[] = olds.map((old) => {
     // 引き継ぐ位置が消されたら（中身を消したなど）、行の頭で決める。
@@ -320,7 +331,22 @@ export function clampSelection(
   return changed ? EditorSelection.create(ranges, after.mainIndex) : null;
 }
 
-/** 行IDを守る変更の絞り込み（執筆表示だけに入れる）。 */
+/** 改行を足すか消す編集か（行の分割と結合）。 */
+export function structural(tr: Transaction): boolean {
+  let found = false;
+  const doc = tr.startState.doc;
+  tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+    if (
+      inserted.lines > 1 ||
+      doc.lineAt(fromA).number !== doc.lineAt(toA).number
+    ) {
+      found = true;
+    }
+  });
+  return found;
+}
+
+/** 行IDを守る変更の絞り込み（執筆表示）。 */
 const guard = EditorState.transactionFilter.of(
   (tr): Transaction | readonly TransactionSpec[] => {
     if (untouchable(tr)) return tr;
@@ -359,10 +385,70 @@ export const deleteForwardAtLineId: Command = ({ state, dispatch }) => {
   return true;
 };
 
-/** 執筆表示で行IDを守る拡張。 */
-export function lineIdGuard(): Extension {
+/** ソース表示：行の分割と結合のときだけ、行IDを置き直す（書き換えられた行IDは戻さない）。 */
+const sourceGuard = EditorState.transactionFilter.of(
+  (tr): Transaction | readonly TransactionSpec[] => {
+    if (untouchable(tr) || !tr.docChanged || !structural(tr)) return tr;
+    const fixes = lineIdFixes(tr.startState, tr.changes, tr.newDoc, false);
+    if (fixes.length === 0) return tr;
+    return [tr, { changes: fixes, sequential: true }];
+  },
+);
+
+/**
+ * 写す文字（執筆表示のコピー）：選んだ範囲から行IDを外す。範囲が空なら、カーソルのある行を写す
+ * （CodeMirror と同じ）。テストから直接使う。
+ */
+export function copyWithoutLineIds(state: EditorState): string {
+  const tree = syntaxTree(state);
+  const doc = state.doc;
+  const strip = (from: number, to: number): string => {
+    let text = "";
+    let at = from;
+    for (let n = doc.lineAt(from).number; n <= doc.lineAt(to).number; n++) {
+      const line = doc.line(n);
+      const id = lineIdOf(tree, line);
+      if (id !== null && id.from < to && id.to > from) {
+        text += doc.sliceString(at, Math.max(at, id.from));
+        at = Math.min(to, id.to);
+      }
+    }
+    return text + doc.sliceString(at, to);
+  };
+  const ranges = state.selection.ranges;
+  if (ranges.every((r) => r.empty)) {
+    const lines = [...new Set(ranges.map((r) => doc.lineAt(r.head).number))];
+    return lines
+      .map((n) => {
+        const line = doc.line(n);
+        return strip(line.from, line.to) + state.lineBreak;
+      })
+      .join("");
+  }
+  return ranges
+    .filter((r) => !r.empty)
+    .map((r) => strip(r.from, r.to).split("\n").join(state.lineBreak))
+    .join(state.lineBreak);
+}
+
+/** 執筆表示のコピー：行IDを外して写す。切り取りは CodeMirror に任せる（行IDごと写す）。 */
+const copyHandler = EditorView.domEventHandlers({
+  copy(event, view) {
+    const data = event.clipboardData;
+    if (data === null) return false;
+    data.clearData();
+    data.setData("text/plain", copyWithoutLineIds(view.state));
+    event.preventDefault();
+    return true;
+  },
+});
+
+/** 行IDを守る拡張。執筆表示（`writing`）とソース表示（`source`）で扱いが違う。 */
+export function lineIdGuard(mode: "writing" | "source" = "writing"): Extension {
+  if (mode === "source") return sourceGuard;
   return [
     guard,
+    copyHandler,
     Prec.high(keymap.of([{ key: "Delete", run: deleteForwardAtLineId }])),
   ];
 }

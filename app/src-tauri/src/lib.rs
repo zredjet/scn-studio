@@ -14,7 +14,8 @@ use std::thread;
 use std::time::Duration;
 
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
-use scn_core::check::check;
+use scn_core::assist::{self, completion_data, scene_chars};
+use scn_core::check::{check, overflow};
 use scn_core::index::build_index;
 use scn_core::ir::{Edge, IrDiagnostic, IrMeta};
 use scn_core::line_id::LineIdGenerator;
@@ -45,6 +46,8 @@ struct SceneSummary<'a> {
     span: Span,
     meta: &'a IrMeta,
     is_stub: bool,
+    /// 表示する文字の数（D047）。
+    chars: usize,
 }
 
 /// 表示に要る分（D042）。フロントの型は `app/src/core/types.ts` の `Summary`。
@@ -53,48 +56,84 @@ struct Summary<'a> {
     start_scene: Option<&'a str>,
     scenes: Vec<SceneSummary<'a>>,
     edges: &'a [Edge],
-    diagnostics: &'a [IrDiagnostic],
+    /// 解析の診断と、はみ出し（W203）。はみ出しは書いている最中に波線を引くため、入力が止まるたびに出す（D047）。
+    diagnostics: Vec<&'a IrDiagnostic>,
 }
 
-/// 大きなスタックのスレッドで解析し、表示に要る分（と、`with_checks` なら検証の段階1の診断）を返す。
+/// 解析の結果（JSONにしたもの）。
+struct Analyzed {
+    summary: Value,
+    /// 検証の段階1の診断（はみ出しは `summary` に入れるので除く）。
+    checks: Option<Value>,
+    /// 頼まれたシーンの情報（文脈パネル）。
+    scene: Option<Value>,
+}
+
+fn to_json<T: Serialize>(value: &T, what: &str) -> Result<Value, String> {
+    serde_json::to_value(value).map_err(|e| format!("{what}をJSONにできません：{e}"))
+}
+
+/// 大きなスタックのスレッドで解析し、表示に要る分と、`with_checks` なら検証の段階1の診断と、
+/// `scene` があればそのシーンの情報を返す。
 ///
 /// 入れ子の深いIRは、作るのも、索引を作るのも、捨てるのも深く再帰する。IRはこのスレッドの中で捨て、
 /// 外へは平らな値だけを返す。
-fn analyze_summary(project: &Project, with_checks: bool) -> Result<(Value, Option<Value>), String> {
+fn analyze_summary(
+    project: &Project,
+    with_checks: bool,
+    scene: Option<&str>,
+) -> Result<Analyzed, String> {
     thread::scope(|scope| {
         thread::Builder::new()
             .name("analyze".into())
             .stack_size(ANALYZE_STACK_SIZE)
             .spawn_scoped(scope, || {
                 let ir = analyze(project);
-                let summary = serde_json::to_value(Summary {
-                    start_scene: ir.start_scene.as_deref(),
-                    scenes: ir
-                        .scenes
-                        .iter()
-                        .map(|s| SceneSummary {
-                            id: &s.id,
-                            title: &s.title,
-                            file: &s.file,
-                            span: s.span,
-                            meta: &s.meta,
-                            is_stub: s.is_stub,
-                        })
-                        .collect(),
-                    edges: &ir.edges,
-                    diagnostics: &ir.diagnostics,
-                })
-                .map_err(|e| format!("解析の結果をJSONにできません：{e}"))?;
-                let checks = if with_checks {
-                    let index = build_index(project, &ir);
-                    Some(
-                        serde_json::to_value(check(project, &ir, &index))
-                            .map_err(|e| format!("検証の結果をJSONにできません：{e}"))?,
-                    )
-                } else {
-                    None
+                let overflow = overflow(project, &ir);
+                let summary = to_json(
+                    &Summary {
+                        start_scene: ir.start_scene.as_deref(),
+                        scenes: ir
+                            .scenes
+                            .iter()
+                            .map(|s| SceneSummary {
+                                id: &s.id,
+                                title: &s.title,
+                                file: &s.file,
+                                span: s.span,
+                                meta: &s.meta,
+                                is_stub: s.is_stub,
+                                chars: scene_chars(&s.ops),
+                            })
+                            .collect(),
+                        edges: &ir.edges,
+                        diagnostics: ir.diagnostics.iter().chain(&overflow).collect(),
+                    },
+                    "解析の結果",
+                )?;
+                let index = (with_checks || scene.is_some()).then(|| build_index(project, &ir));
+                let checks = match (&index, with_checks) {
+                    (Some(index), true) => {
+                        let checks: Vec<_> = check(project, &ir, index)
+                            .into_iter()
+                            .filter(|d| d.code != "W203")
+                            .collect();
+                        Some(to_json(&checks, "検証の結果")?)
+                    }
+                    _ => None,
                 };
-                Ok((summary, checks))
+                let scene = match (&index, scene) {
+                    (Some(index), Some(id)) => Some(to_json(
+                        &assist::scene_info(project, index, id),
+                        "シーンの情報",
+                    )?),
+                    _ => None,
+                };
+                Ok(Analyzed {
+                    summary,
+                    checks,
+                    scene,
+                })
             })
             .map_err(|e| format!("解析のスレッドを作れません：{e}"))?
             .join()
@@ -164,7 +203,9 @@ fn open_project(
 ) -> Result<Response, String> {
     let root = PathBuf::from(&path);
     let workspace = Workspace::open(&root).map_err(|e| e.to_string())?;
-    let (summary, checks) = analyze_summary(workspace.project(), true)?;
+    let Analyzed {
+        summary, checks, ..
+    } = analyze_summary(workspace.project(), true, None)?;
     let title = title_of(&workspace);
     let opened = json!({
         "root": root.display().to_string(),
@@ -176,6 +217,8 @@ fn open_project(
             .map(|f| json!({ "path": f.path, "text": f.text }))
             .collect::<Vec<_>>(),
         "brackets": brackets(workspace.project()),
+        "editor": workspace.project().settings.editor,
+        "assist": completion_data(workspace.project()),
         "summary": summary,
         "checks": checks,
     });
@@ -205,10 +248,12 @@ fn create_project(
 
 /// 保存していない編集中の本文で、プロジェクト全体を解析し直し、表示に要る分を返す。
 /// 本文は状態に残すので、別のファイルを編集しても、それまでの編集は解析に含まれる。
+/// `scene` があれば、そのシーンの情報（文脈パネル）も返す。
 #[tauri::command]
 fn parse_buffer(
     file: String,
     text: String,
+    scene: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
@@ -218,8 +263,9 @@ fn parse_buffer(
         return Err(format!("作品フォルダに無いファイルです：{file}"));
     }
     let started = std::time::Instant::now();
-    let (summary, _) = analyze_summary(workspace.project(), false)?;
-    let response = json_response(&json!({ "summary": summary }));
+    let Analyzed { summary, scene, .. } =
+        analyze_summary(workspace.project(), false, scene.as_deref())?;
+    let response = json_response(&json!({ "summary": summary, "scene": scene }));
     if measuring() {
         eprintln!(
             "[scn-studio] parse_buffer のコアの側（解析とJSON）：{:.1}ミリ秒",
@@ -254,7 +300,9 @@ fn save_file(
     };
     match outcome {
         SaveOutcome::Saved(saved) => {
-            let (summary, checks) = analyze_summary(workspace.project(), true)?;
+            let Analyzed {
+                summary, checks, ..
+            } = analyze_summary(workspace.project(), true, None)?;
             json_response(&json!({
                 "kind": "saved",
                 "text": saved.text,
@@ -277,7 +325,9 @@ fn reload_file(file: String, state: State<'_, AppState>) -> Result<Response, Str
     let text = workspace
         .reload_from_disk(&file)
         .map_err(|e| e.to_string())?;
-    let (summary, checks) = analyze_summary(workspace.project(), true)?;
+    let Analyzed {
+        summary, checks, ..
+    } = analyze_summary(workspace.project(), true, None)?;
     json_response(&json!({ "text": text, "summary": summary, "checks": checks }))
 }
 
@@ -290,8 +340,43 @@ fn keep_mine(file: String, text: String, state: State<'_, AppState>) -> Result<R
     let disk = workspace
         .keep_mine(&file, &text)
         .map_err(|e| e.to_string())?;
-    let (summary, checks) = analyze_summary(workspace.project(), true)?;
+    let Analyzed {
+        summary, checks, ..
+    } = analyze_summary(workspace.project(), true, None)?;
     json_response(&json!({ "disk": disk, "summary": summary, "checks": checks }))
+}
+
+/// シーンの情報（文脈パネル。カーソルが別のシーンへ移ったとき）。
+#[tauri::command]
+fn scene_info(scene: String, state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let Analyzed { scene, .. } = analyze_summary(workspace.project(), false, Some(&scene))?;
+    json_response(&json!({ "scene": scene }))
+}
+
+/// 未登録の話者を、設定DBのキャラクターとして登録する（D047）。補完の材料と、表示に要る分と、
+/// 検証の段階1の診断を返す。
+#[tauri::command]
+fn register_character(
+    id: String,
+    name: String,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let file = workspace
+        .register_character(&id, &name)
+        .map_err(|e| e.to_string())?;
+    let Analyzed {
+        summary, checks, ..
+    } = analyze_summary(workspace.project(), true, None)?;
+    json_response(&json!({
+        "file": file,
+        "assist": completion_data(workspace.project()),
+        "summary": summary,
+        "checks": checks,
+    }))
 }
 
 /// `story/` に章（空の `.scn`）を足す。
@@ -300,7 +385,9 @@ fn add_chapter(name: String, state: State<'_, AppState>) -> Result<Response, Str
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
     let file = workspace.add_chapter(&name).map_err(|e| e.to_string())?;
-    let (summary, checks) = analyze_summary(workspace.project(), true)?;
+    let Analyzed {
+        summary, checks, ..
+    } = analyze_summary(workspace.project(), true, None)?;
     json_response(&json!({ "file": file, "summary": summary, "checks": checks }))
 }
 
@@ -359,11 +446,15 @@ fn take_changes(app: &AppHandle, paths: &BTreeSet<PathBuf>) -> Result<(), String
     if changes.is_empty() {
         return Ok(());
     }
-    let (summary, checks) = analyze_summary(workspace.project(), true)?;
+    let Analyzed {
+        summary, checks, ..
+    } = analyze_summary(workspace.project(), true, None)?;
     let payload = json!({
         "changes": changes,
         "brackets": brackets(workspace.project()),
         "title": title_of(workspace),
+        "editor": workspace.project().settings.editor,
+        "assist": completion_data(workspace.project()),
         "summary": summary,
         "checks": checks,
     });
@@ -549,6 +640,8 @@ pub fn run() {
             reload_file,
             keep_mine,
             add_chapter,
+            scene_info,
+            register_character,
             recent_projects,
             view_modes,
             set_view_mode,
@@ -578,15 +671,18 @@ mod tests {
             }],
             ..Project::default()
         };
-        let (summary, checks) = thread::Builder::new()
+        let (summary, checks, scene) = thread::Builder::new()
             .stack_size(1024 * 1024)
-            .spawn(move || analyze_summary(&project, true))
+            .spawn(move || {
+                analyze_summary(&project, true, Some("s1")).map(|a| (a.summary, a.checks, a.scene))
+            })
             .unwrap()
             .join()
             .unwrap()
             .unwrap();
         assert_eq!(summary["scenes"].as_array().unwrap().len(), 1);
         assert!(checks.is_some());
+        assert_eq!(scene.unwrap()["scene"], "s1");
     }
 
     /// 渡すのは表示に要る分だけで、命令列（`ops`）を含まない（D042）。
@@ -596,11 +692,40 @@ mod tests {
             &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples/houkago"),
         )
         .unwrap();
-        let (summary, checks) = analyze_summary(&project, false).unwrap();
+        let Analyzed {
+            summary,
+            checks,
+            scene,
+        } = analyze_summary(&project, false, None).unwrap();
+        assert!(scene.is_none());
         assert_eq!(summary["scenes"].as_array().unwrap().len(), 13);
         assert!(summary["scenes"][0].get("ops").is_none());
         assert_eq!(summary["edges"].as_array().unwrap().len(), 12);
         assert_eq!(summary["start_scene"], "s010");
+        // シーンごとの文字数を持つ（D047）。
+        assert!(summary["scenes"][0]["chars"].as_u64().unwrap() > 0);
         assert!(checks.is_none());
+    }
+
+    /// はみ出し（W203）は、入力が止まるたびの診断（summary）に入れ、検証の段階1（checks）からは除く（D047）。
+    #[test]
+    fn overflow_in_summary_not_in_checks() {
+        let project = scn_core::load_project(
+            &Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../crates/scn-core/tests/fixtures/check/overflow"),
+        )
+        .unwrap();
+        let Analyzed {
+            summary, checks, ..
+        } = analyze_summary(&project, true, None).unwrap();
+        let codes = |v: &Value| -> Vec<String> {
+            v.as_array()
+                .unwrap()
+                .iter()
+                .map(|d| d["code"].as_str().unwrap().to_owned())
+                .collect()
+        };
+        assert!(codes(&summary["diagnostics"]).contains(&"W203".to_owned()));
+        assert!(!codes(&checks.unwrap()).contains(&"W203".to_owned()));
     }
 }

@@ -178,11 +178,250 @@ body {
 }
 
 .context-panel {
-  flex: 0 0 280px;
+  display: flex;
+  flex: 0 0 300px;
+  flex-direction: column;
+  min-width: 260px;
   overflow: auto;
-  padding: 8px;
   background: var(--panel-bg-2);
   border-left: 1px solid var(--border);
+}
+
+/* 文脈パネル（docs/ui/mockups/02-editor.html の「シーン情報」） */
+.context-heading {
+  margin: 0;
+  padding: 14px 16px 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.context-heading ~ .context-heading {
+  padding-top: 18px;
+}
+
+.context-empty {
+  margin: 0;
+  padding: 0 16px;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.character-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 12px 8px;
+  padding: 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-card);
+  background: var(--paper);
+}
+
+.character-card.focused {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.character-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.character-initial {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent-tint);
+  color: var(--accent-strong);
+  font-family: var(--font-body);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.character-name {
+  display: flex;
+  flex-direction: column;
+}
+
+.character-name span {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.character-fields {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 4px 8px;
+  margin: 0;
+  font-size: 12.5px;
+}
+
+.character-fields dt {
+  color: var(--text-faint);
+}
+
+.character-fields dd {
+  margin: 0;
+}
+
+.context-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0 16px;
+  font-size: 12.5px;
+  list-style: none;
+}
+
+.context-rows li {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.context-mono {
+  font-family: var(--font-mono);
+}
+
+.context-faint,
+.context-kind {
+  color: var(--text-faint);
+}
+
+.context-kind {
+  flex: none;
+  width: 44px;
+}
+
+.context-right {
+  margin-left: auto;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.context-right.provisional {
+  padding: 0 7px;
+  border: 1px dashed var(--warn-border);
+  border-radius: 4px;
+  background: var(--warn-tint);
+  color: var(--warn-text);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.context-problems {
+  padding: 8px;
+}
+
+/* 未登録の話者の登録（W202） */
+.check-register {
+  margin: 2px 0 6px 56px;
+}
+
+.check-register-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 4px 0 8px 8px;
+  font-size: 12px;
+}
+
+.check-register-form input {
+  width: 9em;
+  margin-left: 6px;
+  font-family: var(--font-mono);
+}
+
+.check-register-error {
+  color: var(--danger-text);
+}
+
+/* クイックオープン（Mod-P） */
+.quick-open-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+}
+
+.quick-open-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgb(27 31 36 / 20%);
+}
+
+.quick-open {
+  position: absolute;
+  top: 72px;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 100% - 32px);
+  max-height: 60vh;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--paper);
+  transform: translateX(-50%);
+}
+
+.quick-open input {
+  margin: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  font: inherit;
+}
+
+.quick-open ul {
+  margin: 0;
+  padding: 0 6px 6px;
+  overflow: auto;
+  list-style: none;
+}
+
+.quick-open-item {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.quick-open-item.selected,
+.quick-open-item:hover {
+  background: var(--accent-tint);
+  color: var(--accent-strong);
+}
+
+.quick-open-id {
+  width: 56px;
+  flex: none;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+
+.quick-open-file {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: 11.5px;
 }
 
 .welcome {

@@ -153,6 +153,7 @@
 | `toml_items/` | `format_version`・`start_scene`・`[dialogue.brackets]` の形の誤り。括弧が1組も読めなければ既定の「」 | E802 |
 | `toml_brackets/` | 表示スタイルが英字でない組と、括弧が重なる組を読み飛ばし、読めた組を使う | E802 |
 | `toml_dialogue_scalar/` | `dialogue` が表でない。既定の「」を使う | E802 |
+| `toml_editor/` | `[editor]` の値が真偽でない。入力補助を切として扱う（D047） | E802 |
 | `toml_title/` | `title`・`start_scene`・`[message_window]` の形の誤り。本文の読み方は変わらないので、行IDの付与は止めない（D045） | E802 |
 | `variables_broken/` | `variables.yaml` の構文の誤り。宣言の無い変数（W602）を出さない | E801 |
 | `variables_not_map/` | `variables.yaml` が対応表でない。W602 を出さない | E802 |

@@ -31,6 +31,7 @@ import { scn, scnSyntaxHighlighting } from "@scn-studio/lezer-scn";
 import { PositionMap } from "../core/position.ts";
 import type { Bracket, IrDiagnostic, ViewMode } from "../core/types.ts";
 import { programmatic } from "./flags.ts";
+import { lineIdGuard } from "./lineid.ts";
 import { sceneTitles, writingView } from "./writing.ts";
 
 /** 改行の数（`\r\n`、`\n` だけ、`\r` だけ）。 */
@@ -113,6 +114,29 @@ export const editorThemeSpec = {
       "color-mix(in srgb, var(--accent-tint-2) 60%, transparent)",
   },
   ".cm-activeLineGutter": { backgroundColor: "var(--accent-tint-2)" },
+  // 補完の窓（T1-8）。選ばれている行は、一覧の選択と同じ色（docs/ui/README.md）。基本テーマより詳細度を上げる。
+  "&.cm-editor .cm-tooltip.cm-tooltip-autocomplete": {
+    border: "1px solid var(--border)",
+    borderRadius: "var(--radius-item)",
+    backgroundColor: "var(--paper)",
+    overflow: "hidden",
+  },
+  "&.cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul > li": {
+    padding: "4px 10px",
+    fontFamily: "var(--font-ui)",
+    fontSize: "13px",
+    lineHeight: "1.6",
+  },
+  "&.cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]": {
+    backgroundColor: "var(--accent-tint)",
+    color: "var(--accent-strong)",
+  },
+  ".cm-completionDetail": {
+    marginLeft: "12px",
+    fontStyle: "normal",
+    fontSize: "12px",
+    color: "var(--text-faint)",
+  },
   // フォーカス中の選択は、CodeMirror の基本テーマ（クラス5つ）より詳細度を上げないと、基本テーマの色になる。
   ".cm-selectionBackground, &.cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground":
     { backgroundColor: "var(--accent-tint)" },
@@ -144,7 +168,7 @@ export type { ViewMode };
 export function modeExtension(mode: ViewMode): Extension {
   return mode === "writing"
     ? writingView()
-    : [lineNumbers(), highlightActiveLineGutter()];
+    : [lineNumbers(), highlightActiveLineGutter(), lineIdGuard("source")];
 }
 
 /** 表示の設定（エディタが切り替えに使う入れ物と、今の値）。 */
@@ -154,6 +178,8 @@ export interface ViewOptions {
   /** シーンIDと題名（執筆表示で、ジャンプに題名を添える）。 */
   readonly titles: ReadonlyMap<string, string>;
   readonly titlesCompartment: Compartment;
+  /** エディタが足す拡張（入力補助、補完、定義へ移る操作など。Editor.tsx）。 */
+  readonly extra?: Extension;
 }
 
 export interface Hooks {
@@ -199,6 +225,7 @@ export function createState(
       view === undefined
         ? []
         : view.titlesCompartment.of(sceneTitles.of(view.titles)),
+      view?.extra ?? [],
       history(),
       drawSelection(),
       highlightActiveLine(),

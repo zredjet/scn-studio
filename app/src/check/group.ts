@@ -53,3 +53,16 @@ export function countBySeverity(
   for (const d of diagnostics) counts[d.severity] += 1;
   return counts;
 }
+
+/**
+ * W202 のうち、話者が設定DBに無いもの（2人以上に当てはまるものは除く。登録しても解決しないため）の
+ * 話者名。当てはまらなければ null。コアの診断の文で見分ける（文がそろっていることは、コアのテスト
+ * `crates/scn-core/tests/assist.rs` の `unregistered_speaker_message` で確かめる）。
+ */
+export function unregisteredSpeaker(d: IrDiagnostic): string | null {
+  if (d.code !== "W202") return null;
+  return (
+    /^話者 (.+) を設定DBのキャラクターに解決できません/.exec(d.message)?.[1] ??
+    null
+  );
+}

@@ -35,6 +35,8 @@ export interface SceneSummary {
   readonly span: ByteSpan;
   readonly meta: IrMeta;
   readonly is_stub: boolean;
+  /** 表示する文字の数（D047）。 */
+  readonly chars: number;
 }
 
 export interface IrEdge {
@@ -73,6 +75,8 @@ export interface OpenedProject {
   readonly title: string;
   readonly files: readonly SourceText[];
   readonly brackets: readonly Bracket[];
+  readonly editor: EditorSettings;
+  readonly assist: AssistData;
   readonly summary: Summary;
   /** 検証の段階1の診断（D043）。 */
   readonly checks: readonly IrDiagnostic[];
@@ -131,6 +135,72 @@ export interface WorkspaceChanged {
   readonly changes: readonly Change[];
   readonly brackets: readonly Bracket[];
   readonly title: string;
+  readonly editor: EditorSettings;
+  readonly assist: AssistData;
+  readonly summary: Summary;
+  readonly checks: readonly IrDiagnostic[];
+}
+
+/** 補完の材料（コアの `assist::completion_data`。D047）。 */
+export interface AssistData {
+  readonly characters: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly aliases: readonly string[];
+  }[];
+  readonly backgrounds: readonly string[];
+  /** キャラクターIDごとの立ち絵の差分。 */
+  readonly expressions: Readonly<Record<string, readonly string[]>>;
+  readonly bgm: readonly string[];
+  readonly se: readonly string[];
+  readonly variables: readonly {
+    readonly key: string;
+    readonly type: string;
+    readonly values: readonly string[];
+  }[];
+  readonly directives: readonly {
+    readonly ja: string;
+    readonly en: string;
+    readonly args: string;
+  }[];
+  readonly positions: readonly string[];
+  readonly bgm_stop: string;
+}
+
+/** エディタの入力補助の設定（`project.toml` の `[editor]`。D047）。 */
+export interface EditorSettings {
+  readonly normalize_ellipsis: boolean;
+  readonly indent_narration: boolean;
+}
+
+/** 今のシーンの情報（文脈パネル。コアの `assist::SceneInfo`）。 */
+export interface SceneInfo {
+  readonly scene: string;
+  readonly characters: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly first_person: string | null;
+    readonly speech: string | null;
+    readonly lines: number;
+  }[];
+  readonly variables: readonly {
+    readonly key: string;
+    readonly type: string | null;
+    readonly reads: number;
+    readonly writes: number;
+  }[];
+  readonly assets: readonly {
+    readonly kind: "background" | "expression" | "bgm" | "se";
+    readonly character: string | null;
+    readonly name: string;
+    readonly registered: boolean;
+  }[];
+}
+
+/** `register_character` の結果。 */
+export interface RegisteredCharacter {
+  readonly file: string;
+  readonly assist: AssistData;
   readonly summary: Summary;
   readonly checks: readonly IrDiagnostic[];
 }

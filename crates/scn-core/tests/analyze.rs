@@ -439,6 +439,7 @@ fn reading_errors_only_for_format_version_and_dialogue() {
         ("toml_brackets", true),
         ("toml_dialogue_scalar", true),
         ("toml_title", false),
+        ("toml_editor", false),
         ("ok_brackets_empty", false),
         ("variables_broken", false),
     ];

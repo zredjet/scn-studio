@@ -18,7 +18,11 @@ import {
 } from "@codemirror/state";
 import type { Command, EditorView } from "@codemirror/view";
 import { scn } from "@scn-studio/lezer-scn";
-import { deleteForwardAtLineId, lineIdGuard } from "../src/editor/lineid.ts";
+import {
+  copyWithoutLineIds,
+  deleteForwardAtLineId,
+  lineIdGuard,
+} from "../src/editor/lineid.ts";
 import { programmatic } from "../src/editor/state.ts";
 
 const DOC = "灯「やあ」 ^aaaa\n地の文 ^bbbb\n";
@@ -27,11 +31,16 @@ const END1 = "灯「やあ」".length;
 /** 2行目の頭。 */
 const LINE2 = "灯「やあ」 ^aaaa\n".length;
 
-function create(doc: string, anchor: number, head = anchor): EditorState {
+function create(
+  doc: string,
+  anchor: number,
+  head = anchor,
+  mode: "writing" | "source" = "writing",
+): EditorState {
   const state = EditorState.create({
     doc,
     selection: EditorSelection.single(anchor, head),
-    extensions: [scn(), history(), lineIdGuard()],
+    extensions: [scn(), history(), lineIdGuard(mode)],
   });
   ensureSyntaxTree(state, state.doc.length, 5000);
   return state;
@@ -221,4 +230,40 @@ test("カーソルは行IDに入らない。行IDの手前から → で次の�
     [selected.selection.main.anchor, selected.selection.main.head],
     [0, END1],
   );
+});
+
+// ---- ソース表示（T1-8、D047） ----
+
+test("ソース表示：行IDの手前で Enter を押しても、行IDは元の行に残る（分割のきまり）", () => {
+  const after = run(create(DOC, END1, END1, "source"), insertNewline);
+  assert.equal(after.sliceDoc(), "灯「やあ」 ^aaaa\n\n地の文 ^bbbb\n");
+  const join = run(create(DOC, LINE2, LINE2, "source"), deleteCharBackward);
+  assert.equal(join.sliceDoc(), "灯「やあ」地の文 ^aaaa\n");
+});
+
+test("ソース表示：行IDの文字を書き換える編集は妨げない。カーソルも止めない", () => {
+  const at = DOC.indexOf("aaaa");
+  // 重なった行IDを直すときのように、行IDの文字を書き換える。
+  const edited = create(DOC, at, at + 4, "source").update({
+    changes: { from: at, to: at + 4, insert: "zzzz" },
+    userEvent: "input.type",
+  }).state;
+  assert.equal(edited.sliceDoc(), "灯「やあ」 ^zzzz\n地の文 ^bbbb\n");
+  // 行の終わり（行IDの後ろ）にカーソルを置ける。
+  const clicked = create(DOC, 0, 0, "source").update({
+    selection: { anchor: LINE2 - 1 },
+    userEvent: "select.pointer",
+  }).state;
+  assert.equal(clicked.selection.main.head, LINE2 - 1);
+});
+
+// ---- 執筆表示のコピー（D047） ----
+
+test("執筆表示で写すときは行IDを外す（範囲が空なら、カーソルのある行を写す）", () => {
+  const all = create(DOC, 0, DOC.length);
+  assert.equal(copyWithoutLineIds(all), "灯「やあ」\n地の文\n");
+  const part = create(DOC, 1, LINE2 + 2);
+  assert.equal(copyWithoutLineIds(part), "「やあ」\n地の");
+  const line = create(DOC, LINE2 + 1);
+  assert.equal(copyWithoutLineIds(line), "地の文\n");
 });

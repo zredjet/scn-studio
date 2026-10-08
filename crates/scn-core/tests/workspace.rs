@@ -313,6 +313,39 @@ fn save_with_stale_view_of_disk_is_a_conflict() {
     let _ = fs::remove_dir_all(&dir);
 }
 
+/// 未登録の話者を、設定DBのキャラクターとして登録する（D047）。IDは英数字と `_` だけで、
+/// 同じIDがあれば断る。登録すると、話者として解決できるようになる。
+#[test]
+fn register_character() {
+    let dir = temp_project(
+        "register",
+        &[
+            ("project.toml", TOML),
+            ("story/a.scn", "## a #s1\n店員「いらっしゃい」\n".as_bytes()),
+        ],
+    );
+    let mut ws = Workspace::open(&dir).unwrap();
+    for bad in ["", "店員", "a b", "../x", "a/b"] {
+        assert!(ws.register_character(bad, "店員").is_err(), "{bad}");
+    }
+    assert!(ws.register_character("clerk", "").is_err());
+    let file = ws.register_character("clerk", "店員: 夜").unwrap();
+    assert_eq!(file, "bible/entries/character/clerk.md");
+    assert_eq!(
+        fs::read_to_string(dir.join(&file)).unwrap(),
+        "---\nid: clerk\nname: \"店員: 夜\"\n---\n"
+    );
+    let character = ws
+        .project()
+        .characters
+        .iter()
+        .find(|c| c.id == "clerk")
+        .unwrap();
+    assert_eq!(character.name, "店員: 夜");
+    assert!(ws.register_character("clerk", "別の人").is_err());
+    let _ = fs::remove_dir_all(&dir);
+}
+
 fn write(dir: &Path, path: &str, text: &str) {
     fs::write(dir.join(path), text).unwrap();
 }

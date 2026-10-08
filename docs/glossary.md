@@ -71,6 +71,22 @@
 | 変数の埋め込み | interpolation | `{=式}` |
 | 改行（台詞の） | line break | 複数行の台詞の、行の境目。IRの `line_break` |
 
+## エディタ
+
+| 日本語 | 英語名 | 説明 |
+| --- | --- | --- |
+| 執筆表示 | writing view | 記号を畳んで見せる表示（D046） |
+| ソース表示 | source view | 生のテキストと行番号を見せる表示 |
+| 入力補助 | input assist | 括弧の補い、正規化、段落頭の字下げ（`typing.ts`、D047） |
+| 補完 | completion | 候補の窓。キャラ名、命令、引数、シーンID（`complete.ts`） |
+| 正規化 | normalize | `...` を `……` にするなど（`[editor]` の `normalize_ellipsis`） |
+| 段落頭の字下げ | narration indent | 地の文の行頭の全角空白（`indent_narration`） |
+| 文脈パネル | context panel | エディタの右。今のシーンの登場キャラ、変数、素材、問題 |
+| 今のシーン | current scene | カーソルのあるシーン |
+| 表示する文字数 | display chars | ルビは親文字、記法と空白を除いて1字ずつ数えた字数（`SceneSummary.chars`） |
+| クイックオープン | quick open | シーンをIDと題名で探して開く（Mod-P） |
+| 定義へ移る | go to definition | シーンIDからシーンへ、話者名からキャラクターへ（F12、Mod-クリック） |
+
 ## 変数と検証
 
 | 日本語 | 英語名 | 説明 |
@@ -103,8 +119,6 @@
 | 位置 | position | `left` / `center` / `right` |
 | 発注リスト | asset order list | 仮素材の一覧（CSV） |
 | プレビュー | preview | ADVプレイヤーと縦書きビュー |
-| 執筆表示 | writing view | 記号を畳んだ表示 |
-| ソース表示 | source view | 生のテキストの表示 |
 | エクスポート | export | エンジン用ファイルなどへの書き出し |
 | 出力プロファイル | export profile | `export/*.yaml` |
 | 台本 | script sheet | 収録・校正用の表 |

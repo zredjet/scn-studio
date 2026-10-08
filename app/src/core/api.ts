@@ -11,8 +11,10 @@ import type {
   KeptFile,
   OpenedProject,
   RecentProject,
+  RegisteredCharacter,
   ReloadedFile,
   SavedFile,
+  SceneInfo,
   Summary,
   ViewMode,
   WorkspaceChanged,
@@ -28,16 +30,36 @@ export function createProject(path: string): Promise<OpenedProject> {
   return invoke<OpenedProject>("create_project", { path, title: null });
 }
 
-/** 保存していない編集中の本文で、プロジェクト全体を解析し直す。表示に要る分だけを受け取る。 */
-export async function parseBuffer(
+/**
+ * 保存していない編集中の本文で、プロジェクト全体を解析し直す。表示に要る分だけを受け取る。
+ * `scene` を渡すと、そのシーンの情報（文脈パネル）も受け取る。
+ */
+export function parseBuffer(
   file: string,
   text: string,
-): Promise<Summary> {
-  const result = await invoke<{ summary: Summary }>("parse_buffer", {
+  scene: string | null = null,
+): Promise<{ summary: Summary; scene: SceneInfo | null }> {
+  return invoke<{ summary: Summary; scene: SceneInfo | null }>("parse_buffer", {
     file,
     text,
+    scene,
   });
-  return result.summary;
+}
+
+/** シーンの情報（文脈パネル）。 */
+export async function sceneInfo(scene: string): Promise<SceneInfo | null> {
+  const result = await invoke<{ scene: SceneInfo | null }>("scene_info", {
+    scene,
+  });
+  return result.scene;
+}
+
+/** 未登録の話者を、設定DBのキャラクターとして登録する（D047）。 */
+export function registerCharacter(
+  id: string,
+  name: string,
+): Promise<RegisteredCharacter> {
+  return invoke<RegisteredCharacter>("register_character", { id, name });
 }
 
 /**

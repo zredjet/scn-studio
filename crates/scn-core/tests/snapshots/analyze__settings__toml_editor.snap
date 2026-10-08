@@ -1,0 +1,6 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "dump_with_disk(&ir, &dir)"
+---
+project.toml:4:1-4:19 E802 [editor] の normalize_ellipsis は true か false で書きます。切として扱います
+project.toml:5:1-5:17 E802 [editor] の indent_narration は true か false で書きます。切として扱います

@@ -55,8 +55,9 @@ chars_per_line = 24
 | `start_scene` | 文字列 | 開始シーンのID。存在しないシーンなら、検証で E501 |
 | `[dialogue.brackets]` | 表 | キーは開き括弧と閉じ括弧の2文字、値は表示スタイルの名前（英字） |
 | `[message_window]` | 表 | `lines`（行数）と `chars_per_line`（1行の字数、全角で数える）。どちらも正の整数 |
+| `[editor]` | 表 | アプリのエディタの入力補助（D047）。`normalize_ellipsis`（真偽。確定した文字の `...`・`・・・`・単独の `…` を `……` に、`--`・`－－` を `――` にする）と `indent_narration`（真偽。Enter で地の文の行を離れるとき、段落頭に全角空白が無ければ足す）。キーが無ければ切。真偽でなければ E802 を出して切として扱う。`scn new` のひな形は、どちらも `true` で書く |
 
-次のキーは、書いてもよいが、今のツールはまだ読まない：`[screen]`（`width`、`height`。プレビュー）、`[editor]`（`normalize_ellipsis`、`indent_narration`。入力補助、T1-8）、`[ai.*]`（AIの接続先。フェーズ3）。
+次のキーは、書いてもよいが、今のツールはまだ読まない：`[screen]`（`width`、`height`。プレビュー）、`[ai.*]`（AIの接続先。フェーズ3）。
 
 ## 3. `variables.yaml`
 

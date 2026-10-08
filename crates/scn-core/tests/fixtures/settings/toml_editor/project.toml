@@ -1,0 +1,5 @@
+format_version = 0
+
+[editor]
+normalize_ellipsis = "yes"
+indent_narration = 1

@@ -411,6 +411,46 @@ impl Workspace {
         Ok(())
     }
 
+    /// 未登録の話者（W202）を、設定DBのキャラクターとして登録する（T1-8、D047）。
+    /// `bible/entries/<キャラクターの型>/<id>.md` に、`id` と `name` だけのエントリを書き、設定を読み直す。
+    /// `id` は英数字と `_`（変数の名前空間や立ち絵の差分のキーにもなるため）。書いたファイルのパスを返す。
+    pub fn register_character(&mut self, id: &str, name: &str) -> Result<String, ProjectError> {
+        let dir = format!("bible/entries/{}", self.project.bible.character_type());
+        let invalid =
+            |message: &str| error(&self.root.join(&dir), io::ErrorKind::InvalidInput, message);
+        if id.is_empty() || !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+            return Err(invalid("IDは英数字と _ で書きます"));
+        }
+        let name = name.trim();
+        if name.is_empty() || name.contains(['\n', '\r']) {
+            return Err(invalid("名前が空か、改行を含んでいます"));
+        }
+        let file = format!("{dir}/{id}.md");
+        let path = self.root.join(&file);
+        let taken = self.project.characters.iter().any(|c| c.id == id);
+        if taken || path.exists() {
+            return Err(error(
+                &path,
+                io::ErrorKind::AlreadyExists,
+                "同じIDのキャラクターがあります",
+            ));
+        }
+        let folder = self.root.join(&dir);
+        fs::create_dir_all(&folder).map_err(|source| ProjectError::Write {
+            path: folder,
+            source,
+        })?;
+        // 名前はJSONの文字列にして書く（YAMLとしても読める。`:` などを含んでも崩れない）。
+        let quoted = serde_json::to_string(name).unwrap_or_default();
+        write_source(
+            &self.root,
+            &file,
+            &format!("---\nid: {id}\nname: {quoted}\n---\n"),
+        )?;
+        self.reload_settings()?;
+        Ok(file)
+    }
+
     /// `story/` に章（空の `.scn`）を足す。`name` に `.scn` が無ければ補う。足したファイルのパスを返す。
     pub fn add_chapter(&mut self, name: &str) -> Result<String, ProjectError> {
         let name = name.trim();

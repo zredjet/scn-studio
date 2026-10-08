@@ -4,12 +4,15 @@
 //   まとめたりしない。どの行にもカーソルで入れる）。
 // - ディレクティブはチップに、ルビは本文の上に描き、傍点・文中の命令・変数の埋め込みも畳む。
 //   選択肢と `@if` のブロックは、行の背景と枠でカードのように見せる。
-// - カーソルのある行は、記法をそのまま見せる。行IDだけは、どの行でも隠す（守り方は lineid.ts）。
+// - カーソルのある行は、記法をそのまま見せる。行IDは、どの行でも隠す（守り方は lineid.ts）。
+//   ただし行IDに診断（E301・W303・E304）のある行は、気づけるように行IDを見せる（直すのはソース表示で。
+//   執筆表示では行IDを守るので、書き換えられない。D047）。
 // - 変換中は、飾りを作り直さず、前の飾りを変更に合わせてずらすだけにする（.claude/rules/frontend.md）。
 //   変換が終わってから作り直す。
 // - 飾りは Lezer の構文木から作る（見た目のため。意味の判断はコアに任せる）。見えている範囲だけを作る。
 
 import { syntaxTree } from "@codemirror/language";
+import { forEachDiagnostic, setDiagnosticsEffect } from "@codemirror/lint";
 import {
   type ChangeDesc,
   type EditorState,
@@ -52,16 +55,24 @@ interface Part {
 export class TagWidget extends WidgetType {
   readonly className: string;
   readonly parts: readonly Part[];
+  /** シーンへ移る札なら、そのシーンID（Mod-クリックで移る。navigate.ts）。 */
+  readonly sceneRef: string | null;
 
-  constructor(className: string, parts: readonly Part[]) {
+  constructor(
+    className: string,
+    parts: readonly Part[],
+    sceneRef: string | null = null,
+  ) {
     super();
     this.className = className;
     this.parts = parts;
+    this.sceneRef = sceneRef;
   }
 
   eq(other: TagWidget): boolean {
     return (
       other.className === this.className &&
+      other.sceneRef === this.sceneRef &&
       other.parts.length === this.parts.length &&
       other.parts.every(
         (p, i) =>
@@ -74,6 +85,7 @@ export class TagWidget extends WidgetType {
   toDOM(): HTMLElement {
     const span = document.createElement("span");
     span.className = this.className;
+    if (this.sceneRef !== null) span.dataset.sceneRef = this.sceneRef;
     for (const part of this.parts) {
       if (part.className === undefined) {
         span.append(part.text);
@@ -318,13 +330,13 @@ function directiveChip(
 /** ジャンプの札（`→ s014 題名`）。 */
 function jumpTag(state: EditorState, ref: string): Decoration {
   const title = state.facet(sceneTitles).get(ref);
-  return tag(
-    "cm-scn-jump-tag",
-    { text: `→ ${ref}` },
-    ...(title === undefined
-      ? []
-      : [{ text: ` ${title}`, className: "cm-scn-jump-title" }]),
-  );
+  const parts: Part[] = [{ text: `→ ${ref}` }];
+  if (title !== undefined) {
+    parts.push({ text: ` ${title}`, className: "cm-scn-jump-title" });
+  }
+  return Decoration.replace({
+    widget: new TagWidget("cm-scn-jump-tag", parts, ref === "" ? null : ref),
+  });
 }
 
 /**
@@ -340,6 +352,11 @@ export function writingDecorations(
   const raw = rawLines(state);
   const decorations: Range<Decoration>[] = [];
   const done = new Set<number>();
+  // 行IDの診断（エディタの診断の文は「コード 文」の形。state.ts の toEditorDiagnostics）。
+  const idDiagnostics: { from: number; to: number }[] = [];
+  forEachDiagnostic(state, (d, from, to) => {
+    if (/^(E301|W303|E304) /.test(d.message)) idDiagnostics.push({ from, to });
+  });
   for (const range of ranges) {
     const first = doc.lineAt(range.from).number;
     const last = doc.lineAt(range.to).number;
@@ -353,7 +370,15 @@ export function writingDecorations(
           decorations.push(deco.range(from, to));
         },
       };
-      decorateLine(state, tree, line, raw.has(n), stack, emit ? out : null);
+      decorateLine(
+        state,
+        tree,
+        line,
+        raw.has(n),
+        stack,
+        emit ? out : null,
+        idDiagnostics,
+      );
     }
   }
   return Decoration.set(decorations, true);
@@ -370,6 +395,7 @@ function decorateLine(
   raw: boolean,
   stack: Block[],
   emitter: Emit | null,
+  idDiagnostics: readonly { readonly from: number; readonly to: number }[],
 ): void {
   // 飾りは行の中に収める（改行をまたぐ置き換えは、ビュープラグインからは作れない）。
   const out: Emit = {
@@ -629,9 +655,18 @@ function decorateLine(
           : { class: classes.join(" ") },
       ),
     );
-    // 行IDは、カーソルのある行でも隠す。
+    // 行IDは、カーソルのある行でも隠す。行IDに診断があれば、見せる。
     const id = lineIdOf(tree, line);
-    if (id !== null) out.add(id.from, id.to, hidden);
+    if (id !== null) {
+      const flagged = idDiagnostics.some(
+        (d) => d.from < id.to && d.to > id.from,
+      );
+      out.add(
+        id.from,
+        id.to,
+        flagged ? Decoration.mark({ class: "cm-scn-line-id" }) : hidden,
+      );
+    }
   }
 
   if (!raw && emitter !== null) {
@@ -682,7 +717,9 @@ const writingPlugin = ViewPlugin.fromClass(
         update.startState.facet(sceneTitles) !==
           update.state.facet(sceneTitles) ||
         update.transactions.some((tr) =>
-          tr.effects.some((e) => e.is(refreshWriting)),
+          tr.effects.some(
+            (e) => e.is(refreshWriting) || e.is(setDiagnosticsEffect),
+          ),
         );
       this.stale = composing && rebuild;
       this.decorations = nextDecorations(
@@ -805,6 +842,11 @@ export const writingThemeSpec = {
     color: "var(--accent)",
   },
   ".cm-scn-ruby rt": { fontSize: "10px" },
+  ".cm-scn-line-id": {
+    fontFamily: "var(--font-mono)",
+    fontSize: "12px",
+    color: "var(--line-number)",
+  },
   ".cm-scn-emphasis": { textEmphasis: "filled sesame" },
   ".cm-scn-inline": {
     margin: "0 2px",
@@ -905,7 +947,7 @@ export const writingThemeSpec = {
 export function writingView(): Extension {
   return [
     writingPlugin,
-    lineIdGuard(),
+    lineIdGuard("writing"),
     EditorView.theme(writingThemeSpec),
     EditorView.editorAttributes.of({ class: "cm-writing" }),
   ];

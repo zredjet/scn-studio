@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckList } from "./check/CheckList.tsx";
-import { countBySeverity } from "./check/group.ts";
+import { countBySeverity, unregisteredSpeaker } from "./check/group.ts";
 import {
   addChapter,
   confirm,
@@ -22,17 +22,22 @@ import {
   pickNewProjectFolder,
   pickProjectFolder,
   recentProjects,
+  registerCharacter,
   reloadFile,
   saveFile,
+  sceneInfo,
   setViewMode,
   viewModes,
 } from "./core/api.ts";
 import { PositionMap } from "./core/position.ts";
 import type {
+  AssistData,
   Bracket,
+  EditorSettings,
   IrDiagnostic,
   OpenedProject,
   RecentProject,
+  SceneInfo,
   SceneSummary,
   Summary,
   ViewMode,
@@ -47,11 +52,15 @@ import {
 } from "./editor/Editor.tsx";
 import { LineBreakBar } from "./editor/LineBreakBar.tsx";
 import { ModeBar } from "./editor/ModeBar.tsx";
+import type { Definition } from "./editor/navigate.ts";
 import { hasMixedLineBreaks, lineBreakOf } from "./editor/state.ts";
 import { SceneGraph } from "./graph/SceneGraph.tsx";
 import { SceneList } from "./scenes/SceneList.tsx";
+import { ContextPanel } from "./shell/ContextPanel.tsx";
 import { LeftBar, type Screen } from "./shell/LeftBar.tsx";
+import { QuickOpen } from "./shell/QuickOpen.tsx";
 import { StatusBar } from "./shell/StatusBar.tsx";
+import { fileChars, sceneAt } from "./shell/scene.ts";
 import { TitleBar } from "./shell/TitleBar.tsx";
 import { Welcome } from "./shell/Welcome.tsx";
 
@@ -114,6 +123,21 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [recent, setRecent] = useState<RecentProject[]>([]);
+  /** 補完の材料と、入力補助の設定（D047）。 */
+  const [assist, setAssist] = useState<AssistData | null>(null);
+  const [editorSettings, setEditorSettings] = useState<EditorSettings>({
+    normalize_ellipsis: false,
+    indent_narration: false,
+  });
+  /** カーソルのあるシーンと、その情報（文脈パネル）。 */
+  const [currentScene, setCurrentScene] = useState<string | null>(null);
+  const [scene, setScene] = useState<SceneInfo | null>(null);
+  /** 定義へ移る操作で選んだキャラクター（文脈パネルのカード）。 */
+  const [focusCharacter, setFocusCharacter] = useState<{
+    id: string;
+    seq: number;
+  } | null>(null);
+  const [quickOpen, setQuickOpen] = useState(false);
   /** ファイルごとの表示（覚えていないファイルは執筆表示。D046）。 */
   const [modes, setModes] = useState<ReadonlyMap<string, ViewMode>>(new Map());
   /** ディスクの中身が変わった回数（エディタに渡す savedText を作り直すため）。 */
@@ -134,8 +158,24 @@ export function App() {
   /** 変換が終わってから行う、表示の更新。 */
   const afterComposition = useRef<(() => void)[]>([]);
   // 知らせの受け取りや、閉じる前の確認の中では、最新の値を読む。
-  const latest = useRef({ project, currentFile, dirty, conflicts, modes });
-  latest.current = { project, currentFile, dirty, conflicts, modes };
+  const latest = useRef({
+    project,
+    currentFile,
+    dirty,
+    conflicts,
+    modes,
+    currentScene,
+    assist,
+  });
+  latest.current = {
+    project,
+    currentFile,
+    dirty,
+    conflicts,
+    modes,
+    currentScene,
+    assist,
+  };
 
   const replaceText = useCallback(
     (file: string, text: string, expected: string | null) => {
@@ -151,7 +191,27 @@ export function App() {
     else update();
   }, []);
 
-  /** 解析の結果を画面に出す。変換中なら、変換が終わるまで待つ。 */
+  /** 今のシーンの情報を読み直す（文脈パネル）。 */
+  const refreshScene = useCallback(
+    (id: string | null) => {
+      if (id === null) {
+        whenIdle(() => setScene(null));
+        return;
+      }
+      void sceneInfo(id)
+        .then((info) => {
+          if (latest.current.currentScene === id)
+            whenIdle(() => setScene(info));
+        })
+        .catch(() => {});
+    },
+    [whenIdle],
+  );
+
+  /**
+   * 解析の結果を画面に出す。変換中なら、変換が終わるまで待つ。検証の段階1（`checks`）と一緒に届いたとき
+   * （保存、外部の変更など）は、今のシーンの情報も読み直す。
+   */
   const showSummary = useCallback(
     (summary: Summary, checks?: readonly IrDiagnostic[]) => {
       const file = latest.current.currentFile;
@@ -165,8 +225,9 @@ export function App() {
         );
         setAnalysis(result);
       });
+      if (checks !== undefined) refreshScene(latest.current.currentScene);
     },
-    [whenIdle],
+    [whenIdle, refreshScene],
   );
 
   /** 外で消されたファイルを閉じる。 */
@@ -212,6 +273,11 @@ export function App() {
     setScreen("text");
     setError(null);
     setNotice(`${opened.title} を開きました`);
+    setAssist(opened.assist);
+    setEditorSettings(opened.editor);
+    setCurrentScene(null);
+    setScene(null);
+    setFocusCharacter(null);
     setModes(new Map());
     void viewModes()
       .then((m) => setModes(new Map(Object.entries(m))))
@@ -369,6 +435,8 @@ export function App() {
               files,
             },
       );
+      setAssist(event.assist);
+      setEditorSettings(event.editor);
       showSummary(event.summary, event.checks);
       if (changed.length > 0)
         setNotice(`外部の変更を取り込みました：${changed.join("、")}`);
@@ -397,11 +465,17 @@ export function App() {
       // 外で消されたのに残っているファイル（選ぶまで、コアは閉じている）は、選んだときに送る。
       if (latest.current.conflicts.get(file)?.deleted === true) return;
       const seq = ++request.current;
+      const sceneId = latest.current.currentScene;
       try {
-        const summary = await parseBuffer(file, text);
+        const result = await parseBuffer(file, text, sceneId);
         if (seq !== request.current) return;
-        showSummary(summary);
-        whenIdle(() => setError(null));
+        showSummary(result.summary);
+        whenIdle(() => {
+          if (result.scene !== null && result.scene.scene === sceneId) {
+            setScene(result.scene);
+          }
+          setError(null);
+        });
       } catch (e) {
         whenIdle(() => setError(String(e)));
       }
@@ -540,6 +614,41 @@ export function App() {
     [showSummary],
   );
 
+  /** カーソルが止まった：そのシーンを今のシーンにし、情報を読み直す。 */
+  const onCursor = useCallback(
+    (file: string, offset: number) => {
+      const p = latest.current.project;
+      const text = buffers.current.get(file);
+      if (p === null || text === undefined) return;
+      const id = sceneAt(p.summary.scenes, file, text, offset);
+      if (id === latest.current.currentScene) return;
+      latest.current.currentScene = id;
+      setCurrentScene(id);
+      refreshScene(id);
+    },
+    [refreshScene],
+  );
+
+  /** 未登録の話者を設定DBに登録する（D047）。エラーの文を返す。 */
+  const onRegister = useCallback(
+    async (d: IrDiagnostic, id: string): Promise<string | null> => {
+      const name = unregisteredSpeaker(d);
+      if (name === null) return "登録できる話者ではありません";
+      try {
+        const result = await registerCharacter(id, name);
+        setAssist(result.assist);
+        showSummary(result.summary, result.checks);
+        whenIdle(() =>
+          setNotice(`${name} を設定DBに登録しました（${result.file}）`),
+        );
+        return null;
+      } catch (e) {
+        return String(e);
+      }
+    },
+    [showSummary, whenIdle],
+  );
+
   /** 本文の画面で、あるファイルのある位置へ移る。 */
   const goTo = useCallback(
     (file: string, byteOffset: number | null) => {
@@ -563,6 +672,44 @@ export function App() {
     (scene: SceneSummary) => goTo(scene.file, scene.span[0]),
     [goTo],
   );
+
+  /** 定義へ移る：シーンIDはそのシーンへ、話者名は文脈パネルのキャラクターのカードへ（D047）。 */
+  const onDefinition = useCallback(
+    (definition: Definition) => {
+      if (definition.kind === "scene") {
+        const target = project?.summary.scenes.find(
+          (s) => s.id === definition.id,
+        );
+        if (target === undefined)
+          setNotice(`シーン ${definition.id} はありません`);
+        else selectScene(target);
+        return;
+      }
+      const name = definition.name;
+      const character = latest.current.assist?.characters.find(
+        (c) => c.id === name || c.name === name || c.aliases.includes(name),
+      );
+      if (character === undefined) {
+        setNotice(`${name} は設定DBに登録されていません`);
+        return;
+      }
+      setFocusCharacter((f) => ({ id: character.id, seq: (f?.seq ?? 0) + 1 }));
+    },
+    [project, selectScene],
+  );
+
+  // クイックオープン（Mod-P）。エディタの外にフォーカスがあるときも開く。
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || latest.current.project === null) return;
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "p") {
+        event.preventDefault();
+        setQuickOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const allDiagnostics = useMemo(
     () =>
@@ -675,6 +822,11 @@ export function App() {
                       onSave={onSave}
                       onReplaceSkipped={onReplaceSkipped}
                       onToggleView={toggleMode}
+                      assist={assist}
+                      editorSettings={editorSettings}
+                      onCursor={onCursor}
+                      onDefinition={onDefinition}
+                      onQuickOpen={() => setQuickOpen(true)}
                     />
                   ) : (
                     <p className="placeholder">
@@ -682,19 +834,16 @@ export function App() {
                     </p>
                   )}
                 </section>
-                <aside
-                  className="context-panel"
-                  aria-label="このファイルの問題"
-                >
-                  <CheckList
-                    heading="このファイルの問題"
-                    diagnostics={allDiagnostics.filter(
-                      (d) => d.file === currentFile,
-                    )}
-                    files={project.files}
-                    onSelect={(d) => goTo(d.file, d.span[0])}
-                  />
-                </aside>
+                <ContextPanel
+                  scene={scene}
+                  focusCharacter={focusCharacter}
+                  diagnostics={allDiagnostics.filter(
+                    (d) => d.file === currentFile,
+                  )}
+                  files={project.files}
+                  onSelectDiagnostic={(d) => goTo(d.file, d.span[0])}
+                  onRegister={onRegister}
+                />
               </section>
               {screen === "flow" && (
                 <section className="screen flow-screen" aria-label="フロー">
@@ -712,6 +861,7 @@ export function App() {
                     diagnostics={allDiagnostics}
                     files={project.files}
                     onSelect={(d) => goTo(d.file, d.span[0])}
+                    onRegister={onRegister}
                   />
                 </section>
               )}
@@ -719,9 +869,31 @@ export function App() {
           )}
         </main>
       </div>
+      {quickOpen && project !== null && (
+        <QuickOpen
+          scenes={project.summary.scenes}
+          onSelect={selectScene}
+          onClose={() => setQuickOpen(false)}
+        />
+      )}
       <StatusBar
         mode={currentFile === null ? null : mode}
         file={currentFile}
+        scene={
+          currentScene === null
+            ? null
+            : {
+                id: currentScene,
+                chars:
+                  project?.summary.scenes.find((s) => s.id === currentScene)
+                    ?.chars ?? 0,
+              }
+        }
+        fileChars={
+          project === null || currentFile === null
+            ? null
+            : fileChars(project.summary.scenes, currentFile)
+        }
         unsaved={dirty.size}
         counts={counts}
         notice={notice}
@@ -744,17 +916,22 @@ async function measureIpc(opened: OpenedProject) {
   const first = opened.files[0];
   if (first === undefined) return;
   const lines = opened.files.reduce((n, f) => n + f.text.split("\n").length, 0);
-  const times: number[] = [];
-  let size = 0;
-  for (let i = 0; i < 10; i++) {
-    const start = performance.now();
-    const summary = await parseBuffer(first.path, first.text);
-    times.push(performance.now() - start);
-    if (i === 0) size = JSON.stringify(summary).length;
+  // 今のシーンの情報も返すとき（T1-8、D047。索引も作る）と、返さないときの両方を測る。
+  const scene =
+    opened.summary.scenes.find((s) => s.file === first.path)?.id ?? null;
+  for (const target of [null, scene]) {
+    const times: number[] = [];
+    let size = 0;
+    for (let i = 0; i < 10; i++) {
+      const start = performance.now();
+      const result = await parseBuffer(first.path, first.text, target);
+      times.push(performance.now() - start);
+      if (i === 0) size = JSON.stringify(result).length;
+    }
+    times.sort((a, b) => a - b);
+    await devReport(
+      `受け渡しの時間（parse_buffer、今のシーン ${target ?? "なし"}、${opened.files.length}ファイル、${lines}行、JSON 約${size}文字）：` +
+        `中央値 ${times[5]?.toFixed(1)}ミリ秒、最小 ${times[0]?.toFixed(1)}、最大 ${times[9]?.toFixed(1)}`,
+    );
   }
-  times.sort((a, b) => a - b);
-  await devReport(
-    `受け渡しの時間（parse_buffer、${opened.files.length}ファイル、${lines}行、表示に要る分のJSON 約${size}文字）：` +
-      `中央値 ${times[5]?.toFixed(1)}ミリ秒、最小 ${times[0]?.toFixed(1)}、最大 ${times[9]?.toFixed(1)}`,
-  );
 }

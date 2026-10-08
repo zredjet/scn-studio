@@ -53,8 +53,19 @@ pub struct Settings {
     /// 本文の読み方に関わる設定を、書かれたとおりに読めなかった：`project.toml` そのものが読めない（E801）、
     /// `format_version` の誤り（E802、E803）、`[dialogue]` と `[dialogue.brackets]` の誤り（E802）。
     /// 台詞の括弧が既定に戻って行の読み方が変わるので、行IDを付けない（D042、D045）。
-    /// `title`・`start_scene`・`[message_window]` の誤りは含めない。
+    /// `title`・`start_scene`・`[message_window]`・`[editor]` の誤りは含めない。
     pub reading_errors: bool,
+    /// エディタの入力補助（`[editor]`。T1-8、D047）。
+    pub editor: EditorSettings,
+}
+
+/// エディタの入力補助の設定（`project.toml` の `[editor]`）。キーが無ければ切（D047）。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize)]
+pub struct EditorSettings {
+    /// 三点リーダとダッシュの正規化（`...` を `……`、`--` を `――` など）。
+    pub normalize_ellipsis: bool,
+    /// 地の文の段落頭に全角空白を入れる。
+    pub indent_narration: bool,
 }
 
 impl Default for Settings {
@@ -67,6 +78,7 @@ impl Default for Settings {
             brackets: ParseOptions::default().brackets,
             message_window: None,
             reading_errors: false,
+            editor: EditorSettings::default(),
         }
     }
 }
@@ -102,6 +114,17 @@ pub struct Bible {
     pub types: Vec<EntryType>,
     /// エントリ（`entries/<型>/*.md`）。パスの順。
     pub entries: Vec<Entry>,
+}
+
+impl Bible {
+    /// キャラクターの型のID：`builtin: character` のある最初の型。無ければ（型定義が読めないときも）
+    /// `character`。
+    pub fn character_type(&self) -> &str {
+        self.types
+            .iter()
+            .find(|t| t.builtin.as_deref() == Some("character"))
+            .map_or("character", |t| t.id.as_str())
+    }
 }
 
 /// 設定DBの型（`bible/types/<型>.yaml`）。
@@ -231,6 +254,15 @@ pub enum ProjectError {
 }
 
 impl Project {
+    /// キャラクターの設定DBのエントリ（口調メモや一人称を読む）。
+    pub fn character_entry(&self, id: &str) -> Option<&Entry> {
+        let type_id = self.bible.character_type();
+        self.bible
+            .entries
+            .iter()
+            .find(|e| e.type_id == type_id && e.id == id)
+    }
+
     /// 構文解析の設定（台詞の括弧）。
     pub fn parse_options(&self) -> ParseOptions {
         ParseOptions {
@@ -665,6 +697,37 @@ impl Loader<'_> {
                 "message_window は [message_window] の表で書きます。はみ出しを調べません",
             ),
         }
+        match table.get("editor") {
+            None => {}
+            Some(toml::Value::Table(editor)) => {
+                for (key, slot) in [
+                    (
+                        "normalize_ellipsis",
+                        &mut settings.editor.normalize_ellipsis,
+                    ),
+                    ("indent_narration", &mut settings.editor.indent_narration),
+                ] {
+                    match editor.get(key) {
+                        None => {}
+                        Some(toml::Value::Boolean(value)) => *slot = *value,
+                        Some(_) => self.diag(
+                            file,
+                            Code::E802,
+                            key_span(&text, 0, key),
+                            format!(
+                                "[editor] の {key} は true か false で書きます。切として扱います"
+                            ),
+                        ),
+                    }
+                }
+            }
+            Some(_) => self.diag(
+                file,
+                Code::E802,
+                key_span(&text, 0, "editor"),
+                "editor は [editor] の表で書きます。入力補助を切として扱います",
+            ),
+        }
         // ここから下（`[dialogue]`）の誤りは、本文の読み方に関わる。
         let diags_before_dialogue = self.diags.len();
         let brackets = match table.get("dialogue") {
@@ -948,7 +1011,7 @@ impl Loader<'_> {
             .filter(|t| t.builtin.as_deref() == Some("character"))
             .collect();
         let type_id = match builtin.as_slice() {
-            [] => "character".to_owned(),
+            [] => bible.character_type().to_owned(),
             [first, rest @ ..] => {
                 for extra in rest {
                     let file = format!("bible/types/{}.yaml", extra.id);

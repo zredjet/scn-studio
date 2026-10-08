@@ -11,3 +11,8 @@ start_scene = "s001"
 [message_window]
 lines = 3
 chars_per_line = 24
+
+# エディタの入力補助（アプリ）。書いていなければ、どちらも切
+[editor]
+normalize_ellipsis = true   # 「...」「・・・」を「……」に、「--」を「――」にする
+indent_narration = true     # 地の文の段落頭に全角空白を入れる（Enter でその行を離れるとき）

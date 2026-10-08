@@ -5,20 +5,38 @@
 // - 変換中は、解析の結果（診断の下線）を反映しない。変換が終わってから反映する。
 // - 変換中は、本文を置き換えない（保存で付いた行ID、外部の変更の読み込み直し）。変換が終わってから置き換える。
 // - 変換中は、保存しない。保存のキーが押されていれば、変換が終わってから保存する。
-// - 補完と括弧の自動補完は入れない（basicSetup を使わず、拡張を1つずつ選ぶ）。
+// - 補完の窓、括弧の補い、正規化は、変換を確定した後にだけ動かす（complete.ts、typing.ts）。変換が始まったら
+//   補完の窓を閉じる。basicSetup は使わず、拡張を1つずつ選ぶ。
 // 状態の作り方（本文を黙って変えないこと）は state.ts にある。
 //
 // 保存は1つずつ行う。保存を待つ間の編集は消さず、保存で付いた行IDをその後の本文に入れる（replace.ts の
 // savedChanges）。保存を待つ間にもう一度保存のキーが押されたら、終わってからもう一度保存する。
 //
 // 表示は、執筆表示とソース表示を切り替える（D046）。切り替えても本文は変わらない（飾りと行番号が変わるだけ）。
+//
+// 定義へ移る（F12、Mod-クリック。navigate.ts）、クイックオープン（Mod-P）、カーソルのあるシーンの知らせ
+// （文脈パネルとステータスバー）も、ここからアプリへ知らせる（D047）。
 
+import { closeCompletion } from "@codemirror/autocomplete";
 import { setDiagnostics } from "@codemirror/lint";
-import { ChangeSet, Compartment, type Text } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
+import {
+  ChangeSet,
+  Compartment,
+  type Extension,
+  Prec,
+  type Text,
+} from "@codemirror/state";
+import { EditorView, keymap } from "@codemirror/view";
 import { scn } from "@scn-studio/lezer-scn";
 import { useEffect, useRef } from "react";
-import type { Bracket, IrDiagnostic } from "../core/types.ts";
+import type {
+  AssistData,
+  Bracket,
+  EditorSettings,
+  IrDiagnostic,
+} from "../core/types.ts";
+import { type AssistEnv, assistEnv, completion } from "./complete.ts";
+import { type Definition, definitionAt } from "./navigate.ts";
 import { replacement, savedChanges } from "./replace.ts";
 import {
   createState,
@@ -31,7 +49,11 @@ import {
   toEditorDiagnostics,
   type ViewMode,
 } from "./state.ts";
+import { runAfterCommit, type TypingOptions, typingAssist } from "./typing.ts";
 import { refreshWriting, sceneTitles } from "./writing.ts";
+
+/** カーソルが止まってから、カーソルのある位置を知らせるまでの時間（ミリ秒）。 */
+const CURSOR_DELAY_MS = 150;
 
 /** 入力が止まってから解析を依頼するまでの時間（ミリ秒）。 */
 export const ANALYZE_DELAY_MS = 200;
@@ -88,8 +110,12 @@ interface Props {
   readonly brackets: readonly Bracket[];
   /** 表示（執筆表示かソース表示か）。 */
   readonly viewMode: ViewMode;
-  /** シーンIDと題名（執筆表示で、ジャンプに題名を添える）。 */
+  /** シーンIDと題名（執筆表示で、ジャンプに題名を添える。補完のシーンIDの候補）。 */
   readonly titles: ReadonlyMap<string, string>;
+  /** 補完の材料（D047）。開いていなければ null。 */
+  readonly assist: AssistData | null;
+  /** 入力補助の設定（`project.toml` の `[editor]`）。 */
+  readonly editorSettings: EditorSettings;
   readonly analysis: Analysis | null;
   readonly focus: Focus | null;
   readonly replace: Replace | null;
@@ -105,6 +131,12 @@ interface Props {
   readonly onReplaceSkipped: (file: string, text: string) => void;
   /** 表示の切り替えのキーが押された。 */
   readonly onToggleView: (file: string) => void;
+  /** カーソルが止まった（エディタの位置）。変換中は知らせない。 */
+  readonly onCursor: (file: string, offset: number) => void;
+  /** 定義へ移る（F12、Mod-クリック）。 */
+  readonly onDefinition: (definition: Definition) => void;
+  /** クイックオープンのキー（Mod-P）が押された。 */
+  readonly onQuickOpen: () => void;
 }
 
 export function Editor({
@@ -114,6 +146,8 @@ export function Editor({
   brackets,
   viewMode,
   titles,
+  assist,
+  editorSettings,
   analysis,
   focus,
   replace,
@@ -123,13 +157,22 @@ export function Editor({
   onSave,
   onReplaceSkipped,
   onToggleView,
+  onCursor,
+  onDefinition,
+  onQuickOpen,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const language = useRef(new Compartment());
   const mode = useRef(new Compartment());
   const titleSet = useRef(new Compartment());
+  const assistSet = useRef(new Compartment());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cursorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** 変換で入った範囲（変換中の編集に合わせてずらす。始まりは前へ、終わりは後ろへ広げる）。 */
+  const composed = useRef<{ from: number; to: number } | null>(null);
+  /** 変換が終わって、確定の後の入力補助を待っている範囲。 */
+  const committed = useRef<{ from: number; to: number } | null>(null);
   /** 変換中に届いて、まだ反映していない診断。 */
   const deferred = useRef<Analysis | null>(null);
   /** 変換中に届いて、まだ当てていない置き換え。 */
@@ -151,12 +194,17 @@ export function Editor({
     brackets,
     viewMode,
     titles,
+    assist,
+    editorSettings,
     onIdle,
     onComposingChange,
     onDirty,
     onSave,
     onReplaceSkipped,
     onToggleView,
+    onCursor,
+    onDefinition,
+    onQuickOpen,
   });
   props.current = {
     file,
@@ -165,13 +213,93 @@ export function Editor({
     brackets,
     viewMode,
     titles,
+    assist,
+    editorSettings,
     onIdle,
     onComposingChange,
     onDirty,
     onSave,
     onReplaceSkipped,
     onToggleView,
+    onCursor,
+    onDefinition,
+    onQuickOpen,
   };
+
+  /** 補完に要るもの。 */
+  const assistEnvOf = (): AssistEnv => ({
+    data: props.current.assist,
+    scenes: [...props.current.titles].map(([id, title]) => ({ id, title })),
+    brackets: props.current.brackets,
+  });
+  const typingOptions = (): TypingOptions => ({
+    brackets: props.current.brackets,
+    editor: props.current.editorSettings,
+  });
+
+  /** カーソルが止まったら、その位置を知らせる。変換中は知らせない。 */
+  const scheduleCursor = () => {
+    if (cursorTimer.current !== null) clearTimeout(cursorTimer.current);
+    cursorTimer.current = setTimeout(() => {
+      cursorTimer.current = null;
+      const v = view.current;
+      const current = loaded.current;
+      if (v === null || current === null || isComposing(v)) return;
+      props.current.onCursor(current.file, v.state.selection.main.head);
+    }, CURSOR_DELAY_MS);
+  };
+
+  /** 定義へ移る。移る先が無ければ false。 */
+  const goToDefinition = (v: EditorView, pos: number): boolean => {
+    const found = definitionAt(v.state, pos);
+    if (found === null) return false;
+    props.current.onDefinition(found);
+    return true;
+  };
+
+  /** エディタが足す拡張（入力補助、補完、定義へ移る操作、カーソルの知らせ）。 */
+  const extras = (): Extension => [
+    assistSet.current.of(assistEnv.of(assistEnvOf())),
+    completion(),
+    typingAssist(typingOptions),
+    Prec.high(
+      keymap.of([
+        {
+          key: "F12",
+          run: (v) => goToDefinition(v, v.state.selection.main.head),
+        },
+        {
+          key: "Mod-p",
+          preventDefault: true,
+          run: () => {
+            props.current.onQuickOpen();
+            return true;
+          },
+        },
+      ]),
+    ),
+    EditorView.domEventHandlers({
+      mousedown: (event, v) => {
+        if (!(event.metaKey || event.ctrlKey)) return false;
+        // 執筆表示のジャンプの札（シーンIDの印がある）。
+        const target = event.target as HTMLElement | null;
+        const ref =
+          target?.closest<HTMLElement>("[data-scene-ref]")?.dataset.sceneRef;
+        if (ref !== undefined) {
+          props.current.onDefinition({ kind: "scene", id: ref });
+          event.preventDefault();
+          return true;
+        }
+        const pos = v.posAtCoords({ x: event.clientX, y: event.clientY });
+        if (pos === null || !goToDefinition(v, pos)) return false;
+        event.preventDefault();
+        return true;
+      },
+    }),
+    EditorView.updateListener.of((update) => {
+      if (update.selectionSet || update.docChanged) scheduleCursor();
+    }),
+  ];
 
   /** 今の設定で、エディタの状態を作る。 */
   const makeState = (doc: string) =>
@@ -185,6 +313,7 @@ export function Editor({
         modeCompartment: mode.current,
         titles: props.current.titles,
         titlesCompartment: titleSet.current,
+        extra: extras(),
       },
     );
 
@@ -358,6 +487,15 @@ export function Editor({
   });
   hooks.current = {
     changed: (byUser, changes) => {
+      for (const range of [composed, committed]) {
+        const r = range.current;
+        if (r !== null) {
+          range.current = {
+            from: changes.mapPos(r.from, -1),
+            to: changes.mapPos(r.to, 1),
+          };
+        }
+      }
       const s = saving.current;
       if (s !== null && s.detached === null && !s.skip) {
         s.since = s.since.compose(changes);
@@ -370,14 +508,37 @@ export function Editor({
       }
     },
     save: () => startSave(),
-    compositionStarted: () => props.current.onComposingChange(true),
+    compositionStarted: () => {
+      const v = view.current;
+      if (v !== null) {
+        // 変換中は補完の窓を出さない（.claude/rules/frontend.md）。
+        closeCompletion(v);
+        const from = v.state.selection.main.from;
+        composed.current = { from, to: from };
+      }
+      props.current.onComposingChange(true);
+    },
     compositionEnded: () => {
       props.current.onComposingChange(false);
+      // 確定した範囲を、ここで取り出す（すぐ次の変換が始まっても混ざらないように）。
+      committed.current = composed.current;
+      composed.current = null;
       // 変換中に止めていた解析の依頼、診断の反映、本文の置き換え、保存を、変換が終わってから行う。
       schedule();
       setTimeout(() => {
         // 変換中に見送った執筆表示の飾りを作り直す。
         view.current?.dispatch({ effects: refreshWriting.of(null) });
+        // 確定した文字の後の入力補助（括弧の補い、正規化）と、補完の窓。確定した文字だけを対象にし、
+        // カーソルが確定した文字の後ろに無ければ（確定と同時に別の場所をクリックしたなど）動かさない。
+        const v = view.current;
+        const range = committed.current;
+        committed.current = null;
+        if (v !== null && range !== null && range.from < range.to) {
+          const sel = v.state.selection.main;
+          if (sel.empty && sel.head === range.to) {
+            runAfterCommit(v, range.from, range.to, typingOptions());
+          }
+        }
         const pending = deferred.current;
         if (pending !== null) apply(pending);
         const waiting = deferredReplace.current;
@@ -410,6 +571,7 @@ export function Editor({
     view.current = v;
     return () => {
       if (timer.current !== null) clearTimeout(timer.current);
+      if (cursorTimer.current !== null) clearTimeout(cursorTimer.current);
       v.destroy();
       view.current = null;
       loaded.current = null;
@@ -466,6 +628,20 @@ export function Editor({
       effects: titleSet.current.reconfigure(sceneTitles.of(titles)),
     });
   }, [titles]);
+
+  // 補完の材料が変わったら、入れ替える。
+  const assistEnvRef = useRef(assistEnvOf);
+  assistEnvRef.current = assistEnvOf;
+  useEffect(() => {
+    void assist;
+    void titles;
+    void brackets;
+    view.current?.dispatch({
+      effects: assistSet.current.reconfigure(
+        assistEnv.of(assistEnvRef.current()),
+      ),
+    });
+  }, [assist, titles, brackets]);
 
   // 括弧の設定が変わったら、言語を入れ替える。
   useEffect(() => {

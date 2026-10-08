@@ -1075,6 +1075,111 @@ fn allowed_in_preamble(kind: &LineKind<'_>) -> bool {
     }
 }
 
+/// 命令の一覧（仕様書10節）。エディタの補完に使う（T1-8）。日本語名・英語名・引数は、
+/// 下の `canonical_name`・`expected_args` とブロックの命令の名前に合わせる（テストで確かめる）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+pub struct DirectiveInfo {
+    /// 日本語名。制御の命令（`if` など）は英語名と同じ。
+    pub ja: &'static str,
+    pub en: &'static str,
+    /// 引数の説明。
+    pub args: &'static str,
+}
+
+pub const DIRECTIVES: [DirectiveInfo; 17] = [
+    DirectiveInfo {
+        ja: "背景",
+        en: "bg",
+        args: "背景名 [トランジション]",
+    },
+    DirectiveInfo {
+        ja: "立ち絵",
+        en: "show",
+        args: "キャラ 差分 [位置] [トランジション]",
+    },
+    DirectiveInfo {
+        ja: "退場",
+        en: "hide",
+        args: "キャラ [トランジション]",
+    },
+    DirectiveInfo {
+        ja: "BGM",
+        en: "bgm",
+        args: "曲名、または 停止",
+    },
+    DirectiveInfo {
+        ja: "SE",
+        en: "se",
+        args: "効果音名",
+    },
+    DirectiveInfo {
+        ja: "効果",
+        en: "fx",
+        args: "効果名 [秒]",
+    },
+    DirectiveInfo {
+        ja: "待機",
+        en: "wait",
+        args: "秒",
+    },
+    DirectiveInfo {
+        ja: "設定",
+        en: "set",
+        args: "変数 演算子 式",
+    },
+    DirectiveInfo {
+        ja: "選択",
+        en: "choice",
+        args: "[問いかけ文]（@end で閉じる）",
+    },
+    DirectiveInfo {
+        ja: "if",
+        en: "if",
+        args: "式（@end で閉じる）",
+    },
+    DirectiveInfo {
+        ja: "elif",
+        en: "elif",
+        args: "式",
+    },
+    DirectiveInfo {
+        ja: "else",
+        en: "else",
+        args: "",
+    },
+    DirectiveInfo {
+        ja: "呼出",
+        en: "call",
+        args: "シーンID",
+    },
+    DirectiveInfo {
+        ja: "戻る",
+        en: "return",
+        args: "",
+    },
+    DirectiveInfo {
+        ja: "エンディング",
+        en: "ending",
+        args: "エンディングID",
+    },
+    DirectiveInfo {
+        ja: "raw",
+        en: "raw",
+        args: "エンジン名（@end で閉じる）",
+    },
+    DirectiveInfo {
+        ja: "end",
+        en: "end",
+        args: "",
+    },
+];
+
+/// `@立ち絵` の位置のキーワード（日本語名）。
+pub const POSITIONS: [&str; 3] = ["左", "中", "右"];
+
+/// `@BGM` の停止のキーワード（日本語名）。
+pub const BGM_STOP: &str = "停止";
+
 /// 命令名を英語名にそろえる。ブロックの命令（`@選択`、`@if` など）は含めない。
 fn canonical_name(name: &str) -> Option<&'static str> {
     Some(match name {
@@ -1242,5 +1347,30 @@ mod tests {
         assert_eq!(ok("summary 要約"), None);
         assert_eq!(ok("summary:要約"), None);
         assert_eq!(ok(": 値"), None);
+    }
+}
+
+#[cfg(test)]
+mod directive_tests {
+    use super::*;
+
+    /// 公開の命令の表が、解析の判定とそろっている。
+    #[test]
+    fn directive_table_matches_parser() {
+        let blocks = ["choice", "if", "elif", "else", "raw", "end"];
+        for d in DIRECTIVES {
+            if blocks.contains(&d.en) {
+                assert_eq!(canonical_name(d.ja), None, "{}", d.ja);
+                continue;
+            }
+            assert_eq!(canonical_name(d.ja), Some(d.en), "{}", d.ja);
+            assert_eq!(canonical_name(d.en), Some(d.en), "{}", d.en);
+            if d.en != "set" && d.en != "return" {
+                assert_eq!(expected_args(d.en), d.args, "{}", d.en);
+            }
+        }
+        for p in POSITIONS {
+            assert!(parse_position(p).is_some(), "{p}");
+        }
     }
 }

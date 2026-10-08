@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ensureSyntaxTree } from "@codemirror/language";
+import { setDiagnostics } from "@codemirror/lint";
 import { Compartment, EditorSelection, EditorState } from "@codemirror/state";
 import type { DecorationSet } from "@codemirror/view";
 import { scn } from "@scn-studio/lezer-scn";
@@ -245,6 +246,31 @@ test("エスケープは先頭の1文字だけを隠す（`{{` は `{`、`｜《
   assert.deepEqual(hiddenOn(1), ["{", "}", "｜"]);
   // 行頭の `\` も隠す。
   assert.deepEqual(hiddenOn(2), ["\\"]);
+});
+
+test("行IDに診断（E301・W303・E304）のある行は、執筆表示でも行IDを見せる", () => {
+  const doc = "灯「やあ」 ^aaaa\n地の文 ^aaaa\n\n";
+  const base = state(doc, doc.length);
+  const at = doc.lastIndexOf(" ^aaaa");
+  const s = base.update(
+    setDiagnostics(base, [
+      {
+        from: at + 1,
+        to: at + 6,
+        severity: "error",
+        message: "E301 行IDが重なっています",
+      },
+    ]),
+  ).state;
+  const list = seen(s, writingDecorations(s, [{ from: 0, to: s.doc.length }]));
+  assert.ok(
+    onLine(list, 1).some((d) => d.kind === "hidden" && d.text === " ^aaaa"),
+  );
+  assert.ok(
+    onLine(list, 2).some(
+      (d) => d.kind === "cm-scn-line-id" && d.text === " ^aaaa",
+    ),
+  );
 });
 
 test("カーソルのある行は記法をそのまま見せる。行IDだけは隠す", () => {
