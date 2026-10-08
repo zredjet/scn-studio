@@ -325,7 +325,7 @@ impl Checker {
 }
 
 /// 出口（ジャンプ・`@エンディング`・`@戻る`）に当たらずに、終わりまで進む経路があるか。
-fn falls_through(ops: &[Op]) -> bool {
+pub(crate) fn falls_through(ops: &[Op]) -> bool {
     !ops.iter().any(terminates)
 }
 

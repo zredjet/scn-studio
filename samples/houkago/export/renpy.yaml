@@ -1,4 +1,4 @@
-# Ren'Py向けの出力プロファイル（フェーズ2で使う）
+# Ren'Py向けの出力プロファイル（scn export renpy、アプリの「出力」）
 target: renpy
 images:
   背景: "bg {file_stem}"
@@ -7,3 +7,5 @@ positions:   { 左: left, 中: center, 右: right }
 transitions: { フェード: fade, 即時: None }
 fx:          { 揺れ: "with vpunch" }
 voice:       { pattern: "voice/{char_id}_{line_id}.ogg" }
+# 日本語のフォント。作品フォルダに無いので、書き出し先の game/ に置く（Ren'Py の SDK の sdk-fonts/ にある）
+font: SourceHanSansLite.ttf

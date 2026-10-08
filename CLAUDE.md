@@ -64,8 +64,10 @@ app/                    Tauri＋React（src-tauri/ と src/）
   - `cargo run -p scn-cli -- new <dir> [--title 作品名]`：新しい作品フォルダを作る（無いフォルダか空のフォルダに。`project.toml`、スタブの章、`CLAUDE.md`、`FORMAT.md` など）。ひな形は `crates/scn-core/templates/`
   - `cargo run -p scn-cli -- format-doc [project-dir]`：作品フォルダの `FORMAT.md`（仕様書の1〜16節と作品フォルダの規約）を、今のツールの版で書き直す。`--check` は書き直さずに、古ければ終了コード1
   - `cargo run -p scn-cli -- export script [project-dir] [-o 書き出し先]`：台本（行ID、シーン、キャラ、台詞、直前の地の文、ボイスファイル名、備考）を CSV（UTF-8 の BOM 付き、CRLF）で書き出す。既定の書き出し先は作品フォルダの `export/script.csv`、`-o -` で標準出力。行IDの無い台詞の数は標準エラーに出す。終了コードは `ir` と同じ（エラーの診断があれば1）
+  - `cargo run -p scn-cli -- export renpy [project-dir] [-o 書き出し先]`：出力プロファイル（`export/renpy.yaml`）に従って Ren'Py のスクリプトを書き出す。既定の書き出し先はプロファイルの `output`（既定は作品フォルダの `export/renpy`）で、その `game/scn/` だけを作り直す。知らせとプロファイルの誤りは標準エラーに出す。終了コードは `export script` と同じ（`game/scn/` が書き出したものでなければ消さずに2）
   - CLIのテストだけ：`cargo test -p scn-cli`
   - `scn` をパスの通った場所（`~/.cargo/bin`）に入れる：`cargo install --locked --path crates/scn-cli`（作品フォルダで `scn` として使うとき）
+- Ren'Py で確かめる（macOS、Ren'Py の SDK が要る。`scripts/check-all` には入らない）：`scripts/renpy-check [SDKのフォルダ]`（既定は環境変数 `RENPY_SDK` か `/Applications/renpy-8.5.2-sdk`）。両サンプルを `target/renpy-check/` に書き出し、SDK の lint と、Ren'Py の testcase（`scripts/renpy/*.rpy`）で全エンディングまで自動で遊ぶ。ゲームの窓が短い間開く
 - フロント：`pnpm install` / `pnpm lint`（Biomeの書式と静的検査）/ `pnpm fmt`（Biomeで整形と安全な修正）/ `pnpm typecheck` / `pnpm test`
   - Biomeはルートで全体を一度に検査する（`docs/` と `samples/` は対象外）。各パッケージには `lint` を置かず、`typecheck` と `test` のスクリプトを置く。ルートの `pnpm typecheck` と `pnpm test` が、それを持つパッケージをすべて走らせる
 - Lezer文法（`packages/lezer-scn`）：`pnpm -C packages/lezer-scn test`（文法から構文解析器を作り直してから、`node --test` でテスト）／`pnpm -C packages/lezer-scn build`（構文解析器を作るだけ）

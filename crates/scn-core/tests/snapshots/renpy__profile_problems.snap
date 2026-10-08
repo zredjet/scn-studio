@@ -1,0 +1,11 @@
+---
+source: crates/scn-core/tests/renpy.rs
+expression: problems
+---
+[
+    "target が renpy ではありません（tyrano）",
+    "output は作品フォルダの中を指す相対パスで書きます（../outside）。export/renpy に書き出します",
+    "fx は対応表で書きます",
+    "voice は { pattern: \"…\" } で書きます",
+    "start_label は true か false で書きます",
+]

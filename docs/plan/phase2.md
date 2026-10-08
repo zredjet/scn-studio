@@ -90,10 +90,10 @@ T2-2〜T2-10は互いにほぼ独立している。ただし、どれもアプ�
 
 **完了条件**
 
-- [ ] 出力プロファイルの形が `docs/spec/project-files.md` にあり、プロファイルの誤りの診断（足すなら仕様書の診断表と fixture）がある
-- [ ] `samples/houkago` と `samples/amayadori` の書き出しのスナップショットがある
-- [ ] 人がRen'Pyで起動し、エンディングまで遊べることを確かめた
-- [ ] `scripts/check-all` が成功する
+- [x] 出力プロファイルの形が `docs/spec/project-files.md` にあり、プロファイルの誤りの診断（足すなら仕様書の診断表と fixture）がある（11節。誤りは診断コードを足さず、書き出しのときに知らせる。R41）
+- [x] `samples/houkago` と `samples/amayadori` の書き出しのスナップショットがある
+- [ ] 人がRen'Pyで起動し、エンディングまで遊べることを確かめた（H9。自動では `scripts/renpy-check` で、SDK の lint と全エンディングまでの自動プレイが通っている）
+- [x] `scripts/check-all` が成功する
 
 **やらないこと**：ティラノスクリプト、宴、EPUB・縦書きPDF、外部コマンド型のプラグイン（フェーズ3）。
 

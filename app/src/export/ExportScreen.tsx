@@ -1,9 +1,11 @@
 // 出力の画面（T1-12、D051）：台本（収録と校正の表）を CSV で書き出す。書き出す前に、中身を表で見られる。
 // 書き出し先は作品フォルダの `export/script.csv`（CLI の `scn export script` と同じ）。
-// Ren'Py などのエンジン用の書き出し、台本の Excel 形式、プレーンテキストはフェーズ2。
+// Ren'Py への書き出し（T2-2、D053）は、出力プロファイル（export/renpy.yaml）に従って、書き出し先の
+// game/scn/ を作り直す（CLI の `scn export renpy` と同じ）。
 
 import { useEffect, useState } from "react";
 import { keyed } from "../bible/fields.ts";
+import type { RenpyResult } from "../core/api.ts";
 import type { ScriptSheet, Summary } from "../core/types.ts";
 
 interface Props {
@@ -17,6 +19,8 @@ interface Props {
     readonly path: string;
     readonly rows: number;
   }>;
+  /** Ren'Py へ書き出す。 */
+  readonly writeRenpy: () => Promise<RenpyResult>;
 }
 
 const COLUMNS = [
@@ -29,7 +33,96 @@ const COLUMNS = [
   "備考",
 ] as const;
 
-export function ExportScreen({ summary, unsaved, load, write }: Props) {
+/** Ren'Py への書き出し。書き出した後に、知らせとプロファイルの誤りを並べる。 */
+function RenpyCard({
+  unsaved,
+  writeRenpy,
+}: {
+  readonly unsaved: number;
+  readonly writeRenpy: () => Promise<RenpyResult>;
+}) {
+  const [result, setResult] = useState<RenpyResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  return (
+    <section className="export-card" aria-label="Ren'Py">
+      <div className="export-card-head">
+        <div>
+          <h2>Ren'Py</h2>
+          <p className="export-note">
+            出力プロファイル（export/renpy.yaml）に従って、Ren'Py
+            のスクリプトを書き出します。書き出し先（既定は export/renpy）の
+            game/scn/
+            だけを毎回作り直し、ほかのファイルには触れません。書き出したものは手で直さず、本文を直して書き出し直してください。
+          </p>
+        </div>
+        <button
+          type="button"
+          className="primary-small"
+          disabled={busy}
+          onClick={() => {
+            setBusy(true);
+            writeRenpy()
+              .then((r) => {
+                setResult(r);
+                setError(null);
+              })
+              .catch((e: unknown) => setError(String(e)))
+              .finally(() => setBusy(false));
+          }}
+        >
+          書き出す
+        </button>
+      </div>
+      {result !== null && (
+        <p className="export-notice" role="status">
+          {result.path} に書き出しました（{result.files}ファイル）
+        </p>
+      )}
+      {error !== null && (
+        <p className="export-error" role="alert">
+          {error}
+        </p>
+      )}
+      {unsaved > 0 && (
+        <p className="export-warning">
+          保存していないファイルが {unsaved}{" "}
+          あります。保存していない本文も含めて書き出します。
+        </p>
+      )}
+      {result !== null && result.problems.length > 0 && (
+        <div className="export-warning">
+          <p className="export-list-head">
+            出力プロファイルの誤り（読み飛ばして書き出しました）
+          </p>
+          <ul className="export-list">
+            {keyed(result.problems, (p) => p).map(([key, p]) => (
+              <li key={key}>{p}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {result !== null && result.warnings.length > 0 && (
+        <div className="export-info">
+          <p className="export-list-head">知らせ</p>
+          <ul className="export-list">
+            {keyed(result.warnings, (w) => w).map(([key, w]) => (
+              <li key={key}>{w}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
+export function ExportScreen({
+  summary,
+  unsaved,
+  load,
+  write,
+  writeRenpy,
+}: Props) {
   const [sheet, setSheet] = useState<ScriptSheet | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -59,6 +152,7 @@ export function ExportScreen({ summary, unsaved, load, write }: Props) {
         <h1>出力</h1>
         <span className="flow-spacer" />
       </header>
+      <RenpyCard unsaved={unsaved} writeRenpy={writeRenpy} />
       <section className="export-card" aria-label="台本">
         <div className="export-card-head">
           <div>

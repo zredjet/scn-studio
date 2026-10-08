@@ -1,0 +1,33 @@
+---
+source: crates/scn-core/tests/renpy.rs
+expression: text
+---
+# scn-studio が .scn から書き出したファイル。手で直さない（書き出すたびに作り直す）。
+
+# s1 屋上
+label s1:
+    akari "前" (what_suffix="")
+    akari "後" (what_prefix="")
+    akari "ドアが{nw}" (what_suffix="")
+    # SE ドア（ファイルが無いので鳴らさない）
+    extend "開いた" (what_prefix="「", what_suffix="」")
+    akari "待って！{nw}" (what_suffix="")
+    # SE ドア（ファイルが無いので鳴らさない）
+    extend "" (what_prefix="「", what_suffix="")
+    akari "……行っちゃった" (what_prefix="")
+    akari "前" (what_suffix="")
+    akari "{nw}" (what_prefix="", what_suffix="")
+    # SE ドア（ファイルが無いので鳴らさない）
+    extend "後" (what_prefix="", what_suffix="」")
+    $ _scn_value_1 = ("true" if flag_ok else "false")
+    $ _scn_value_2 = ("true" if (flag_勇気 >= 1) else "false")
+    $ _scn_value_3 = ("true" if (not flag_ok) else "false")
+    "[_scn_value_1!q] [_scn_value_2!q] [_scn_value_3!q]"
+    akari_thought "心の声"
+    akari_name "名無し"
+    $ _scn_value_4 = (flag_勇気 + 1)
+    "[[x] {{y} 100%% 【【見出し】 \"引用\" \\ [flag_名前!q] [_scn_value_4!q]"
+    "{rb}乱{/rb}{rt}みだ{/rt}れて{rb}強{/rb}{rt}﹅{/rt}{rb}調{/rb}{rt}﹅{/rt}{w=0.5}{cps=*0.5}ゆっくり{/cps}"
+    "{cps=*0.5}続き{/cps}。"
+    # エンディング end
+    $ renpy.full_restart()

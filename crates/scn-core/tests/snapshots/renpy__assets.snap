@@ -1,0 +1,67 @@
+---
+source: crates/scn-core/tests/renpy.rs
+expression: "dump(&t.0, &export, &problems)"
+---
+==== game/scn/files/bg/room.png ← assets/files/bg/room.png
+==== game/scn/files/bgm/theme.ogg ← assets/files/bgm/theme.ogg
+==== game/scn/files/chara/akari/smile.png ← assets/files/chara/akari/smile.png
+==== game/scn/fonts/my.ttf ← fonts/my.ttf
+==== game/scn/scn_defs.rpy
+# scn-studio が .scn から書き出したファイル。手で直さない（書き出すたびに作り直す）。
+
+init -1 python:
+    def _scn_div(a, b):
+        q = abs(a) // abs(b)
+        return q if (a < 0) == (b < 0) else -q
+
+    if not hasattr(gui, "text_font"):
+        config.screen_width = 1280
+        config.screen_height = 720
+        layout.defaults()
+        style.menu_window.yalign = 0.45
+
+init python:
+    if renpy.loadable("scn/fonts/my.ttf"):
+        style.default.font = "scn/fonts/my.ttf"
+
+define akari = Character("灯", what_prefix="「", what_suffix="」")
+
+image bg ph_f685ee = Composite((1280, 720), (0, 0), Solid("#5e3576"), (40, 40), Text("背景：外（仮素材）", size=36))
+image bg room = "scn/files/bg/room.png"
+image akari ph_1554b9 = Composite((384, 612), (0, 0), Solid("#595069"), (12, 12), Text("灯：泣き（仮素材）", size=28))
+image akari smile = "scn/files/chara/akari/smile.png"
+==== game/scn/scn_start.rpy
+# scn-studio が .scn から書き出したファイル。手で直さない（書き出すたびに作り直す）。
+
+label start:
+    jump s1
+==== game/scn/story_a.rpy
+# scn-studio が .scn から書き出したファイル。手で直さない（書き出すたびに作り直す）。
+
+# s1 a
+label s1:
+    scene bg room with fade
+    scene bg ph_f685ee with dissolve
+    show akari smile at left
+    show akari ph_1554b9
+    play music "scn/files/bgm/theme.ogg" noloop
+    # SE ドア（ファイルが無いので鳴らさない）
+    voice "scn/voice/akari_k3f9.ogg"
+    akari "声" (what_suffix="")
+    voice sustain
+    akari "続き{nw}" (what_prefix="", what_suffix="")
+    # SE ドア（ファイルが無いので鳴らさない）
+    voice sustain
+    extend "おわり" (what_prefix="", what_suffix="」")
+    akari "無声"
+    hide akari
+    stop music
+    # エンディング e
+    $ renpy.full_restart()
+
+==== game/scn/voice/akari_k3f9.ogg ← assets/voice/akari_k3f9.ogg
+==== warnings
+ファイルの無い画像が 2 個あります（名前入りの色の矩形にしました）
+ファイルの無い音が 1 個あります（鳴らさずに、コメントを書きました）
+トランジション「ワイプ」の対応がプロファイル（transitions）に無いので、dissolve にしました
+==== profile

@@ -15,6 +15,7 @@ import {
   createProject,
   devReport,
   devSettings,
+  exportRenpy,
   exportScript,
   guardClose,
   keepMine,
@@ -1106,6 +1107,7 @@ export function App() {
                     unsaved={dirty.size}
                     load={scriptSheet}
                     write={exportScript}
+                    writeRenpy={exportRenpy}
                   />
                 </section>
               )}

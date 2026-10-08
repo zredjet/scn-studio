@@ -4,6 +4,7 @@
 //! パニックしないこと、診断とASTのスパンが範囲内で文字の境界にあることを確かめる。
 //! 構文解析だけでなく、意味解析とIR（`analyze`）、索引、検証の段階1（`check`）も通す。
 //! 行IDの付与（`scn fmt`）も、同じ入力で確かめる（足した部分のほかはバイトが変わらない、など）。
+//! Ren'Py への書き出し（`renpy`）も、同じ入力でパニックしないことを確かめる。
 
 mod support;
 
@@ -17,6 +18,7 @@ use scn_core::check::check as check_project;
 use scn_core::index::build_index;
 use scn_core::line_id::{LineIdGenerator, assign_line_ids};
 use scn_core::project::{MessageWindow, Project, SourceFile};
+use scn_core::renpy::{RenpyProfile, export_renpy};
 use scn_core::{DialogueBracket, ParseOptions, analyze, load_project, parse};
 
 /// 意味系のfixtureで使う共通のプロジェクト。本文だけを差し替えて、意味解析とIRも通す。
@@ -24,6 +26,10 @@ static PROJECT: LazyLock<Project> = LazyLock::new(|| {
     load_project(&PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/project"))
         .expect("共通のプロジェクトを読めない")
 });
+
+fn fixture_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/project")
+}
 
 fn options() -> ParseOptions {
     ParseOptions {
@@ -79,6 +85,10 @@ fn check(source: &str) {
             support::assert_span_ok(source, diag.span, diag.code);
         }
     }
+
+    // Ren'Py への書き出し（定義のファイルは必ず書く）。
+    let export = export_renpy(&windowed, &fixture_root(), &ir, &RenpyProfile::default());
+    assert!(!export.files.is_empty());
 
     check_line_ids(&project);
 }

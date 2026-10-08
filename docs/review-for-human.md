@@ -11,6 +11,14 @@
 
 | No | タスク | 判断 | 決めた案（推奨） | ほかの案 | 決定 |
 | --- | --- | --- | --- | --- | --- |
+| R48 | T2-2 | 書き出したゲームとプレビューの違い（実行時の誤り、選べる選択肢の無い `menu`、真偽の見え方） | 0での割り算などの実行時の誤りは Ren'Py の例外の画面にする（型の誤りは `scn check` で前もって分かる）。すべて条件付きの選択肢がどれも選べないときと、選択肢の無い `@選択` は、行き止まりとして止まる。真偽の埋め込みはプレビューと同じく `true`・`false` | 実行時の誤りもプレビューと同じく条件を偽にする（式ごとに try で包む） | D053 |
+| R47 | T2-2 | 書き出しを Ren'Py で確かめる方法 | `scripts/renpy-check`（macOS。SDK を使い、両サンプルを lint し、Ren'Py の testcase で全エンディングまで自動で遊ぶ。ゲームの窓が短い間開く）。`scripts/check-all` には入れない（SDK が要るため） | 人が遊ぶだけにする | D053 |
+| R46 | T2-2 | マクロ（`docs/design.md`「エンジン側の調整は `@raw` とマクロで吸収する」） | フェーズ2では作らない。知らないディレクティブ（W401）は書き出さずにコメントにして知らせる。エンジン側の調整は `@raw renpy` で書く | 最小のマクロ（`@マクロ名` を `export/macros.yaml` の文に置き換える）を作る | D053 |
+| R45 | T2-2 | エンディングと行き止まり | `@エンディング` の既定は `$ renpy.full_restart()`（タイトルへ戻る。計画の例の `return` は `@呼出` の中では呼び出し元へ戻ってしまうため）。プロファイルの `ending` で変えられる。Ren'Py のラベルは次のラベルへ進むので、出口の無い経路が残るシーン（W503）と存在しないシーンへのジャンプ（E501）は「（行き止まり：…）」を見せてタイトルへ戻る | `return`／何もしない（次のラベルへ進んでしまう） | D053 |
+| R44 | T2-2 | 書き出し先と、`gui.rpy` の無いプロジェクト | 既定は作品フォルダの `export/renpy/`。`game/scn/` だけを毎回作り直す（書き出したものの印が無ければ消さずに止める）。そのまま Ren'Py で起動できるよう、`gui.rpy` の無いプロジェクトでは画面の大きさと Ren'Py の既定の画面を設定する。ランチャーで作ったプロジェクトへも書き出せる（`-o`、`start_label: false`） | ランチャーで作ったプロジェクトへの書き出しだけにする／GUI のひな形まで書き出す | D053 |
+| R43 | T2-2 | 日本語のフォント | プロファイルの `font` に書いたファイルを `game/scn/fonts/` に写し、読めるときだけ使う（無くても起動は止まらない）。サンプルは `font: SourceHanSansLite.ttf` と書き、ファイルは置かない（書き出し先の `game/` に Ren'Py の SDK の `sdk-fonts/` から置く。`scripts/renpy-check` は自動で置く） | フォントをサンプルに入れる（約7MB）／SDK の場所を探して使う | D053 |
+| R42 | T2-2 | 素材のファイル | カタログのファイルを `game/scn/` の下へ写す（Ren'Py のプロジェクトだけで動くように）。ファイルの無い画像は名前入りの色の矩形、ファイルの無い音は鳴らさない（コメント）。ボイスは `voice.pattern` のファイルが `assets/` にある台詞だけ | 作品フォルダのファイルを参照する（Ren'Py は `game/` の外を読めない） | D053 |
+| R41 | T2-2 | 出力プロファイルの誤り | 値の誤りは読み飛ばして既定で書き出し、書き出しのときに知らせる（`scn check` の診断コードは足さない）。知らないキーは、作品フォルダのほかのファイルと同じく黙って読み飛ばす | 診断コード（E8xx）を足して `scn check` で出す | D053 |
 | R40 | T1-13 | フェーズ2の計画（`docs/plan/phase2.md`） | 草案のまま進める（T2-2 Ren'Pyへの書き出しから）。違う線引きにしたいものがあれば伝えてほしい | 人の確認を待つ | D052 |
 | R39 | T1-13 | フェーズ1のゲートの条件2（2OSのIMEテスト）が未確認 | 確認待ちのままフェーズ2へ進む（見つかった問題は T2-1 で直す） | 確認まで止まる | D052 |
 | R38 | T1-13 | ゲートの短編を誰が書くか、どこに置くか | Claude Code が作品フォルダの手順どおりに書き（「雨宿りの駅」）、`samples/amayadori/` に置く。人が書いて確かめるのは H7 | 人が書くまで止まる | D052 |
@@ -56,6 +64,7 @@
 
 | No | タスク | 確かめること | 手順 | 結果 |
 | --- | --- | --- | --- | --- |
+| H9 | T2-2 | 書き出した Ren'Py のプロジェクトを、人が Ren'Py で起動して最後まで遊べる（houkago：灯と紬のエンディング、amayadori：3つのエンディング）。日本語が出ること、台詞の括弧・ルビ・傍点・`{p}`・文中の効果音の見え方、仮素材の見え方、選択肢、エンディングでタイトルへ戻ること。アプリの「出力」の画面の Ren'Py の「書き出す」でも書き出せること | `scn export renpy samples/amayadori`（書き出し先は `samples/amayadori/export/renpy`）。Ren'Py の SDK の `sdk-fonts/SourceHanSansLite.ttf` を書き出し先の `game/` に写し、Ren'Py のランチャーで「プロジェクトの場所」を `samples/amayadori/export` にして `renpy` を起動する（または `/Applications/renpy-8.5.2-sdk/renpy.sh samples/amayadori/export/renpy`）。houkago も同じ。できれば、Ren'Py のランチャーで作ったプロジェクト（日本語）にも `scn export renpy samples/amayadori -o <そのフォルダ>` で書き出し、ランチャーが作った `game/script.rpy`（`label start` を持つ）を消して起動する。自動の確認は `scripts/renpy-check` で通っている | 未 |
 | H8 | T1-13 | Windowsで、T1-6〜T1-11 の画面（開く・作る・保存・外部の変更、執筆表示とソース表示、入力補助、フロー、設定DBと変数、プレビュー、出力）を確かめる。`scn` を入れ（`cargo install --locked --path crates/scn-cli`）、作品フォルダの手順（`CLAUDE.template.md` の進め方）どおりに PowerShell で `scn check`・`fmt`・`graph`・`export script` が使えること。`docs/plan/ime-test.md` の必須項目（18〜27を含む）を W1 で | `docs/plan/phase1.md` の T1-13 の手順3 | 未 |
 | H7 | T1-13 | 人が新しい作品フォルダで、分岐のある短編を書いてみて、道具が足りるか（足りない機能、誤った診断、台詞の判定の誤り、遅さ）。あわせて、Claude Code が書いた `samples/amayadori/` を読み、プレビューで3つのエンディングまで遊んでみる | `scn new <フォルダ>` で作り、アプリ（`SCN_DEV_PROJECT=<フォルダ> pnpm -C app tauri dev`）と Claude Code で書く。困ったことを伝えてほしい | 未 |
 | H6 | T1-12 | サンプルの台本の列と中身を見る（完了条件「人が列と中身を見た」）。Excel（Windows と macOS）で文字化けせずに開け、複数行の台詞が1つの欄に入ること。行IDの列が数に変わらないか（R37） | `cargo run -p scn-cli -- export script samples/houkago -o <置き場所>/script.csv` で書き出して開く（スナップショットは `crates/scn-core/tests/snapshots/script__houkago.snap`）。アプリでは、サンプルの複製を `SCN_DEV_PROJECT=<複製> pnpm -C app tauri dev` で開いて左端のバーの「出力」（サンプルそのものに書き出さない） | 未 |

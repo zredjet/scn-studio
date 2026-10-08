@@ -1000,3 +1000,43 @@ fn export_script() {
     assert_eq!(scn(&["export", "script", "story"], &dir).code, 2);
     let _ = fs::remove_dir_all(&dir);
 }
+
+/// `scn export renpy`：書き出し先（既定はプロファイルの output）の game/scn/ を作り、書き出し先とファイルの
+/// 数を出す。知らせとプロファイルの誤りは標準エラー。終了コードはエラーの診断で決まる。
+#[test]
+fn export_renpy() {
+    let dir = std::env::temp_dir().join(format!("scn-cli-renpy-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    copy_dir(&repo_root().join("samples/amayadori"), &dir);
+    let _ = fs::remove_dir_all(dir.join("export/renpy"));
+    let out = scn(&["export", "renpy"], &dir);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    assert!(out.stdout.contains("renpy（4ファイル）"), "{}", out.stdout);
+    assert!(
+        out.stderr.contains("SourceHanSansLite.ttf"),
+        "{}",
+        out.stderr
+    );
+    let story = fs::read_to_string(dir.join("export/renpy/game/scn/story_chapter02.rpy")).unwrap();
+    assert!(story.contains("label s07:"), "{story}");
+    // 書き出し先を指定する。プロファイルの誤りは知らせて、既定で書き出す。
+    fs::write(dir.join("export/renpy.yaml"), "output: ../x\n").unwrap();
+    let out = scn(&["export", "renpy", ".", "-o", "out/rp"], &dir);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    assert!(dir.join("out/rp/game/scn/scn_defs.rpy").exists());
+    assert!(
+        out.stderr
+            .contains("export/renpy.yaml：output は作品フォルダの中を指す"),
+        "{}",
+        out.stderr
+    );
+    // 人の置いた game/scn/ は消さずに止める（2）。
+    fs::create_dir_all(dir.join("mine/game/scn")).unwrap();
+    fs::write(dir.join("mine/game/scn/a.rpy"), "# mine\n").unwrap();
+    let out = scn(&["export", "renpy", ".", "-o", "mine"], &dir);
+    assert_eq!(out.code, 2, "{}", out.stderr);
+    assert!(dir.join("mine/game/scn/a.rpy").exists());
+    // 作品フォルダでなければ2。
+    assert_eq!(scn(&["export", "renpy", "story"], &dir).code, 2);
+    let _ = fs::remove_dir_all(&dir);
+}

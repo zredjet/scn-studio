@@ -282,3 +282,18 @@ export function scriptSheet(): Promise<ScriptSheet> {
 export function exportScript(): Promise<{ path: string; rows: number }> {
   return invoke<{ path: string; rows: number }>("export_script");
 }
+
+/** Ren'Py の書き出しの結果（`export_renpy`）。 */
+export interface RenpyResult {
+  /** 書き出し先（Ren'Py のプロジェクトのフォルダ）。 */
+  readonly path: string;
+  readonly files: number;
+  /** 知らせ（仮素材、対応の無いトランジション、行き止まり、フォントなど）。 */
+  readonly warnings: readonly string[];
+  /** 出力プロファイル（export/renpy.yaml）の誤り。読み飛ばして書き出した。 */
+  readonly problems: readonly string[];
+}
+
+export function exportRenpy(): Promise<RenpyResult> {
+  return invoke<RenpyResult>("export_renpy");
+}

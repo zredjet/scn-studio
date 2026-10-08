@@ -1,0 +1,59 @@
+---
+source: crates/scn-core/tests/renpy.rs
+expression: "text_of(&export, \"game/scn/story_a.rpy\")"
+---
+# scn-studio が .scn から書き出したファイル。手で直さない（書き出すたびに作り直す）。
+
+# start 始まり
+label s_start:
+    $ _scn_value_1 = (flag_勇気 * 2)
+    menu:
+        "[_scn_value_1!q]回目"
+        "行く" if False:
+            jump s_001
+        "待つ" if (flag_勇気 >= 2):
+            jump s_001
+        "黙る":
+            pass
+    if (_scn_div(flag_勇気, 2) > 0):
+        pass
+    elif (not persistent.周回_解放):
+        "　地の文。"
+    else:
+        $ persistent.周回_解放 = True
+    call sub
+    $ flag_未宣言 += 1
+    $ flag_選択_ = 1
+    # 選択肢の無い @選択（E106）
+    "（行き止まり：選択肢がありません）"
+    $ renpy.full_restart()
+    if not ((flag_勇気 >= 3) or False):
+        "（行き止まり：選べる選択肢がありません）"
+        $ renpy.full_restart()
+    menu:
+        "勇者なら" if (flag_勇気 >= 3):
+            jump sub
+        "崩れた" if False:
+            jump sub
+    "（行き止まり：存在しないシーン nowhere）"
+    $ renpy.full_restart()
+
+# 001 番号
+label s_001:
+    $ a = 1
+    if a:
+        $ a = 2
+    # @raw tyrano（読み飛ばし）
+    # @ふしぎ（知らないディレクティブ）
+    "（行き止まり：001 番号（スタブ））"
+    $ renpy.full_restart()
+
+# sub 呼ばれる
+label sub:
+    return
+
+# s9 行き止まり
+label s9:
+    "地の文だけ。"
+    "（行き止まり：s9 行き止まり）"
+    $ renpy.full_restart()

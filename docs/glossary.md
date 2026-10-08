@@ -135,7 +135,9 @@
 | 自動選択 | auto choice | 選択肢を1番目かランダムで選ぶ |
 | トランジション | transition | 背景や立ち絵の切り替え方（プレビューはフェードだけ再現） |
 | エクスポート | export | エンジン用ファイルなどへの書き出し |
-| 出力プロファイル | export profile | `export/*.yaml` |
+| 出力プロファイル | export profile | `export/*.yaml`（Ren'Py は `export/renpy.yaml`、`RenpyProfile`） |
+| Ren'Py への書き出し | Ren'Py export | `scn export renpy`。書き出し先の `game/scn/` を作り直す（`renpy::export_renpy`） |
+| 書き出し先 | output | 書き出すフォルダ（Ren'Py は既定で `export/renpy`） |
 | 台本 | script sheet | 収録・校正用の表（`export/script.csv`。`scn export script`） |
 | ボイスファイル名 | voice file name | `キャラID_行ID`（拡張子なし） |
 | 直前の地の文 | preceding narration | 台本の列。同じシーンで、その台詞より前のいちばん近い地の文 |

@@ -1,0 +1,202 @@
+---
+source: crates/scn-core/tests/renpy.rs
+expression: "dump(&root, &export, &problems)"
+---
+==== game/scn/scn_defs.rpy
+# scn-studio が .scn から書き出したファイル。手で直さない（書き出すたびに作り直す）。
+
+init -1 python:
+    def _scn_div(a, b):
+        q = abs(a) // abs(b)
+        return q if (a < 0) == (b < 0) else -q
+
+    if not hasattr(gui, "text_font"):
+        config.screen_width = 1280
+        config.screen_height = 720
+        layout.defaults()
+        style.menu_window.yalign = 0.45
+
+init python:
+    if renpy.loadable("SourceHanSansLite.ttf"):
+        style.default.font = "SourceHanSansLite.ttf"
+
+define akari = Character("灯", what_prefix="「", what_suffix="」")
+define minato = Character("湊", what_prefix="「", what_suffix="」")
+define miura = Character("三浦先生", what_prefix="「", what_suffix="」")
+define tsumugi = Character("紬", what_prefix="「", what_suffix="」")
+define akari_thought = Character("灯", kind=akari, what_prefix="『", what_suffix="』")
+
+default flag_勇気 = 0
+default flag_ルート = "共通"
+default akari_好感度 = 0
+default akari_転校済み = False
+default tsumugi_好感度 = 0
+default persistent.周回_トゥルー解放 = False
+
+image bg ph_9ef9c0 = Composite((1280, 720), (0, 0), Solid("#30695e"), (40, 40), Text("背景：屋上/夕方（仮素材）", size=36))
+image bg ph_6ef666 = Composite((1280, 720), (0, 0), Solid("#56666e"), (40, 40), Text("背景：屋上/夜（仮素材）", size=36))
+image bg ph_4dbc26 = Composite((1280, 720), (0, 0), Solid("#566c4d"), (40, 40), Text("背景：帰り道/夕方（仮素材）", size=36))
+image bg ph_fe29c1 = Composite((1280, 720), (0, 0), Solid("#31597e"), (40, 40), Text("背景：教室/昼（仮素材）", size=36))
+image bg ph_8c9059 = Composite((1280, 720), (0, 0), Solid("#49404c"), (40, 40), Text("背景：灯の家/朝（仮素材）", size=36))
+image bg ph_a16472 = Composite((1280, 720), (0, 0), Solid("#625461"), (40, 40), Text("背景：通学路/朝（仮素材）", size=36))
+image bg ph_fa78a2 = Composite((1280, 720), (0, 0), Solid("#52687a"), (40, 40), Text("背景：駅/夕方（仮素材）", size=36))
+image akari ph_abec96 = Composite((384, 612), (0, 0), Solid("#595069"), (12, 12), Text("灯：照れ（仮素材）", size=28))
+image akari ph_3734ec = Composite((384, 612), (0, 0), Solid("#595069"), (12, 12), Text("灯：真顔（仮素材）", size=28))
+image akari ph_b605b6 = Composite((384, 612), (0, 0), Solid("#595069"), (12, 12), Text("灯：笑顔（仮素材）", size=28))
+image tsumugi ph_d913ac = Composite((384, 612), (0, 0), Solid("#59697f"), (12, 12), Text("紬：真顔（仮素材）", size=28))
+image tsumugi ph_9ffd76 = Composite((384, 612), (0, 0), Solid("#59697f"), (12, 12), Text("紬：笑顔（仮素材）", size=28))
+==== game/scn/scn_start.rpy
+# scn-studio が .scn から書き出したファイル。手で直さない（書き出すたびに作り直す）。
+
+label start:
+    jump s010
+==== game/scn/story_chapter01.rpy
+# scn-studio が .scn から書き出したファイル。手で直さない（書き出すたびに作り直す）。
+
+# s010 登校
+label s010:
+    scene bg ph_a16472
+    # BGM 日常（ファイルが無いので鳴らさない）
+    stop music
+    "　坂道の途中で、後ろから鞄がぶつかってきた。"
+    akari "おはよ、湊。今日も眠そうだね"
+    minato "灯が元気すぎるんだよ"
+    show akari ph_b605b6 at center
+    akari "ひどいなあ。元気なのは、わたしの数少ない取り柄なのに"
+    "　そう言って笑う顔に、昨日までと違うところは見つからなかった。"
+    jump s011
+
+# s011 昼休みの教室
+label s011:
+    scene bg ph_fe29c1
+    show tsumugi ph_d913ac at right
+    tsumugi "湊くん。灯ちゃん、最近なにか言ってた？"
+    minato "なにかって？"
+    tsumugi "……ううん、なんでもない"
+    hide tsumugi
+    # SE チャイム（ファイルが無いので鳴らさない）
+    "　五限の予鈴が鳴った。机の中に、二つ折りのメモが入っていた。"
+    "　{rb}放{/rb}{rt}﹅{/rt}{rb}課{/rb}{rt}﹅{/rt}{rb}後{/rb}{rt}﹅{/rt}{rb}、{/rb}{rt}﹅{/rt}{rb}屋{/rb}{rt}﹅{/rt}{rb}上{/rb}{rt}﹅{/rt}{rb}で{/rb}{rt}﹅{/rt}。丸い字は、灯のものだった。"
+    menu:
+        "屋上へ行くか"
+        "すぐに行く":
+            $ flag_勇気 += 1
+            $ akari_好感度 += 2
+        "少し迷ってから行く":
+            $ akari_好感度 += 1
+    jump s012
+
+# s012 放課後の屋上
+label s012:
+    scene bg ph_9ef9c0 with fade
+    # BGM 切ない（ファイルが無いので鳴らさない）
+    stop music
+    show akari ph_b605b6 at left
+    # SE 風（ファイルが無いので鳴らさない）
+    $ renpy.music.set_volume(0.6, channel="music")
+    akari "やっと来た。遅いよ"
+    "　風が強くて、灯の髪が{rb}乱{/rb}{rt}みだ{/rt}れていた。"
+    akari "あのね、{w=0.5}話があるんだ"
+    show akari ph_3734ec
+    akari_thought "……やっぱり、言えないかも"
+    menu:
+        "どう答える"
+        "「ごめん、遅くなって」":
+            $ akari_好感度 += 1
+        "黙ってうなずく" if (flag_勇気 >= 2):
+            akari "……そういうところ、ずるいよね。昔からずっとそうだった。言わなくても分かってくれるって、私が勝手に思ってるだけなのに。だから今日も、言えないまま来ちゃった"
+            jump s014
+    if (akari_好感度 >= 3):
+        akari "やっぱり、君には言っておく"
+        jump s013a
+    else:
+        jump s013b
+
+# s013a 打ち明ける
+label s013a:
+    show akari ph_3734ec at center
+    stop music
+    akari "わたし、夏休みが終わったら、転校するんだ"
+    "　風の音だけが、しばらく続いた。"
+    $ flag_ルート = "灯"
+    jump s020
+
+# s013b 帰り道
+# AI下書き（status: ai-draft）
+label s013b:
+    scene bg ph_4dbc26
+    # BGM 切ない（ファイルが無いので鳴らさない）
+    stop music
+    "　結局、灯は何も言わなかった。"
+    "　校門を出たところで、見慣れた後ろ姿が待っていた。"
+    show tsumugi ph_9ffd76 at center
+    tsumugi "湊くん、一緒に帰ろ"
+    $ tsumugi_好感度 += 1
+    $ flag_ルート = "紬"
+    jump s030
+
+# s014 沈黙のあと
+label s014:
+    "（行き止まり：s014 沈黙のあと（スタブ））"
+    $ renpy.full_restart()
+
+==== game/scn/story_chapter02.rpy
+# scn-studio が .scn から書き出したファイル。手で直さない（書き出すたびに作り直す）。
+
+# s020 灯の家の前
+label s020:
+    scene bg ph_8c9059
+    "　灯の家の前に、段ボールが積まれていた。"
+    akari "見られちゃったか"
+    jump s021
+
+# s021 屋上の約束
+# AI下書き（status: ai-draft）
+label s021:
+    scene bg ph_6ef666
+    show akari ph_abec96 at center
+    akari "じゃあ約束。夏休みまで、毎日ここで"
+    "　灯は髪留めに触れながら、小さく笑った。"
+    jump s022
+
+# s022 雨の図書室
+label s022:
+    jump s040
+
+# s040 見送り
+label s040:
+    scene bg ph_fa78a2
+    # BGM 切ない（ファイルが無いので鳴らさない）
+    stop music
+    akari "またね、湊。" (what_suffix="")
+    akari "……またね{w=1}" (what_prefix="")
+    $ akari_転校済み = True
+    # エンディング akari_end
+    $ renpy.full_restart()
+
+==== game/scn/story_chapter03.rpy
+# scn-studio が .scn から書き出したファイル。手で直さない（書き出すたびに作り直す）。
+
+# s030 紬と帰る
+label s030:
+    if (tsumugi_好感度 >= 1):
+        jump s060
+    else:
+        jump s061
+
+# s060 紬エンド
+label s060:
+    # エンディング tsumugi_end
+    $ renpy.full_restart()
+
+# s061 すれ違い
+label s061:
+    # エンディング bad_end
+    $ renpy.full_restart()
+
+==== warnings
+ファイルの無い画像が 12 個あります（名前入りの色の矩形にしました）
+ファイルの無い音が 4 個あります（鳴らさずに、コメントを書きました）
+出口の無い経路が残るシーンが 1 個あります（W503）。終わりで知らせてタイトルへ戻るようにしました
+フォント SourceHanSansLite.ttf が見つからないので、写していません。書き出し先の game/ に SourceHanSansLite.ttf を置くと使います
+==== profile

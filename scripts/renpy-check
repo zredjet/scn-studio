@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# サンプル（houkago、amayadori）を Ren'Py へ書き出し、Ren'Py の SDK で lint し、自動プレイ（testcase）で
+# すべてのエンディングまで進めることを確かめる（macOS用。T2-2、D053）。
+# 自動プレイはゲームのウィンドウを短い間開く（画面の無い設定では Ren'Py のテストが進まない）。
+#
+# 使い方：scripts/renpy-check [Ren'Py の SDK のフォルダ]
+#   SDK は、引数、環境変数 RENPY_SDK、/Applications/renpy-8.5.2-sdk の順に探す。
+#   書き出し先は target/renpy-check/<サンプル名>。日本語のフォントは SDK の sdk-fonts/ から写す。
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+sdk="${1:-${RENPY_SDK:-/Applications/renpy-8.5.2-sdk}}"
+if [[ ! -x "$sdk/renpy.sh" ]]; then
+  echo "Ren'Py の SDK が見つかりません：$sdk" >&2
+  exit 2
+fi
+
+cargo build -q -p scn-cli
+scn="target/debug/scn"
+
+for name in houkago amayadori; do
+  printf '\n==> %s\n' "$name"
+  out="target/renpy-check/$name"
+  rm -rf "$out"
+  "$scn" export renpy "samples/$name" -o "$out"
+  if [[ -f "$sdk/sdk-fonts/SourceHanSansLite.ttf" ]]; then
+    cp "$sdk/sdk-fonts/SourceHanSansLite.ttf" "$out/game/"
+  fi
+
+  # lint は誤りがあっても0で終わるので、誤りの行（game/…）が無いことを確かめる。
+  "$sdk/renpy.sh" "$out" lint > "$out/lint.txt" 2>&1
+  if grep -q '^game/' "$out/lint.txt"; then
+    cat "$out/lint.txt" >&2
+    echo "lint で誤りが見つかりました：$name" >&2
+    exit 1
+  fi
+  echo "lint：誤りなし"
+
+  cp scripts/renpy/common.rpy "$out/game/zz_scn_test_common.rpy"
+  cp "scripts/renpy/$name.rpy" "$out/game/zz_scn_test.rpy"
+  RENPY_PERFORMANCE_TEST=0 SDL_AUDIODRIVER=dummy \
+    "$sdk/renpy.sh" "$out" test global --report-detailed > "$out/test.txt" 2>&1 &
+  pid=$!
+  for _ in $(seq 1 300); do
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 1
+  done
+  if kill -0 "$pid" 2>/dev/null; then
+    pkill -f "renpy $out test" || true
+    echo "自動プレイが終わりません：$name" >&2
+    exit 1
+  fi
+  wait "$pid" || true
+  grep -E '^\[rpytest\] +(PASSED|FAILED|XFAIL)' "$out/test.txt" || true
+  if ! grep -q 'Status: PASSED' "$out/test.txt"; then
+    cat "$out/test.txt" >&2
+    echo "自動プレイが失敗しました：$name" >&2
+    exit 1
+  fi
+done
+
+printf '\nRen'"'"'Py の書き出しの確認がすべて通りました\n'

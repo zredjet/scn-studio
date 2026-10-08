@@ -1,0 +1,10 @@
+# Ren'Py向けの出力プロファイル（scn export renpy、アプリの「出力」）
+target: renpy
+images:
+  背景: "bg {file_stem}"
+  立ち絵: "{char_id} {expr_stem}"
+positions:   { 左: left, 中: center, 右: right }
+transitions: { フェード: fade, 即時: None }
+fx:          { 暗転: "with Fade(0.2, 0.6, 0.4)" }
+# 日本語のフォント。作品フォルダに無いので、書き出し先の game/ に置く（Ren'Py の SDK の sdk-fonts/ にある）
+font: SourceHanSansLite.ttf

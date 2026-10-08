@@ -23,6 +23,7 @@ use scn_core::ir::{Edge, IrDiagnostic, IrMeta};
 use scn_core::layout::{Point, read_layout as read_layout_file};
 use scn_core::line_id::LineIdGenerator;
 use scn_core::preview;
+use scn_core::renpy;
 use scn_core::scaffold::create_project as scaffold_project;
 use scn_core::script;
 use scn_core::workspace::{Change, SaveOutcome, Workspace};
@@ -589,6 +590,34 @@ fn export_script(state: State<'_, AppState>) -> Result<Response, String> {
     }))
 }
 
+/// Ren'Py のスクリプトを、出力プロファイル（`export/renpy.yaml`）に従って書き出す（`scn export renpy` と
+/// 同じ。D053）。保存していない本文も含める。書き出し先、ファイルの数、知らせ、プロファイルの誤りを返す。
+#[tauri::command]
+fn export_renpy(state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let (project, root) = (workspace.project(), workspace.root());
+    let (profile, problems) = renpy::read_profile(root);
+    let export = thread::scope(|scope| {
+        thread::Builder::new()
+            .name("renpy".into())
+            .stack_size(ANALYZE_STACK_SIZE)
+            .spawn_scoped(scope, || {
+                renpy::export_renpy(project, root, &analyze(project), &profile)
+            })
+            .map_err(|e| format!("解析のスレッドを作れません：{e}"))?
+            .join()
+            .map_err(|_| "解析が途中で止まりました".to_owned())
+    })?;
+    let path = renpy::write_renpy(root, &profile, &export, None).map_err(|e| e.to_string())?;
+    json_response(&json!({
+        "path": path.display().to_string(),
+        "files": export.files.len(),
+        "warnings": export.warnings,
+        "problems": problems,
+    }))
+}
+
 /// 大きなスタックのスレッドで解析して索引を作り、`f` に渡す（IRはこのスレッドの中で捨てる）。
 fn with_index<T: Send>(
     project: &Project,
@@ -938,6 +967,7 @@ pub fn run() {
             preview_data,
             script_sheet,
             export_script,
+            export_renpy,
             scene_graph,
             read_layout,
             write_layout,

@@ -2103,6 +2103,28 @@ body {
   font-size: 12.5px;
 }
 
+.export-card + .export-card {
+  margin-top: 0;
+}
+
+.export-info {
+  padding: 8px 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-item);
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.export-list-head {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+.export-list {
+  margin: 0;
+  padding-left: 1.4em;
+}
+
 .export-table td.export-text {
   min-width: 220px;
   white-space: pre-wrap;

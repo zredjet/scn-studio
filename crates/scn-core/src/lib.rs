@@ -43,6 +43,7 @@ mod line;
 pub mod line_id;
 pub mod preview;
 pub mod project;
+pub mod renpy;
 pub mod scaffold;
 pub mod script;
 mod sema;

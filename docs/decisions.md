@@ -555,3 +555,20 @@
   - フェーズ2の計画は `docs/plan/phase2.md` の草案で進める。ゲートは「書き出したRen'Pyのプロジェクトが起動し、最後まで遊べる」（`docs/design.md` のロードマップ）と、フェーズ1から持ち越した人の確認。タスクは T2-1（人の確認の取り込み）〜T2-11（ゲート判定とフェーズ3の計画）。ゲートに直結する Ren'Py への書き出し（T2-2）を最初に行う。
 - 理由：人が戻るまで止まらずに進めるという指示のため。人の確認でしか分からないこと（IME、実機の見た目、人が書いたときの使い心地）は、記録して後から取り込める形にした。
 - 影響：`samples/amayadori/`（新規。`CLAUDE.template.md`、`README.md`）、`crates/scn-core/templates/concept.md`（エンディングの書き方の例を足した）、`docs/plan/phase2.md`（新規）、`CLAUDE.md`、`README.md`、`.claude/rules/spec-and-samples.md`、`docs/plan/phase1.md` の状態、`docs/progress.md`、テスト（`crates/scn-core/tests/preview.rs`、`app/test/preview.test.ts`）。
+
+## D053 Ren'Py への書き出し（2026-10-08）
+
+- 決定：
+  - コアの `renpy` モジュールが、IRを出力プロファイル（`export/renpy.yaml`）に従って Ren'Py のスクリプトにする（台本の `script` と同じく、出力ごとにモジュールを分ける）。CLI は `scn export renpy [project-dir] [-o 書き出し先]`、アプリは「出力」の画面の Ren'Py のカード（保存していない本文も含める）。終了コードは `export script` と同じ（書き出し先の `game/scn/` が書き出したものでなければ2）。
+  - プロファイルの形は `docs/spec/project-files.md` の11節。設計検討書の例（`images`・`positions`・`transitions`・`fx`・`voice`）に、`output`・`ending`・`variables`・`characters`・`font`・`start_label` を足した。値の誤りは読み飛ばして既定で書き出し、書き出しのときに知らせる（`scn check` の診断にはしない。書き出しのときだけ読むため）。知らないキー（フェーズ3の `command` など）は黙って読み飛ばす（作品フォルダの規約）。
+  - 書き出し先（既定は作品フォルダの `export/renpy/`）の `game/scn/` だけを毎回消して作り直し、`game/` のほかのファイルには触れない。`game/scn/` があって書き出したもの（`scn_defs.rpy` の1行目の印）でなければ、消さずに止める。
+  - 素材はカタログのファイルを `game/scn/` の下へ写す（Ren'Py は `game/` の外を読めないため）。ファイルの無い画像は名前入りの色の矩形（`Composite`）、ファイルの無い音は鳴らさない（コメント）。ボイスは `voice.pattern` のファイルが `assets/` の中にある台詞だけ。
+  - そのまま起動できるよう、`gui.rpy` の無いプロジェクト（`gui.text_font` が無いことで見分ける）では、画面の大きさ（`[screen]`）と Ren'Py の既定の画面（`layout.defaults()`）を設定し、選択肢の窓を画面の中ほどに出す。`gui.init` は既定の窓のスタイルを消すので呼ばない。フォントはプロファイルの `font` を写し、`renpy.loadable` で読めるときだけ使う（無くても起動は止まらない）。
+  - `.scn` のシーンの終わりは次のシーンへ進まない（仕様書13節）が、Ren'Py のラベルは次へ進むので、出口の無い経路が残るシーン（W503）の終わりと、存在しないシーンへのジャンプ（E501）では「（行き止まり：…）」を見せてタイトルへ戻る。`@エンディング` の既定は `$ renpy.full_restart()`（計画の例の `return` は、`@呼出` の中では呼び出し元へ戻ってしまう）。
+  - 台詞の括弧は `Character` の `what_prefix`・`what_suffix`。`{p}` は次の say 文にして、括弧を最初と最後にだけ付ける（say 文の引数で外す）。`{se}` は `{nw}` で止めずに鳴らして `extend` で続ける（`extend` は元の say 文の引数を引き継ぐので、括弧を両方とも書く）。変数の埋め込みは `[名前!q]`（式は一時変数。真偽はプレビューと同じく `true`・`false`）。Ren'Py が特別に読む `[`・`{`・`%`・`【` は重ねる。そのほかの変換と名前の決め方は仕様の11節。
+  - Ren'Py の `menu` は選べる選択肢が無いと次の文へ進むので、選択肢がすべて条件付きの `@選択` は、どれも選べないときに `menu` の前で行き止まりとして止まる（プレビューと同じ）。選択肢の無い `@選択`（E106）は `menu` を書かずに行き止まりにする（空の `menu` は Ren'Py が読めず、プロジェクト全体が起動しなくなる）。
+  - 名前は Python の識別子の規則（Unicode の XID。判定に `unicode-ident` を使う）と、Ren'Py の名前の正規表現（基本面の文字だけ）に合わせる。整数の割り算は、`_scn_div`（定義のファイルの関数）で0の向きへ正確に切り捨てる。実行時の誤り（0での割り算など）は Ren'Py の例外になる（プレビューとは違う。型の誤りは `scn check` で前もって分かる）。
+  - マクロは作らない（W401 の知らないディレクティブは、コメントにして知らせる）。エンジン側の調整は `@raw renpy` で書く。
+  - 書き出しを Ren'Py で確かめる `scripts/renpy-check`（macOS）：サンプルを書き出し、SDK で lint し（lint は誤りでも0で終わるので、誤りの行の有無で判定）、Ren'Py の testcase（`scripts/renpy/*.rpy`）で全エンディングまで自動で遊ぶ。画面の無い設定（SDL の dummy）では Ren'Py のテストが進まないので、ゲームの窓を短い間開く。SDK が要るので `scripts/check-all` には入れない。
+- 理由：ゲート（書き出したプロジェクトが起動し、最後まで遊べる）を、人の手を入れずに起動できる形で満たすため。書き出したものを手で直さない運用（設計検討書）のため、作り直す範囲を `game/scn/` に限り、人のファイルを守る。プロファイルの誤りで書き出しを止めると、壊れたまま書ける（設計の原則4）に合わない。
+- 影響：`crates/scn-core/Cargo.toml`（`unicode-ident` を足した。`proc-macro2` が使っていて Cargo.lock には既にあった）、`crates/scn-core/src/renpy.rs`（新規）、`crates/scn-core/src/check.rs`（`falls_through` をクレートの中で使えるようにした）、`crates/scn-cli`（`export renpy`）、`app/src-tauri`（`export_renpy`）、`app/src/export/ExportScreen.tsx`、`app/src/core/api.ts`、`samples/houkago/export/renpy.yaml`（`font` を足した）、`samples/amayadori/export/renpy.yaml`（新規）、`scripts/renpy-check`・`scripts/renpy/`（新規）、`docs/spec/project-files.md` の1節・10節・11節、`.gitignore`、`CLAUDE.md` のコマンド。

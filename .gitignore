@@ -29,3 +29,7 @@ Thumbs.db
 # lezer-generator が作るファイル（pnpm run build で作り直す）
 packages/lezer-scn/src/parser.ts
 packages/lezer-scn/src/parser.terms.ts
+
+# サンプルの書き出し先（scn export を -o なしで実行したとき）
+samples/*/export/script.csv
+samples/*/export/renpy/
