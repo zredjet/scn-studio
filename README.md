@@ -2,15 +2,15 @@
 
 分岐する物語（ADV・ビジュアルノベル）のための執筆ツール。Tauri製のデスクトップアプリで、WindowsとmacOSを対象にする。
 
-Claude Code（Opus 5.5）で開発している。フェーズ0（形式を固める：形式仕様v0、パーサとIR、ハイライト、アプリの土台、日本語入力のテスト）を終え、フェーズ1（執筆の核）を進めている。
+Claude Code（Opus 5.5）で開発している。フェーズ0（形式を固める：形式仕様v0、パーサとIR、ハイライト、アプリの土台、日本語入力のテスト）とフェーズ1（執筆の核：エディタ、設定DB、構造グラフ、検証、簡易ADVプレビュー、台本の出力、CLI）を終え、フェーズ2（制作に使える）を進めている。フェーズ1のゲートの人の確認（2OSの日本語入力など）は、`docs/review-for-human.md` にまとめて確認を待っている。
 
 ## 始め方
 
 1. RustとNode.jsとpnpm、TauriのOS別の前提ソフトを入れる（各公式の最新の安定版）。
 2. このフォルダで `claude` を起動し、`/model` でOpus 5.5を選ぶ。
-3. `docs/progress.md` の「次のタスク」を見て、`/phase-task <タスクID>` と入力する（例：`/phase-task T1-2`）。タスクは `docs/plan/phase1.md` の順に進める。
+3. `docs/progress.md` の「次のタスク」を見て、`/phase-task <タスクID>` と入力する（例：`/phase-task T2-2`）。タスクは `docs/plan/phase2.md` の順に進める。
 
-詳しい進め方（1タスク1セッション、確認の入れ方、人の作業）は `docs/plan/phase0.md` と `docs/plan/phase1.md` にある。
+詳しい進め方（1タスク1セッション、確認の入れ方、人の作業）は `docs/plan/phase0.md`・`docs/plan/phase1.md`・`docs/plan/phase2.md` にある。
 
 ## 中身
 
@@ -26,11 +26,14 @@ Claude Code（Opus 5.5）で開発している。フェーズ0（形式を固め
 | `docs/glossary.md` | 用語集（日本語とコード上の名前の対応） |
 | `docs/decisions.md` | 決定記録 |
 | `docs/plan/phase0.md` | フェーズ0の作業手順（完了） |
-| `docs/plan/phase1.md` | フェーズ1の作業手順 |
+| `docs/plan/phase1.md` | フェーズ1の作業手順（完了。ゲートの人の確認を待っている） |
+| `docs/plan/phase2.md` | フェーズ2の作業手順（草案） |
+| `docs/review-for-human.md` | 人の指示で推奨案で決めたことと、人の環境でしか確かめられないことの一覧（人が戻ったときに確かめる） |
 | `docs/plan/ime-test.md` | 日本語入力のテスト表 |
 | `docs/progress.md` | 進捗ログ（Claude Codeが更新する） |
 | `docs/ui/` | 画面の構成、デザイントークン、画面モック（`mockups/index.html`） |
 | `samples/houkago/` | サンプル作品「放課後の灯」。パーサの主要なテストデータ |
+| `samples/amayadori/` | フェーズ1のゲートの短編「雨宿りの駅」（T1-13。ツールとClaude Codeで書いた）。プレビューのテストの入力 |
 
 ## 元の資料
 

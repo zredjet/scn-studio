@@ -30,6 +30,17 @@ fn sample_preview_data() {
     insta::assert_snapshot!("houkago", json);
 }
 
+/// フェーズ1のゲートの短編（`samples/amayadori`。T1-13）のプレビューのデータ。フロントのテストが、選択肢だけで
+/// すべてのエンディングに着けることを確かめる。
+#[test]
+fn gate_story_preview_data() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples/amayadori");
+    let project = load_project(&root).unwrap();
+    let ir = analyze(&project);
+    let json = serde_json::to_string_pretty(&preview_data(&project, &root, &ir)).unwrap();
+    insta::assert_snapshot!("amayadori", json);
+}
+
 /// 変数の初期値：`default` を型どおりに読み、無いか合わなければ型の既定。
 #[test]
 fn initial_values() {

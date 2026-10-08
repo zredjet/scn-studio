@@ -1,0 +1,27 @@
+# 変数の宣言（FORMAT.md の作品フォルダの規約の3節）。キーは「名前空間.名前」。
+# 名前空間を省いた変数は flag に入る。キャラクターの変数は、キャラクターIDを名前空間にする。
+
+flag.話した:
+  type: bool
+  default: false
+  scope: save
+  desc: 待合室で遥人が志乃に話しかけたか
+
+shino.信頼:
+  type: int
+  default: 0
+  range: [0, 3]
+  scope: save
+  desc: 志乃が遥人に打ち明ける気持ちの強さ。夜明けの分岐に使う
+
+flag.傘:
+  type: bool
+  default: false
+  scope: save
+  desc: 遥人が志乃に傘を貸したか
+
+flag.残る:
+  type: bool
+  default: false
+  scope: save
+  desc: 遥人が「行かなくていい」と言ったか。もう一日のエンディングへ

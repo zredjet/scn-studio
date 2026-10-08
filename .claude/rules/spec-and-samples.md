@@ -23,6 +23,11 @@ paths:
 - テストを通すためにサンプルを書き換えない。サンプルの書き方が仕様と合っていない場合は、どちらを直すべきかを人に確認する。
 - 新しい構文を仕様に足したら、サンプルにもその使用例を1つ入れる。
 
+## ゲートの短編（samples/amayadori/）
+
+- フェーズ1のゲートで Claude Code が書いた短編（D052）。プレビューのテストが、選択肢だけで3つのエンディングすべてに着くことを確かめている。`scn check` はエラー・警告・情報とも0件にしておく。
+- 作品フォルダの指示書は `CLAUDE.template.md` の名前で置く（`CLAUDE.md` にすると、開発作業中に読み込まれる）。houkago と同じく、テストを通すために書き換えない。
+
 ## fixture（crates/scn-core/tests/fixtures/）
 
 - 1つのfixtureでは、1つの構文か1つの診断に絞る。ファイル名は内容が分かるようにする（例：`choice_unclosed.scn`、`dialogue_unknown_speaker.scn`）。

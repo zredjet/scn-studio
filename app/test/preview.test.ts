@@ -419,3 +419,59 @@ test("プレビューのデータ：画面とウィンドウの大きさ、括�
     "共通",
   );
 });
+
+/** 選択肢のすべての組み合わせをたどって、着けるエンディングを集める（選べない選択肢は選ばない）。 */
+function endingsByChoices(prog: Program): Set<string> {
+  const found = new Set<string>();
+  const walk = (from: State, depth: number) => {
+    let s = from;
+    for (let i = 0; i < 1000 && depth < 50; i++) {
+      const stop = s.stop;
+      if (stop.kind === "choice") {
+        for (const item of stop.items.filter((it) => it.enabled)) {
+          walk(choose(prog, s, item.index), depth + 1);
+        }
+        return;
+      }
+      if (stop.kind === "ending") {
+        found.add(stop.id ?? "");
+        return;
+      }
+      if (
+        stop.kind === "dead_end" ||
+        stop.kind === "missing_scene" ||
+        stop.kind === "no_caller"
+      ) {
+        return;
+      }
+      s = next(prog, s);
+    }
+  };
+  walk(start(prog, { includeAiDrafts: true }), 0);
+  return found;
+}
+
+test("ゲートの短編（samples/amayadori）：選択肢だけで、すべてのエンディングに着ける", () => {
+  const data = JSON.parse(snapshot("preview__amayadori")) as PreviewData;
+  const prog = programOf(data);
+  assert.deepEqual([...endingsByChoices(prog)].sort(), [
+    "bus_end",
+    "rain_end",
+    "stay_end",
+  ]);
+  // 誤りの知らせが出ないこと（akari_end の道筋と同じく、通して遊べる）。
+  const bus = play(prog, ["話しかける", "傘を差し出す"]);
+  assert.equal(
+    bus.state.stop.kind === "ending" ? bus.state.stop.id : null,
+    "bus_end",
+  );
+  assert.deepEqual(bus.state.warnings, []);
+  assert.ok(bus.scenes.includes("s90"), "@呼出 で構内放送を通る");
+});
+
+test("サンプル（samples/houkago）：選択肢だけで着けるエンディングは akari_end と tsumugi_end", () => {
+  assert.deepEqual([...endingsByChoices(PROG)].sort(), [
+    "akari_end",
+    "tsumugi_end",
+  ]);
+});

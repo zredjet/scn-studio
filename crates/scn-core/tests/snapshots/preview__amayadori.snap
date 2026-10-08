@@ -1,0 +1,2092 @@
+---
+source: crates/scn-core/tests/preview.rs
+expression: json
+---
+{
+  "ir": {
+    "ir_version": 1,
+    "start_scene": "s01",
+    "scenes": [
+      {
+        "id": "s01",
+        "title": "改札前",
+        "file": "story/chapter01.scn",
+        "span": [
+          24,
+          41
+        ],
+        "meta": {
+          "summary": "豪雨で最終列車が運休になる。遥人は待合室で夜を明かすことにする",
+          "status": "ai-draft",
+          "route": "共通",
+          "tags": [],
+          "extra": {}
+        },
+        "is_stub": false,
+        "ops": [
+          {
+            "kind": "bg",
+            "span": [
+              184,
+              199
+            ],
+            "name": "駅/夜",
+            "transition": null
+          },
+          {
+            "kind": "bgm",
+            "span": [
+              200,
+              211
+            ],
+            "name": "雨音"
+          },
+          {
+            "kind": "se",
+            "span": [
+              212,
+              219
+            ],
+            "name": "雷"
+          },
+          {
+            "kind": "narrate",
+            "span": [
+              221,
+              298
+            ],
+            "line_id": "rpashh",
+            "text": [
+              {
+                "kind": "text",
+                "text": "　雨は、駅舎のトタン屋根を休みなく叩いていた。"
+              }
+            ]
+          },
+          {
+            "kind": "narrate",
+            "span": [
+              299,
+              379
+            ],
+            "line_id": "vx7iqo",
+            "text": [
+              {
+                "kind": "text",
+                "text": "　改札の上の電光板から、最終列車の文字が消える。"
+              }
+            ]
+          },
+          {
+            "kind": "call",
+            "span": [
+              380,
+              391
+            ],
+            "target": "s90"
+          },
+          {
+            "kind": "say",
+            "span": [
+              392,
+              457
+            ],
+            "line_id": "l11zzp",
+            "speaker": "haruto",
+            "display_name": null,
+            "style": "thought",
+            "text": [
+              {
+                "kind": "text",
+                "text": "……歩いて帰れる距離じゃないな"
+              }
+            ]
+          },
+          {
+            "kind": "narrate",
+            "span": [
+              458,
+              559
+            ],
+            "line_id": "eqlgen",
+            "text": [
+              {
+                "kind": "text",
+                "text": "　ポケットの中の小銭を数えてから、遥人は待合室のドアを押した。"
+              }
+            ]
+          },
+          {
+            "kind": "se",
+            "span": [
+              560,
+              570
+            ],
+            "name": "ドア"
+          },
+          {
+            "kind": "jump",
+            "span": [
+              572,
+              578
+            ],
+            "target": "s02"
+          }
+        ]
+      },
+      {
+        "id": "s02",
+        "title": "待合室",
+        "file": "story/chapter01.scn",
+        "span": [
+          580,
+          597
+        ],
+        "meta": {
+          "summary": "待合室に、大きな鞄を持った少女がいる。話しかけるかどうか",
+          "status": "ai-draft",
+          "route": "共通",
+          "tags": [],
+          "extra": {}
+        },
+        "is_stub": false,
+        "ops": [
+          {
+            "kind": "bg",
+            "span": [
+              731,
+              765
+            ],
+            "name": "待合室/夜",
+            "transition": "フェード"
+          },
+          {
+            "kind": "show",
+            "span": [
+              766,
+              797
+            ],
+            "character": "shino",
+            "expression": "伏し目",
+            "position": "right",
+            "transition": null
+          },
+          {
+            "kind": "narrate",
+            "span": [
+              799,
+              873
+            ],
+            "line_id": "43t4h0",
+            "text": [
+              {
+                "kind": "text",
+                "text": "　ストーブの消えた待合室に、先客が一人いた。"
+              }
+            ]
+          },
+          {
+            "kind": "narrate",
+            "span": [
+              874,
+              972
+            ],
+            "line_id": "5533gu",
+            "text": [
+              {
+                "kind": "text",
+                "text": "　同じくらいの年の少女が、膝の上に大きな旅行鞄を抱えている。"
+              }
+            ]
+          },
+          {
+            "kind": "narrate",
+            "span": [
+              973,
+              1056
+            ],
+            "line_id": "bz752o",
+            "text": [
+              {
+                "kind": "text",
+                "text": "　鞄には、隣の県の住所が書かれた札が下がっていた。"
+              }
+            ]
+          },
+          {
+            "kind": "choice",
+            "span": [
+              1058,
+              1086
+            ],
+            "line_id": "769588",
+            "prompt": [
+              {
+                "kind": "text",
+                "text": "どうする"
+              }
+            ],
+            "options": [
+              {
+                "span": [
+                  1087,
+                  1119
+                ],
+                "line_id": "8me075",
+                "text": [
+                  {
+                    "kind": "text",
+                    "text": "話しかける"
+                  }
+                ],
+                "cond_text": null,
+                "cond": null,
+                "jump": "s03",
+                "body": [
+                  {
+                    "kind": "set",
+                    "span": [
+                      1120,
+                      1151
+                    ],
+                    "var": "flag.話した",
+                    "op": "=",
+                    "value": {
+                      "kind": "bool",
+                      "value": true
+                    }
+                  }
+                ]
+              },
+              {
+                "span": [
+                  1152,
+                  1181
+                ],
+                "line_id": "6ubbn1",
+                "text": [
+                  {
+                    "kind": "text",
+                    "text": "本を開く"
+                  }
+                ],
+                "cond_text": null,
+                "cond": null,
+                "jump": "s04",
+                "body": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "s03",
+        "title": "鞄の理由",
+        "file": "story/chapter01.scn",
+        "span": [
+          1188,
+          1208
+        ],
+        "meta": {
+          "summary": "志乃は明日の始発バスで町を出ると話す",
+          "status": "ai-draft",
+          "route": "志乃",
+          "tags": [],
+          "extra": {}
+        },
+        "is_stub": false,
+        "ops": [
+          {
+            "kind": "show",
+            "span": [
+              1312,
+              1340
+            ],
+            "character": "shino",
+            "expression": "真顔",
+            "position": "right",
+            "transition": null
+          },
+          {
+            "kind": "say",
+            "span": [
+              1342,
+              1407
+            ],
+            "line_id": "wj7dga",
+            "speaker": "haruto",
+            "display_name": null,
+            "style": "normal",
+            "text": [
+              {
+                "kind": "text",
+                "text": "……列車、止まっちゃいましたね"
+              }
+            ]
+          },
+          {
+            "kind": "say",
+            "span": [
+              1408,
+              1498
+            ],
+            "line_id": "oeyjoa",
+            "speaker": "shino",
+            "display_name": "少女",
+            "style": "normal",
+            "text": [
+              {
+                "kind": "text",
+                "text": "はい。"
+              },
+              {
+                "kind": "wait",
+                "seconds": 0.5
+              },
+              {
+                "kind": "text",
+                "text": "バスは、朝まで来ないそうです"
+              }
+            ]
+          },
+          {
+            "kind": "say",
+            "span": [
+              1499,
+              1528
+            ],
+            "line_id": "ip8tmw",
+            "speaker": "haruto",
+            "display_name": null,
+            "style": "normal",
+            "text": [
+              {
+                "kind": "text",
+                "text": "朝まで"
+              }
+            ]
+          },
+          {
+            "kind": "say",
+            "span": [
+              1529,
+              1633
+            ],
+            "line_id": "0whp7t",
+            "speaker": "shino",
+            "display_name": "少女",
+            "style": "normal",
+            "text": [
+              {
+                "kind": "text",
+                "text": "始発で、ここを出るんです。わたし、志乃といいます"
+              }
+            ]
+          },
+          {
+            "kind": "narrate",
+            "span": [
+              1634,
+              1708
+            ],
+            "line_id": "i8nmpu",
+            "text": [
+              {
+                "kind": "text",
+                "text": "　名前を言うときだけ、少女は遥人の顔を見た。"
+              }
+            ]
+          },
+          {
+            "kind": "say",
+            "span": [
+              1709,
+              1798
+            ],
+            "line_id": "dkh06k",
+            "speaker": "shino",
+            "display_name": null,
+            "style": "normal",
+            "text": [
+              {
+                "kind": "text",
+                "text": "親戚の家に行くんです。……荷物、多すぎますよね"
+              }
+            ]
+          },
+          {
+            "kind": "say",
+            "span": [
+              1799,
+              1840
+            ],
+            "line_id": "7e19qd",
+            "speaker": "haruto",
+            "display_name": null,
+            "style": "normal",
+            "text": [
+              {
+                "kind": "text",
+                "text": "多すぎる、かな"
+              }
+            ]
+          },
+          {
+            "kind": "narrate",
+            "span": [
+              1841,
+              1888
+            ],
+            "line_id": "8euw1q",
+            "text": [
+              {
+                "kind": "text",
+                "text": "　志乃は、少しだけ笑った。"
+              }
+            ]
+          },
+          {
+            "kind": "show",
+            "span": [
+              1889,
+              1917
+            ],
+            "character": "shino",
+            "expression": "笑顔",
+            "position": "right",
+            "transition": null
+          },
+          {
+            "kind": "set",
+            "span": [
+              1918,
+              1943
+            ],
+            "var": "shino.信頼",
+            "op": "+=",
+            "value": {
+              "kind": "int",
+              "value": 1
+            }
+          },
+          {
+            "kind": "jump",
+            "span": [
+              1945,
+              1951
+            ],
+            "target": "s05"
+          }
+        ]
+      },
+      {
+        "id": "s04",
+        "title": "本と雨音",
+        "file": "story/chapter01.scn",
+        "span": [
+          1953,
+          1973
+        ],
+        "meta": {
+          "summary": "遥人は本を読み、志乃は窓の外を見ている。言葉は交わさない",
+          "status": "ai-draft",
+          "route": "共通",
+          "tags": [],
+          "extra": {}
+        },
+        "is_stub": false,
+        "ops": [
+          {
+            "kind": "narrate",
+            "span": [
+              2107,
+              2160
+            ],
+            "line_id": "tx2dsq",
+            "text": [
+              {
+                "kind": "text",
+                "text": "　遥人は鞄から文庫本を出した。"
+              }
+            ]
+          },
+          {
+            "kind": "narrate",
+            "span": [
+              2161,
+              2229
+            ],
+            "line_id": "36qrks",
+            "text": [
+              {
+                "kind": "text",
+                "text": "　ページをめくる音と、雨の音だけが続く。"
+              }
+            ]
+          },
+          {
+            "kind": "narrate",
+            "span": [
+              2230,
+              2289
+            ],
+            "line_id": "nb32yz",
+            "text": [
+              {
+                "kind": "text",
+                "text": "　少女は、ずっと窓の外を見ていた。"
+              }
+            ]
+          },
+          {
+            "kind": "narrate",
+            "span": [
+              2290,
+              2388
+            ],
+            "line_id": "kfyylg",
+            "text": [
+              {
+                "kind": "text",
+                "text": "　窓ガラスの向こうでは、街灯の光が雨に"
+              },
+              {
+                "kind": "emphasis",
+                "text": "ほどけて"
+              },
+              {
+                "kind": "text",
+                "text": "いる。"
+              }
+            ]
+          },
+          {
+            "kind": "jump",
+            "span": [
+              2390,
+              2396
+            ],
+            "target": "s05"
+          }
+        ]
+      },
+      {
+        "id": "s05",
+        "title": "見回り",
+        "file": "story/chapter01.scn",
+        "span": [
+          2398,
+          2415
+        ],
+        "meta": {
+          "summary": "駅員の佐伯が毛布を持ってくる。バスは始発まで来ないと告げる",
+          "status": "ai-draft",
+          "route": "共通",
+          "tags": [],
+          "extra": {}
+        },
+        "is_stub": false,
+        "ops": [
+          {
+            "kind": "show",
+            "span": [
+              2552,
+              2580
+            ],
+            "character": "saeki",
+            "expression": "笑顔",
+            "position": "left",
+            "transition": null
+          },
+          {
+            "kind": "se",
+            "span": [
+              2581,
+              2591
+            ],
+            "name": "ドア"
+          },
+          {
+            "kind": "say",
+            "span": [
+              2593,
+              2700
+            ],
+            "line_id": "x7c78x",
+            "speaker": "saeki",
+            "display_name": null,
+            "style": "normal",
+            "text": [
+              {
+                "kind": "text",
+                "text": "いやあ、ひどい雨だなあ。毛布、二枚しかないけど使っておくれ"
+              }
+            ]
+          },
+          {
+            "kind": "call",
+            "span": [
+              2701,
+              2712
+            ],
+            "target": "s90"
+          },
+          {
+            "kind": "say",
+            "span": [
+              2713,
+              2808
+            ],
+            "line_id": "bpn58b",
+            "speaker": "saeki",
+            "display_name": null,
+            "style": "normal",
+            "text": [
+              {
+                "kind": "text",
+                "text": "始発のバスは五時四十分。それまではここで辛抱だなあ"
+              }
+            ]
+          },
+          {
+            "kind": "if",
+            "span": [
+              2809,
+              2827
+            ],
+            "branches": [
+              {
+                "span": [
+                  2809,
+                  2827
+                ],
+                "cond_text": "flag.話した",
+                "cond": {
+                  "kind": "var",
+                  "name": "flag.話した"
+                },
+                "body": [
+                  {
+                    "kind": "say",
+                    "span": [
+                      2828,
+                      2922
+                    ],
+                    "line_id": "ihq01n",
+                    "speaker": "saeki",
+                    "display_name": null,
+                    "style": "normal",
+                    "text": [
+                      {
+                        "kind": "text",
+                        "text": "ふたり、知り合いだったのかい。そりゃよかったなあ"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "else": [
+              {
+                "kind": "say",
+                "span": [
+                  2929,
+                  3011
+                ],
+                "line_id": "tnyd4w",
+                "speaker": "saeki",
+                "display_name": null,
+                "style": "normal",
+                "text": [
+                  {
+                    "kind": "text",
+                    "text": "ふたりとも、黙りこくって。風邪ひくなよう"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "hide",
+            "span": [
+              3017,
+              3031
+            ],
+            "character": "saeki",
+            "transition": null
+          },
+          {
+            "kind": "jump",
+            "span": [
+              3033,
+              3039
+            ],
+            "target": "s06"
+          }
+        ]
+      },
+      {
+        "id": "s06",
+        "title": "雨脚",
+        "file": "story/chapter01.scn",
+        "span": [
+          3041,
+          3055
+        ],
+        "meta": {
+          "summary": "雨が強まり、停電する。暗がりで遥人は志乃に声をかける",
+          "status": "ai-draft",
+          "route": "共通",
+          "tags": [],
+          "extra": {}
+        },
+        "is_stub": false,
+        "ops": [
+          {
+            "kind": "se",
+            "span": [
+              3183,
+              3190
+            ],
+            "name": "雷"
+          },
+          {
+            "kind": "fx",
+            "span": [
+              3191,
+              3207
+            ],
+            "name": "暗転",
+            "seconds": 1.0
+          },
+          {
+            "kind": "narrate",
+            "span": [
+              3208,
+              3258
+            ],
+            "line_id": "398izk",
+            "text": [
+              {
+                "kind": "text",
+                "text": "　一度だけ、空が白く光った。"
+              }
+            ]
+          },
+          {
+            "kind": "narrate",
+            "span": [
+              3259,
+              3342
+            ],
+            "line_id": "boo12i",
+            "text": [
+              {
+                "kind": "text",
+                "text": "　蛍光灯が消え、待合室は雨の音でいっぱいになった。"
+              }
+            ]
+          },
+          {
+            "kind": "if",
+            "span": [
+              3343,
+              3361
+            ],
+            "branches": [
+              {
+                "span": [
+                  3343,
+                  3361
+                ],
+                "cond_text": "flag.話した",
+                "cond": {
+                  "kind": "var",
+                  "name": "flag.話した"
+                },
+                "body": [
+                  {
+                    "kind": "say",
+                    "span": [
+                      3362,
+                      3443
+                    ],
+                    "line_id": "ywnjej",
+                    "speaker": "shino",
+                    "display_name": null,
+                    "style": "normal",
+                    "text": [
+                      {
+                        "kind": "text",
+                        "text": "……"
+                      },
+                      {
+                        "kind": "se",
+                        "name": "雷"
+                      },
+                      {
+                        "kind": "text",
+                        "text": "こわくないです。こわくないけど"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "else": [
+              {
+                "kind": "say",
+                "span": [
+                  3450,
+                  3543
+                ],
+                "line_id": "isbs4z",
+                "speaker": "shino",
+                "display_name": "少女",
+                "style": "normal",
+                "text": [
+                  {
+                    "kind": "text",
+                    "text": "……"
+                  },
+                  {
+                    "kind": "se",
+                    "name": "雷"
+                  },
+                  {
+                    "kind": "text",
+                    "text": "こわくないです。こわくないけど"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "narrate",
+            "span": [
+              3549,
+              3617
+            ],
+            "line_id": "q32ik1",
+            "text": [
+              {
+                "kind": "text",
+                "text": "　暗がりの向こうで、鞄の留め金が鳴った。"
+              }
+            ]
+          },
+          {
+            "kind": "choice",
+            "span": [
+              3619,
+              3647
+            ],
+            "line_id": "irtm7a",
+            "prompt": [
+              {
+                "kind": "text",
+                "text": "暗がりで"
+              }
+            ],
+            "options": [
+              {
+                "span": [
+                  3648,
+                  3683
+                ],
+                "line_id": "534fvv",
+                "text": [
+                  {
+                    "kind": "text",
+                    "text": "傘を差し出す"
+                  }
+                ],
+                "cond_text": null,
+                "cond": null,
+                "jump": "s07",
+                "body": [
+                  {
+                    "kind": "set",
+                    "span": [
+                      3684,
+                      3709
+                    ],
+                    "var": "flag.傘",
+                    "op": "=",
+                    "value": {
+                      "kind": "bool",
+                      "value": true
+                    }
+                  },
+                  {
+                    "kind": "set",
+                    "span": [
+                      3710,
+                      3737
+                    ],
+                    "var": "shino.信頼",
+                    "op": "+=",
+                    "value": {
+                      "kind": "int",
+                      "value": 1
+                    }
+                  },
+                  {
+                    "kind": "say",
+                    "span": [
+                      3738,
+                      3814
+                    ],
+                    "line_id": "7cylcy",
+                    "speaker": "haruto",
+                    "display_name": null,
+                    "style": "normal",
+                    "text": [
+                      {
+                        "kind": "text",
+                        "text": "朝、これ使って。バス停まで濡れるから"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "span": [
+                  3815,
+                  3847
+                ],
+                "line_id": "41zdim",
+                "text": [
+                  {
+                    "kind": "text",
+                    "text": "黙って待つ"
+                  }
+                ],
+                "cond_text": null,
+                "cond": null,
+                "jump": "s07",
+                "body": []
+              },
+              {
+                "span": [
+                  3848,
+                  3931
+                ],
+                "line_id": "7sihbn",
+                "text": [
+                  {
+                    "kind": "text",
+                    "text": "「行かなくていいんじゃないか」"
+                  }
+                ],
+                "cond_text": "shino.信頼 >= 1",
+                "cond": {
+                  "kind": "binary",
+                  "op": ">=",
+                  "lhs": {
+                    "kind": "var",
+                    "name": "shino.信頼"
+                  },
+                  "rhs": {
+                    "kind": "int",
+                    "value": 1
+                  }
+                },
+                "jump": "s07",
+                "body": [
+                  {
+                    "kind": "set",
+                    "span": [
+                      3932,
+                      3960
+                    ],
+                    "var": "flag.残る",
+                    "op": "=",
+                    "value": {
+                      "kind": "bool",
+                      "value": true
+                    }
+                  },
+                  {
+                    "kind": "set",
+                    "span": [
+                      3961,
+                      3988
+                    ],
+                    "var": "shino.信頼",
+                    "op": "+=",
+                    "value": {
+                      "kind": "int",
+                      "value": 1
+                    }
+                  },
+                  {
+                    "kind": "say",
+                    "span": [
+                      3989,
+                      4062
+                    ],
+                    "line_id": "9fjha2",
+                    "speaker": "shino",
+                    "display_name": null,
+                    "style": "normal",
+                    "text": [
+                      {
+                        "kind": "text",
+                        "text": "……そんなこと、初めて言われました"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "s07",
+        "title": "夜明け前",
+        "file": "story/chapter02.scn",
+        "span": [
+          21,
+          41
+        ],
+        "meta": {
+          "summary": "雨が弱まる。志乃が出発の支度をする。ここで結末が分かれる",
+          "status": "ai-draft",
+          "route": "共通",
+          "tags": [],
+          "extra": {}
+        },
+        "is_stub": false,
+        "ops": [
+          {
+            "kind": "bg",
+            "span": [
+              175,
+              215
+            ],
+            "name": "待合室/夜明け",
+            "transition": "フェード"
+          },
+          {
+            "kind": "bgm",
+            "span": [
+              216,
+              230
+            ],
+            "name": "夜明け"
+          },
+          {
+            "kind": "narrate",
+            "span": [
+              231,
+              284
+            ],
+            "line_id": "xypyl7",
+            "text": [
+              {
+                "kind": "text",
+                "text": "　蛍光灯がまたたいて、点いた。"
+              }
+            ]
+          },
+          {
+            "kind": "narrate",
+            "span": [
+              285,
+              350
+            ],
+            "line_id": "5hr4k0",
+            "text": [
+              {
+                "kind": "text",
+                "text": "　窓の外が、少しずつ灰色になっていく。"
+              }
+            ]
+          },
+          {
+            "kind": "if",
+            "span": [
+              352,
+              367
+            ],
+            "branches": [
+              {
+                "span": [
+                  352,
+                  367
+                ],
+                "cond_text": "flag.残る",
+                "cond": {
+                  "kind": "var",
+                  "name": "flag.残る"
+                },
+                "body": [
+                  {
+                    "kind": "jump",
+                    "span": [
+                      368,
+                      376
+                    ],
+                    "target": "s10"
+                  }
+                ]
+              },
+              {
+                "span": [
+                  377,
+                  400
+                ],
+                "cond_text": "shino.信頼 >= 1",
+                "cond": {
+                  "kind": "binary",
+                  "op": ">=",
+                  "lhs": {
+                    "kind": "var",
+                    "name": "shino.信頼"
+                  },
+                  "rhs": {
+                    "kind": "int",
+                    "value": 1
+                  }
+                },
+                "body": [
+                  {
+                    "kind": "jump",
+                    "span": [
+                      401,
+                      409
+                    ],
+                    "target": "s08"
+                  }
+                ]
+              }
+            ],
+            "else": [
+              {
+                "kind": "jump",
+                "span": [
+                  416,
+                  424
+                ],
+                "target": "s11"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "s08",
+        "title": "始発バス",
+        "file": "story/chapter02.scn",
+        "span": [
+          431,
+          451
+        ],
+        "meta": {
+          "summary": "バス停まで並んで歩く",
+          "status": "ai-draft",
+          "route": "志乃",
+          "tags": [],
+          "extra": {}
+        },
+        "is_stub": false,
+        "ops": [
+          {
+            "kind": "bg",
+            "span": [
+              531,
+              565
+            ],
+            "name": "バス停/朝",
+            "transition": "フェード"
+          },
+          {
+            "kind": "show",
+            "span": [
+              566,
+              594
+            ],
+            "character": "shino",
+            "expression": "真顔",
+            "position": "center",
+            "transition": null
+          },
+          {
+            "kind": "if",
+            "span": [
+              595,
+              617
+            ],
+            "branches": [
+              {
+                "span": [
+                  595,
+                  617
+                ],
+                "cond_text": "not flag.話した",
+                "cond": {
+                  "kind": "unary",
+                  "op": "not",
+                  "operand": {
+                    "kind": "var",
+                    "name": "flag.話した"
+                  }
+                },
+                "body": [
+                  {
+                    "kind": "say",
+                    "span": [
+                      618,
+                      733
+                    ],
+                    "line_id": "k3d9bu",
+                    "speaker": "shino",
+                    "display_name": "少女",
+                    "style": "normal",
+                    "text": [
+                      {
+                        "kind": "text",
+                        "text": "……わたし、志乃といいます。傘、ありがとうございました"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "set",
+                    "span": [
+                      734,
+                      765
+                    ],
+                    "var": "flag.話した",
+                    "op": "=",
+                    "value": {
+                      "kind": "bool",
+                      "value": true
+                    }
+                  }
+                ]
+              }
+            ],
+            "else": null
+          },
+          {
+            "kind": "narrate",
+            "span": [
+              771,
+              833
+            ],
+            "line_id": "51q45r",
+            "text": [
+              {
+                "kind": "text",
+                "text": "　雨は、霧のような細さになっていた。"
+              }
+            ]
+          },
+          {
+            "kind": "if",
+            "span": [
+              834,
+              846
+            ],
+            "branches": [
+              {
+                "span": [
+                  834,
+                  846
+                ],
+                "cond_text": "flag.傘",
+                "cond": {
+                  "kind": "var",
+                  "name": "flag.傘"
+                },
+                "body": [
+                  {
+                    "kind": "narrate",
+                    "span": [
+                      847,
+                      905
+                    ],
+                    "line_id": "os9zcz",
+                    "text": [
+                      {
+                        "kind": "text",
+                        "text": "　志乃は、遥人の傘を差していた。"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "else": [
+              {
+                "kind": "narrate",
+                "span": [
+                  912,
+                  976
+                ],
+                "line_id": "5r4n37",
+                "text": [
+                  {
+                    "kind": "text",
+                    "text": "　志乃は、鞄を頭の上にかざしていた。"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "say",
+            "span": [
+              982,
+              1056
+            ],
+            "line_id": "zjfng5",
+            "speaker": "shino",
+            "display_name": null,
+            "style": "normal",
+            "text": [
+              {
+                "kind": "text",
+                "text": "見送りは、いらないって思ってたんです"
+              }
+            ]
+          },
+          {
+            "kind": "say",
+            "span": [
+              1057,
+              1089
+            ],
+            "line_id": "0zlenc",
+            "speaker": "haruto",
+            "display_name": null,
+            "style": "normal",
+            "text": [
+              {
+                "kind": "text",
+                "text": "……うん"
+              }
+            ]
+          },
+          {
+            "kind": "say",
+            "span": [
+              1090,
+              1155
+            ],
+            "line_id": "t9lq4a",
+            "speaker": "shino",
+            "display_name": null,
+            "style": "normal",
+            "text": [
+              {
+                "kind": "text",
+                "text": "でも、いてくれて、よかったです"
+              }
+            ]
+          },
+          {
+            "kind": "jump",
+            "span": [
+              1157,
+              1163
+            ],
+            "target": "s09"
+          }
+        ]
+      },
+      {
+        "id": "s09",
+        "title": "約束",
+        "file": "story/chapter02.scn",
+        "span": [
+          1165,
+          1179
+        ],
+        "meta": {
+          "summary": "志乃はバスに乗る。いつか傘を返しに来ると言う",
+          "status": "ai-draft",
+          "route": "志乃",
+          "tags": [],
+          "extra": {}
+        },
+        "is_stub": false,
+        "ops": [
+          {
+            "kind": "se",
+            "span": [
+              1295,
+              1305
+            ],
+            "name": "バス"
+          },
+          {
+            "kind": "show",
+            "span": [
+              1306,
+              1334
+            ],
+            "character": "shino",
+            "expression": "笑顔",
+            "position": "center",
+            "transition": null
+          },
+          {
+            "kind": "if",
+            "span": [
+              1335,
+              1347
+            ],
+            "branches": [
+              {
+                "span": [
+                  1335,
+                  1347
+                ],
+                "cond_text": "flag.傘",
+                "cond": {
+                  "kind": "var",
+                  "name": "flag.傘"
+                },
+                "body": [
+                  {
+                    "kind": "say",
+                    "span": [
+                      1348,
+                      1427
+                    ],
+                    "line_id": "nx5f69",
+                    "speaker": "shino",
+                    "display_name": null,
+                    "style": "normal",
+                    "text": [
+                      {
+                        "kind": "text",
+                        "text": "この傘、いつか返しに来ます。"
+                      },
+                      {
+                        "kind": "page_break"
+                      },
+                      {
+                        "kind": "text",
+                        "text": "この駅に"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "else": [
+              {
+                "kind": "say",
+                "span": [
+                  1434,
+                  1492
+                ],
+                "line_id": "lhqqkq",
+                "speaker": "shino",
+                "display_name": null,
+                "style": "normal",
+                "text": [
+                  {
+                    "kind": "text",
+                    "text": "いつか、また。"
+                  },
+                  {
+                    "kind": "page_break"
+                  },
+                  {
+                    "kind": "text",
+                    "text": "この駅で"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "hide",
+            "span": [
+              1498,
+              1525
+            ],
+            "character": "shino",
+            "transition": "フェード"
+          },
+          {
+            "kind": "narrate",
+            "span": [
+              1526,
+              1591
+            ],
+            "line_id": "fgjra9",
+            "text": [
+              {
+                "kind": "text",
+                "text": "　バスの赤い灯が、坂の向こうに消えた。"
+              }
+            ]
+          },
+          {
+            "kind": "ending",
+            "span": [
+              1592,
+              1619
+            ],
+            "id": "bus_end"
+          }
+        ]
+      },
+      {
+        "id": "s10",
+        "title": "もう一日",
+        "file": "story/chapter02.scn",
+        "span": [
+          1621,
+          1641
+        ],
+        "meta": {
+          "summary": "志乃は出発を一日遅らせる",
+          "status": "ai-draft",
+          "route": "志乃",
+          "tags": [],
+          "extra": {}
+        },
+        "is_stub": false,
+        "ops": [
+          {
+            "kind": "show",
+            "span": [
+              1727,
+              1755
+            ],
+            "character": "shino",
+            "expression": "笑顔",
+            "position": "center",
+            "transition": null
+          },
+          {
+            "kind": "say",
+            "span": [
+              1756,
+              1859
+            ],
+            "line_id": "djhvqc",
+            "speaker": "shino",
+            "display_name": null,
+            "style": "normal",
+            "text": [
+              {
+                "kind": "text",
+                "text": "始発、一本だけ遅らせます。"
+              },
+              {
+                "kind": "wait",
+                "seconds": 1.0
+              },
+              {
+                "kind": "text",
+                "text": "親戚には、電話しておきます"
+              }
+            ]
+          },
+          {
+            "kind": "say",
+            "span": [
+              1860,
+              1892
+            ],
+            "line_id": "vvt2nv",
+            "speaker": "haruto",
+            "display_name": null,
+            "style": "normal",
+            "text": [
+              {
+                "kind": "text",
+                "text": "一本だけ"
+              }
+            ]
+          },
+          {
+            "kind": "say",
+            "span": [
+              1893,
+              1949
+            ],
+            "line_id": "vk8gac",
+            "speaker": "shino",
+            "display_name": null,
+            "style": "normal",
+            "text": [
+              {
+                "kind": "text",
+                "text": "はい。……一日だけ、です"
+              }
+            ]
+          },
+          {
+            "kind": "narrate",
+            "span": [
+              1950,
+              2027
+            ],
+            "line_id": "hiqjyx",
+            "text": [
+              {
+                "kind": "text",
+                "text": "　鞄は、待合室の椅子の上に置かれたままだった。"
+              }
+            ]
+          },
+          {
+            "kind": "ending",
+            "span": [
+              2028,
+              2056
+            ],
+            "id": "stay_end"
+          }
+        ]
+      },
+      {
+        "id": "s11",
+        "title": "雨上がり",
+        "file": "story/chapter02.scn",
+        "span": [
+          2058,
+          2078
+        ],
+        "meta": {
+          "summary": "言葉を交わさないまま雨が上がり、志乃はバスへ、遥人は列車へ",
+          "status": "ai-draft",
+          "route": "共通",
+          "tags": [],
+          "extra": {}
+        },
+        "is_stub": false,
+        "ops": [
+          {
+            "kind": "bgm_stop",
+            "span": [
+              2215,
+              2226
+            ]
+          },
+          {
+            "kind": "narrate",
+            "span": [
+              2227,
+              2259
+            ],
+            "line_id": "kb6ujb",
+            "text": [
+              {
+                "kind": "text",
+                "text": "　雨が上がった。"
+              }
+            ]
+          },
+          {
+            "kind": "narrate",
+            "span": [
+              2260,
+              2349
+            ],
+            "line_id": "1rpu2k",
+            "text": [
+              {
+                "kind": "text",
+                "text": "　少女は鞄を抱えてバス停へ、遥人は始発列車のホームへ。"
+              }
+            ]
+          },
+          {
+            "kind": "narrate",
+            "span": [
+              2350,
+              2427
+            ],
+            "line_id": "uysn3r",
+            "text": [
+              {
+                "kind": "text",
+                "text": "　名前も知らないまま、待合室のドアが閉まった。"
+              }
+            ]
+          },
+          {
+            "kind": "se",
+            "span": [
+              2428,
+              2438
+            ],
+            "name": "ドア"
+          },
+          {
+            "kind": "ending",
+            "span": [
+              2439,
+              2467
+            ],
+            "id": "rain_end"
+          }
+        ]
+      },
+      {
+        "id": "s90",
+        "title": "構内放送",
+        "file": "story/chapter02.scn",
+        "span": [
+          2469,
+          2489
+        ],
+        "meta": {
+          "summary": "呼び出して使う構内放送（運休とバスの案内）",
+          "status": "ai-draft",
+          "route": "共通",
+          "tags": [],
+          "extra": {}
+        },
+        "is_stub": false,
+        "ops": [
+          {
+            "kind": "narrate",
+            "span": [
+              2602,
+              2667
+            ],
+            "line_id": "3n7mit",
+            "text": [
+              {
+                "kind": "text",
+                "text": "　スピーカーが、ざらついた声で告げた。"
+              }
+            ]
+          },
+          {
+            "kind": "narrate",
+            "span": [
+              2668,
+              2811
+            ],
+            "line_id": "i96gca",
+            "text": [
+              {
+                "kind": "text",
+                "text": "　――大雨のため、本日の列車はすべて運転を見合わせます。始発バスは、五時四十分の予定です。"
+              }
+            ]
+          },
+          {
+            "kind": "return",
+            "span": [
+              2812,
+              2819
+            ]
+          }
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": "s01",
+        "to": "s90",
+        "kind": "call",
+        "via": "direct",
+        "label": null,
+        "cond_text": null,
+        "span": [
+          380,
+          391
+        ]
+      },
+      {
+        "from": "s01",
+        "to": "s02",
+        "kind": "jump",
+        "via": "direct",
+        "label": null,
+        "cond_text": null,
+        "span": [
+          572,
+          578
+        ]
+      },
+      {
+        "from": "s02",
+        "to": "s03",
+        "kind": "jump",
+        "via": "choice",
+        "label": "話しかける",
+        "cond_text": null,
+        "span": [
+          1087,
+          1119
+        ]
+      },
+      {
+        "from": "s02",
+        "to": "s04",
+        "kind": "jump",
+        "via": "choice",
+        "label": "本を開く",
+        "cond_text": null,
+        "span": [
+          1152,
+          1181
+        ]
+      },
+      {
+        "from": "s03",
+        "to": "s05",
+        "kind": "jump",
+        "via": "direct",
+        "label": null,
+        "cond_text": null,
+        "span": [
+          1945,
+          1951
+        ]
+      },
+      {
+        "from": "s04",
+        "to": "s05",
+        "kind": "jump",
+        "via": "direct",
+        "label": null,
+        "cond_text": null,
+        "span": [
+          2390,
+          2396
+        ]
+      },
+      {
+        "from": "s05",
+        "to": "s90",
+        "kind": "call",
+        "via": "direct",
+        "label": null,
+        "cond_text": null,
+        "span": [
+          2701,
+          2712
+        ]
+      },
+      {
+        "from": "s05",
+        "to": "s06",
+        "kind": "jump",
+        "via": "direct",
+        "label": null,
+        "cond_text": null,
+        "span": [
+          3033,
+          3039
+        ]
+      },
+      {
+        "from": "s06",
+        "to": "s07",
+        "kind": "jump",
+        "via": "choice",
+        "label": "傘を差し出す",
+        "cond_text": null,
+        "span": [
+          3648,
+          3683
+        ]
+      },
+      {
+        "from": "s06",
+        "to": "s07",
+        "kind": "jump",
+        "via": "choice",
+        "label": "黙って待つ",
+        "cond_text": null,
+        "span": [
+          3815,
+          3847
+        ]
+      },
+      {
+        "from": "s06",
+        "to": "s07",
+        "kind": "jump",
+        "via": "choice",
+        "label": "「行かなくていいんじゃないか」",
+        "cond_text": "shino.信頼 >= 1",
+        "span": [
+          3848,
+          3931
+        ]
+      },
+      {
+        "from": "s07",
+        "to": "s10",
+        "kind": "jump",
+        "via": "if",
+        "label": null,
+        "cond_text": "flag.残る",
+        "span": [
+          368,
+          376
+        ]
+      },
+      {
+        "from": "s07",
+        "to": "s08",
+        "kind": "jump",
+        "via": "if",
+        "label": null,
+        "cond_text": "shino.信頼 >= 1",
+        "span": [
+          401,
+          409
+        ]
+      },
+      {
+        "from": "s07",
+        "to": "s11",
+        "kind": "jump",
+        "via": "else",
+        "label": null,
+        "cond_text": null,
+        "span": [
+          416,
+          424
+        ]
+      },
+      {
+        "from": "s08",
+        "to": "s09",
+        "kind": "jump",
+        "via": "direct",
+        "label": null,
+        "cond_text": null,
+        "span": [
+          1157,
+          1163
+        ]
+      }
+    ],
+    "diagnostics": []
+  },
+  "screen": {
+    "width": 1280,
+    "height": 720
+  },
+  "message_window": {
+    "lines": 3,
+    "chars_per_line": 24
+  },
+  "brackets": [
+    {
+      "open": "「",
+      "close": "」",
+      "style": "normal"
+    },
+    {
+      "open": "『",
+      "close": "』",
+      "style": "thought"
+    }
+  ],
+  "characters": [
+    {
+      "id": "haruto",
+      "name": "遥人"
+    },
+    {
+      "id": "saeki",
+      "name": "佐伯"
+    },
+    {
+      "id": "shino",
+      "name": "志乃"
+    }
+  ],
+  "variables": [
+    {
+      "key": "flag.話した",
+      "type": "bool",
+      "values": [],
+      "initial": false,
+      "bad_default": false,
+      "scope": "save",
+      "range": null
+    },
+    {
+      "key": "shino.信頼",
+      "type": "int",
+      "values": [],
+      "initial": 0,
+      "bad_default": false,
+      "scope": "save",
+      "range": [
+        0,
+        3
+      ]
+    },
+    {
+      "key": "flag.傘",
+      "type": "bool",
+      "values": [],
+      "initial": false,
+      "bad_default": false,
+      "scope": "save",
+      "range": null
+    },
+    {
+      "key": "flag.残る",
+      "type": "bool",
+      "values": [],
+      "initial": false,
+      "bad_default": false,
+      "scope": "save",
+      "range": null
+    }
+  ],
+  "assets": {
+    "backgrounds": {
+      "バス停/朝": null,
+      "待合室/夜": null,
+      "待合室/夜明け": null,
+      "駅/夜": null
+    },
+    "expressions": {
+      "saeki": {
+        "笑顔": null
+      },
+      "shino": {
+        "伏し目": null,
+        "真顔": null,
+        "笑顔": null
+      }
+    },
+    "bgm": {
+      "夜明け": {
+        "file": null,
+        "loop": true
+      },
+      "雨音": {
+        "file": null,
+        "loop": true
+      }
+    },
+    "se": {
+      "ドア": {
+        "file": null,
+        "loop": false
+      },
+      "バス": {
+        "file": null,
+        "loop": false
+      },
+      "雷": {
+        "file": null,
+        "loop": false
+      }
+    }
+  }
+}

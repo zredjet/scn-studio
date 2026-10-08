@@ -1,0 +1,23 @@
+format_version = 0
+title = "雨宿りの駅"
+start_scene = "s01"
+
+# 台詞に使える括弧と、表示スタイル（FORMAT.md の .scn 形式の6節）
+[dialogue.brackets]
+"「」" = "normal"
+"『』" = "thought"   # 心の声
+
+# プレビューの画面の大きさ（アプリ）
+[screen]
+width = 1280
+height = 720
+
+# メッセージウィンドウの大きさ。台詞と地の文のはみ出し（W203）を調べ、プレビューのウィンドウにも使う
+[message_window]
+lines = 3
+chars_per_line = 24
+
+# エディタの入力補助（アプリ）。書いていなければ、どちらも切
+[editor]
+normalize_ellipsis = true   # 「...」「・・・」を「……」に、「--」を「――」にする
+indent_narration = true     # 地の文の段落頭に全角空白を入れる（Enter でその行を離れるとき）

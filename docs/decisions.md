@@ -546,3 +546,12 @@
   - アプリの「出力」の画面は、保存していない本文も含めて台本を作る（保存していないファイルがあれば知らせる）。CLI はディスクの中身から作る。
 - 理由：行IDは本文を直しても変わらない（設計の原則5）ので、ボイスファイル名と収録済みの音声の対応が崩れない。行IDの無い台詞を落とすと、台本から台詞が消えて気づきにくいので、空で出して知らせる。
 - 影響：`crates/scn-core/src/script.rs`（新規）、`crates/scn-cli`（`export script`）、`app/src-tauri`（`script_sheet`・`export_script`）、`app/src/export/`（新規）、`LeftBar.tsx`・`App.tsx`、`docs/spec/project-files.md` の10節、`CLAUDE.md` のコマンド。
+
+## D052 フェーズ1のゲート判定とフェーズ2の計画（2026-10-08）
+
+- 決定：
+  - ゲートの短編は、Claude Code がツールの CLI と作品フォルダの手順（`scn new` が作る `CLAUDE.md`）どおりに書いた「雨宿りの駅」（`samples/amayadori/`）。人が書く手順（計画の T1-13 の手順1）は、人の指示（「確認したいことは推奨で進める」）に沿って人の確認に回した（`docs/review-for-human.md` の H7）。置き場所は `samples/` の下（2つ目のサンプル。プレビューのテストの入力にも使う）。作品フォルダの指示書は、開発作業中に読み込まれないよう `CLAUDE.template.md` の名前で置き、ツールの版で古くなる `FORMAT.md` は置かない（houkago と同じ）。
+  - 条件1は、自動で確かめられる範囲で満たした（12シーン、選択肢2つ、エンディング3つ。`scn check` はエラー0・警告0。プレビューのランタイムのテストで、全エンディングまで選択肢だけで着けることを確かめた。台本を書き出せた）。使ったのは CLI だけで、アプリでの執筆とリリースビルドでの確認、人が書いて確かめることは H7、Windows での画面と `scn` の確認は H8。条件2（2OSのIMEテスト）は人の確認待ち。人の指示に沿い、確認待ちのままフェーズ2へ進む。確認で問題が見つかれば、フェーズ2の T2-1 で直す。
+  - フェーズ2の計画は `docs/plan/phase2.md` の草案で進める。ゲートは「書き出したRen'Pyのプロジェクトが起動し、最後まで遊べる」（`docs/design.md` のロードマップ）と、フェーズ1から持ち越した人の確認。タスクは T2-1（人の確認の取り込み）〜T2-11（ゲート判定とフェーズ3の計画）。ゲートに直結する Ren'Py への書き出し（T2-2）を最初に行う。
+- 理由：人が戻るまで止まらずに進めるという指示のため。人の確認でしか分からないこと（IME、実機の見た目、人が書いたときの使い心地）は、記録して後から取り込める形にした。
+- 影響：`samples/amayadori/`（新規。`CLAUDE.template.md`、`README.md`）、`crates/scn-core/templates/concept.md`（エンディングの書き方の例を足した）、`docs/plan/phase2.md`（新規）、`CLAUDE.md`、`README.md`、`.claude/rules/spec-and-samples.md`、`docs/plan/phase1.md` の状態、`docs/progress.md`、テスト（`crates/scn-core/tests/preview.rs`、`app/test/preview.test.ts`）。

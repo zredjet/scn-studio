@@ -1,0 +1,22 @@
+# 素材カタログ（FORMAT.md の作品フォルダの規約の4節）。値が空（{}）の意味名は、まだファイルの無い仮素材。
+backgrounds:
+  駅/夜: {}
+  待合室/夜: {}
+  待合室/夜明け: {}
+  バス停/朝: {}
+characters:
+  shino:
+    expressions:
+      真顔: {}
+      笑顔: {}
+      伏し目: {}
+  saeki:
+    expressions:
+      笑顔: {}
+bgm:
+  雨音: { loop: true }
+  夜明け: { loop: true }
+se:
+  雷: {}
+  ドア: {}
+  バス: {}
