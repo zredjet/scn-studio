@@ -520,6 +520,8 @@ export interface AiConnection {
   readonly needs_key: boolean;
   /** 解決できない理由。 */
   readonly problem: string | null;
+  /** URL の書き方の知らせ（パスが無い。コアの `missing_path_hint`、T3-1）。 */
+  readonly url_hint: string | null;
   readonly is_default: boolean;
   /** 「接続を試す」で送る中身。 */
   readonly test_preview: string | null;

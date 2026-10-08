@@ -78,7 +78,7 @@ model = "claude-sonnet-5-5"
 
 - 名前は AIタスクの `model`（`model: local`・`model: cloud`）が指す。チームで共有してよいもの（種類、URL、モデル、文脈の長さ）だけを書く。キーは書かない。
 - `context_tokens`（正の整数。T3-6、D067）：モデルの文脈の長さ（トークン数）。AIタスクの文脈は、ここから返す分を除いた長さに収める（9節）。無ければ OpenAI 互換は 8192（ローカルの LLM の短い文脈でも動くように）、`anthropic` は 200000。
-- `provider`：`openai-compatible`（OpenAI 互換のチャットの補完 `<base_url>/chat/completions`。Ollama、LM Studio、llama.cpp のサーバー、互換のクラウド）か `anthropic`（Messages API `<base_url>/messages`）。`base_url` は `/v1` までを書く。読んだ URL の書き方にそろえて使う（`HTTP://Host/v1/` は `http://host/v1`。末尾の `/` は除く）。
+- `provider`：`openai-compatible`（OpenAI 互換のチャットの補完 `<base_url>/chat/completions`。Ollama、LM Studio、llama.cpp のサーバー、互換のクラウド）か `anthropic`（Messages API `<base_url>/messages`）。`base_url` は `/v1` までを書く。読んだ URL の書き方にそろえて使う（`HTTP://Host/v1/` は `http://host/v1`。末尾の `/` は除く）。パスの無い URL（`http://127.0.0.1:1234` など）も `/v1` を足さずにそのまま使い、環境設定の画面と、接続先が 404・405・途中の誤りを返したときの誤りの文で、`/v1` まで書くよう知らせる（T3-1、R193）。
 - 誤りの扱い：`ai` が表でない、`[ai.<名前>]` が表でない、`provider`・`base_url`・`model` が文字列でない、`context_tokens` が正の整数でない、は E802 を出してその接続先を読み飛ばす（本文の読み方には関わらない）。ほかのキーは読まない。知らない `provider`、`base_url` の無い OpenAI 互換、http・https でない URL、`model` が無い・空、は読み込みでは知らせず、使うとき（環境設定の画面、呼び出し）に知らせる（AI を使わない人に警告を出さない）。
 - 既定の接続先：`[ai.local]` があればそれ、無ければ最初のローカルの接続先、無ければ最初の接続先（名前の順）。タイトルバーに出す。
 - ローカルとクラウド：`anthropic` はいつもクラウド。OpenAI 互換は、`base_url` のホストが `localhost`・`*.localhost`・`*.local`・ループバック・プライベート（`10/8`・`172.16/12`・`192.168/16`・`fc00::/7`）・リンクローカルならローカル（この端末と LAN の中）、それ以外はクラウド。

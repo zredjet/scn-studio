@@ -30,6 +30,7 @@ function connection(over: Partial<AiConnection>): AiConnection {
     has_key: false,
     needs_key: false,
     problem: null,
+    url_hint: null,
     is_default: true,
     test_preview: "POST http://localhost:11434/v1/chat/completions",
     ...over,

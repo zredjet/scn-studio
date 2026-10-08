@@ -3559,6 +3559,11 @@ body {
   color: var(--text-faint);
 }
 
+.ai-url-hint {
+  flex-basis: 100%;
+  color: var(--warn-text);
+}
+
 .ai-override,
 .ai-key {
   display: flex;

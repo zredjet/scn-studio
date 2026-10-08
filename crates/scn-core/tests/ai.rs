@@ -409,6 +409,25 @@ fn http_errors() {
     ));
 }
 
+/// URL にパス（`/v1` など）が無いまま「その場所は無い」と返されたら、`/v1` を足すよう知らせる（LM Studio の
+/// 「Reachable at」をそのまま貼ったときなど。T3-1）。パスがあれば知らせない。
+#[test]
+fn hint_missing_v1() {
+    let lm_studio = r#"{"error":"Unexpected endpoint or method. (POST /chat/completions)"}"#;
+    for status in ["200 OK", "404 Not Found"] {
+        let mock = serve(json_reply(status, lm_studio));
+        let root = format!("http://{}", mock.addr);
+        let conn = local(Provider::OpenaiCompatible, root);
+        let error = call(&conn, None, &request()).0.unwrap_err();
+        assert!(error.to_string().contains("Unexpected endpoint"), "{error}");
+        assert!(error.to_string().contains("/v1 まで"), "{error}");
+    }
+    let mock = serve(json_reply("404 Not Found", lm_studio));
+    let conn = local(Provider::OpenaiCompatible, mock.base_url());
+    let error = call(&conn, None, &request()).0.unwrap_err();
+    assert!(!error.to_string().contains("/v1 まで"), "{error}");
+}
+
 /// 別の URL へ移るよう返されても、ついて行かない（キーと本文を移り先へ送らない）。
 #[test]
 fn redirects_are_not_followed() {
@@ -771,6 +790,14 @@ fn keys_stay_in_keystore() {
     assert!(!local.has_key && !local.needs_key && !local.cloud && local.is_default);
     assert_eq!(local.model.as_deref(), Some("gemma"));
     assert_eq!(local.project_model.as_deref(), Some("qwen3"));
+    assert_eq!(cloud.url_hint, None);
+    assert_eq!(local.url_hint, None);
+    // 端末の上書きで、パスの無い URL（LM Studio の「Reachable at」）にすると知らせる（T3-1）。
+    let mut root_url = machine.clone();
+    root_url.set_override("local", Some("http://127.0.0.1:1234/"), None);
+    let (statuses, _) = ai::connection_statuses(decls, &root_url, &keys);
+    let local = statuses.iter().find(|s| s.name == "local").unwrap();
+    assert!(local.url_hint.as_deref().unwrap().contains("/v1 まで"));
     let json = serde_json::to_string(&statuses).unwrap();
     assert!(!json.contains(key));
     assert!(!json.contains("secret"));

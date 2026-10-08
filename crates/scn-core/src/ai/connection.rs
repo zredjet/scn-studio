@@ -8,7 +8,7 @@ use std::path::Path;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
-use super::client::{request_preview, test_request};
+use super::client::{missing_path_hint, request_preview, test_request};
 use super::keys::KeyStore;
 use crate::project::AiConnectionDecl;
 
@@ -293,6 +293,8 @@ pub struct ConnectionStatus {
     pub needs_key: bool,
     /// 解決できない理由。
     pub problem: Option<String>,
+    /// URL の書き方の知らせ（パスが無い。[`missing_path_hint`]）。
+    pub url_hint: Option<String>,
     pub is_default: bool,
     /// 「接続を試す」で送る中身（解決できたときだけ）。
     pub test_preview: Option<String>,
@@ -364,6 +366,11 @@ pub fn connection_statuses(
                     .as_ref()
                     .ok()
                     .map(|c| request_preview(c, &test_request())),
+                url_hint: resolved
+                    .as_ref()
+                    .ok()
+                    .and_then(missing_path_hint)
+                    .map(str::to_owned),
                 problem: resolved.err(),
                 is_default: default == Some(decl.name.as_str()),
             }

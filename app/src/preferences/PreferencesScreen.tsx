@@ -170,6 +170,9 @@ function ConnectionCard({
               この端末で上書き（project.toml：{c.project_base_url ?? "なし"}）
             </span>
           )}
+          {c.url_hint !== null && (
+            <span className="ai-url-hint">注意：{c.url_hint}</span>
+          )}
         </dd>
         <dt>モデル</dt>
         <dd>

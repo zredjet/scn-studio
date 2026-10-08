@@ -112,6 +112,16 @@ pub enum AiError {
     Protocol(String),
 }
 
+/// URL にパス（`/v1` など）が無いときの知らせ（T3-1）。LM Studio の「Reachable at」のようなサーバーの根を貼ると、
+/// 頼む先が `/chat/completions` になり、「その場所は無い」と返される。環境設定の画面と、そう返されたときの誤りの
+/// 文に添える。
+pub fn missing_path_hint(conn: &Connection) -> Option<&'static str> {
+    let url = reqwest::Url::parse(&conn.base_url).ok()?;
+    (url.path().is_empty() || url.path() == "/").then_some(
+        "URL にパスがありません。多くの接続先は /v1 まで書きます（例：http://127.0.0.1:1234/v1）",
+    )
+}
+
 /// 頼む先の URL。
 pub fn request_url(conn: &Connection) -> String {
     match conn.provider {
@@ -219,17 +229,25 @@ pub fn complete(
         None => text,
     };
     let result = call(conn, key, request, options, cancel, on_text);
+    let hint = |text: String| match missing_path_hint(conn) {
+        Some(hint) => format!("{text}。{hint}"),
+        None => text,
+    };
     result.map_err(|e| match e {
         AiError::Connect(m) => AiError::Connect(redact(m)),
         AiError::Auth { status, message } => AiError::Auth {
             status,
             message: redact(message),
         },
+        AiError::Http { status, message } if status == 404 || status == 405 => AiError::Http {
+            status,
+            message: hint(redact(message)),
+        },
         AiError::Http { status, message } => AiError::Http {
             status,
             message: redact(message),
         },
-        AiError::Server(m) => AiError::Server(redact(m)),
+        AiError::Server(m) => AiError::Server(hint(redact(m))),
         AiError::Protocol(m) => AiError::Protocol(redact(m)),
         other => other,
     })
