@@ -588,6 +588,7 @@ body {
 }
 
 .editor-pane {
+  position: relative;
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -2932,4 +2933,155 @@ body {
   padding: 0 18px 10px;
   color: var(--text-muted);
   font-size: 12px;
+}
+
+/* ---- マージの画面（T2-7、D058） ---- */
+
+.merge-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(27, 31, 36, 0.28);
+}
+
+.merge-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(960px, 100%);
+  max-height: 100%;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--paper);
+  box-shadow: 0 12px 32px rgba(27, 31, 36, 0.18);
+}
+
+.merge-head {
+  padding: 16px 20px 10px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.merge-head h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.merge-note {
+  margin: 6px 0 0;
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.merge-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px 20px;
+}
+
+.merge-context {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.merge-lines {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: var(--radius-control);
+  background: var(--panel-bg);
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.merge-lines.mine {
+  background: var(--accent-tint-2);
+  color: var(--ink);
+}
+
+.merge-lines.theirs {
+  background: var(--warn-tint);
+  color: var(--ink);
+}
+
+.merge-empty {
+  color: var(--text-faint);
+}
+
+.merge-omitted {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.merge-conflict {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--warn-border);
+  border-radius: var(--radius-item);
+}
+
+.merge-conflict legend {
+  padding: 0 4px;
+  color: var(--warn-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.merge-sides {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.merge-side-label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.merge-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 13px;
+}
+
+.merge-choices label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.merge-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.source-note {
+  margin: 0;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--accent-tint-2);
+  color: var(--text-2);
+  font-size: 12.5px;
 }

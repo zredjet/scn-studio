@@ -25,6 +25,7 @@ use scn_core::index::build_index;
 use scn_core::ir::{Edge, IrDiagnostic, IrMeta};
 use scn_core::layout::{Point, read_layout as read_layout_file};
 use scn_core::line_id::LineIdGenerator;
+use scn_core::merge::{Choice, merge_text};
 use scn_core::preview;
 use scn_core::renpy;
 use scn_core::route;
@@ -362,6 +363,55 @@ fn keep_mine(file: String, text: String, state: State<'_, AppState>) -> Result<R
         summary, checks, ..
     } = analyze_summary(workspace.project(), true, None)?;
     json_response(&json!({ "disk": disk, "summary": summary, "checks": checks }))
+}
+
+/// 外部の変更とのマージの結果（T2-7、D058）：まとまった部分とぶつかり。`base` は、アプリが覚えている元
+/// （知らせの途中の競合のとき）。
+#[tauri::command]
+fn merge_view(
+    file: String,
+    base: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let merge = workspace
+        .merge_view(&file, base.as_deref())
+        .map_err(|e| e.to_string())?;
+    json_response(&to_json(&merge, "マージの結果")?)
+}
+
+/// マージを当てる（ぶつかりごとに選んだもの）。`token` は見せたマージの見分けで、入力が変わっていれば断る。
+/// マージした本文と、ディスクの中身（外の中身）と、表示に要る分と、検証の段階1の診断を返す。
+#[tauri::command]
+fn apply_merge(
+    file: String,
+    base: Option<String>,
+    choices: Vec<Choice>,
+    token: String,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let applied = workspace
+        .apply_merge(&file, base.as_deref(), &choices, &token)
+        .map_err(|e| e.to_string())?;
+    let Analyzed {
+        summary, checks, ..
+    } = analyze_summary(workspace.project(), true, None)?;
+    json_response(&json!({
+        "text": applied.text,
+        "disk": applied.disk,
+        "summary": summary,
+        "checks": checks,
+    }))
+}
+
+/// 設定ファイルのソース表示の3方向のマージ（行IDを見ない）。ぶつかりは `<<<<<<<` の印で囲んだテキストにする。
+#[tauri::command]
+fn merge_source(base: String, mine: String, theirs: String) -> Result<Response, String> {
+    let merge = merge_text(&base, &mine, &theirs);
+    json_response(&json!({ "text": merge.with_markers(), "conflicts": merge.conflicts }))
 }
 
 /// シーンの情報（文脈パネル。カーソルが別のシーンへ移ったとき）。
@@ -1274,6 +1324,9 @@ pub fn run() {
             save_file,
             reload_file,
             keep_mine,
+            merge_view,
+            apply_merge,
+            merge_source,
             add_chapter,
             scene_info,
             read_bible,

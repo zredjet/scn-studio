@@ -6,6 +6,7 @@ import { test } from "node:test";
 import {
   addItem,
   appended,
+  bodyOfText,
   diagnosticsByKey,
   entryName,
   formFields,
@@ -221,4 +222,12 @@ test("変換中のキー操作（確定の Enter、取り消しの Escape）を�
   assert.ok(
     !isComposingKey({ nativeEvent: { isComposing: false }, keyCode: 27 }),
   );
+});
+
+test("フロントマターの後ろの本文（コアの body_of と同じ読み方）", () => {
+  assert.equal(bodyOfText("---\nid: a\n---\n本文\n"), "本文\n");
+  assert.equal(bodyOfText("\uFEFF---\r\nid: a\r\n---\r\n本文"), "本文");
+  assert.equal(bodyOfText("本文だけ\n"), "本文だけ\n");
+  assert.equal(bodyOfText("---\nid: a\n"), "---\nid: a\n");
+  assert.equal(bodyOfText("---  \nid: a\n---\t\n"), "");
 });

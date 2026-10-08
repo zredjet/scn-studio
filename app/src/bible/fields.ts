@@ -333,3 +333,19 @@ export function isComposingKey(event: {
 }): boolean {
   return event.nativeEvent.isComposing || event.keyCode === 229;
 }
+
+/**
+ * ファイルの、フロントマターの後ろの本文（コアの `bible::body_of` と同じ読み方：先頭の `---` の行から次の `---`
+ * の行まで。無ければ BOM を除いた全体）。
+ */
+export function bodyOfText(text: string): string {
+  const body = text.startsWith("\uFEFF") ? text.slice(1) : text;
+  const lines = body.split(/(?<=\n)/);
+  if ((lines[0] ?? "").trimEnd() !== "---") return body;
+  let at = lines[0]?.length ?? 0;
+  for (const line of lines.slice(1)) {
+    at += line.length;
+    if (line.trimEnd() === "---") return body.slice(at);
+  }
+  return body;
+}

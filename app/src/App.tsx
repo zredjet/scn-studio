@@ -12,6 +12,7 @@ import { countBySeverity } from "./check/group.ts";
 import { ConceptScreen } from "./concept/ConceptScreen.tsx";
 import {
   addChapter,
+  applyMerge,
   assetUrl,
   confirm,
   createProject,
@@ -25,6 +26,7 @@ import {
   keepMine,
   onPreviewLine as listenPreviewLine,
   onShowInEditor as listenShowInEditor,
+  mergeView,
   onPreviewWindowClosed,
   onWorkspaceChanged,
   onWorkspaceError,
@@ -52,6 +54,8 @@ import type {
   EditorSettings,
   GraphLevel,
   IrDiagnostic,
+  MergeChoice,
+  MergeView,
   OpenedProject,
   PreviewRequest,
   RecentProject,
@@ -69,7 +73,9 @@ import {
   type Replace,
 } from "./editor/Editor.tsx";
 import { LineBreakBar } from "./editor/LineBreakBar.tsx";
+import { MergePanel } from "./editor/MergePanel.tsx";
 import { ModeBar } from "./editor/ModeBar.tsx";
+import { rememberBase } from "./editor/merge.ts";
 import type { Definition } from "./editor/navigate.ts";
 import { hasMixedLineBreaks, lineBreakOf } from "./editor/state.ts";
 import { ExportScreen } from "./export/ExportScreen.tsx";
@@ -169,6 +175,17 @@ export function App() {
   const [settingsVersion, setSettingsVersion] = useState(0);
   /** アイデアメモが外で変わった回数（企画の画面が読み直す。T2-6）。 */
   const [ideasVersion, setIdeasVersion] = useState(0);
+  /**
+   * 開いているマージの画面（T2-7）。`mine` は開いたときに送った自分の本文、`sent` はコアに渡した元（null なら
+   * コアが知っている元）、`base` はこのマージの元（置き換えを見送ったときに、次のマージの元にする）。
+   */
+  const [merge, setMerge] = useState<{
+    readonly file: string;
+    readonly mine: string;
+    readonly sent: string | null;
+    readonly base: string | null;
+    readonly view: MergeView;
+  } | null>(null);
   /** プレビューのデータ（プレビューの画面を開いているときだけ取る。T1-11、D050）。 */
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -205,6 +222,13 @@ export function App() {
   const buffers = useRef(new Map<string, string>());
   /** ディスクの中身（ファイルごと）。 */
   const saved = useRef(new Map<string, string>());
+  /**
+   * マージの元（ファイルごと。T2-7、D058）。知らせの途中の競合（コアが読み込み直した後に、まだ送っていなかった
+   * 編集を戻した）のときだけ持つ。コアはこの元を知らないので、マージのときに渡す。
+   */
+  const mergeBases = useRef(new Map<string, string>());
+  /** 本文の置き換えを見送ったときに、マージの元にする中身（置き換えを頼んだときの、エディタの本文の元）。 */
+  const skipBases = useRef(new Map<string, string>());
   /** 解析の依頼の通し番号。古い結果を捨てるのに使う。 */
   const request = useRef(0);
   /** 置き換えの通し番号。 */
@@ -241,9 +265,20 @@ export function App() {
     previewWindow,
   };
 
+  /**
+   * エディタの本文を置き換える。`expected` はエディタの今の本文（違えば置き換えを見送り、選ばせる）、`base` は
+   * 見送ったときにマージの元にする中身（今の本文の元。省けば `expected`）。
+   */
   const replaceText = useCallback(
-    (file: string, text: string, expected: string | null) => {
+    (
+      file: string,
+      text: string,
+      expected: string | null,
+      base: string | null = expected,
+    ) => {
       replaceSeq.current += 1;
+      if (base === null) skipBases.current.delete(file);
+      else skipBases.current.set(file, base);
       setReplace({ file, text, expected, seq: replaceSeq.current });
     },
     [],
@@ -320,6 +355,9 @@ export function App() {
     setReplace(null);
     setDirty(new Set());
     setConflicts(new Map());
+    setMerge(null);
+    mergeBases.current.clear();
+    skipBases.current.clear();
     setProject({
       root: opened.root,
       title: opened.title,
@@ -454,6 +492,8 @@ export function App() {
             saved.current.set(change.file, change.text);
             if (dirtyNow.has(change.file)) {
               // コアが読み込み直す前に、まだ送っていない編集があった。コアに自分の編集を戻し、選ばせる。
+              // コアは読み込み直す前の中身を知らないので、マージの元として覚えておく。
+              rememberBase(mergeBases.current, change.file, before);
               newConflicts.set(change.file, { deleted: false });
               const mine = buffers.current.get(change.file);
               if (mine !== undefined)
@@ -501,6 +541,13 @@ export function App() {
         }
       }
       setConflicts(newConflicts);
+      // 開いているマージの画面のファイルが変わったら、見せたマージは古いので閉じる。
+      setMerge((m) =>
+        m !== null &&
+        event.changes.some((c) => "file" in c && c.file === m.file)
+          ? null
+          : m,
+      );
       if (closed.size > 0) setDirty((set) => withoutFiles(set, closed));
       if (current !== null && closed.has(current))
         setCurrentFile(files[0] ?? null);
@@ -620,6 +667,7 @@ export function App() {
           return null;
         }
         saved.current.set(file, result.text);
+        mergeBases.current.delete(file);
         // 保存を待つ間に編集を送っていなければ、書いた本文が今の本文。送っていれば、エディタが行IDを入れて送り直す。
         if (buffers.current.get(file) === text)
           buffers.current.set(file, result.text);
@@ -644,13 +692,67 @@ export function App() {
 
   /** 読み込み直しの知らせの後、置き換える前に編集していた。コアに自分の編集を戻し、選ばせる。 */
   const onReplaceSkipped = useCallback((file: string, text: string) => {
+    const base = skipBases.current.get(file);
+    rememberBase(mergeBases.current, file, base);
     buffers.current.set(file, text);
     void parseBuffer(file, text).catch(() => {});
     setConflicts((map) => new Map(map).set(file, { deleted: false }));
   }, []);
 
+  /** マージの画面を開く。まだ送っていない編集を先にコアへ送り、それを自分の変更にする。 */
+  const startMerge = useCallback(async (file: string) => {
+    try {
+      const mine = buffers.current.get(file) ?? "";
+      await parseBuffer(file, mine);
+      const sent = mergeBases.current.get(file) ?? null;
+      const view = await mergeView(file, sent);
+      setMerge({
+        file,
+        mine,
+        sent,
+        base: sent ?? saved.current.get(file) ?? null,
+        view,
+      });
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
+  /** マージを当てる：結果を保存していない変更として開き、ディスクの中身を外の中身にする。 */
+  const finishMerge = useCallback(
+    async (choices: readonly MergeChoice[]) => {
+      if (merge === null) return;
+      const { file, mine, sent, base, view } = merge;
+      try {
+        const result = await applyMerge(file, sent, choices, view.token);
+        mergeBases.current.delete(file);
+        buffers.current.set(file, result.text);
+        if (result.disk === null) saved.current.delete(file);
+        else saved.current.set(file, result.disk);
+        // 画面を開いた後に打った編集があれば、置き換えずに、もう一度選ばせる（onReplaceSkipped）。そのときは
+        // このマージの元から、もう一度マージできる。
+        if (latest.current.currentFile === file)
+          replaceText(file, result.text, mine, base);
+        setConflicts((map) => withoutConflict(map, file));
+        setSavedVersion((n) => n + 1);
+        showSummary(result.summary, result.checks);
+        setMerge(null);
+        whenIdle(() =>
+          setNotice(`${file} をマージしました。保存すると書きます`),
+        );
+      } catch (e) {
+        // 開いた後に本文か外の中身が変わった（コアが断った）。閉じて、開き直させる。
+        setMerge(null);
+        setError(String(e));
+      }
+    },
+    [merge, replaceText, showSummary, whenIdle],
+  );
+
   const resolveConflict = useCallback(
     async (file: string, reload: boolean) => {
+      setMerge((m) => (m?.file === file ? null : m));
+      mergeBases.current.delete(file);
       try {
         if (reload) {
           const result = await reloadFile(file);
@@ -807,6 +909,7 @@ export function App() {
       const before = saved.current.get(file);
       saved.current.set(file, text);
       if (latest.current.dirty.has(file)) {
+        rememberBase(mergeBases.current, file, before);
         setConflicts((m) => new Map(m).set(file, { deleted: false }));
         const mine = buffers.current.get(file);
         if (mine !== undefined) void parseBuffer(file, mine).catch(() => {});
@@ -1182,6 +1285,16 @@ export function App() {
                       deleted={conflict.deleted}
                       onReload={() => void resolveConflict(currentFile, true)}
                       onKeep={() => void resolveConflict(currentFile, false)}
+                      onMerge={() => void startMerge(currentFile)}
+                    />
+                  )}
+                  {merge !== null && merge.file === currentFile && (
+                    <MergePanel
+                      key={merge.view.token}
+                      file={merge.file}
+                      view={merge.view}
+                      onApply={finishMerge}
+                      onCancel={() => setMerge(null)}
                     />
                   )}
                   {currentFile !== null && mixedLineBreak !== null && (

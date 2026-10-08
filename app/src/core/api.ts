@@ -22,6 +22,9 @@ import type {
   JsonValue,
   KeptFile,
   LoadedLayout,
+  MergeApplied,
+  MergeChoice,
+  MergeView,
   OpenedProject,
   PreviewRequest,
   PromotedWritten,
@@ -127,6 +130,43 @@ export function createEntry(
   name: string,
 ): Promise<BibleWritten> {
   return invoke<BibleWritten>("create_entry", { typeId, id, name });
+}
+
+/**
+ * 外部の変更とのマージの結果（T2-7）。`base` は画面が覚えている元（知らせの途中の競合で、読み込み直す前の
+ * 中身）。null ならコアが知っている元を使う。
+ */
+export function mergeView(
+  file: string,
+  base: string | null,
+): Promise<MergeView> {
+  return invoke<MergeView>("merge_view", { file, base });
+}
+
+/**
+ * マージを当てる（ぶつかりごとに選んだもの）。結果は保存していない変更として開く。`token` は見せたマージの
+ * 見分けで、その後に本文か外の中身が変わっていれば断られる。
+ */
+export function applyMerge(
+  file: string,
+  base: string | null,
+  choices: readonly MergeChoice[],
+  token: string,
+): Promise<MergeApplied> {
+  return invoke<MergeApplied>("apply_merge", { file, base, choices, token });
+}
+
+/** 設定ファイルのソース表示の3方向のマージ。ぶつかりは `<<<<<<<` の印で囲む。 */
+export function mergeSource(
+  base: string,
+  mine: string,
+  theirs: string,
+): Promise<{ text: string; conflicts: number }> {
+  return invoke<{ text: string; conflicts: number }>("merge_source", {
+    base,
+    mine,
+    theirs,
+  });
 }
 
 /** アイデアメモの一覧（T2-6）。 */

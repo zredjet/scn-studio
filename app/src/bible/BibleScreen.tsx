@@ -32,6 +32,7 @@ import type {
 } from "../core/types.ts";
 import { FieldInput, type RefCandidate } from "./FieldInput.tsx";
 import {
+  bodyOfText,
   diagnosticsByKey,
   entryName,
   type FieldChange,
@@ -840,10 +841,16 @@ export function BodyField({
     if (!touched.current) return;
     touched.current = false;
     const stamp = typed.current;
+    const sent = draft;
     void onCommit(draft, seen.current).then((edit) => {
       if (edit === null || edit.kind === "created") return;
       if (edit.kind === "saved") {
-        seen.current = edit.text;
+        // 外の本文の変更とマージして書いた（書いた本文が送った下書きと違う）のに、書いている間に打っていたら、
+        // 下書きはマージ前のまま。元を前のままにして、次に書くときに、もう一度マージさせる（外の変更を黙って
+        // 戻さない。T2-7、D058）。
+        const merged =
+          normalizeNewlines(bodyOfText(edit.text)) !== normalizeNewlines(sent);
+        if (!(merged && typed.current !== stamp)) seen.current = edit.text;
         return;
       }
       if (typed.current !== stamp) return;

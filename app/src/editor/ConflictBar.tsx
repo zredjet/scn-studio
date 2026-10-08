@@ -1,5 +1,5 @@
-// 外部の変更と、保存していない変更がぶつかったときの知らせ。読み込み直すか、自分の変更を残すかを選ぶ
-// （マージの画面はフェーズ2）。
+// 外部の変更と、保存していない変更がぶつかったときの知らせ。読み込み直す、自分の変更を残す、マージする
+// （T2-7、D058。外で消されたときはマージできない）から選ぶ。
 
 interface Props {
   readonly file: string;
@@ -7,9 +7,16 @@ interface Props {
   readonly deleted: boolean;
   readonly onReload: () => void;
   readonly onKeep: () => void;
+  readonly onMerge: () => void;
 }
 
-export function ConflictBar({ file, deleted, onReload, onKeep }: Props) {
+export function ConflictBar({
+  file,
+  deleted,
+  onReload,
+  onKeep,
+  onMerge,
+}: Props) {
   return (
     <div className="conflict-bar" role="alert">
       <span>
@@ -22,6 +29,11 @@ export function ConflictBar({ file, deleted, onReload, onKeep }: Props) {
       <button type="button" className="small-button" onClick={onKeep}>
         自分の変更を残す
       </button>
+      {!deleted && (
+        <button type="button" className="small-button" onClick={onMerge}>
+          マージする
+        </button>
+      )}
     </div>
   );
 }

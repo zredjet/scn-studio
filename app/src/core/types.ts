@@ -730,3 +730,32 @@ export interface ConceptData {
   }[];
   readonly body: string;
 }
+
+/** マージの結果の一続き（コアの `merge::Hunk`、T2-7）。 */
+export type MergeHunk =
+  | { readonly kind: "merged"; readonly text: string }
+  | {
+      readonly kind: "conflict";
+      readonly base: string;
+      readonly mine: string;
+      readonly theirs: string;
+    };
+
+/** 外部の変更とのマージの結果（コアの `merge::Merge`）。 */
+export interface MergeView {
+  readonly hunks: readonly MergeHunk[];
+  readonly conflicts: number;
+  /** 入力（元・自分・外）の見分け。当てるときに返す。 */
+  readonly token: string;
+}
+
+/** ぶつかりの選び方（コアの `merge::Choice`）。 */
+export type MergeChoice = "mine" | "theirs" | "both";
+
+/** マージを当てた結果。 */
+export interface MergeApplied {
+  readonly text: string;
+  readonly disk: string | null;
+  readonly summary: Summary;
+  readonly checks: readonly IrDiagnostic[];
+}

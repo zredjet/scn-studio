@@ -20,6 +20,7 @@ use crate::ideas::{
 };
 use crate::layout::{LAYOUT_FILE, LayoutError, Point, update_layout};
 use crate::line_id::{AssignedLineId, LineIdGenerator, assign_line_ids};
+use crate::merge::{Choice, Merge, merge_scn, merge_text};
 use crate::project::{Project, ProjectError, SourceFile, load_project, write_source};
 use crate::scaffold::CONCEPT_TEMPLATE;
 
@@ -43,6 +44,15 @@ pub struct Workspace {
     /// 自分で書いた設定ファイル（設定DBのエントリ、`variables.yaml`）の中身。書いたときに設定を読み直して
     /// いるので、監視の知らせで、ディスクの中身がこれと同じなら無視する。
     settings_written: BTreeMap<String, String>,
+}
+
+/// マージを当てた結果（T2-7、D058）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct MergeApplied {
+    /// マージした本文（保存していない変更として開く）。
+    pub text: String,
+    /// ディスクの中身（外の中身）。
+    pub disk: Option<String>,
 }
 
 /// 外部の変更を取り込んだ結果。
@@ -672,10 +682,17 @@ impl Workspace {
     ) -> Result<EntryEdit, ProjectError> {
         let path = self.entry_path(file)?;
         let current = self.read_settings_file(&path)?;
+        let mut body = body.to_owned();
         if current != seen && body_of(&current) != body_of(seen) {
-            return Ok(EntryEdit::Conflict { text: current });
+            // 外でも本文が変わった：3方向でマージし（T2-7、D058）、ぶつからなければ書く。
+            let lf = |text: &str| text.replace("\r\n", "\n");
+            let merged = merge_text(&lf(body_of(seen)), &lf(&body), &lf(body_of(&current)));
+            match merged.resolve(&[]) {
+                Some(text) => body = text,
+                None => return Ok(EntryEdit::Conflict { text: current }),
+            }
         }
-        let text = set_body(&current, body);
+        let text = set_body(&current, &body);
         self.write_settings_file(file, &text)?;
         Ok(EntryEdit::Saved { text })
     }
@@ -957,6 +974,75 @@ impl Workspace {
         write_source(&self.root, &file, "")?;
         self.insert_file(&file, "");
         Ok(file)
+    }
+
+    // ---- 外部の変更とのマージ（T2-7、D058） ----
+
+    /// マージの元・自分・外。自分は今の本文。外は、選ぶ前の外の中身があればそれ、無ければディスクの中身。元は、
+    /// アプリが渡したもの（知らせの途中の競合で、アプリが読み込み直す前の中身を覚えているとき）か、選ぶ前の外の
+    /// 中身があればディスクの中身（読み込んだときの中身）。外で消されたファイルはマージしない。
+    fn merge_inputs(
+        &self,
+        file: &str,
+        base: Option<&str>,
+    ) -> Result<(String, String, String), ProjectError> {
+        let path = self.root.join(file);
+        let invalid = |message: &str| error(&path, io::ErrorKind::InvalidInput, message);
+        let Some(mine) = self.text(file).map(str::to_owned) else {
+            return Err(not_open(&path));
+        };
+        let (theirs, known) = match self.pending.get(file) {
+            Some(None) => return Err(invalid("外で消されたファイルは、マージできません")),
+            Some(Some(theirs)) => (theirs.clone(), self.disk_text(file).map(str::to_owned)),
+            None => match self.disk_text(file) {
+                Some(theirs) => (theirs.to_owned(), None),
+                None => return Err(invalid("外で消されたファイルは、マージできません")),
+            },
+        };
+        let Some(base) = base.map(str::to_owned).or(known) else {
+            return Err(invalid(
+                "マージの元が分からないので、マージできません。読み込み直すか、自分の変更を残してください",
+            ));
+        };
+        Ok((base, mine, theirs))
+    }
+
+    /// 外部の変更とのマージの結果（3方向。行IDのある行は行IDで対応させる）。画面はぶつかりを並べて選ばせる。
+    /// `base` は、アプリが覚えている元（知らせの途中の競合のとき）。
+    pub fn merge_view(&self, file: &str, base: Option<&str>) -> Result<Merge, ProjectError> {
+        let (base, mine, theirs) = self.merge_inputs(file, base)?;
+        Ok(merge_scn(&base, &mine, &theirs))
+    }
+
+    /// マージを当てる：ぶつかりごとに選んだ結果を、保存していない変更として開く（ディスクの中身は外の中身。
+    /// 「自分の変更を残す」と同じ扱い）。`token` は画面に見せたマージの [`Merge::token`] で、今の入力から作った
+    /// マージと違えば（見せた後に本文か外の中身が変わった）、何も変えずに断る。
+    pub fn apply_merge(
+        &mut self,
+        file: &str,
+        base: Option<&str>,
+        choices: &[Choice],
+        token: &str,
+    ) -> Result<MergeApplied, ProjectError> {
+        let (base, mine, theirs) = self.merge_inputs(file, base)?;
+        let merge = merge_scn(&base, &mine, &theirs);
+        let refuse = |message: &str| {
+            Err(error(
+                &self.root.join(file),
+                io::ErrorKind::InvalidInput,
+                message,
+            ))
+        };
+        if merge.token != token {
+            return refuse(
+                "マージを開いた後に、本文か外の中身が変わりました。もう一度マージしてください",
+            );
+        }
+        let Some(text) = merge.resolve(choices) else {
+            return refuse("選んだ数が、ぶつかりの数と合いません。もう一度マージしてください");
+        };
+        let disk = self.keep_mine(file, &text)?;
+        Ok(MergeApplied { text, disk })
     }
 
     // ---- 企画とアイデアメモ（T2-6、D057） ----

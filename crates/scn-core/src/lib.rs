@@ -44,6 +44,7 @@ pub mod ir;
 pub mod layout;
 mod line;
 pub mod line_id;
+pub mod merge;
 pub mod plaintext;
 pub mod preview;
 pub mod project;
