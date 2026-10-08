@@ -5,7 +5,7 @@
 //! 構文解析だけでなく、意味解析とIR（`analyze`）、索引、検証の段階1（`check`）も通す。
 //! 行IDの付与（`scn fmt`）も、同じ入力で確かめる（足した部分のほかはバイトが変わらない、など）。
 //! 素材の一覧と発注リスト（`assets`）、カーソル位置から再生の最短経路（`route`）、Ren'Py への書き出し（`renpy`）、
-//! アイデアメモと企画書（`ideas`・`concept`）も、同じ入力でパニックしないことを確かめる。
+//! アイデアメモと企画書（`ideas`・`concept`）、名前の変更（`rename`）も、同じ入力でパニックしないことを確かめる。
 
 mod support;
 
@@ -23,6 +23,7 @@ use scn_core::index::build_index;
 use scn_core::line_id::{LineIdGenerator, assign_line_ids};
 use scn_core::plaintext::plain_text;
 use scn_core::project::{MessageWindow, Project, SourceFile};
+use scn_core::rename::{RenameTarget, plan_rename, symbol_at};
 use scn_core::renpy::{RenpyProfile, export_renpy};
 use scn_core::route::{ReadingTarget, read, reading_choices, route_at};
 use scn_core::{DialogueBracket, ParseOptions, analyze, load_project, parse};
@@ -125,6 +126,25 @@ fn check(source: &str) {
     let stub = stub_scene(source, "題", "zz_stub", summary.as_deref());
     assert!(stub.contains("## 題 #zz_stub"));
     let _ = concept_data(&fixture_root(), &windowed, &ir);
+
+    // 名前の変更：どの位置でもカーソルのところの名前を探せる。見つかったものの変更を組み立てても落ちない。
+    let file = windowed.files[0].path.clone();
+    for offset in (0..=source.len())
+        .filter(|i| source.is_char_boundary(*i))
+        .step_by(7)
+    {
+        if let Some(symbol) = symbol_at(&windowed, &file, offset) {
+            let _ = plan_rename(&windowed, &fixture_root(), &symbol.target, "zz_new");
+        }
+    }
+    let _ = plan_rename(
+        &windowed,
+        &fixture_root(),
+        &RenameTarget::Variable {
+            key: "flag.x".to_owned(),
+        },
+        "flag.y",
+    );
 
     // Ren'Py への書き出し（定義のファイルは必ず書く）。
     let export = export_renpy(&windowed, &fixture_root(), &ir, &RenpyProfile::default());

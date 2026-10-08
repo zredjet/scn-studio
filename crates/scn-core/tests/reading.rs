@@ -7,7 +7,8 @@ use std::path::{Path, PathBuf};
 use scn_core::ir::IrInline;
 use scn_core::plaintext::plain_text;
 use scn_core::route::{
-    Reading, ReadingItem, ReadingTarget, RouteStep, Variables, read, reading_choices, target_label,
+    Reading, ReadingItem, ReadingTarget, RouteStep, Variables, read, reading_choices, route_stats,
+    target_label,
 };
 use scn_core::{analyze, load_project};
 
@@ -240,4 +241,21 @@ fn called_scene_has_no_heading() {
         })
         .collect();
     assert!(!scenes.contains(&"s90"), "{scenes:?}");
+}
+
+/// ステータスバーの道の文字数と、読み終えるまでの目安（T2-8、D059）。
+#[test]
+fn stats() {
+    let root = sample("houkago");
+    let project = load_project(&root).unwrap();
+    let ir = analyze(&project);
+    let stats = route_stats(&project, &ir);
+    let labels: Vec<&str> = stats.iter().map(|s| s.label.as_str()).collect();
+    assert_eq!(labels, ["共通のみ", "灯ルート", "紬ルート"]);
+    let akari = &stats[1];
+    assert_eq!(akari.route.as_deref(), Some("灯"));
+    assert_eq!(akari.stop, "ending");
+    assert!(akari.chars > stats[0].chars, "{stats:?}");
+    assert_eq!(akari.minutes, akari.chars.div_ceil(400));
+    assert_eq!(stats[0].route.as_deref(), Some("共通"));
 }

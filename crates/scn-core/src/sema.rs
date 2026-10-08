@@ -32,6 +32,30 @@ pub(crate) enum Resolution<'p> {
     Ambiguous(Vec<&'p str>),
 }
 
+/// キャラクターを、ID、名前、呼び名の順に照合する（仕様書6節）。同じ段で2人以上に当てはまれば解決できない。
+pub(crate) fn resolve_character_in<'p>(
+    characters: &'p [crate::project::Character],
+    name: &str,
+) -> Resolution<'p> {
+    let stages: [&dyn Fn(&crate::project::Character) -> bool; 3] =
+        [&|c| c.id == name, &|c| c.name == name, &|c| {
+            c.aliases.iter().any(|a| a == name)
+        }];
+    for matches in stages {
+        let found: Vec<&'p str> = characters
+            .iter()
+            .filter(|c| matches(c))
+            .map(|c| c.id.as_str())
+            .collect();
+        match found.as_slice() {
+            [] => continue,
+            [id] => return Resolution::Found(id),
+            _ => return Resolution::Ambiguous(found),
+        }
+    }
+    Resolution::NotFound
+}
+
 /// 台詞候補を、台詞と地の文のどちらにするか（仕様書6節）。
 pub(crate) enum Speaker<'p> {
     Character(&'p str),
@@ -73,24 +97,7 @@ pub(crate) struct Sema<'p> {
 impl<'p> Sema<'p> {
     /// キャラクターを、ID、名前、呼び名の順に照合する。同じ段で2人以上に当てはまれば解決できない。
     pub(crate) fn resolve_character(&self, name: &str) -> Resolution<'p> {
-        let characters = &self.project.characters;
-        let stages: [&dyn Fn(&crate::project::Character) -> bool; 3] =
-            [&|c| c.id == name, &|c| c.name == name, &|c| {
-                c.aliases.iter().any(|a| a == name)
-            }];
-        for matches in stages {
-            let found: Vec<&'p str> = characters
-                .iter()
-                .filter(|c| matches(c))
-                .map(|c| c.id.as_str())
-                .collect();
-            match found.as_slice() {
-                [] => continue,
-                [id] => return Resolution::Found(id),
-                _ => return Resolution::Ambiguous(found),
-            }
-        }
-        Resolution::NotFound
+        resolve_character_in(&self.project.characters, name)
     }
 
     fn character_id(&self, name: &str) -> Option<&'p str> {

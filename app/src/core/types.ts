@@ -759,3 +759,52 @@ export interface MergeApplied {
   readonly summary: Summary;
   readonly checks: readonly IrDiagnostic[];
 }
+
+/** 名前を変えるもの（コアの `rename::RenameTarget`、T2-8）。 */
+export type RenameTarget =
+  | { readonly kind: "scene"; readonly id: string }
+  | { readonly kind: "character_name"; readonly id: string }
+  | { readonly kind: "variable"; readonly key: string }
+  | {
+      readonly kind: "entry_id";
+      readonly type_id: string;
+      readonly id: string;
+    };
+
+/** カーソルのところの、名前を変えられるもの（コアの `rename::Symbol`）。 */
+export interface RenameSymbol {
+  readonly target: RenameTarget;
+  readonly current: string;
+  readonly label: string;
+}
+
+/** 名前の変更の見積もり。 */
+export interface RenamePreview {
+  readonly story_edits: number;
+  readonly story: readonly string[];
+  readonly settings: readonly string[];
+  readonly moves: readonly { readonly from: string; readonly to: string }[];
+  /** 知らせ（変えないもの、変わってしまうもの）。 */
+  readonly notes: readonly string[];
+}
+
+/** 名前を変えた後に受け取るもの（設定DBを書いた後と同じ形）。 */
+export interface RenameWritten extends Omit<BibleWritten, "edit"> {
+  readonly edit: {
+    readonly story: readonly { readonly file: string; readonly text: string }[];
+    readonly settings: readonly string[];
+    readonly story_edits: number;
+    readonly notes: readonly string[];
+    /** 途中で書けなかったとき、その理由（それまでに書いたものは story と settings にある）。 */
+    readonly problem: string | null;
+  };
+}
+
+/** 道の文字数と、読み終えるまでの目安（コアの `route::RouteStat`）。 */
+export interface RouteStat {
+  readonly label: string;
+  readonly route: string | null;
+  readonly chars: number;
+  readonly minutes: number;
+  readonly stop: string;
+}

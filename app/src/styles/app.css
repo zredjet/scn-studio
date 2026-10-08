@@ -3085,3 +3085,103 @@ body {
   color: var(--text-2);
   font-size: 12.5px;
 }
+
+/* ---- 名前の変更、章の操作（T2-8、D059） ---- */
+
+.link-button {
+  margin-left: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.link-button.danger {
+  color: var(--danger-text);
+}
+
+.file-actions {
+  display: flex;
+  gap: 4px;
+  padding: 0 12px 4px;
+}
+
+.rename-dialog {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(520px, calc(100% - 32px));
+  margin: 12vh auto 0;
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--paper);
+  box-shadow: 0 12px 32px rgba(27, 31, 36, 0.18);
+}
+
+.rename-dialog h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.rename-current {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+
+.rename-dialog input {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-item);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+}
+
+.rename-preview,
+.rename-problem {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.rename-preview {
+  color: var(--text-2);
+}
+
+.rename-problem {
+  color: var(--danger-text);
+}
+
+.rename-notes {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--warn-text);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.rename-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* 集中モード：ほかのペインを隠す。 */
+.focus-exit {
+  position: fixed;
+  right: 16px;
+  bottom: 36px;
+  z-index: 15;
+}
+
+/* 明朝とゴシックの切り替え：執筆表示の本文の書体。 */
+.editor-pane.font-gothic {
+  --font-body: var(--font-ui);
+}

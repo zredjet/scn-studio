@@ -39,3 +39,27 @@ export function fileChars(
 export function formatChars(n: number): string {
   return `${n.toLocaleString("en-US")}字`;
 }
+
+/** 道の文字数と、読み終えるまでの目安（ステータスバー。T2-8）。`灯ルート 12,345字・約31分`。 */
+export function routeStatText(stat: {
+  readonly label: string;
+  readonly chars: number;
+  readonly minutes: number;
+}): string {
+  const time =
+    stat.minutes < 60
+      ? `約${stat.minutes}分`
+      : `約${Math.floor(stat.minutes / 60)}時間${stat.minutes % 60}分`;
+  return `${stat.label} ${formatChars(stat.chars)}・${time}`;
+}
+
+/** 今のシーンのルートの道（無ければ共通。どれも無ければ null）。 */
+export function statOfRoute<
+  T extends { readonly route: string | null; readonly label: string },
+>(stats: readonly T[], route: string | null): T | null {
+  return (
+    (route === null ? undefined : stats.find((s) => s.route === route)) ??
+    stats[0] ??
+    null
+  );
+}

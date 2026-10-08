@@ -48,6 +48,7 @@ pub mod merge;
 pub mod plaintext;
 pub mod preview;
 pub mod project;
+pub mod rename;
 pub mod renpy;
 pub mod route;
 pub mod scaffold;

@@ -13,9 +13,11 @@ import { ConceptScreen } from "./concept/ConceptScreen.tsx";
 import {
   addChapter,
   applyMerge,
+  applyRename,
   assetUrl,
   confirm,
   createProject,
+  deleteChapter,
   devReport,
   devSettings,
   exportRenpy,
@@ -39,11 +41,15 @@ import {
   readingChoices,
   recentProjects,
   reloadFile,
+  renameChapter,
+  renamePreview,
+  routeStats,
   saveFile,
   sceneInfo,
   scriptSheet,
   sendTextChanged,
   setViewMode,
+  symbolAt,
   viewModes,
 } from "./core/api.ts";
 import type { PreviewData } from "./core/ir.ts";
@@ -59,6 +65,8 @@ import type {
   OpenedProject,
   PreviewRequest,
   RecentProject,
+  RenameSymbol,
+  RouteStat,
   SceneInfo,
   SceneSummary,
   Summary,
@@ -83,11 +91,19 @@ import { SceneGraph } from "./graph/SceneGraph.tsx";
 import { locateLine } from "./preview/locate.ts";
 import { type PreviewLine, PreviewScreen } from "./preview/PreviewScreen.tsx";
 import { SceneList } from "./scenes/SceneList.tsx";
+import { CommandPalette } from "./shell/CommandPalette.tsx";
 import { ContextPanel } from "./shell/ContextPanel.tsx";
 import { LeftBar, type Screen } from "./shell/LeftBar.tsx";
+import type { Command } from "./shell/palette.ts";
 import { QuickOpen } from "./shell/QuickOpen.tsx";
+import { RenameDialog } from "./shell/RenameDialog.tsx";
 import { StatusBar } from "./shell/StatusBar.tsx";
-import { fileChars, sceneAt } from "./shell/scene.ts";
+import {
+  fileChars,
+  routeStatText,
+  sceneAt,
+  statOfRoute,
+} from "./shell/scene.ts";
 import { TitleBar } from "./shell/TitleBar.tsx";
 import { Welcome } from "./shell/Welcome.tsx";
 import { VariablesScreen } from "./variables/VariablesScreen.tsx";
@@ -144,6 +160,39 @@ function withoutConflict(
   const next = new Map(map);
   next.delete(file);
   return next;
+}
+
+/** 表示の好み（集中モード、タイプライタースクロール、ゴシック体。T2-8）。この端末の WebView に覚える。 */
+interface ViewPrefs {
+  readonly focus: boolean;
+  readonly typewriter: boolean;
+  readonly gothic: boolean;
+}
+
+const VIEW_PREFS_KEY = "scn-studio.view";
+
+function loadViewPrefs(): ViewPrefs {
+  const none = { focus: false, typewriter: false, gothic: false };
+  try {
+    const raw = localStorage.getItem(VIEW_PREFS_KEY);
+    if (raw === null) return none;
+    const v = JSON.parse(raw) as Partial<ViewPrefs>;
+    return {
+      focus: v.focus === true,
+      typewriter: v.typewriter === true,
+      gothic: v.gothic === true,
+    };
+  } catch {
+    return none;
+  }
+}
+
+function saveViewPrefs(prefs: ViewPrefs): void {
+  try {
+    localStorage.setItem(VIEW_PREFS_KEY, JSON.stringify(prefs));
+  } catch {
+    // 覚えられなくても、今の表示には使える。
+  }
 }
 
 export function App() {
@@ -208,6 +257,22 @@ export function App() {
     new Set(),
   );
   const [quickOpen, setQuickOpen] = useState(false);
+  /** コマンドパレット（Mod-Shift-P。T2-8）。 */
+  const [palette, setPalette] = useState(false);
+  /** 名前の変更の画面（F2。T2-8）。 */
+  const [renaming, setRenaming] = useState<RenameSymbol | null>(null);
+  /** 共通とルートごとの文字数（ステータスバー。T2-8）。 */
+  const [stats, setStats] = useState<readonly RouteStat[]>([]);
+  const [viewPrefs, setViewPrefs] = useState<ViewPrefs>(loadViewPrefs);
+  const updateViewPrefs = useCallback(
+    (change: (prefs: ViewPrefs) => ViewPrefs) =>
+      setViewPrefs((prefs) => {
+        const next = change(prefs);
+        saveViewPrefs(next);
+        return next;
+      }),
+    [],
+  );
   /** フローの画面の粒度と、`layout.json` が外で変わった回数（D048）。 */
   const [flowLevel, setFlowLevel] = useState<GraphLevel>("scene");
   const [layoutVersion, setLayoutVersion] = useState(0);
@@ -358,6 +423,9 @@ export function App() {
     setMerge(null);
     mergeBases.current.clear();
     skipBases.current.clear();
+    setRenaming(null);
+    setPalette(false);
+    setStats([]);
     setProject({
       root: opened.root,
       title: opened.title,
@@ -923,6 +991,171 @@ export function App() {
     [replaceText],
   );
 
+  /** F2：カーソルのところの名前を変える画面を開く。先に今の本文をコアへ送る（T2-8）。 */
+  const onRename = useCallback(
+    async (file: string, offset: number, text: string) => {
+      try {
+        buffers.current.set(file, text);
+        await parseBuffer(file, text);
+        const symbol = await symbolAt(
+          file,
+          new PositionMap(text).utf16ToByte(offset),
+        );
+        if (symbol === null) {
+          whenIdle(() =>
+            setNotice(
+              "ここには名前を変えられるものがありません（シーンID、話者、立ち絵のキャラクター、変数の上で F2）",
+            ),
+          );
+          return;
+        }
+        setRenaming(symbol);
+      } catch (e) {
+        setError(String(e));
+      }
+    },
+    [whenIdle],
+  );
+
+  /** 名前を変える。変わった本文はエディタに入れ、設定の画面は読み直す。できなければ誤りの文。 */
+  const doRename = useCallback(
+    async (next: string): Promise<string | null> => {
+      const symbol = renaming;
+      if (symbol === null) return null;
+      try {
+        // 外部の変更とぶつかっている章（選ぶ前）を書き換えると、まだ選んでいない外の変更が消えるので断る。
+        const preview = await renamePreview(symbol.target, next);
+        const blocked = preview.story.filter((f) =>
+          latest.current.conflicts.has(f),
+        );
+        if (blocked.length > 0)
+          return `${blocked.join("、")} は外部の変更とぶつかっています。選んでから名前を変えてください`;
+        const result = await applyRename(symbol.target, next);
+        const written = new Set(result.edit.story.map((c) => c.file));
+        setDirty((set) => withoutFiles(set, written));
+        for (const change of result.edit.story) {
+          const before = buffers.current.get(change.file);
+          saved.current.set(change.file, change.text);
+          buffers.current.set(change.file, change.text);
+          mergeBases.current.delete(change.file);
+          if (
+            change.file === latest.current.currentFile &&
+            before !== undefined
+          )
+            replaceText(change.file, change.text, before, before);
+        }
+        setSavedVersion((n) => n + 1);
+        setSettingsVersion((n) => n + 1);
+        setIdeasVersion((n) => n + 1);
+        setLayoutVersion((n) => n + 1);
+        onSettingsWritten(result);
+        // エントリのIDを変えたら、設定DBの画面は新しいパスのエントリを開く。
+        const target = symbol.target;
+        if (target.kind === "entry_id" && latest.current.screen === "bible") {
+          const path = `bible/entries/${target.type_id}/${next}.md`;
+          requestBible((seq) => ({ kind: "entry", path, seq }));
+        }
+        if (result.edit.problem !== null) {
+          setError(
+            `名前の変更の途中で書けませんでした（書いたもの：本文 ${result.edit.story.length}ファイル、設定 ${result.edit.settings.length}ファイル）：${result.edit.problem}`,
+          );
+          return null;
+        }
+        whenIdle(() =>
+          setNotice(
+            `名前を変えました（本文 ${result.edit.story_edits}か所、設定 ${result.edit.settings.length}ファイル）`,
+          ),
+        );
+        return null;
+      } catch (e) {
+        return String(e);
+      }
+    },
+    [renaming, replaceText, onSettingsWritten, requestBible, whenIdle],
+  );
+
+  /** 章のファイル名を変える（T2-8）。保存していない変更と、エディタの状態は持ち越す。 */
+  const onRenameChapter = useCallback(
+    async (file: string, name: string): Promise<string | null> => {
+      try {
+        const result = await renameChapter(file, name);
+        const to = result.file;
+        for (const map of [
+          buffers.current,
+          saved.current,
+          mergeBases.current,
+          skipBases.current,
+        ]) {
+          const value = map.get(file);
+          map.delete(file);
+          if (value !== undefined) map.set(to, value);
+        }
+        setDirty((set) => {
+          if (!set.has(file)) return set;
+          const next = new Set(set);
+          next.delete(file);
+          next.add(to);
+          return next;
+        });
+        setConflicts((map) => {
+          const value = map.get(file);
+          if (value === undefined) return map;
+          const next = new Map(map);
+          next.delete(file);
+          next.set(to, value);
+          return next;
+        });
+        const mode = latest.current.modes.get(file);
+        if (mode !== undefined) selectMode(to, mode);
+        setProject((p) =>
+          p === null
+            ? null
+            : {
+                ...p,
+                files: withFile(
+                  p.files.filter((f) => f !== file),
+                  to,
+                ),
+              },
+        );
+        setLayoutVersion((n) => n + 1);
+        if (latest.current.currentFile === file) {
+          // 表示に要る分は、新しいファイル名で作る（`showSummary` は今のファイル名で作るため）。
+          latest.current.currentFile = to;
+          setCurrentFile(to);
+        }
+        showSummary(result.summary, result.checks);
+        return null;
+      } catch (e) {
+        return String(e);
+      }
+    },
+    [selectMode, showSummary],
+  );
+
+  /** 章を消す（確かめてから。T2-8）。 */
+  const onDeleteChapter = useCallback(
+    async (file: string) => {
+      const scenes =
+        latest.current.project?.summary.scenes.filter((s) => s.file === file)
+          .length ?? 0;
+      const ok = await confirm(
+        `${file} を削除しますか？（シーン ${scenes}個${latest.current.dirty.has(file) ? "、保存していない変更あり" : ""}）。元に戻すには Git などを使います。`,
+        "章を削除",
+      );
+      if (!ok) return;
+      try {
+        const result = await deleteChapter(file);
+        closeFile(file);
+        showSummary(result.summary, result.checks);
+        whenIdle(() => setNotice(`${file} を削除しました`));
+      } catch (e) {
+        setError(String(e));
+      }
+    },
+    [closeFile, showSummary, whenIdle],
+  );
+
   /** 本文の画面で、あるファイルのある位置へ移る。 */
   const goTo = useCallback(
     (file: string, byteOffset: number | null) => {
@@ -1176,18 +1409,46 @@ export function App() {
     };
   }, [previewSummary]);
 
-  // クイックオープン（Mod-P）。エディタの外にフォーカスがあるときも開く。
+  // クイックオープン（Mod-P）、コマンドパレット（Mod-Shift-P）、集中モード（Mod-Shift-F）。エディタの外に
+  // フォーカスがあるときも開く。変換中は動かさない。
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented || latest.current.project === null) return;
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "p") {
+      if (event.isComposing || event.keyCode === 229) return;
+      if (!(event.metaKey || event.ctrlKey)) return;
+      const key = event.key.toLowerCase();
+      if (key === "p" && event.shiftKey) {
+        event.preventDefault();
+        setPalette(true);
+      } else if (key === "p") {
         event.preventDefault();
         setQuickOpen(true);
+      } else if (key === "f" && event.shiftKey) {
+        event.preventDefault();
+        updateViewPrefs((p) => ({ ...p, focus: !p.focus }));
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [updateViewPrefs]);
+
+  // ルートごとの文字数（ステータスバー）。本文が変わってから少し待って取り直す。
+  const statSummary = project?.summary;
+  useEffect(() => {
+    if (statSummary === undefined) return;
+    let live = true;
+    const timer = setTimeout(() => {
+      routeStats()
+        .then((s) => {
+          if (live) setStats(s);
+        })
+        .catch(() => {});
+    }, 1500);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [statSummary]);
 
   const allDiagnostics = useMemo(
     () =>
@@ -1212,6 +1473,122 @@ export function App() {
       ),
     [project?.summary.scenes],
   );
+  const currentRoute =
+    project?.summary.scenes.find((s) => s.id === currentScene)?.meta.route ??
+    null;
+  const routeStat = statOfRoute(stats, currentRoute);
+
+  const commands = useMemo((): Command[] => {
+    const go = (target: Screen, label: string, keywords: string): Command => ({
+      id: `screen-${target}`,
+      label: `画面：${label}`,
+      keywords,
+      run: () => selectScreen(target),
+    });
+    const toggle = (
+      id: string,
+      label: string,
+      key: keyof ViewPrefs,
+      keywords: string,
+      keys?: string,
+    ): Command => ({
+      id,
+      label: `${label}（${viewPrefs[key] ? "やめる" : "始める"}）`,
+      keywords,
+      keys,
+      run: () => updateViewPrefs((p) => ({ ...p, [key]: !p[key] })),
+    });
+    const list: Command[] = [
+      go("concept", "企画", "concept ideas"),
+      go("text", "本文", "text editor"),
+      go("flow", "フロー", "flow graph"),
+      go("bible", "設定", "bible"),
+      go("assets", "素材", "assets"),
+      go("variables", "変数", "variables"),
+      go("check", "検証", "check problems"),
+      go("export", "出力", "export"),
+      {
+        id: "quick-open",
+        label: "シーンを開く",
+        keywords: "quick open scene",
+        keys: "Mod-P",
+        run: () => setQuickOpen(true),
+      },
+      {
+        id: "play",
+        label: "再生",
+        keywords: "play preview",
+        run: () => sendPreview((seq) => ({ seq, kind: "start" })),
+      },
+      toggle("focus", "集中モード", "focus", "focus zen", "Mod-Shift-F"),
+      toggle(
+        "typewriter",
+        "タイプライタースクロール",
+        "typewriter",
+        "typewriter scroll",
+      ),
+      {
+        id: "font",
+        label: viewPrefs.gothic
+          ? "本文の書体：明朝にする"
+          : "本文の書体：ゴシックにする",
+        keywords: "font mincho gothic 明朝 ゴシック",
+        run: () => updateViewPrefs((p) => ({ ...p, gothic: !p.gothic })),
+      },
+    ];
+    const file = currentFile;
+    if (file !== null) {
+      list.push(
+        {
+          id: "play-here",
+          label: "ここから再生",
+          keywords: "play here",
+          keys: "F5",
+          run: () => playAtCursor(),
+        },
+        {
+          id: "rename",
+          label: "名前を変える（カーソルのところ）",
+          keywords: "rename F2",
+          keys: "F2",
+          run: () => {
+            const cursor = lastCursor.current;
+            const text = buffers.current.get(file);
+            if (text === undefined) return;
+            void onRename(
+              file,
+              cursor !== null && cursor.file === file ? cursor.offset : 0,
+              text,
+            );
+          },
+        },
+        {
+          id: "toggle-view",
+          label: "執筆表示とソース表示を切り替える",
+          keywords: "view writing source",
+          run: () => toggleMode(file),
+        },
+        {
+          id: "delete-chapter",
+          label: `章を削除（${file}）`,
+          keywords: "delete chapter",
+          run: () => void onDeleteChapter(file),
+        },
+      );
+    }
+    return list;
+  }, [
+    viewPrefs,
+    currentFile,
+    selectScreen,
+    updateViewPrefs,
+    sendPreview,
+    playAtCursor,
+    onRename,
+    toggleMode,
+    onDeleteChapter,
+  ]);
+
   const mixedLineBreak = useMemo(
     () => (hasMixedLineBreaks(savedText) ? lineBreakOf(savedText) : null),
     [savedText],
@@ -1240,7 +1617,16 @@ export function App() {
         </p>
       )}
       <div className="body">
-        {project !== null && (
+        {project !== null && viewPrefs.focus && (
+          <button
+            type="button"
+            className="small-button focus-exit"
+            onClick={() => updateViewPrefs((p) => ({ ...p, focus: false }))}
+          >
+            集中モードを終える（⌘⇧F）
+          </button>
+        )}
+        {project !== null && !viewPrefs.focus && (
           <LeftBar
             screen={screen}
             problems={counts.error + counts.warning}
@@ -1262,16 +1648,25 @@ export function App() {
                 hidden={screen !== "text"}
                 aria-label="本文"
               >
-                <SceneList
-                  files={project.files}
-                  scenes={project.summary.scenes}
-                  currentFile={currentFile}
-                  dirty={dirty}
-                  onSelectScene={selectScene}
-                  onSelectFile={(file) => goTo(file, null)}
-                  onAddChapter={onAddChapter}
-                />
-                <section className="editor-pane" aria-label="エディタ">
+                {!viewPrefs.focus && (
+                  <SceneList
+                    files={project.files}
+                    scenes={project.summary.scenes}
+                    currentFile={currentFile}
+                    dirty={dirty}
+                    onSelectScene={selectScene}
+                    onSelectFile={(file) => goTo(file, null)}
+                    onAddChapter={onAddChapter}
+                    onRenameChapter={onRenameChapter}
+                    onDeleteChapter={(file) => void onDeleteChapter(file)}
+                  />
+                )}
+                <section
+                  className={
+                    viewPrefs.gothic ? "editor-pane font-gothic" : "editor-pane"
+                  }
+                  aria-label="エディタ"
+                >
                   {currentFile !== null && (
                     <ModeBar
                       file={currentFile}
@@ -1324,6 +1719,10 @@ export function App() {
                       onDefinition={onDefinition}
                       onQuickOpen={() => setQuickOpen(true)}
                       onPlayHere={playHere}
+                      onRename={(file, offset, text) =>
+                        void onRename(file, offset, text)
+                      }
+                      typewriter={viewPrefs.typewriter}
                       previewLine={previewMarker}
                     />
                   ) : (
@@ -1332,18 +1731,20 @@ export function App() {
                     </p>
                   )}
                 </section>
-                <ContextPanel
-                  scene={scene}
-                  diagnostics={allDiagnostics.filter(
-                    (d) => d.file === currentFile,
-                  )}
-                  files={project.files}
-                  onSelectDiagnostic={(d) => goTo(d.file, d.span[0])}
-                  onRegister={onRegister}
-                  onOpenCharacter={(id) =>
-                    requestBible((seq) => ({ kind: "character", id, seq }))
-                  }
-                />
+                {!viewPrefs.focus && (
+                  <ContextPanel
+                    scene={scene}
+                    diagnostics={allDiagnostics.filter(
+                      (d) => d.file === currentFile,
+                    )}
+                    files={project.files}
+                    onSelectDiagnostic={(d) => goTo(d.file, d.span[0])}
+                    onRegister={onRegister}
+                    onOpenCharacter={(id) =>
+                      requestBible((seq) => ({ kind: "character", id, seq }))
+                    }
+                  />
+                )}
               </section>
               {screen === "flow" && (
                 <section className="screen flow-screen" aria-label="フロー">
@@ -1384,6 +1785,13 @@ export function App() {
                     onOpenLocation={openFromSettings}
                     onUnsaved={onBibleDraft}
                     onRequestHandled={onBibleRequestHandled}
+                    onRenameEntry={(typeId, id, name) =>
+                      setRenaming({
+                        target: { kind: "entry_id", type_id: typeId, id },
+                        current: id,
+                        label: `エントリのID（${name}）`,
+                      })
+                    }
                   />
                 </section>
               )}
@@ -1459,6 +1867,16 @@ export function App() {
           )}
         </main>
       </div>
+      {palette && project !== null && (
+        <CommandPalette commands={commands} onClose={() => setPalette(false)} />
+      )}
+      {renaming !== null && project !== null && (
+        <RenameDialog
+          symbol={renaming}
+          onApply={doRename}
+          onClose={() => setRenaming(null)}
+        />
+      )}
       {quickOpen && project !== null && (
         <QuickOpen
           scenes={project.summary.scenes}
@@ -1467,6 +1885,7 @@ export function App() {
         />
       )}
       <StatusBar
+        route={routeStat === null ? null : routeStatText(routeStat)}
         mode={currentFile === null ? null : mode}
         file={currentFile}
         scene={

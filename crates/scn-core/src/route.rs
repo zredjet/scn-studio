@@ -756,6 +756,56 @@ pub fn target_label(ir: &Ir, target: &ReadingTarget) -> String {
     }
 }
 
+/// 読み終えるまでの目安に使う、1分に読む字数（ステータスバー。T2-8、D059）。
+pub const CHARS_PER_MINUTE: usize = 400;
+
+/// 道の文字数と、読み終えるまでの目安（ステータスバー。T2-8、D059）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct RouteStat {
+    pub label: String,
+    /// ルートの名前（共通なら開始シーンのルート。無ければ `None`）。
+    pub route: Option<String>,
+    /// 道に沿って読む台詞と地の文の、表示する文字の数（`assist::display_chars`）。
+    pub chars: usize,
+    /// 読み終えるまでの目安（分。`CHARS_PER_MINUTE` で割って切り上げ）。
+    pub minutes: usize,
+    /// 道の止まり方（`route::read` の `stop`）。
+    pub stop: String,
+}
+
+/// 共通とルートごとの、道に沿った文字数と読み終えるまでの目安。永続の変数は初めの値。
+pub fn route_stats(project: &Project, ir: &Ir) -> Vec<RouteStat> {
+    let start_route = start_scene(ir).and_then(|s| s.meta.route.clone());
+    reading_choices(ir)
+        .into_iter()
+        .filter_map(|choice| {
+            let route = match &choice.target {
+                ReadingTarget::Common => start_route.clone(),
+                ReadingTarget::Route { name } => Some(name.clone()),
+                ReadingTarget::Ending { .. } | ReadingTarget::Steps { .. } => return None,
+            };
+            let reading = read(project, ir, &choice.target, &Variables::new());
+            let chars: usize = reading
+                .items
+                .iter()
+                .map(|item| match item {
+                    ReadingItem::Say { text, .. } | ReadingItem::Narrate { text, .. } => {
+                        crate::assist::display_chars(text)
+                    }
+                    _ => 0,
+                })
+                .sum();
+            Some(RouteStat {
+                label: choice.label,
+                route,
+                chars,
+                minutes: chars.div_ceil(CHARS_PER_MINUTE),
+                stop: reading.stop.to_owned(),
+            })
+        })
+        .collect()
+}
+
 /// 通読の道の候補：共通（開始シーンのルート）、ほかのルート、エンディング（本文の順）。
 pub fn reading_choices(ir: &Ir) -> Vec<ReadingChoice> {
     let mut out = Vec::new();

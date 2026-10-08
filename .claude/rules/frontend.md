@@ -49,6 +49,13 @@ paths:
 - 縦書きビュー（`preview/VerticalView.tsx`）は、コアの通読（`route::read`）を `preview/vertical.ts` で段落・行・ページにする。組み方（折り返し、縦中横、原稿用紙換算）は `vertical.ts` に置き、テストを付ける（`app/test/vertical.test.ts`）。
 - プレビューの別ウィンドウ（`preview/PreviewWindow.tsx`。ウィンドウのラベルは `preview`）とメインウィンドウは、Tauri のイベントでだけつなぐ（`core/api.ts` の `sendPreviewLine` など）。ウィンドウどうしで状態を共有しない。
 
+## 名前の変更・コマンドパレット・表示の切り替え（T2-8）
+
+- F2 はエディタの keymap で受け、変換中は動かさない。開く前に今の本文をコアへ送り、カーソルのところの名前はコア（`symbol_at`）が探す。置き換えもコア（`apply_rename`）が行い、変わった本文は `replaceText` でエディタに入れる。
+- パレット・名前の変更・章の名前の欄は、変換を確定する Enter や矢印では動かさない（`isComposing` か `keyCode 229`）。フォームの暗黙の送信に頼らない。
+- 集中モード・タイプライタースクロール・書体は、この端末の localStorage に覚える（読めなくても表示は動く）。タイプライタースクロールは `editor/typewriter.ts`（変換中は動かさない）。
+- パレットの絞り込み、W406 の直し方、ルートの文字数の見せ方は `shell/palette.ts`・`editor/quickfix.ts`・`shell/scene.ts` に置き、テストを付ける（`app/test/editor-tools.test.ts`）。
+
 ## 企画の画面（app/src/concept/）
 
 - メモと企画書の項目は、設定DBの画面と同じ入力欄（`bible/FieldInput.tsx`、`BodyField`）と書き換え（`set_entry_field` など。直したキーの行だけ）を使う。フロントで YAML を組み立てない。

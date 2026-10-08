@@ -19,6 +19,7 @@ import type {
   EntryUsage,
   GraphLevel,
   Idea,
+  IrDiagnostic,
   JsonValue,
   KeptFile,
   LoadedLayout,
@@ -34,7 +35,12 @@ import type {
   ReadingTarget,
   RecentProject,
   ReloadedFile,
+  RenamePreview,
+  RenameSymbol,
+  RenameTarget,
+  RenameWritten,
   Route,
+  RouteStat,
   SavedFile,
   SceneGraphData,
   SceneInfo,
@@ -130,6 +136,56 @@ export function createEntry(
   name: string,
 ): Promise<BibleWritten> {
   return invoke<BibleWritten>("create_entry", { typeId, id, name });
+}
+
+/** カーソルのところ（バイト位置）の、名前を変えられるもの（F2。T2-8）。 */
+export function symbolAt(
+  file: string,
+  offset: number,
+): Promise<RenameSymbol | null> {
+  return invoke<RenameSymbol | null>("symbol_at", { file, offset });
+}
+
+/** 名前の変更の見積もり。名前が正しくなければ、誤りの文で失敗する。 */
+export function renamePreview(
+  target: RenameTarget,
+  next: string,
+): Promise<RenamePreview> {
+  return invoke<RenamePreview>("rename_preview", { target, new: next });
+}
+
+/** 名前を変える（変わる本文は保存していない変更ごと書く）。 */
+export function applyRename(
+  target: RenameTarget,
+  next: string,
+): Promise<RenameWritten> {
+  return invoke<RenameWritten>("apply_rename", { target, new: next });
+}
+
+/** 章のファイル名を変える。 */
+export function renameChapter(
+  file: string,
+  name: string,
+): Promise<{ file: string; summary: Summary; checks: IrDiagnostic[] }> {
+  return invoke<{ file: string; summary: Summary; checks: IrDiagnostic[] }>(
+    "rename_chapter",
+    { file, name },
+  );
+}
+
+/** 章を消す。 */
+export function deleteChapter(
+  file: string,
+): Promise<{ summary: Summary; checks: IrDiagnostic[] }> {
+  return invoke<{ summary: Summary; checks: IrDiagnostic[] }>(
+    "delete_chapter",
+    { file },
+  );
+}
+
+/** 共通とルートごとの文字数と、読み終えるまでの目安。 */
+export function routeStats(): Promise<RouteStat[]> {
+  return invoke<RouteStat[]>("route_stats");
 }
 
 /**

@@ -51,6 +51,7 @@ import {
   toEditorDiagnostics,
   type ViewMode,
 } from "./state.ts";
+import { typewriterScroll } from "./typewriter.ts";
 import { runAfterCommit, type TypingOptions, typingAssist } from "./typing.ts";
 import { refreshWriting, sceneTitles } from "./writing.ts";
 
@@ -141,6 +142,10 @@ interface Props {
   readonly onQuickOpen: () => void;
   /** ここから再生のキー（F5）が押された（エディタの位置）。 */
   readonly onPlayHere?: (file: string, offset: number) => void;
+  /** 名前の変更のキー（F2）が押された（エディタの位置と、今の本文。T2-8）。 */
+  readonly onRename?: (file: string, offset: number, text: string) => void;
+  /** タイプライタースクロール（カーソルの行を縦の真ん中に置く。T2-8）。 */
+  readonly typewriter?: boolean;
   /** プレビュー中の行（「エディタと同期」。T1-11）。ほかのファイルなら印を付けない。 */
   readonly previewLine?: {
     readonly file: string;
@@ -170,6 +175,8 @@ export function Editor({
   onDefinition,
   onQuickOpen,
   onPlayHere,
+  onRename,
+  typewriter = false,
   previewLine: preview = null,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
@@ -178,6 +185,7 @@ export function Editor({
   const mode = useRef(new Compartment());
   const titleSet = useRef(new Compartment());
   const assistSet = useRef(new Compartment());
+  const typewriterSet = useRef(new Compartment());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cursorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** 変換で入った範囲（変換中の編集に合わせてずらす。始まりは前へ、終わりは後ろへ広げる）。 */
@@ -217,6 +225,8 @@ export function Editor({
     onDefinition,
     onQuickOpen,
     onPlayHere,
+    onRename,
+    typewriter,
   });
   props.current = {
     file,
@@ -237,6 +247,8 @@ export function Editor({
     onDefinition,
     onQuickOpen,
     onPlayHere,
+    onRename,
+    typewriter,
   };
 
   /** 補完に要るもの。 */
@@ -273,6 +285,9 @@ export function Editor({
   /** エディタが足す拡張（入力補助、補完、定義へ移る操作、カーソルの知らせ）。 */
   const extras = (): Extension => [
     previewLine(),
+    typewriterSet.current.of(
+      props.current.typewriter === true ? typewriterScroll() : [],
+    ),
     assistSet.current.of(assistEnv.of(assistEnvOf())),
     completion(),
     typingAssist(typingOptions),
@@ -287,6 +302,21 @@ export function Editor({
           preventDefault: true,
           run: () => {
             props.current.onQuickOpen();
+            return true;
+          },
+        },
+        {
+          key: "F2",
+          preventDefault: true,
+          run: (v) => {
+            const current = loaded.current;
+            if (current === null || isComposing(v)) return true;
+            // 本文は改行をそのまま（CRLF も）渡す（`doc.toString()` は `\n` でつなぐ）。
+            props.current.onRename?.(
+              current.file,
+              v.state.selection.main.head,
+              v.state.sliceDoc(),
+            );
             return true;
           },
         },
@@ -655,6 +685,15 @@ export function Editor({
       effects: titleSet.current.reconfigure(sceneTitles.of(titles)),
     });
   }, [titles]);
+
+  // タイプライタースクロールの切り替え。
+  useEffect(() => {
+    view.current?.dispatch({
+      effects: typewriterSet.current.reconfigure(
+        typewriter ? typewriterScroll() : [],
+      ),
+    });
+  }, [typewriter]);
 
   // 補完の材料が変わったら、入れ替える。
   const assistEnvRef = useRef(assistEnvOf);

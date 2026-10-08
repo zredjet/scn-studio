@@ -77,6 +77,8 @@ interface Props {
   readonly onUnsaved: (unsaved: boolean) => void;
   /** 頼みを処理した（App が頼みを消す。画面を開き直したときに繰り返さない）。 */
   readonly onRequestHandled: () => void;
+  /** エントリのIDを変える（名前の変更の画面を開く。T2-8）。 */
+  readonly onRenameEntry?: (typeId: string, id: string, name: string) => void;
 }
 
 type Status =
@@ -100,6 +102,7 @@ export function BibleScreen({
   onOpenLocation,
   onUnsaved,
   onRequestHandled,
+  onRenameEntry,
 }: Props) {
   const [data, setData] = useState<BibleData | null>(null);
   const [typeId, setTypeId] = useState<string | null>(null);
@@ -597,7 +600,20 @@ export function BibleScreen({
               </span>
               <div className="bible-head-text">
                 <h1>{fileLabel(file)}</h1>
-                <span className="bible-path">{file.path}</span>
+                <span className="bible-path">
+                  {file.path}
+                  {entry !== null && onRenameEntry !== undefined && (
+                    <button
+                      type="button"
+                      className="link-button"
+                      onClick={() =>
+                        onRenameEntry(entry.type_id, entry.id, fileLabel(file))
+                      }
+                    >
+                      IDを変える
+                    </button>
+                  )}
+                </span>
               </div>
               <span className="flow-spacer" />
               <span className={`bible-status ${status.kind}`} role="status">

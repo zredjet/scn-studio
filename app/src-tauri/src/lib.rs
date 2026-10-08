@@ -27,6 +27,7 @@ use scn_core::layout::{Point, read_layout as read_layout_file};
 use scn_core::line_id::LineIdGenerator;
 use scn_core::merge::{Choice, merge_text};
 use scn_core::preview;
+use scn_core::rename::{self, RenameTarget};
 use scn_core::renpy;
 use scn_core::route;
 use scn_core::scaffold::create_project as scaffold_project;
@@ -1063,6 +1064,94 @@ fn add_chapter(name: String, state: State<'_, AppState>) -> Result<Response, Str
     json_response(&json!({ "file": file, "summary": summary, "checks": checks }))
 }
 
+// ---- 名前の変更と章（T2-8、D059） ----
+
+/// カーソルのところ（バイト位置）の、名前を変えられるもの（F2）。無ければ null。
+#[tauri::command]
+fn symbol_at(file: String, offset: usize, state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let project = open_workspace(&mut guard)?.project();
+    json_response(&to_json(
+        &rename::symbol_at(project, &file, offset),
+        "名前",
+    )?)
+}
+
+/// 名前の変更の見積もり（変わる本文の数と、ファイル）。名前が正しくなければ誤りの文。
+#[tauri::command]
+fn rename_preview(
+    target: RenameTarget,
+    new: String,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let plan = rename::plan_rename(workspace.project(), workspace.root(), &target, &new)?;
+    let story: Vec<&str> = plan.story.iter().map(|c| c.file.as_str()).collect();
+    let settings: Vec<&str> = plan.settings.iter().map(|c| c.file.as_str()).collect();
+    json_response(&json!({
+        "story_edits": plan.story_edits,
+        "story": story,
+        "settings": settings,
+        "moves": plan.moves,
+        "notes": plan.notes,
+    }))
+}
+
+/// 名前を変える。変わる本文のファイル（保存していない変更ごと書く）と、設定を書いた後と同じものを返す。
+#[tauri::command]
+fn apply_rename(
+    target: RenameTarget,
+    new: String,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let renamed = workspace.rename(&target, &new).map_err(|e| e.to_string())?;
+    after_settings_write(workspace, to_json(&renamed, "名前の変更")?)
+}
+
+/// 章のファイル名を変える。
+#[tauri::command]
+fn rename_chapter(
+    file: String,
+    name: String,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let to = workspace
+        .rename_chapter(&file, &name)
+        .map_err(|e| e.to_string())?;
+    let Analyzed {
+        summary, checks, ..
+    } = analyze_summary(workspace.project(), true, None)?;
+    json_response(&json!({ "file": to, "summary": summary, "checks": checks }))
+}
+
+/// 章を消す。
+#[tauri::command]
+fn delete_chapter(file: String, state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    workspace.delete_chapter(&file).map_err(|e| e.to_string())?;
+    let Analyzed {
+        summary, checks, ..
+    } = analyze_summary(workspace.project(), true, None)?;
+    json_response(&json!({ "summary": summary, "checks": checks }))
+}
+
+/// 共通とルートごとの文字数と、読み終えるまでの目安（ステータスバー）。
+#[tauri::command]
+fn route_stats(state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let project = open_workspace(&mut guard)?.project();
+    let stats = with_ir(project, |ir| {
+        to_json(&route::route_stats(project, ir), "ルートの文字数")
+    })?;
+    json_response(&stats)
+}
+
 /// ファイルの監視を始める。知らせは少し待ってまとめ、コアの `Workspace` で取り込み、
 /// 変わったものがあれば `workspace-changed` をフロントへ送る。
 fn watch(app: &AppHandle, root: &Path) -> Result<RecommendedWatcher, String> {
@@ -1328,6 +1417,12 @@ pub fn run() {
             apply_merge,
             merge_source,
             add_chapter,
+            symbol_at,
+            rename_preview,
+            apply_rename,
+            rename_chapter,
+            delete_chapter,
+            route_stats,
             scene_info,
             read_bible,
             entry_usage,

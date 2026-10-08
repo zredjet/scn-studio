@@ -14,6 +14,13 @@ interface Props {
   readonly onSelectFile: (file: string) => void;
   /** 章を足す。失敗したら、理由を返す。 */
   readonly onAddChapter: (name: string) => Promise<string | null>;
+  /** 章の名前を変える（T2-8）。失敗したら、理由を返す。 */
+  readonly onRenameChapter: (
+    file: string,
+    name: string,
+  ) => Promise<string | null>;
+  /** 章を消す（確かめてから。T2-8）。 */
+  readonly onDeleteChapter: (file: string) => void;
 }
 
 export function SceneList({
@@ -24,10 +31,26 @@ export function SceneList({
   onSelectScene,
   onSelectFile,
   onAddChapter,
+  onRenameChapter,
+  onDeleteChapter,
 }: Props) {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
+  /** 名前を変えている章と、新しい名前。 */
+  const [renaming, setRenaming] = useState<{
+    readonly file: string;
+    readonly name: string;
+    readonly problem: string | null;
+  } | null>(null);
+  const commitRename = () => {
+    if (renaming === null) return;
+    const { file, name: next } = renaming;
+    void onRenameChapter(file, next).then((error) => {
+      if (error === null) setRenaming(null);
+      else setRenaming((r) => (r === null ? r : { ...r, problem: error }));
+    });
+  };
 
   return (
     <nav className="scene-list" aria-label="シーン">
@@ -92,6 +115,69 @@ export function SceneList({
               )}
             </button>
           </h3>
+          {file === currentFile && renaming?.file !== file && (
+            <div className="file-actions">
+              <button
+                type="button"
+                className="link-button"
+                onClick={() =>
+                  setRenaming({
+                    file,
+                    name: file.replace(/^story\//, "").replace(/\.scn$/, ""),
+                    problem: null,
+                  })
+                }
+              >
+                名前を変える
+              </button>
+              <button
+                type="button"
+                className="link-button danger"
+                onClick={() => onDeleteChapter(file)}
+              >
+                削除
+              </button>
+            </div>
+          )}
+          {renaming?.file === file && (
+            <div className="add-chapter">
+              <input
+                aria-label="章の新しいファイル名"
+                value={renaming.name}
+                // biome-ignore lint/a11y/noAutofocus: 名前を変えるを押した直後に打てるように
+                autoFocus
+                onChange={(event) =>
+                  setRenaming({ file, name: event.target.value, problem: null })
+                }
+                onKeyDown={(event) => {
+                  // 変換を確定する Enter では変えない。
+                  if (event.nativeEvent.isComposing || event.keyCode === 229)
+                    return;
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    commitRename();
+                  } else if (event.key === "Escape") setRenaming(null);
+                }}
+              />
+              <button
+                type="button"
+                className="small-button"
+                onClick={commitRename}
+              >
+                変える
+              </button>
+              <button
+                type="button"
+                className="small-button"
+                onClick={() => setRenaming(null)}
+              >
+                やめる
+              </button>
+              {renaming.problem !== null && (
+                <p className="form-problem">{renaming.problem}</p>
+              )}
+            </div>
+          )}
           <ul>
             {scenes.map((scene) =>
               scene.file === file ? (

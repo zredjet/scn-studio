@@ -241,3 +241,28 @@ pub fn update_layout(
     write_source(root, LAYOUT_FILE, &text)?;
     Ok(text)
 }
+
+/// 位置のキーを変える（シーンIDと章のファイルの名前の変更。T2-8、D059）。ファイルが読めない・壊れているときと、
+/// その位置が無いときは書かずに `None`。書いた中身を返す。
+pub fn rename_layout_key(
+    root: &Path,
+    level: &str,
+    from: &str,
+    to: &str,
+) -> Result<Option<String>, ProjectError> {
+    let loaded = read_layout(root);
+    if loaded.state != LayoutState::Ok {
+        return Ok(None);
+    }
+    let mut layout = loaded.layout;
+    let Some(points) = layout.level_mut(level) else {
+        return Ok(None);
+    };
+    let Some(point) = points.remove(from) else {
+        return Ok(None);
+    };
+    points.insert(to.to_owned(), point);
+    let text = layout_text(&layout);
+    write_source(root, LAYOUT_FILE, &text)?;
+    Ok(Some(text))
+}

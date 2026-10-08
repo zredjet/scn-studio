@@ -32,6 +32,7 @@ import { PositionMap } from "../core/position.ts";
 import type { Bracket, IrDiagnostic, ViewMode } from "../core/types.ts";
 import { programmatic } from "./flags.ts";
 import { lineIdGuard } from "./lineid.ts";
+import { halfwidthOf } from "./quickfix.ts";
 import { sceneTitles, writingView } from "./writing.ts";
 
 /** 改行の数（`\r\n`、`\n` だけ、`\r` だけ）。 */
@@ -85,9 +86,39 @@ export function toEditorDiagnostics(
       to,
       severity: d.severity,
       message: `${d.code} ${d.message}`,
+      ...(d.code === "W406" ? { actions: W406_ACTIONS } : {}),
     };
   });
 }
+
+/**
+ * W406（行頭の全角記号）のクイックフィックス（T2-8、D059）：半角にする、地の文のままにする（行頭に `\`）。
+ * 変換中は何もしない。
+ */
+const W406_ACTIONS: Diagnostic["actions"] = [
+  {
+    name: "半角にする",
+    apply(view: EditorView, from: number, to: number) {
+      if (view.composing) return;
+      const line = view.state.doc.lineAt(to);
+      const half = halfwidthOf(
+        view.state.sliceDoc(from, to),
+        view.state.sliceDoc(to, Math.min(to + 1, line.to)),
+      );
+      if (half === null) return;
+      view.dispatch({
+        changes: { from, to: to + half.consume, insert: half.insert },
+      });
+    },
+  },
+  {
+    name: "地の文のままにする",
+    apply(view: EditorView, from: number) {
+      if (view.composing) return;
+      view.dispatch({ changes: { from, insert: "\\" } });
+    },
+  },
+];
 
 /** エディタの見た目。テストで中身を確かめるので、書き出す。 */
 export const editorThemeSpec = {

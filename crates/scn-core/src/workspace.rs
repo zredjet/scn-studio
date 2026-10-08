@@ -18,10 +18,11 @@ use crate::ideas::{
     ADOPTED, FORESHADOW_TYPE_TEXT, IDEAS_DIR, Promotion, is_idea_path, new_idea_file,
     new_idea_text, stub_scene, summary_line,
 };
-use crate::layout::{LAYOUT_FILE, LayoutError, Point, update_layout};
+use crate::layout::{LAYOUT_FILE, LayoutError, Point, rename_layout_key, update_layout};
 use crate::line_id::{AssignedLineId, LineIdGenerator, assign_line_ids};
 use crate::merge::{Choice, Merge, merge_scn, merge_text};
 use crate::project::{Project, ProjectError, SourceFile, load_project, write_source};
+use crate::rename::{RenameTarget, plan_rename};
 use crate::scaffold::CONCEPT_TEMPLATE;
 
 /// 開いている作品フォルダ。
@@ -44,6 +45,23 @@ pub struct Workspace {
     /// 自分で書いた設定ファイル（設定DBのエントリ、`variables.yaml`）の中身。書いたときに設定を読み直して
     /// いるので、監視の知らせで、ディスクの中身がこれと同じなら無視する。
     settings_written: BTreeMap<String, String>,
+    /// 名前の変更で、自分で移したエントリの元のパス（監視の知らせを無視する。T2-8）。
+    moved_away: BTreeSet<String>,
+}
+
+/// 名前の変更の結果（T2-8、D059）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Renamed {
+    /// 書いた本文のファイル（アプリはエディタの中身を差し替える）。
+    pub story: Vec<StoryWritten>,
+    /// 書いた設定ファイル（ファイル名を変えたものは新しいパス）。
+    pub settings: Vec<String>,
+    /// 本文の置き換えの数。
+    pub story_edits: usize,
+    /// 知らせ（変えないもの、変わってしまうもの）。
+    pub notes: Vec<String>,
+    /// 途中で書けなかったとき、その理由（それまでに書いたものは `story` と `settings` にある）。
+    pub problem: Option<String>,
 }
 
 /// マージを当てた結果（T2-7、D058）。
@@ -232,6 +250,7 @@ impl Workspace {
             removed: BTreeSet::new(),
             layout_written: None,
             settings_written: BTreeMap::new(),
+            moved_away: BTreeSet::new(),
         })
     }
 
@@ -402,8 +421,12 @@ impl Workspace {
                 if on_disk.is_some() && on_disk.as_deref() == mine {
                     return Change::None;
                 }
+                if on_disk.is_none() && self.moved_away.contains(&rel) {
+                    return Change::None;
+                }
                 // 外で変わった。後で自分の書いた中身に戻されても（取り消しなど）、読み直すように忘れる。
                 self.settings_written.remove(&rel);
+                self.moved_away.remove(&rel);
                 match self.reload_settings() {
                     Ok(()) => Change::Settings,
                     Err(_) => Change::None,
@@ -974,6 +997,190 @@ impl Workspace {
         write_source(&self.root, &file, "")?;
         self.insert_file(&file, "");
         Ok(file)
+    }
+
+    // ---- 名前の変更と章の名前の変更・削除（T2-8、D059） ----
+
+    /// 名前を変える（[`crate::rename`]）。置き換える本文のファイルは、保存していない変更ごと書く（変わるファイルを
+    /// すべてそろえて書くため）。まだ取り込んでいない外部の変更のある章があれば、何も変えずに断る。
+    pub fn rename(&mut self, target: &RenameTarget, new: &str) -> Result<Renamed, ProjectError> {
+        let plan = plan_rename(&self.project, &self.root, target, new)
+            .map_err(|m| error(&self.root, io::ErrorKind::InvalidInput, &m))?;
+        // 書く前に、すべてを確かめる（途中で断って、一部だけ書かないため）。
+        let read_only = |path: &Path| fs::metadata(path).is_ok_and(|m| m.permissions().readonly());
+        for change in &plan.story {
+            let path = self.root.join(&change.file);
+            let same = match read_disk(&path) {
+                Disk::Text(text) => self.disk_text(&change.file) == Some(text.as_str()),
+                Disk::Missing | Disk::Unreadable => false,
+            };
+            if self.pending.contains_key(&change.file) || !same {
+                return Err(error(
+                    &path,
+                    io::ErrorKind::InvalidData,
+                    "外で変わっています。取り込んでから名前を変えてください",
+                ));
+            }
+            if read_only(&path) {
+                return Err(error(
+                    &path,
+                    io::ErrorKind::PermissionDenied,
+                    "読み取り専用のファイルです",
+                ));
+            }
+        }
+        let moved_to: BTreeSet<&str> = plan.moves.iter().map(|m| m.to.as_str()).collect();
+        for m in &plan.moves {
+            let (from, to) = (self.root.join(&m.from), self.root.join(&m.to));
+            if !from.exists() || to.exists() {
+                return Err(error(
+                    &to,
+                    io::ErrorKind::AlreadyExists,
+                    "ファイルの名前を変えられません",
+                ));
+            }
+            if read_only(&from) {
+                return Err(error(
+                    &from,
+                    io::ErrorKind::PermissionDenied,
+                    "読み取り専用のファイルです",
+                ));
+            }
+        }
+        for change in &plan.settings {
+            let path = self.root.join(&change.file);
+            if !moved_to.contains(change.file.as_str()) && read_only(&path) {
+                return Err(error(
+                    &path,
+                    io::ErrorKind::PermissionDenied,
+                    "読み取り専用のファイルです",
+                ));
+            }
+        }
+        let mut done = Renamed {
+            story: Vec::new(),
+            settings: Vec::new(),
+            story_edits: plan.story_edits,
+            notes: plan.notes.clone(),
+            problem: None,
+        };
+        let result = self.write_rename(&plan, &mut done);
+        if !plan.settings.is_empty() || !plan.moves.is_empty() {
+            let _ = self.reload_settings();
+        }
+        if let Err(e) = result {
+            done.problem = Some(e.to_string());
+        }
+        Ok(done)
+    }
+
+    /// 名前の変更を書く（本文、ファイル名、設定、フロー図の位置の順）。書いたものを `done` に入れる。
+    fn write_rename(
+        &mut self,
+        plan: &crate::rename::RenamePlan,
+        done: &mut Renamed,
+    ) -> Result<(), ProjectError> {
+        for change in &plan.story {
+            write_source(&self.root, &change.file, &change.text)?;
+            self.set_buffer(&change.file, &change.text);
+            self.disk
+                .insert(change.file.clone(), Some(change.text.clone()));
+            done.story.push(StoryWritten {
+                file: change.file.clone(),
+                text: change.text.clone(),
+            });
+        }
+        for m in &plan.moves {
+            let (from, to) = (self.root.join(&m.from), self.root.join(&m.to));
+            fs::rename(&from, &to).map_err(|source| ProjectError::Write { path: to, source })?;
+            self.moved_away.insert(m.from.clone());
+        }
+        for change in &plan.settings {
+            write_source(&self.root, &change.file, &change.text)?;
+            self.settings_written
+                .insert(change.file.clone(), change.text.clone());
+            done.settings.push(change.file.clone());
+        }
+        if let Some(layout) = &plan.layout
+            && let Ok(Some(text)) =
+                rename_layout_key(&self.root, &layout.level, &layout.from, &layout.to)
+        {
+            self.layout_written = Some(text);
+        }
+        Ok(())
+    }
+
+    /// 章のファイル名を変える（`story/` の中で）。保存していない変更はそのまま持ち越す。`layout.json` の章の
+    /// 位置も移す。変えた後のパスを返す。
+    pub fn rename_chapter(&mut self, file: &str, name: &str) -> Result<String, ProjectError> {
+        let path = self.root.join(file);
+        if self.file(file).is_none() {
+            return Err(not_open(&path));
+        }
+        if self.pending.contains_key(file) {
+            return Err(error(
+                &path,
+                io::ErrorKind::InvalidData,
+                "外で変わっています。取り込んでから名前を変えてください",
+            ));
+        }
+        let name = name.trim();
+        let name = if name.ends_with(".scn") {
+            name.to_owned()
+        } else {
+            format!("{name}.scn")
+        };
+        let stem = name.trim_end_matches(".scn");
+        if stem.is_empty() || stem.starts_with('.') || name.contains(['/', '\\']) {
+            return Err(error(
+                &path,
+                io::ErrorKind::InvalidInput,
+                "章のファイル名は、フォルダを含まない名前で書きます",
+            ));
+        }
+        let to = format!("story/{name}");
+        if to == file {
+            return Ok(to);
+        }
+        let to_path = self.root.join(&to);
+        if self.file(&to).is_some() || to_path.exists() {
+            return Err(error(
+                &to_path,
+                io::ErrorKind::AlreadyExists,
+                "同じ名前の章があります",
+            ));
+        }
+        fs::rename(&path, &to_path).map_err(|source| ProjectError::Write {
+            path: to_path.clone(),
+            source,
+        })?;
+        if let Some(source) = self.project.files.iter_mut().find(|f| f.path == file) {
+            to.clone_into(&mut source.path);
+        }
+        self.project.files.sort_by(|a, b| a.path.cmp(&b.path));
+        if let Some(disk) = self.disk.remove(file) {
+            self.disk.insert(to.clone(), disk);
+        }
+        if let Ok(Some(text)) = rename_layout_key(&self.root, "chapter", file, &to) {
+            self.layout_written = Some(text);
+        }
+        Ok(to)
+    }
+
+    /// 章を消す（ファイルを消し、閉じる）。開いている章だけ。
+    pub fn delete_chapter(&mut self, file: &str) -> Result<(), ProjectError> {
+        let path = self.root.join(file);
+        if self.file(file).is_none() {
+            return Err(not_open(&path));
+        }
+        match fs::remove_file(&path) {
+            Ok(()) => {}
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+            Err(source) => return Err(ProjectError::Write { path, source }),
+        }
+        self.remove_file(file);
+        self.removed.remove(file);
+        Ok(())
     }
 
     // ---- 外部の変更とのマージ（T2-7、D058） ----

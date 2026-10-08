@@ -93,6 +93,10 @@
 | 表示する文字数 | display chars | ルビは親文字、記法と空白を除いて1字ずつ数えた字数（`SceneSummary.chars`） |
 | クイックオープン | quick open | シーンをIDと題名で探して開く（Mod-P） |
 | 定義へ移る | go to definition | シーンIDからシーンへ、話者名からキャラクターへ（F12、Mod-クリック） |
+| 名前の変更 | rename | シーンID・キャラクターの名前・変数・エントリのIDを全体で置き換える（F2。`rename`、D059） |
+| コマンドパレット | command palette | コマンドを名前で探して行う（Mod-Shift-P） |
+| 集中モード | focus mode | ほかのペインを隠してエディタだけにする（Mod-Shift-F） |
+| タイプライタースクロール | typewriter scroll | カーソルの行を縦の真ん中に置く |
 | マージ | merge | 保存していない変更と外部の変更を、元・自分・外の3方向で1つにする（`merge`、D058） |
 | 元・自分・外 | base / mine / theirs | マージの3つの中身：読み込んだときのディスクの中身、保存していない変更、外で変わった中身 |
 | ぶつかり | conflict | 自分と外が同じところを違うように変えたもの（`Hunk::Conflict`）。自分・外・両方から選ぶ |
