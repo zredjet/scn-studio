@@ -54,6 +54,8 @@ pub enum TaskOutput {
     Proposals,
     /// 本文への書き込み（生成と自律）。
     Draft,
+    /// アイデアメモの分類案（指摘の段階。T3-10）。
+    Ideas,
 }
 
 impl TaskOutput {
@@ -64,13 +66,14 @@ impl TaskOutput {
             "diff" => Some(Self::Diff),
             "proposals" => Some(Self::Proposals),
             "draft" => Some(Self::Draft),
+            "ideas" => Some(Self::Ideas),
             _ => None,
         }
     }
 
     fn fits(self, level: TaskLevel) -> bool {
         match level {
-            TaskLevel::Review => matches!(self, Self::Findings | Self::Summary),
+            TaskLevel::Review => matches!(self, Self::Findings | Self::Summary | Self::Ideas),
             TaskLevel::Propose => matches!(self, Self::Diff | Self::Proposals),
             TaskLevel::Generate | TaskLevel::Auto => self == Self::Draft,
         }
@@ -101,6 +104,11 @@ pub enum ContextItem {
     ChapterSummaries,
     /// シーンごとの要約。
     SceneSummaries,
+    /// コアが計算した構造の検証の結果（ルートの分量、エンディングへの到達、結果が同じになる選択肢、流れと伏線の
+    /// 診断。T3-10）。
+    Structure,
+    /// アイデアメモ（`ideas/*.md`）の一覧（T3-10）。
+    Ideas,
 }
 
 impl ContextItem {
@@ -117,6 +125,8 @@ impl ContextItem {
             Self::RouteSummaries => "route_summaries",
             Self::ChapterSummaries => "chapter_summaries",
             Self::SceneSummaries => "scene_summaries",
+            Self::Structure => "structure",
+            Self::Ideas => "ideas",
         }
     }
 
@@ -132,6 +142,8 @@ impl ContextItem {
             "route_summaries" => Self::RouteSummaries,
             "chapter_summaries" => Self::ChapterSummaries,
             "scene_summaries" => Self::SceneSummaries,
+            "structure" => Self::Structure,
+            "ideas" => Self::Ideas,
             _ => return None,
         })
     }

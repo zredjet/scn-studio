@@ -1,6 +1,7 @@
 // AI実行の画面（左端のバーの「AI」。docs/ui/mockups/07-ai.html、T3-7、D068）：段階ごとのタスクの一覧と実行の履歴、
-// 選んだタスクの実行（送る中身の確認、取り消し、進み具合）と結果（指摘、シーンの要約）、実行の設定。
-// 実行と指摘は App が持つ（画面を切り替えても続く）。今は指摘の段階だけを実行する（提案は T3-8、生成と自律は T3-9）。
+// 選んだタスクの実行（送る中身の確認、取り消し、進み具合）と結果（指摘、シーンの要約、提案、生成の下書き）、実行の
+// 設定。実行と指摘は App が持つ（画面を切り替えても続く）。自律は T3-9。プロットとフローへの支援（T3-10）：ルートの
+// 骨格（対象のルートと書く章）、分岐案（提案ノード）、同期（要約のずれ）、メモの分類案。
 
 import { useEffect, useRef, useState } from "react";
 import type {
@@ -13,6 +14,7 @@ import type {
   SceneSummary,
 } from "../core/types.ts";
 import { AutoPanel } from "./AutoPanel.tsx";
+import { BranchProposals } from "./BranchProposals.tsx";
 import {
   type AutoRun,
   blocker,
@@ -21,16 +23,24 @@ import {
   fileProposalSet,
   groupTasks,
   type HistoryEntry,
+  isSkeleton,
   LEVEL_LABEL,
   needsScene,
+  type PlotAi,
   type ProposalSet,
   preparedFor,
   type RunResult,
   type RunState,
+  routeNames,
   SEVERITY_LABEL,
+  type SkeletonTarget,
   trimmedText,
 } from "./model.ts";
 import { ProposalPanel } from "./ProposalPanel.tsx";
+import { SyncPanel } from "./SyncPanel.tsx";
+
+/** 書く章の選択肢で、新しい章を作るもの。 */
+const NEW_CHAPTER = "\u0000new";
 
 /** 却下が無いとき。 */
 const NO_REJECTED: ReadonlySet<number> = new Set();
@@ -49,12 +59,17 @@ interface Props {
   readonly onPrepare: (
     task: string,
     scene: string | null,
+    route?: string | null,
   ) => Promise<AiPrepared>;
-  /** 実行する。`digest` は確かめた送る中身の要約値（クラウドの接続先で要る）。 */
+  /**
+   * 実行する。`digest` は確かめた送る中身の要約値（クラウドの接続先で要る）。`target` はルートの骨格を書く先
+   * （T3-10）。
+   */
   readonly onRun: (
     info: AiTaskInfo,
     scene: string | null,
     digest: string | null,
+    target?: SkeletonTarget,
   ) => void;
   readonly onCancel: () => void;
   readonly onGoToFinding: (record: FindingRecord) => void;
@@ -92,6 +107,15 @@ interface Props {
   readonly onBranchMerge: (name: string) => Promise<void>;
   /** 捨てる（人が確かめなければ false）。 */
   readonly onBranchDelete: (name: string) => Promise<boolean>;
+  /** ほかの画面から開くタスク（`seq` が変わったら選ぶ。T3-10）。 */
+  readonly request: { readonly task: string; readonly seq: number } | null;
+  /** ルートの骨格を、LLM を呼ばずに書き直す（前の回の骨格。T3-10）。 */
+  readonly onRewriteSkeleton: (
+    info: AiTaskInfo,
+    target: SkeletonTarget,
+  ) => void;
+  /** プロットとフローへの支援（T3-10）。 */
+  readonly plot: PlotAi;
 }
 
 export function AiScreen({
@@ -124,6 +148,9 @@ export function AiScreen({
   onBranchDiff,
   onBranchMerge,
   onBranchDelete,
+  request,
+  onRewriteSkeleton,
+  plot,
 }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   /** 開いている提案ファイル（選んでいればタスクの代わりに出す）。 */
@@ -133,17 +160,28 @@ export function AiScreen({
   const [preparing, setPreparing] = useState(false);
   const [prepareError, setPrepareError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  /** ルートの骨格（T3-10）：対象のルート、書く章（`NEW_CHAPTER` なら新しい章）、新しい章の名前。 */
+  const [route, setRoute] = useState("");
+  const [chapter, setChapter] = useState(plot.chapters[0] ?? "");
+  const [newChapter, setNewChapter] = useState("");
   /** 今のタスクと対象（見る中身の応答が、頼んだ後に変わっていたら捨てる）。 */
   const current = useRef("");
   const info = tasks?.find((t) => t.task.id === selected) ?? tasks?.[0] ?? null;
-  // タスクか対象のシーンを変えたら、見た中身は古い。
+  // ほかの画面から頼まれたタスクを選ぶ。
+  useEffect(() => {
+    if (request === null) return;
+    setSelected(request.task);
+    setSelectedFile(null);
+  }, [request]);
+  // タスクか対象（シーン、骨格のルート）を変えたら、見た中身は古い。
   useEffect(() => {
     void info?.task.id;
     void scene;
+    void route;
     setPrepared(null);
     setPrepareError(null);
     setConfirming(false);
-  }, [info?.task.id, scene]);
+  }, [info?.task.id, scene, route]);
 
   if (tasks === null) {
     return (
@@ -169,7 +207,20 @@ export function AiScreen({
       : (proposalFiles.find((f) => f.path === selectedFile) ?? null);
   const sceneNeeded = needsScene(task);
   const target = sceneNeeded ? scene : null;
-  current.current = `${task.id}\n${target ?? ""}`;
+  const skeleton = isSkeleton(task);
+  const skeletonTarget: SkeletonTarget | undefined = skeleton
+    ? {
+        route: route.trim() === "" ? null : route.trim(),
+        file: chapter === NEW_CHAPTER || chapter === "" ? null : chapter,
+        newChapter: chapter === NEW_CHAPTER ? newChapter.trim() : null,
+      }
+    : undefined;
+  const skeletonMissing =
+    skeletonTarget !== undefined &&
+    (skeletonTarget.route === null ||
+      (skeletonTarget.file === null &&
+        (skeletonTarget.newChapter ?? "") === ""));
+  current.current = `${task.id}\n${target ?? ""}\n${skeletonTarget?.route ?? ""}`;
   const shown = preparedFor(prepared, task.id, target) ? prepared : null;
   const blocked = blocker(info);
   const isRunning = running !== null;
@@ -180,7 +231,7 @@ export function AiScreen({
     const key = current.current;
     setPreparing(true);
     setPrepareError(null);
-    onPrepare(task.id, target)
+    onPrepare(task.id, target, skeletonTarget?.route ?? null)
       .then((p) => {
         if (current.current === key) setPrepared(p);
       })
@@ -192,7 +243,7 @@ export function AiScreen({
   const runNow = () => {
     setConfirming(false);
     // クラウドでは、見せた中身の要約値を添える（コアが組み立て直して、同じときだけ送る）。
-    onRun(info, target, shown?.digest ?? null);
+    onRun(info, target, shown?.digest ?? null, skeletonTarget);
   };
   const resultFindings =
     result === undefined
@@ -363,6 +414,55 @@ export function AiScreen({
                     </select>
                   </label>
                 )}
+                {skeleton && (
+                  <div className="ai-skeleton-target">
+                    <label className="ai-scene-select">
+                      <span>対象のルート</span>
+                      <input
+                        type="text"
+                        value={route}
+                        list="ai-route-names"
+                        placeholder="例：紬"
+                        onChange={(e) => setRoute(e.target.value)}
+                      />
+                      <datalist id="ai-route-names">
+                        {routeNames(scenes).map((r) => (
+                          <option key={r} value={r} />
+                        ))}
+                      </datalist>
+                    </label>
+                    <label className="ai-scene-select">
+                      <span>書く章</span>
+                      <select
+                        value={chapter}
+                        onChange={(e) => setChapter(e.target.value)}
+                      >
+                        {plot.chapters.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                        <option value={NEW_CHAPTER}>新しい章を作る…</option>
+                      </select>
+                    </label>
+                    {chapter === NEW_CHAPTER && (
+                      <label className="ai-scene-select">
+                        <span>新しい章の名前</span>
+                        <input
+                          type="text"
+                          value={newChapter}
+                          placeholder="例：route_tsumugi.scn"
+                          onChange={(e) => setNewChapter(e.target.value)}
+                        />
+                      </label>
+                    )}
+                    <p className="context-faint ai-scope-note">
+                      足すのはスタブのシーン（見出し、summary・route、選択肢とジャンプ）だけで、今あるシーンは変えません。足したシーンは
+                      status: ai-draft
+                      になります。入口の辺は、フロー図で引きます。
+                    </p>
+                  </div>
+                )}
                 <div className="ai-run-actions">
                   {thisRunning ? (
                     <>
@@ -387,6 +487,7 @@ export function AiScreen({
                         isRunning ||
                         confirming ||
                         (sceneNeeded && scene === null) ||
+                        skeletonMissing ||
                         shown?.assembled.problem != null
                       }
                       onClick={() => {
@@ -486,8 +587,37 @@ export function AiScreen({
                       <>
                         <p className="context-faint">{result.tokens}</p>
                         {result.written !== null && (
-                          <p className="export-notice">{result.written}</p>
+                          <p
+                            className={
+                              result.wroteOk
+                                ? "export-notice"
+                                : "export-warning"
+                            }
+                          >
+                            {result.written}
+                          </p>
                         )}
+                        {skeleton &&
+                          !result.wroteOk &&
+                          result.skeleton.length > 0 &&
+                          skeletonTarget !== undefined && (
+                            <div className="ai-actions">
+                              <span className="context-faint">
+                                骨格 {result.skeleton.length}シーン（
+                                {result.skeleton.map((s) => s.id).join("、")}）
+                              </span>
+                              <button
+                                type="button"
+                                className="small-button"
+                                disabled={skeletonMissing || isRunning}
+                                onClick={() =>
+                                  onRewriteSkeleton(info, skeletonTarget)
+                                }
+                              >
+                                書く章を直して書き直す（LLM を呼ばずに）
+                              </button>
+                            </div>
+                          )}
                         {task.output === "summary" &&
                           (result.summary === null ? (
                             <p className="export-warning">
@@ -520,6 +650,36 @@ export function AiScreen({
                             }
                             onToggleReject={onToggleReject}
                           />
+                        )}
+                        {task.output === "proposals" && (
+                          <BranchProposals
+                            result={result}
+                            scenes={scenes}
+                            hidden={plot.branchHidden}
+                            onAdopt={(proposal, key, model) =>
+                              plot.onAdoptBranch(proposal, key, model, task.id)
+                            }
+                            onReject={plot.onRejectBranch}
+                          />
+                        )}
+                        {task.output === "ideas" && (
+                          <div className="export-info">
+                            <p>
+                              分類案 {result.ideas.length}
+                              件。企画の画面の「AIの問い返し」で、メモに当てます。
+                            </p>
+                            <ul className="ai-idea-list">
+                              {result.ideas.map((s) => (
+                                <li key={s.file}>
+                                  <code>{s.file}</code>
+                                  {s.status !== null && ` → ${s.status}`}
+                                  {s.tags.length > 0 &&
+                                    `（タグ：${s.tags.join("・")}）`}
+                                  {s.reason !== null && `：${s.reason}`}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
                         )}
                         {task.output === "findings" &&
                           resultFindings.length === 0 && (
@@ -591,6 +751,26 @@ export function AiScreen({
                       </>
                     )}
                   </section>
+                )}
+                {task.output === "summary" && (
+                  <SyncPanel
+                    info={info}
+                    chapters={plot.chapters}
+                    drift={plot.drift}
+                    pending={plot.driftPending}
+                    driftError={plot.driftError}
+                    hidden={plot.driftHidden}
+                    running={plot.summarizeRun}
+                    busy={isRunning}
+                    result={plot.summarizeResult}
+                    error={plot.summarizeError}
+                    onSummarize={(file, confirmed) =>
+                      plot.onSummarize(task.id, file, confirmed)
+                    }
+                    onCancel={plot.onCancelSummarize}
+                    onAdopt={plot.onAdoptDrift}
+                    onReject={plot.onRejectDrift}
+                  />
                 )}
               </>
             )}

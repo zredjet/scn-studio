@@ -527,3 +527,61 @@ export function newStubPosition(
   const right = points.reduce((a, b) => (b.x > a.x ? b : a));
   return { x: right.x + column, y: right.y };
 }
+
+/** 提案ノード（T3-10）：フロー図に重ねる、AI の分岐案の仮ノード。 */
+export interface ProposalOverlayItem {
+  /** 案の見分け（`ai/model.ts` の `resultKey`）。 */
+  readonly key: string;
+  /** 記号（A、B…）。 */
+  readonly letter: string;
+  /** 選択肢の表示文。 */
+  readonly label: string;
+  /** 行き先の文（`s013a「…」に合流`、`新規 s015 · …`）。 */
+  readonly target: string;
+  /** 採用できない。 */
+  readonly problem: boolean;
+}
+
+export interface ProposalNodeData {
+  readonly head: string;
+  readonly title: string;
+  readonly foot: string;
+  readonly problem: boolean;
+  /** 押したときに選ぶノード（提案の元のシーン）。 */
+  readonly key: string;
+}
+
+/**
+ * 提案ノードの置き方：元のシーンの次の列に、縦に並べる（元のシーンの高さを中心に）。元のシーンから提案ノードへ
+ * 辺を引く。
+ */
+export function proposalOverlay(
+  from: { readonly x: number; readonly y: number },
+  fromId: string,
+  items: readonly ProposalOverlayItem[],
+): {
+  nodes: { id: string; x: number; y: number; data: ProposalNodeData }[];
+  edges: { id: string; source: string; target: string }[];
+} {
+  const column = 240;
+  const gap = 84;
+  const middle = (items.length - 1) / 2;
+  const nodes = items.map((item, i) => ({
+    id: `proposal:${item.key}`,
+    x: from.x + column,
+    y: from.y + (i - middle) * gap,
+    data: {
+      head: `AI提案 ${item.letter}`,
+      title: item.label,
+      foot: item.target,
+      problem: item.problem,
+      key: fromId,
+    },
+  }));
+  const edges = nodes.map((n) => ({
+    id: `edge:${n.id}`,
+    source: fromId,
+    target: n.id,
+  }));
+  return { nodes, edges };
+}

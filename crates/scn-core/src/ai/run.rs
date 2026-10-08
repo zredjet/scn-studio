@@ -14,6 +14,10 @@ use super::client::{AiError, CallOptions, ChatMessage, ChatRequest, Completion, 
 use super::connection::Connection;
 use super::context::{Assembled, ContextSources, assemble};
 use super::generate::generated_body;
+use super::plot::{
+    BranchProposal, IdeaSuggestion, SkeletonScene, parse_branch_proposals, parse_idea_suggestions,
+    parse_skeleton,
+};
 use super::proposal::{Proposal, proposal_of};
 use super::task::{AiTask, ContextItem, TaskLevel, TaskOutput};
 use crate::Span;
@@ -262,6 +266,12 @@ pub struct RunOutcome {
     pub proposals: Vec<Proposal>,
     /// 生成の下書き（`output: draft`。書き込む本文の行。T3-9）。
     pub draft: Vec<String>,
+    /// 提案ノード（`output: proposals`。T3-10）。
+    pub branches: Vec<BranchProposal>,
+    /// ルートの骨格（生成の段階で、今のシーンを文脈に入れないタスク。足すスタブのシーン。T3-10）。
+    pub skeleton: Vec<SkeletonScene>,
+    /// アイデアメモの分類案（`output: ideas`。T3-10）。
+    pub ideas: Vec<IdeaSuggestion>,
     /// 応答のうち、読めなかった行。
     pub unread: Vec<String>,
     /// 応答の文（そのまま）。
@@ -287,25 +297,28 @@ pub enum RunError {
     Ai(#[from] AiError),
 }
 
-/// 実行できる段階か（今は指摘の段階だけ）。
+/// 実行できる段階か。自律は章を選んで `run_auto` で実行する。
 pub fn runnable(task: &AiTask) -> Result<(), String> {
     match (task.level, task.output) {
         (TaskLevel::Review, _) | (TaskLevel::Propose, TaskOutput::Diff) => Ok(()),
+        // 提案ノードは、対象のシーンの後に足す選択肢の案（T3-10）。
+        (TaskLevel::Propose, _) if task.context.contains(&ContextItem::Scene) => Ok(()),
         (TaskLevel::Propose, _) => Err(format!(
-            "{} は提案ノード（proposals）を出すタスクです。フロー図の提案ノードは T3-10 で作ります",
+            "{} は提案ノード（proposals）を出すタスクです。対象のシーンを文脈に入れます（context に scene）",
             task.name
         )),
-        // 生成は、今のシーン（スタブ）に書くタスクだけ（T3-9）。ルートの骨格（新しいシーンを足す）は T3-10。
-        (TaskLevel::Generate, _) if task.context.contains(&ContextItem::Scene) => Ok(()),
-        (TaskLevel::Generate, _) => Err(format!(
-            "{} はシーンを足す生成のタスクです。ルートの骨格の生成は T3-10 で作ります",
-            task.name
-        )),
+        // 生成は、今のシーン（スタブ）に書くタスク（T3-9）と、シーンを足すルートの骨格（T3-10）。
+        (TaskLevel::Generate, _) => Ok(()),
         (TaskLevel::Auto, _) => Err(format!(
             "{} は自律のタスクです。章を選んで自律で実行します",
             task.name
         )),
     }
+}
+
+/// ルートの骨格を作るタスク（生成の段階で、今のシーンを文脈に入れないもの）か。
+pub fn is_skeleton(task: &AiTask) -> bool {
+    task.level == TaskLevel::Generate && !task.context.contains(&ContextItem::Scene)
 }
 
 /// 組み立てた文脈を、LLM への頼みにする。
@@ -375,6 +388,16 @@ pub fn run_task(
     let text = completion.text.clone();
     let mut proposals = Vec::new();
     let mut draft = Vec::new();
+    let mut branches = Vec::new();
+    let mut skeleton = Vec::new();
+    let mut ideas = Vec::new();
+    let unread_if = |empty: bool| {
+        if empty && !text.trim().is_empty() {
+            vec![text.trim().to_owned()]
+        } else {
+            Vec::new()
+        }
+    };
     let (findings, summary, unread) = match task.output {
         TaskOutput::Summary => {
             let summary = parse_summary(&text);
@@ -390,13 +413,24 @@ pub fn run_task(
             proposals = found;
             (Vec::new(), None, unread)
         }
+        TaskOutput::Draft if is_skeleton(task) => {
+            let (scenes, unread) = parse_skeleton(&text);
+            skeleton = scenes;
+            let mut unread = unread;
+            unread.extend(unread_if(skeleton.is_empty()));
+            (Vec::new(), None, unread)
+        }
         TaskOutput::Draft => {
             draft = generated_body(&text);
-            let unread = if draft.is_empty() && !text.trim().is_empty() {
-                vec![text.trim().to_owned()]
-            } else {
-                Vec::new()
-            };
+            (Vec::new(), None, unread_if(draft.is_empty()))
+        }
+        TaskOutput::Proposals => {
+            branches = parse_branch_proposals(&text, ir, scene.unwrap_or_default());
+            (Vec::new(), None, unread_if(branches.is_empty()))
+        }
+        TaskOutput::Ideas => {
+            let (found, unread) = parse_idea_suggestions(&text, &sources.ideas);
+            ideas = found;
             (Vec::new(), None, unread)
         }
         _ => {
@@ -413,6 +447,9 @@ pub fn run_task(
         summary,
         proposals,
         draft,
+        branches,
+        skeleton,
+        ideas,
         unread,
         text,
         completion,

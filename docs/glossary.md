@@ -176,7 +176,12 @@
 | AIタスク | ai task | `ai/*.yaml` の1定義 |
 | 関わり方の段階 | level | `review` / `propose` / `generate` / `auto` |
 | 指摘・提案・生成・自律 | review / propose / generate / auto | 段階の名前 |
-| 提案ノード | proposal node | フロー図上の未採用の仮ノード |
+| 提案ノード | proposal node | フロー図上の未採用の仮ノード。AI の分岐案（`ai::BranchProposal`：足す選択肢1つと行き先、足すスタブ） |
+| ルートの骨格 | route skeleton | エンディングとキャラの葛藤から AI が作る、スタブのシーンの並び（`ai::SkeletonScene`）。生成の段階で今のシーンを文脈に入れないタスク |
+| 構造の検証の結果 | structure | 文脈の項目。コアが計算したルートの分量、エンディングへの到達、結果が同じになる選択、流れと伏線の診断 |
+| 同期 | sync | シーン要約とメタ情報の summary のずれ（`ai::SummaryDrift`）を知らせ、summary に書く |
+| 問い返し | questions | 企画書とメモの空白・矛盾を、作者への質問として返す（`concept_questions`） |
+| 分類案 | idea suggestion | アイデアメモの状態とタグの案（`output: ideas`、`ai::IdeaSuggestion`） |
 | AI下書き | ai draft | 状態が `ai-draft` のシーン |
 | 出自 | provenance | `ai` / `ai-edited` / `human`。`ai/provenance.jsonl` の、行IDごとのいちばん後ろの記録（`provenance`） |
 | 出自の記録 | provenance record | `ai/provenance.jsonl` の1行（`provenance::Record`）。書き足すだけで、消さない |

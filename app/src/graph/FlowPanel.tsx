@@ -1,7 +1,9 @@
 // フローの画面の文脈パネル（docs/ui/mockups/03-flow.html の「選択中のシーン」）：選んだシーンのIDと
-// ファイル、題名、要約、ルート・状態・字数、出口と入口、読み書きする変数。まとまりを選んだときは、
-// 中のシーンの一覧。
+// ファイル、題名、要約、ルート・状態・字数、出口と入口、読み書きする変数、AIの提案（分岐案。T3-10）。
+// まとまりを選んだときは、中のシーンの一覧。
 
+import { BranchProposals } from "../ai/BranchProposals.tsx";
+import { QuickRun } from "../ai/QuickRun.tsx";
 import { prettyExpr } from "../core/expr.ts";
 import type {
   GraphEdge,
@@ -10,6 +12,7 @@ import type {
   SceneSummary,
 } from "../core/types.ts";
 import { edgeLabel, entriesOf, NO_ROUTE } from "./model.ts";
+import type { FlowAi } from "./SceneGraph.tsx";
 
 interface Props {
   readonly graph: SceneGraphData;
@@ -17,6 +20,7 @@ interface Props {
   /** 選んだノード（シーンID、章のファイル、ルートの名前）。 */
   readonly selected: string | null;
   readonly onOpen: (scene: SceneSummary) => void;
+  readonly ai: FlowAi;
 }
 
 /** 辺の見分け（一覧のキー）。 */
@@ -87,7 +91,7 @@ function ExitItem({
   );
 }
 
-export function FlowPanel({ graph, scenes, selected, onOpen }: Props) {
+export function FlowPanel({ graph, scenes, selected, onOpen, ai }: Props) {
   if (selected === null) {
     return (
       <aside className="flow-panel" aria-label="選択中のシーン">
@@ -214,6 +218,37 @@ export function FlowPanel({ graph, scenes, selected, onOpen }: Props) {
             : group.reads.map(prettyExpr).join("、")}
         </dd>
       </dl>
+      <section className="flow-section flow-ai" aria-label="AIの提案">
+        <h3 className="context-heading">AIの提案</h3>
+        {ai.runner.info !== null && (
+          <span className="context-faint">
+            {ai.runner.info.task.name}
+            {ai.runner.info.connection !== null &&
+              ` · ${ai.runner.info.connection.name}（${ai.runner.info.connection.cloud ? "クラウド" : "ローカル"}）`}
+          </span>
+        )}
+        <QuickRun
+          runner={ai.runner}
+          scene={scene.id}
+          label={
+            ai.result?.kind === "ok" && ai.result.scene === scene.id
+              ? "別の案を出す"
+              : "分岐案を出す"
+          }
+        />
+        {ai.result?.kind === "failed" && ai.result.scene === scene.id && (
+          <p className="export-warning">{ai.result.message}</p>
+        )}
+        {ai.result?.scene === scene.id && (
+          <BranchProposals
+            result={ai.result}
+            scenes={scenes}
+            hidden={ai.hidden}
+            onAdopt={ai.onAdopt}
+            onReject={ai.onReject}
+          />
+        )}
+      </section>
     </aside>
   );
 }

@@ -9,20 +9,27 @@ import {
   autoBranchText,
   autoSceneText,
   blocker,
+  driftKey,
   estimateText,
   type FindingRecord,
   fileProposalSet,
   findingLines,
   findingOffset,
   findingsForScene,
+  findTask,
   groupTasks,
   historyStatus,
+  isSkeleton,
+  mergedTags,
   mergeFindings,
   needsScene,
+  plotWrittenText,
   preparedFor,
+  proposalLetter,
   proposalStatusText,
   proposalsByFile,
   proposalsKey,
+  resultKey,
   tokensText,
 } from "../src/ai/model.ts";
 import type {
@@ -200,6 +207,10 @@ test("履歴と数の文", () => {
     proposals: [],
     model: "m",
     written: null,
+    wroteOk: false,
+    branches: [],
+    skeleton: [],
+    ideas: [],
     unread: [],
     tokens: "",
   };
@@ -356,11 +367,124 @@ test("提案：ファイルのまとまり、様子の文、採用できるも�
     proposals: [{ line: "x", before: "a", after: "b", reason: null }],
     model: "m",
     written: null,
+    wroteOk: false,
+    branches: [],
+    skeleton: [],
+    ideas: [],
     unread: [],
     tokens: "",
   };
   assert.equal(historyStatus(ok, 0, "diff"), "提案 1件");
   assert.equal(historyStatus({ ...ok, proposals: [] }, 0, "diff"), "提案なし");
+});
+
+test("プロットとフローへの支援の文と判断（T3-10）", () => {
+  const ok = {
+    kind: "ok" as const,
+    run: 7,
+    scene: "s014",
+    summary: null,
+    summaryProblem: null,
+    proposals: [],
+    model: "m",
+    written: null,
+    wroteOk: false,
+    branches: [],
+    skeleton: [],
+    ideas: [],
+    unread: [],
+    tokens: "",
+  };
+  assert.equal(historyStatus(ok, 0, "proposals"), "分岐案なし");
+  assert.equal(historyStatus(ok, 0, "ideas"), "分類案なし");
+  assert.equal(
+    historyStatus(
+      {
+        ...ok,
+        ideas: [{ file: "ideas/a.md", status: "保留", tags: [], reason: null }],
+      },
+      0,
+      "ideas",
+    ),
+    "分類案 1件",
+  );
+  assert.equal(historyStatus(ok, 0, "draft"), "書き込みなし");
+  assert.equal(
+    historyStatus({ ...ok, written: "x", wroteOk: true }, 0, "draft"),
+    "書き込みました",
+  );
+  // 書けなかった文（断られた、章を選んでいない）は「書き込めませんでした」。
+  assert.equal(
+    historyStatus({ ...ok, written: "書きませんでした：x" }, 0, "draft"),
+    "書き込めませんでした",
+  );
+  // ルートの骨格のタスク：生成の段階で、今のシーンを文脈に入れないもの。
+  assert.equal(
+    isSkeleton(task({ level: "generate", context: [{ kind: "concept" }] })),
+    true,
+  );
+  assert.equal(
+    isSkeleton(task({ level: "generate", context: [{ kind: "scene" }] })),
+    false,
+  );
+  // 使うタスク：名前が合うもの、無ければ形が合う最初のもの。
+  const tasks = [
+    info({ id: "a", level: "propose", output: "proposals" }),
+    info({ id: "branch_ideas", level: "propose", output: "proposals" }),
+  ];
+  const fits = (t: AiTask) => t.output === "proposals";
+  assert.equal(findTask(tasks, "branch_ideas", fits)?.task.id, "branch_ideas");
+  assert.equal(findTask(tasks, "none", fits)?.task.id, "a");
+  assert.equal(
+    findTask(tasks, "none", () => false),
+    null,
+  );
+  assert.equal(findTask(null, "a", fits), null);
+  assert.equal(resultKey(7, 2), "7-2");
+  assert.deepEqual([0, 1, 2].map(proposalLetter), ["A", "B", "C"]);
+  // 分類案のタグは、今のタグの後ろに無いものだけを足す。
+  assert.deepEqual(mergedTags(["灯", "屋上"], ["屋上", "伏線"]), [
+    "灯",
+    "屋上",
+    "伏線",
+  ]);
+  // 書いた結果の文。
+  const saved = {
+    kind: "saved" as const,
+    file: "story/a.scn",
+    text: "",
+    ids: [],
+    verification: [] as string[],
+    provenance_problem: null,
+    summary: {} as never,
+    checks: [],
+  };
+  assert.equal(
+    plotWrittenText(saved, "2シーンを足しました"),
+    "2シーンを足しました（story/a.scn）。検証：問題なし",
+  );
+  assert.equal(
+    plotWrittenText(
+      { ...saved, verification: ["W503 s070：出口が無い"] },
+      "足しました",
+    ),
+    "足しました（story/a.scn）。検証：1件（W503 s070：出口が無い）",
+  );
+  assert.equal(
+    plotWrittenText({ kind: "refused", reason: "s999 がありません" }, "x"),
+    "書きませんでした：s999 がありません",
+  );
+  assert.equal(
+    driftKey({
+      scene: "s1",
+      title: "",
+      file: "",
+      current: null,
+      proposed: "要約",
+      diff: [],
+    }),
+    "s1\n要約",
+  );
 });
 
 test("自律の進み具合：計画、段、終わったシーン、トークン数", () => {

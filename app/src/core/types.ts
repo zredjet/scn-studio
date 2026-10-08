@@ -557,7 +557,13 @@ export interface AiTask {
     readonly kind: string;
     readonly fields?: readonly string[] | null;
   }[];
-  readonly output: "findings" | "summary" | "diff" | "proposals" | "draft";
+  readonly output:
+    | "findings"
+    | "summary"
+    | "diff"
+    | "proposals"
+    | "draft"
+    | "ideas";
   readonly scope: string | null;
   readonly branch: string | null;
   readonly checks: readonly string[];
@@ -643,6 +649,12 @@ export interface AiRunOutcome {
   readonly proposals: readonly AiProposal[];
   /** 生成の下書き（書き込む本文の行。T3-9）。 */
   readonly draft: readonly string[];
+  /** 提案ノード（`output: proposals`。T3-10）。 */
+  readonly branches: readonly BranchProposal[];
+  /** ルートの骨格（足すスタブのシーン。T3-10）。 */
+  readonly skeleton: readonly SkeletonScene[];
+  /** アイデアメモの分類案（`output: ideas`。T3-10）。 */
+  readonly ideas: readonly IdeaSuggestion[];
   readonly unread: readonly string[];
   readonly text: string;
   readonly completion: {
@@ -655,6 +667,86 @@ export interface AiRunOutcome {
   };
   /** シーンの要約をキャッシュに書けなかった理由。 */
   readonly summary_problem: string | null;
+}
+
+/** 提案ノード（コアの `ai::BranchProposal`、T3-10）：対象のシーンに足す選択肢と、その行き先。 */
+export interface BranchProposal {
+  readonly name: string;
+  readonly from: string;
+  readonly label: string;
+  readonly effects: readonly string[];
+  readonly target: string;
+  readonly stubs: readonly {
+    readonly id: string;
+    readonly title: string;
+    readonly summary: string | null;
+  }[];
+  readonly reason: string | null;
+  /** 採用できないわけ。 */
+  readonly problems: readonly string[];
+}
+
+/** ルートの骨格の1つのシーン（コアの `ai::SkeletonScene`、T3-10）。 */
+export interface SkeletonScene {
+  readonly id: string;
+  readonly title: string;
+  readonly summary: string | null;
+  readonly route: string | null;
+  readonly lines: readonly string[];
+}
+
+/** アイデアメモの分類案（コアの `ai::IdeaSuggestion`、T3-10）。 */
+export interface IdeaSuggestion {
+  readonly file: string;
+  readonly status: string | null;
+  readonly tags: readonly string[];
+  readonly reason: string | null;
+}
+
+/** シーン要約とメタ情報の summary のずれ（コアの `ai::SummaryDrift`、T3-10）。 */
+export interface SummaryDrift {
+  readonly scene: string;
+  readonly title: string;
+  readonly file: string;
+  readonly current: string | null;
+  readonly proposed: string;
+  readonly diff: readonly AiDiffPart[];
+}
+
+/** 提案ノードの採用・ルートの骨格を書いた結果（T3-10）。 */
+export type PlotWriteResult =
+  | {
+      readonly kind: "saved";
+      readonly file: string;
+      readonly text: string;
+      readonly ids: readonly string[];
+      /** 書いた後の検証（足したシーンの誤りと警告）。 */
+      readonly verification: readonly string[];
+      readonly provenance_problem: string | null;
+      readonly summary: Summary;
+      readonly checks: readonly IrDiagnostic[];
+    }
+  | { readonly kind: "conflict"; readonly deleted: boolean }
+  | { readonly kind: "refused"; readonly reason: string };
+
+/** summary を書いた結果（T3-10）。 */
+export type SummaryWriteResult =
+  | {
+      readonly kind: "saved";
+      readonly text: string;
+      readonly summary: Summary;
+      readonly checks: readonly IrDiagnostic[];
+      readonly cache_problem: string | null;
+    }
+  | { readonly kind: "conflict"; readonly deleted: boolean }
+  | { readonly kind: "refused"; readonly reason: string };
+
+/** 章の要約をまとめて作り直した結果（T3-10）。 */
+export interface SummarizeResult {
+  readonly done: readonly string[];
+  readonly problems: readonly string[];
+  readonly stopped: string | null;
+  readonly total: number;
 }
 
 /** 行ごとの提案（コアの `ai::Proposal`、T3-8）。 */
@@ -676,10 +768,13 @@ export interface AiProposalView {
     | { readonly kind: "ready" }
     | { readonly kind: "same" }
     | { readonly kind: "blocked"; readonly reason: string };
-  readonly diff: readonly {
-    readonly kind: "equal" | "delete" | "insert";
-    readonly text: string;
-  }[];
+  readonly diff: readonly AiDiffPart[];
+}
+
+/** 文字ごとの差分の1つ（コアの `ai::DiffPart`）。 */
+export interface AiDiffPart {
+  readonly kind: "equal" | "delete" | "insert";
+  readonly text: string;
 }
 
 /** `ai/proposals/` の1つのファイル（コアの `ai::ProposalFile`）。 */

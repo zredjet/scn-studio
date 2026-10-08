@@ -156,6 +156,16 @@ pub struct DraftWritten {
     pub ids: Vec<String>,
 }
 
+/// 提案ノードの採用とルートの骨格を書いた結果（T3-10、D071）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlotWritten {
+    /// 書いた章（採用で章が決まらなければ空）。
+    pub file: String,
+    pub written: DraftWritten,
+    /// 書いた後の検証（足したシーンと、選択肢を足したシーンの誤りと警告）。
+    pub checks: Vec<String>,
+}
+
 /// 保存の結果。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SaveOutcome {
@@ -764,6 +774,358 @@ impl Workspace {
                 })
             }
         }
+    }
+
+    /// 書き足した本文を保存し、AI が書いた行（`ids`）の出自を `ai` と記録する（T3-10）。外部の変更とぶつかった
+    /// とき・書けなかったときは本文を戻す。
+    #[allow(clippy::too_many_arguments)]
+    fn save_ai_text(
+        &mut self,
+        file: &str,
+        current: &str,
+        text: &str,
+        ids: Vec<String>,
+        task: &str,
+        model: &str,
+        seen: Option<&str>,
+        generator: &mut LineIdGenerator,
+    ) -> Result<DraftWritten, ProjectError> {
+        self.set_buffer(file, text);
+        let outcome = match self.save(file, seen, generator) {
+            Ok(outcome) => outcome,
+            Err(e) => {
+                self.set_buffer(file, current);
+                return Err(e);
+            }
+        };
+        match outcome {
+            SaveOutcome::Conflict { deleted } => {
+                self.set_buffer(file, current);
+                Ok(DraftWritten {
+                    saved: None,
+                    conflict: Some(deleted),
+                    refused: None,
+                    ids: Vec::new(),
+                })
+            }
+            SaveOutcome::Saved(mut saved) => {
+                let at = provenance_now();
+                let records: Vec<Record> = ids
+                    .iter()
+                    .map(|line| Record {
+                        line: line.clone(),
+                        origin: AI.to_owned(),
+                        task: task.to_owned(),
+                        model: model.to_owned(),
+                        at: at.clone(),
+                    })
+                    .collect();
+                if !records.is_empty()
+                    && let Err(e) = append_provenance(&self.root, &records)
+                {
+                    saved.provenance_problem = Some(format!(
+                        "{e}（AI の {}行を記録できませんでした）",
+                        ids.len()
+                    ));
+                }
+                Ok(DraftWritten {
+                    saved: Some(saved),
+                    conflict: None,
+                    refused: None,
+                    ids,
+                })
+            }
+        }
+    }
+
+    /// AI がシーンを書き足す章を確かめる（T3-10）：開いている、保存していない変更もまだ取り込んでいない外部の
+    /// 変更も無い。今の本文を返す。だめならそのわけ。
+    fn plot_target(&self, file: &str) -> Result<String, String> {
+        let path = self.root.join(file);
+        let Some(current) = self.text(file).map(str::to_owned) else {
+            return Err(format!("作品フォルダに無い章です：{file}"));
+        };
+        if self.is_dirty(file) || self.pending.contains_key(file) {
+            return Err(
+                "この章には保存していない変更があります。保存してから書き足します".to_owned(),
+            );
+        }
+        if self.project.has_reading_errors() {
+            return Err(
+                "project.toml の本文の読み方の設定を読めないので、行IDを付けられず、書き足しません"
+                    .to_owned(),
+            );
+        }
+        match read_disk(&path) {
+            Disk::Text(on_disk) if self.disk_text(file) == Some(on_disk.as_str()) => Ok(current),
+            _ => Err("章が外で変わっています。取り込んでから書き足します".to_owned()),
+        }
+    }
+
+    /// 提案ノードを採用する（人の操作。T3-10、D071）：スタブのシーン（`status: ai-draft`）を選択肢を足すシーンの
+    /// 章の末尾に足し、そのシーンに選択肢を書き足して（フロー図からの編集と同じ規則）保存する。足した選択肢の行の
+    /// 出自を `ai` と記録し、足したシーンと選択肢を足したシーンを検証する。人が書いた行は変えない。
+    pub fn adopt_branch(
+        &mut self,
+        proposal: &crate::ai::BranchProposal,
+        task: &str,
+        model: &str,
+        generator: &mut LineIdGenerator,
+    ) -> Result<PlotWritten, ProjectError> {
+        let refuse = |file: &str, reason: String| PlotWritten {
+            file: file.to_owned(),
+            written: DraftWritten {
+                saved: None,
+                conflict: None,
+                refused: Some(reason),
+                ids: Vec::new(),
+            },
+            checks: Vec::new(),
+        };
+        if !proposal.problems.is_empty() {
+            return Ok(refuse("", proposal.problems.join("。")));
+        }
+        let ir = crate::analyze(&self.project);
+        let Some(file) = ir
+            .scenes
+            .iter()
+            .find(|s| s.id == proposal.from)
+            .map(|s| s.file.clone())
+        else {
+            return Ok(refuse("", format!("シーン {} がありません", proposal.from)));
+        };
+        let current = match self.plot_target(&file) {
+            Ok(text) => text,
+            Err(reason) => return Ok(refuse(&file, reason)),
+        };
+        let mut ids_seen = BTreeSet::new();
+        for stub in &proposal.stubs {
+            if let Err(e) = self.check_new_scene(&file, &stub.id, &stub.title) {
+                return Ok(refuse(&file, e.to_string()));
+            }
+            if !ids_seen.insert(stub.id.as_str()) {
+                return Ok(refuse(&file, format!("シーンID {} が2つあります", stub.id)));
+            }
+        }
+        let nl = if current.contains("\r\n") {
+            "\r\n"
+        } else {
+            "\n"
+        };
+        let mut with_stubs = current.clone();
+        for stub in &proposal.stubs {
+            with_stubs.push_str(&scene_separator(&with_stubs, nl));
+            with_stubs.push_str(&crate::ai::skeleton_scene_text(
+                &crate::ai::SkeletonScene {
+                    id: stub.id.clone(),
+                    title: stub.title.trim().to_owned(),
+                    summary: stub.summary.clone(),
+                    route: None,
+                    lines: Vec::new(),
+                },
+                None,
+                nl,
+            ));
+        }
+        let mut trial = self.project.clone();
+        if let Some(f) = trial.files.iter_mut().find(|f| f.path == file) {
+            f.text = with_stubs.clone();
+        }
+        let insert = match crate::flowedit::insert_choice(
+            &trial,
+            &proposal.from,
+            &proposal.target,
+            &proposal.label,
+            &proposal.effects,
+        ) {
+            Ok(insert) => insert,
+            Err(reason) => return Ok(refuse(&file, reason)),
+        };
+        let (text, ids) =
+            crate::ai::with_line_ids(&trial, &file, &insert.text, insert.inserted, generator);
+        if let Some(reason) = more_errors(&self.project, &file, &text) {
+            return Ok(refuse(&file, reason));
+        }
+        let seen = self.disk_text(&file).map(str::to_owned);
+        let written = self.save_ai_text(
+            &file,
+            &current,
+            &text,
+            ids,
+            task,
+            model,
+            seen.as_deref(),
+            generator,
+        )?;
+        let mut scenes = vec![proposal.from.clone()];
+        scenes.extend(proposal.stubs.iter().map(|s| s.id.clone()));
+        let checks = if written.saved.is_some() {
+            let ir = crate::analyze(&self.project);
+            crate::ai::scene_checks(&self.project, &ir, &scenes)
+        } else {
+            Vec::new()
+        };
+        Ok(PlotWritten {
+            file,
+            written,
+            checks,
+        })
+    }
+
+    /// ルートの骨格を書く（T3-10、D071）：スタブのシーン（見出し、`summary`・`route`・`status: ai-draft`、流れの
+    /// 行）を章の末尾に足して保存し、足した行のうち行IDの付く行（選択肢）の出自を `ai` と記録する。今あるシーンは
+    /// 変えない。シーンIDが重なる、行き先が無い、足した範囲に誤り（E）が出るなら書かない。
+    pub fn write_skeleton(
+        &mut self,
+        file: &str,
+        scenes: &[crate::ai::SkeletonScene],
+        route: Option<&str>,
+        task: &str,
+        model: &str,
+        generator: &mut LineIdGenerator,
+    ) -> Result<PlotWritten, ProjectError> {
+        let refuse = |reason: String| PlotWritten {
+            file: file.to_owned(),
+            written: DraftWritten {
+                saved: None,
+                conflict: None,
+                refused: Some(reason),
+                ids: Vec::new(),
+            },
+            checks: Vec::new(),
+        };
+        if scenes.is_empty() {
+            return Ok(refuse("足すシーンがありません".to_owned()));
+        }
+        let current = match self.plot_target(file) {
+            Ok(text) => text,
+            Err(reason) => return Ok(refuse(reason)),
+        };
+        let ir = crate::analyze(&self.project);
+        let mut problems = Vec::new();
+        let mut ids = BTreeSet::new();
+        for scene in scenes {
+            if !crate::ai::is_scene_id(&scene.id) {
+                problems.push(format!("シーンID {} は英数字と _ で書きます", scene.id));
+            } else if ir.scenes.iter().any(|s| s.id == scene.id) {
+                problems.push(format!("シーンID {} はもう使われています", scene.id));
+            } else if !ids.insert(scene.id.as_str()) {
+                problems.push(format!("シーンID {} が2つあります", scene.id));
+            }
+            if scene.title.trim().is_empty() || scene.title.contains(['\n', '\r']) {
+                problems.push(format!(
+                    "シーン {} の題名が空か、改行を含んでいます",
+                    scene.id
+                ));
+            }
+        }
+        for scene in scenes {
+            for to in crate::ai::skeleton_targets(scene) {
+                if !ids.contains(to.as_str()) && !ir.scenes.iter().any(|s| s.id == to) {
+                    problems.push(format!("シーン {} の行き先 {to} がありません", scene.id));
+                }
+            }
+        }
+        if !problems.is_empty() {
+            return Ok(refuse(problems.join("。")));
+        }
+        let nl = if current.contains("\r\n") {
+            "\r\n"
+        } else {
+            "\n"
+        };
+        let mut text = current.clone();
+        let start = text.len() + scene_separator(&text, nl).len();
+        for scene in scenes {
+            text.push_str(&scene_separator(&text, nl));
+            text.push_str(&crate::ai::skeleton_scene_text(scene, route, nl));
+        }
+        let mut trial = self.project.clone();
+        if let Some(f) = trial.files.iter_mut().find(|f| f.path == file) {
+            f.text = text.clone();
+        }
+        let errors: Vec<String> = crate::analyze(&trial)
+            .diagnostics
+            .iter()
+            .filter(|d| d.file == file && d.span.start >= start && d.code.starts_with('E'))
+            .map(|d| format!("{} {}", d.code, d.message))
+            .collect();
+        if !errors.is_empty() {
+            return Ok(refuse(format!(
+                "足すシーンに誤りがあるので、書きません：{}",
+                errors.join("、")
+            )));
+        }
+        let (text, line_ids) =
+            crate::ai::with_line_ids(&trial, file, &text, (start, text.len()), generator);
+        let seen = self.disk_text(file).map(str::to_owned);
+        let written = self.save_ai_text(
+            file,
+            &current,
+            &text,
+            line_ids,
+            task,
+            model,
+            seen.as_deref(),
+            generator,
+        )?;
+        let checks = if written.saved.is_some() {
+            let ir = crate::analyze(&self.project);
+            let added: Vec<String> = scenes.iter().map(|s| s.id.clone()).collect();
+            crate::ai::scene_checks(&self.project, &ir, &added)
+        } else {
+            Vec::new()
+        };
+        Ok(PlotWritten {
+            file: file.to_owned(),
+            written,
+            checks,
+        })
+    }
+
+    /// シーンのメタ情報の `summary` を書く（同期のずれを採用する人の操作。T3-10、D071）：その1行だけを書き換え
+    /// （無ければ足し、メタ情報が無ければ作る）、章を保存する（保存していない変更も一緒に）。`seen` はフロントが
+    /// 知っているディスクの中身。
+    pub fn set_scene_summary(
+        &mut self,
+        file: &str,
+        scene: &str,
+        summary: &str,
+        seen: Option<&str>,
+        generator: &mut LineIdGenerator,
+    ) -> Result<DraftWritten, ProjectError> {
+        let refuse = |reason: String| DraftWritten {
+            saved: None,
+            conflict: None,
+            refused: Some(reason),
+            ids: Vec::new(),
+        };
+        let path = self.root.join(file);
+        let Some(current) = self.text(file).map(str::to_owned) else {
+            return Err(not_open(&path));
+        };
+        let Some(summary) = crate::ideas::summary_line(summary) else {
+            return Ok(refuse("要約が空か、メタ情報に書けない形です".to_owned()));
+        };
+        let ir = crate::analyze(&self.project);
+        let Some((scene_file, start, end)) = crate::ai::scene_range(&self.project, &ir, scene)
+        else {
+            return Ok(refuse(format!("シーン {scene} がありません")));
+        };
+        if scene_file != file {
+            return Ok(refuse(format!("シーン {scene} は {file} にありません")));
+        }
+        let scene_text = current.get(start..end).unwrap_or_default();
+        let replaced = match crate::ai::set_meta_line(scene_text, "summary", &summary) {
+            Ok(text) => text,
+            Err(reason) => return Ok(refuse(reason)),
+        };
+        let text = format!(
+            "{}{replaced}{}",
+            current.get(..start).unwrap_or_default(),
+            current.get(end..).unwrap_or_default()
+        );
+        self.save_ai_text(file, &current, &text, Vec::new(), "", "", seen, generator)
     }
 
     /// 外部の変更（ファイルの監視の知らせ）を取り込む。
@@ -2040,4 +2402,35 @@ impl Workspace {
         self.synced(file, &text);
         Ok(text)
     }
+}
+
+/// 章の末尾にシーンを足すときの区切り（前の行と空行で分ける。もう空行で終わっていれば足さない）。
+fn scene_separator(text: &str, nl: &str) -> String {
+    let mut out = String::new();
+    if !text.is_empty() && !text.ends_with('\n') {
+        out.push_str(nl);
+    }
+    let blank_end =
+        text.trim_end_matches(['\r', '\n']).is_empty() || text.ends_with(&format!("{nl}{nl}"));
+    if !blank_end {
+        out.push_str(nl);
+    }
+    out
+}
+
+/// 章の本文を `text` にすると、その章の誤り（E）が増えるなら、そのわけ。
+fn more_errors(project: &Project, file: &str, text: &str) -> Option<String> {
+    let errors = |p: &Project| {
+        crate::analyze(p)
+            .diagnostics
+            .into_iter()
+            .filter(|d| d.file == file && d.code.starts_with('E'))
+            .count()
+    };
+    let before = errors(project);
+    let mut trial = project.clone();
+    if let Some(f) = trial.files.iter_mut().find(|f| f.path == file) {
+        f.text = text.to_owned();
+    }
+    (errors(&trial) > before).then(|| "書き足すと章の誤り（E）が増えるので、書きません".to_owned())
 }

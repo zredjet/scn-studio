@@ -1820,11 +1820,25 @@ fn ai_tasks(state: State<'_, AppState>, app: AppHandle) -> Result<Response, Stri
     json_response(&json!({ "tasks": tasks }))
 }
 
+/// タスクの定義（ルートの骨格を作るタスクでは、対象のルートを依頼に書き足したもの。T3-10）。
+fn task_for(project: &Project, task: &str, route: Option<&str>) -> Result<ai::AiTask, String> {
+    let definition = project
+        .ai_tasks
+        .iter()
+        .find(|t| t.id == task)
+        .ok_or_else(|| format!("ai/{task}.yaml がありません"))?;
+    Ok(match route.map(str::trim).filter(|r| !r.is_empty()) {
+        Some(route) if ai::is_skeleton(definition) => ai::with_route(definition, route),
+        _ => definition.clone(),
+    })
+}
+
 /// 実行する前に、組み立てた文脈（送る中身と見積もり）を見る。保存していない本文も含む。
 #[tauri::command(async)]
 fn ai_prepare(
     task: String,
     scene: Option<String>,
+    route: Option<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Response, String> {
@@ -1834,11 +1848,8 @@ fn ai_prepare(
         (workspace.project().clone(), workspace.root().to_owned())
     };
     let (machine, _) = ai::read_machine_settings(&ai_settings_file(&app)?);
-    let definition = project
-        .ai_tasks
-        .iter()
-        .find(|t| t.id == task)
-        .ok_or_else(|| format!("ai/{task}.yaml がありません"))?;
+    let definition = task_for(&project, &task, route.as_deref())?;
+    let definition = &definition;
     let conn = task_connection(&project, &machine, definition)?;
     let sources = ai::read_sources(&root);
     let assembled = thread::scope(|scope| {
@@ -1874,6 +1885,7 @@ fn ai_prepare(
 async fn ai_run(
     task: String,
     scene: Option<String>,
+    route: Option<String>,
     run: u64,
     digest: Option<String>,
     state: State<'_, AppState>,
@@ -1886,12 +1898,7 @@ async fn ai_run(
         (workspace.project().clone(), workspace.root().to_owned())
     };
     let (machine, _) = ai::read_machine_settings(&ai_settings_file(&app)?);
-    let definition = project
-        .ai_tasks
-        .iter()
-        .find(|t| t.id == task)
-        .cloned()
-        .ok_or_else(|| format!("ai/{task}.yaml がありません"))?;
+    let definition = task_for(&project, &task, route.as_deref())?;
     let conn = task_connection(&project, &machine, &definition)?;
     let key = key_for(&conn)?;
     let emitter = app.clone();
@@ -2100,6 +2107,309 @@ fn write_ai_draft(
         "summary": summary,
         "checks": checks,
     }))
+}
+
+/// AI が書いた結果（T3-10）を、フロントの形にする：保存した本文、行ID、書いた後の検証、表示に要る分。
+fn plot_response(
+    workspace: &Workspace,
+    written: &scn_core::workspace::PlotWritten,
+) -> Result<Response, String> {
+    if let Some(reason) = &written.written.refused {
+        return json_response(&json!({ "kind": "refused", "reason": reason }));
+    }
+    if let Some(deleted) = written.written.conflict {
+        return json_response(&json!({ "kind": "conflict", "deleted": deleted }));
+    }
+    let Some(saved) = &written.written.saved else {
+        return json_response(&json!({ "kind": "refused", "reason": "書けませんでした" }));
+    };
+    let Analyzed {
+        summary, checks, ..
+    } = analyze_summary(workspace.project(), true, None)?;
+    json_response(&json!({
+        "kind": "saved",
+        "file": written.file,
+        "text": saved.text,
+        "ids": written.written.ids,
+        "verification": written.checks,
+        "provenance_problem": saved.provenance_problem,
+        "summary": summary,
+        "checks": checks,
+    }))
+}
+
+/// 提案ノードを採用する（人の操作。T3-10）：スタブを足し、選択肢を書き足して保存し、出自を記録して検証する。
+#[tauri::command]
+fn adopt_branch_proposal(
+    proposal: ai::BranchProposal,
+    task: String,
+    model: String,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let file = analyze(workspace.project())
+        .scenes
+        .iter()
+        .find(|s| s.id == proposal.from)
+        .map(|s| s.file.clone());
+    refuse_during_auto(&state, workspace.root(), file.as_deref())?;
+    let written = {
+        let mut generator = locked(&state.generator)?;
+        let generator = generator.get_or_insert_with(LineIdGenerator::new);
+        workspace
+            .adopt_branch(&proposal, &task, &model, generator)
+            .map_err(|e| e.to_string())?
+    };
+    plot_response(workspace, &written)
+}
+
+/// ルートの骨格を書く（T3-10）：`file` の章（`new_chapter` なら、その名前の新しい章を作って）の末尾に、スタブの
+/// シーンを足して保存する。新しい章に書けなければ、作った章を消す。
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+fn write_ai_skeleton(
+    file: Option<String>,
+    new_chapter: Option<String>,
+    scenes: Vec<ai::SkeletonScene>,
+    route: Option<String>,
+    task: String,
+    model: String,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    refuse_during_auto(&state, workspace.root(), file.as_deref())?;
+    let (file, created) = match (file, new_chapter) {
+        (_, Some(name)) => (
+            workspace.add_chapter(&name).map_err(|e| e.to_string())?,
+            true,
+        ),
+        (Some(file), None) => (file, false),
+        (None, None) => return Err("書く章を選びます".to_owned()),
+    };
+    let route = route.as_deref().map(str::trim).filter(|r| !r.is_empty());
+    let written = {
+        let mut generator = locked(&state.generator)?;
+        let generator = generator.get_or_insert_with(LineIdGenerator::new);
+        workspace.write_skeleton(&file, &scenes, route, &task, &model, generator)
+    };
+    // 新しい章に書けなかったら（断った・入出力の誤り）、作った章を消す。
+    if created && !written.as_ref().is_ok_and(|w| w.written.saved.is_some()) {
+        let _ = workspace.delete_chapter(&file);
+    }
+    plot_response(workspace, &written.map_err(|e| e.to_string())?)
+}
+
+/// 要約のずれ（T3-10）：シーン要約（`.cache/summaries.json` の、本文の変わっていないもの）とメタ情報の summary が
+/// 違うシーン。
+#[tauri::command(async)]
+fn summary_drift(state: State<'_, AppState>) -> Result<Response, String> {
+    let (project, root) = {
+        let mut guard = locked(&state.workspace)?;
+        let workspace = open_workspace(&mut guard)?;
+        (workspace.project().clone(), workspace.root().to_owned())
+    };
+    let cache = ai::read_sources(&root).summaries;
+    let ir = analyze(&project);
+    // 章ごとの、要約を作り直すシーンの数（まとめて作り直すときに、送る回数として見せる）。
+    let pending: BTreeMap<String, usize> = project
+        .files
+        .iter()
+        .map(|f| {
+            (
+                f.path.clone(),
+                ai::summaries_to_refresh(&project, &ir, &cache, Some(&f.path)).len(),
+            )
+        })
+        .collect();
+    json_response(&json!({
+        "drift": to_json(&ai::summary_drift(&project, &ir, &cache), "要約のずれ")?,
+        "pending": pending,
+    }))
+}
+
+/// シーンのメタ情報の summary を書く（同期のずれの採用。T3-10）：`text` を今の本文にして summary の1行を書き換え、
+/// 保存する。書く前のシーンの本文が要約を作った本文と同じなら、書いた後の本文で要約のキャッシュを書き直す（元の
+/// 要約のまま。summary を書いただけで、作り直す要約にならないように）。違えば書き直さない（作り直すよう知らせる）。
+#[tauri::command]
+fn set_scene_summary(
+    file: String,
+    scene: String,
+    summary: String,
+    text: String,
+    disk: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    refuse_during_auto(&state, workspace.root(), Some(&file))?;
+    if !workspace.set_buffer(&file, &text) {
+        return Err(format!("作品フォルダに無いファイルです：{file}"));
+    }
+    let root = workspace.root().to_owned();
+    // 書く前の本文で作った要約か（キャッシュの要約と、その本文のハッシュ）。
+    let fresh = ai::fresh_summary(
+        workspace.project(),
+        &analyze(workspace.project()),
+        &ai::read_sources(&root).summaries,
+        &scene,
+    );
+    let written = {
+        let mut generator = locked(&state.generator)?;
+        let generator = generator.get_or_insert_with(LineIdGenerator::new);
+        workspace
+            .set_scene_summary(&file, &scene, &summary, disk.as_deref(), generator)
+            .map_err(|e| e.to_string())?
+    };
+    if let Some(reason) = written.refused {
+        return json_response(&json!({ "kind": "refused", "reason": reason }));
+    }
+    if let Some(deleted) = written.conflict {
+        return json_response(&json!({ "kind": "conflict", "deleted": deleted }));
+    }
+    let Some(saved) = written.saved else {
+        return json_response(&json!({ "kind": "refused", "reason": "書けませんでした" }));
+    };
+    let ir = analyze(workspace.project());
+    let cache_problem = match (fresh, ai::scene_source(workspace.project(), &ir, &scene)) {
+        (Some(cached), Some(source)) => {
+            let mut cache = ai::read_sources(&root).summaries;
+            ai::store_summary(&root, &mut cache, &scene, source, &cached).err()
+        }
+        _ => Some(
+            "要約を作った後に本文が変わっていたので、要約のキャッシュは書き直しません（要約を作り直します）"
+                .to_owned(),
+        ),
+    };
+    let Analyzed {
+        summary, checks, ..
+    } = analyze_summary(workspace.project(), true, None)?;
+    json_response(&json!({
+        "kind": "saved",
+        "text": saved.text,
+        "summary": summary,
+        "checks": checks,
+        "cache_problem": cache_problem,
+    }))
+}
+
+/// 章のシーンの要約をまとめて作り直す（同期。T3-10）：要約のキャッシュが無いか、本文が変わったシーンを本文の順に、
+/// シーン要約のタスク（`task`）で要約してキャッシュに入れる。シーンごとに `ai-summarize-progress` で知らせる。
+/// クラウドの接続先では `confirmed_cloud`（人が送る中身を確かめた）が要る。取り消しはシーンの合間で効く。
+#[tauri::command]
+async fn ai_summarize(
+    task: String,
+    file: String,
+    run: u64,
+    confirmed_cloud: bool,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<Response, String> {
+    let (cancel, _registered) = register_ai_run(&state, run)?;
+    let (project, root) = {
+        let mut guard = locked(&state.workspace)?;
+        let workspace = open_workspace(&mut guard)?;
+        (workspace.project().clone(), workspace.root().to_owned())
+    };
+    let (machine, _) = ai::read_machine_settings(&ai_settings_file(&app)?);
+    let definition = task_for(&project, &task, None)?;
+    if definition.output != ai::TaskOutput::Summary {
+        return Err(format!(
+            "{} はシーン要約のタスクではありません",
+            definition.name
+        ));
+    }
+    let conn = task_connection(&project, &machine, &definition)?;
+    if conn.cloud && !confirmed_cloud {
+        return Err(format!(
+            "{} はクラウド（{}）へ送ります。送る中身を確かめてから実行します",
+            definition.name, conn.name
+        ));
+    }
+    let key = key_for(&conn)?;
+    let emitter = app.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        thread::Builder::new()
+            .name("ai-summarize".into())
+            .stack_size(ANALYZE_STACK_SIZE)
+            .spawn(move || {
+                let ir = analyze(&project);
+                let sources = ai::read_sources(&root);
+                let targets =
+                    ai::summaries_to_refresh(&project, &ir, &sources.summaries, Some(&file));
+                let total = targets.len();
+                let mut done = Vec::new();
+                let mut problems = Vec::new();
+                let mut stopped = None;
+                for (i, scene) in targets.iter().enumerate() {
+                    if cancel.load(Ordering::Relaxed) {
+                        stopped = Some("取り消しました".to_owned());
+                        break;
+                    }
+                    let _ = emitter.emit_to(
+                        "main",
+                        "ai-summarize-progress",
+                        json!({ "run": run, "scene": scene, "done": i, "total": total }),
+                    );
+                    // クラウドでは、人が確かめた（まとめて送る）ので、組み立てた中身の要約値を添える。
+                    let assembled = ai::assemble(
+                        &project,
+                        &ir,
+                        &sources,
+                        &definition,
+                        Some(scene),
+                        conn.context_tokens,
+                    );
+                    let digest = ai::content_digest(&conn, &assembled);
+                    match ai::run_task(
+                        &project,
+                        &ir,
+                        &sources,
+                        &definition,
+                        Some(scene),
+                        &conn,
+                        key.as_deref(),
+                        Some(&digest),
+                        &ai::CallOptions::default(),
+                        &cancel,
+                        &mut |_| {},
+                    ) {
+                        Ok(outcome) if cancel.load(Ordering::Relaxed) => {
+                            let _ = outcome;
+                            stopped = Some("取り消しました".to_owned());
+                            break;
+                        }
+                        Ok(outcome) => {
+                            match (outcome.summary, ai::scene_source(&project, &ir, scene)) {
+                                (Some(summary), Some(source)) => {
+                                    let mut fresh = ai::read_sources(&root).summaries;
+                                    match ai::store_summary(
+                                        &root, &mut fresh, scene, source, &summary,
+                                    ) {
+                                        Ok(()) => done.push(scene.clone()),
+                                        Err(e) => problems.push(format!("{scene}：{e}")),
+                                    }
+                                }
+                                _ => problems.push(format!("{scene}：要約を読めませんでした")),
+                            }
+                        }
+                        Err(ai::RunError::Ai(ai::AiError::Cancelled)) => {
+                            stopped = Some("取り消しました".to_owned());
+                            break;
+                        }
+                        Err(e) => problems.push(format!("{scene}：{e}")),
+                    }
+                }
+                json!({ "done": done, "problems": problems, "stopped": stopped, "total": total })
+            })
+            .map_err(|e| format!("実行のスレッドを作れません：{e}"))?
+            .join()
+            .map_err(|_| "要約の作り直しが途中で止まりました".to_owned())
+    })
+    .await
+    .map_err(|e| format!("要約を作り直せません：{e}"))??;
+    json_response(&result)
 }
 
 /// 自律の実行を、アプリの作品フォルダにつなぐ（T3-9）。LLM を呼ぶ間はワークスペースをロックせず、書き込むときだけ
@@ -2748,6 +3058,11 @@ pub fn run() {
             view_proposals,
             adopt_proposals,
             write_ai_draft,
+            adopt_branch_proposal,
+            write_ai_skeleton,
+            summary_drift,
+            set_scene_summary,
+            ai_summarize,
             ai_auto,
             ai_branches,
             ai_branch_diff,

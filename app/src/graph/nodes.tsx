@@ -1,9 +1,9 @@
-// フロー図のノード（xyflow の自前のノード。docs/ui/mockups/03-flow.html）。
+// フロー図のノード（xyflow の自前のノード。docs/ui/mockups/03-flow.html）。提案ノードは T3-10。
 // シーン：3行（ID、題名、字数と状態）。スタブは灰色の点線、AI下書きは緑青の実線（色だけで区別しない）。
 // まとまり（章・ルート）：3行（ファイル名か「ルート」、題名、シーンの数と字数）。帯：ルートの見出しと枠。
 
 import { Handle, type NodeProps, Position } from "@xyflow/react";
-import type { FlowNodeData } from "./model.ts";
+import type { FlowNodeData, ProposalNodeData } from "./model.ts";
 
 function classes(data: FlowNodeData, base: string): string {
   const list = [base];
@@ -78,9 +78,27 @@ export function MissingNode({ data }: NodeProps) {
   );
 }
 
+/** 提案ノード（T3-10）：AI の分岐案。緑青の点線（色だけで区別しない）。 */
+export function ProposalNode({ data }: NodeProps) {
+  const d = data as unknown as ProposalNodeData;
+  return (
+    <div
+      className={
+        d.problem ? "flow-node proposal problem" : "flow-node proposal"
+      }
+    >
+      <Handle type="target" position={Position.Left} />
+      <span className="flow-node-head">{d.head}</span>
+      <b className="flow-node-title">{d.title}</b>
+      <span className="flow-node-foot">{d.foot}</span>
+    </div>
+  );
+}
+
 export const nodeTypes = {
   scene: SceneNode,
   cluster: GroupNode,
   band: BandNode,
   missing: MissingNode,
+  proposal: ProposalNode,
 };

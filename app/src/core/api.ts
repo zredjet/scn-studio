@@ -26,6 +26,7 @@ import type {
   AutoResult,
   BibleData,
   BibleWritten,
+  BranchProposal,
   CatalogWritten,
   ConceptData,
   DevSettings,
@@ -43,6 +44,7 @@ import type {
   MergeView,
   OpenedProject,
   Playthrough,
+  PlotWriteResult,
   PreviewRequest,
   PromotedWritten,
   Promotion,
@@ -62,8 +64,12 @@ import type {
   SceneInfo,
   ScriptFormat,
   ScriptSheet,
+  SkeletonScene,
   StoryWrittenResult,
+  SummarizeResult,
   Summary,
+  SummaryDrift,
+  SummaryWriteResult,
   TypeEdit,
   VariablesData,
   VariablesWritten,
@@ -563,8 +569,9 @@ export function aiTaskList(): Promise<{
 export function prepareAiTask(
   task: string,
   scene: string | null,
+  route: string | null = null,
 ): Promise<AiPrepared> {
-  return invoke<AiPrepared>("ai_prepare", { task, scene });
+  return invoke<AiPrepared>("ai_prepare", { task, scene, route });
 }
 
 /**
@@ -576,8 +583,96 @@ export function runAiTask(
   scene: string | null,
   run: number,
   digest: string | null,
+  route: string | null = null,
 ): Promise<AiRunOutcome> {
-  return invoke<AiRunOutcome>("ai_run", { task, scene, run, digest });
+  return invoke<AiRunOutcome>("ai_run", { task, scene, route, run, digest });
+}
+
+/** 提案ノードを採用する（人の操作。T3-10）。スタブを足し、選択肢を書き足して保存し、検証する。 */
+export function adoptBranchProposal(
+  proposal: BranchProposal,
+  task: string,
+  model: string,
+): Promise<PlotWriteResult> {
+  return invoke<PlotWriteResult>("adopt_branch_proposal", {
+    proposal,
+    task,
+    model,
+  });
+}
+
+/** ルートの骨格を章の末尾に書く（T3-10）。`newChapter` なら、その名前の章を作って書く。 */
+export function writeAiSkeleton(
+  file: string | null,
+  newChapter: string | null,
+  scenes: readonly SkeletonScene[],
+  route: string | null,
+  task: string,
+  model: string,
+): Promise<PlotWriteResult> {
+  return invoke<PlotWriteResult>("write_ai_skeleton", {
+    file,
+    newChapter,
+    scenes,
+    route,
+    task,
+    model,
+  });
+}
+
+/** シーン要約とメタ情報の summary のずれと、章ごとの要約を作り直すシーンの数（T3-10）。 */
+export function summaryDrift(): Promise<{
+  readonly drift: readonly SummaryDrift[];
+  readonly pending: Readonly<Record<string, number>>;
+}> {
+  return invoke("summary_drift");
+}
+
+/** シーンのメタ情報の summary を書く（同期のずれの採用。T3-10）。 */
+export function setSceneSummary(
+  file: string,
+  scene: string,
+  summary: string,
+  text: string,
+  disk: string | null,
+): Promise<SummaryWriteResult> {
+  return invoke<SummaryWriteResult>("set_scene_summary", {
+    file,
+    scene,
+    summary,
+    text,
+    disk,
+  });
+}
+
+/** 章のシーンの要約をまとめて作り直す（T3-10）。 */
+export function runAiSummarize(
+  task: string,
+  file: string,
+  run: number,
+  confirmedCloud: boolean,
+): Promise<SummarizeResult> {
+  return invoke<SummarizeResult>("ai_summarize", {
+    task,
+    file,
+    run,
+    confirmedCloud,
+  });
+}
+
+/** 要約の作り直しの進み具合（T3-10）。 */
+export function onAiSummarizeProgress(
+  handler: (progress: {
+    readonly run: number;
+    readonly scene: string;
+    readonly done: number;
+    readonly total: number;
+  }) => void,
+): Promise<UnlistenFn> {
+  return listen<{ run: number; scene: string; done: number; total: number }>(
+    "ai-summarize-progress",
+    (e) => handler(e.payload),
+  );
 }
 
 /** 外部のAIエージェントが置いた提案（`ai/proposals/*.md`。T3-8）。 */

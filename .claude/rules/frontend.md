@@ -63,6 +63,7 @@ paths:
 - タスクの実行（T3-7、D068）はコア（`ai_prepare`・`ai_run`・`cancel_ai`）。実行と指摘と履歴は App が持つ（画面を切り替えても続く）。結果は回の番号で照らし、取り消した回・前の作品の回の結果は捨てる。クラウドの接続先では送る中身を見せてから送る。
 - 提案（T3-8、D069）は `ai/ProposalPanel.tsx` が今の本文と照らし（コアの `view_proposals`）、行ごとに採用・却下する。採用はコア（`adopt_proposals`）が置き換えて保存し、App がエディタの本文を置き換える（名前の変更と同じ扱い）。外部の変更とぶつかっている章には採用しない。フロントで本文を書き換えない。
 - 生成と自律（T3-9、D070）：生成の下書きはコア（`write_ai_draft`）がスタブに書き、App がエディタの本文を置き換える（`applyWrittenText`。採用と同じ）。自律は `ai/AutoPanel.tsx`（章、ブランチ、クラウドの確かめ、進み具合、生成したシーン、AI のブランチ）。自律が書いた本文は知らせ（`ai-draft-written`）で受け取り、変換中は待ってから入れる（置き換えの元は知らせの `before`）。自律の実行中の保存はコアが断る。ブランチの破棄は確かめてから。進み具合の当て方と文は `ai/model.ts` に置き、テストを付ける。
+- プロットとフローへの支援（T3-10、D071）：ほかの画面（フロー図、企画の画面）からの実行は `ai/QuickRun.tsx`（App の `runTask` と同じ実行、クラウドでは送る中身を見せてから）。提案ノードはフロー図に重ねるだけ（`graph/model.ts` の `proposalOverlay`。位置は保存しない）で、採用・骨格・summary の書き込みはコア（`adopt_branch_proposal`・`write_ai_skeleton`・`set_scene_summary`）が行い、App が本文を置き換える（`applyPlotWritten`・`applyWrittenText`）。分類案はメモの項目の書き換え（`set_entry_field`）で当てる。却下・閉じたものは App の中だけに持つ。判断と文は `ai/model.ts` に置き、テストを付ける。
 - 指摘はアプリの中だけに持つ。エディタの印（`editor/findings.ts`）は行末の行IDで引き、本文は変えない。変換中は作り直さず、前の印をずらすだけ。並べ方・持ち方・文は `ai/model.ts` に置き、テストを付ける（`app/test/ai.test.ts`）。
 
 ## 検証の画面（app/src/check/）

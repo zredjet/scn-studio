@@ -47,6 +47,8 @@ pub struct ContextSources {
     /// `style.md` の中身。
     pub style: Option<String>,
     pub summaries: SummaryCache,
+    /// アイデアメモ（T3-10。文脈の `ideas`）。
+    pub ideas: Vec<super::plot::IdeaNote>,
     /// 読めなかったもの（知らせる文）。
     pub problems: Vec<String>,
 }
@@ -88,6 +90,7 @@ pub fn read_sources(root: &Path) -> ContextSources {
         concept,
         style,
         summaries,
+        ideas: super::plot::read_idea_notes(root),
         problems,
     }
 }
@@ -273,15 +276,17 @@ pub fn context_limit(context_tokens: u64) -> u64 {
 }
 
 /// 削る順番。`characters` は1度目で一人称と口調メモだけにし、2度目で節ごと削る。`style` は指摘と提案のタスクだけ。
-pub const TRIM_ORDER: [&str; 11] = [
+pub const TRIM_ORDER: [&str; 13] = [
     "previous_summaries",
     "scene_summaries",
     "chapter_summaries",
     "route_summaries",
     "terms",
+    "ideas",
     "characters",
     "characters",
     "variables",
+    "structure",
     "concept",
     "style",
     // 今のシーンは削らない（印として置く）。
@@ -289,9 +294,11 @@ pub const TRIM_ORDER: [&str; 11] = [
 ];
 
 /// 節を並べる順（上から下へ）。
-const SECTION_ORDER: [&str; 10] = [
+const SECTION_ORDER: [&str; 12] = [
     "concept",
+    "ideas",
     "style",
+    "structure",
     "route_summaries",
     "chapter_summaries",
     "scene_summaries",
@@ -315,6 +322,10 @@ pub(crate) fn preamble() -> &'static str {
     PREAMBLE
 }
 
+/// ルートの骨格（生成の段階で、今のシーンを文脈に入れないタスク。T3-10）の出力の指示。
+const SKELETON_INSTRUCTION: &str = "足すスタブのシーンを .scn の形で返してください。シーンごとに `## 題名 #シーンID`（今あるシーンIDと重ならないID）と、メタ情報の summary と route、流れの行（`@選択`・選択肢・`@end`・`-> 行き先`・`@設定`・`@if`・`@エンディング`）だけを書き、本文（台詞・地の文）と演出は書かないでください。
+行き先は今あるシーンか、足すシーンにしてください。今あるシーンの行は書かないでください。";
+
 fn output_instruction(output: TaskOutput) -> &'static str {
     match output {
         TaskOutput::Findings => {
@@ -328,10 +339,16 @@ fn output_instruction(output: TaskOutput) -> &'static str {
 before と after は、行頭の字下げと行末の ^行ID を除いた行の中身にしてください（段落頭の全角空白は含めます）。行を分ける・消す・種類を変える案は出さないでください。"
         }
         TaskOutput::Proposals => {
-            "提案ごとに `### 提案 1` のような見出しを置き、その下に、足すスタブシーン（見出し、メタ情報の summary、選択肢とジャンプ）を .scn の形で書いてください。"
+            "提案ごとに `### 提案 1：案の名前` の見出しを置き、その下に .scn の形で、対象のシーンに足す選択肢を1つ（`- 表示文` の行と、その下に字下げした `@設定` の行と `-> 行き先`）書いてください。
+行き先は今あるシーンか、その提案で足すスタブです。スタブは `## 題名 #シーンID`（今あるシーンIDと重ならないID）と、メタ情報の summary だけを書き、本文（台詞・地の文）は書きません。
+理由は `理由：` で始まる1行に書きます。今あるシーンの行は書き換えないでください。"
         }
         TaskOutput::Draft => {
             "書いた本文を .scn の形で返してください。今ある行（行IDのある行）は変えずにそのまま残し、新しい行には行IDを付けないでください。"
+        }
+        TaskOutput::Ideas => {
+            "メモごとの分類案を、1行に1つの JSON で返してください：{\"file\": \"ideas/…（メモのファイル）\", \"status\": \"未整理か採用か保留か没\", \"tags\": [\"タグ\"], \"reason\": \"理由\"}。
+案の無いメモは書かないでください。"
         }
     }
 }
@@ -713,6 +730,19 @@ impl Builder<'_> {
                     format!("## {title}\n\n{}", body.join("\n\n")),
                 ))
             }
+            "structure" => Some(section(
+                "structure",
+                "構造の検証の結果",
+                super::plot::structure_text(self.project, self.ir),
+            )),
+            "ideas" => {
+                let text = super::plot::ideas_text(&self.sources.ideas);
+                if text.is_none() {
+                    self.notes
+                        .push("アイデアメモ（ideas/*.md）がありません".to_owned());
+                }
+                Some(section("ideas", "アイデアメモ", text?))
+            }
             "scene_summaries" => {
                 let lines: Vec<String> = self.summaries().iter().map(summary_line).collect();
                 if lines.is_empty() {
@@ -945,7 +975,12 @@ pub fn assemble(
         ));
     }
     let target = this.map(|s| format!("シーン {}「{}」", s.id, s.title));
-    let system = format!("{PREAMBLE}\n\n{}", output_instruction(task.output));
+    let instruction = if super::run::is_skeleton(task) {
+        SKELETON_INSTRUCTION
+    } else {
+        output_instruction(task.output)
+    };
+    let system = format!("{PREAMBLE}\n\n{instruction}");
     let measure = |sections: &[Section]| {
         estimate_tokens(&system) + estimate_tokens(&user_text(sections, prompt, target.as_deref()))
     };

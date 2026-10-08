@@ -5,6 +5,7 @@
 //! AIタスクの実行（T3-7、D068）：指摘とシーンの要約を応答から読み、行IDで本文の位置を引く。
 //! 提案（T3-8、D069）：行IDつきの差分（アプリの実行と `ai/proposals/*.md`）、行ごとの採用。
 //! 生成と自律（T3-9、D070）：スタブへの下書き、自律の反復、Git のブランチ。
+//! プロットとフローへの AI 支援（T3-10、D071）：提案ノード、ルートの骨格、構造の検証の結果、要約のずれ、メモの分類案。
 
 mod auto;
 mod client;
@@ -12,6 +13,7 @@ mod connection;
 mod context;
 mod generate;
 mod keys;
+mod plot;
 mod proposal;
 mod run;
 mod task;
@@ -22,6 +24,7 @@ pub use connection::*;
 pub use context::*;
 pub use generate::*;
 pub use keys::*;
+pub use plot::*;
 pub use proposal::*;
 pub use run::*;
 pub use task::*;

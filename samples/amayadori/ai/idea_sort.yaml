@@ -1,0 +1,8 @@
+name: メモの分類案
+level: review
+model: cloud
+context: [concept, ideas]
+output: ideas
+prompt: |
+  アイデアメモのうち、状態が「未整理」のものについて、企画書に照らした分類の案（状態とタグ）を出してください。
+  状態は 未整理・採用・保留・没 のどれかにし、タグは今あるメモのタグを優先してください。

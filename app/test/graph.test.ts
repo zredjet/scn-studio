@@ -3,6 +3,7 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { branchTargetText, routeNames } from "../src/ai/model.ts";
 import type {
   GraphEdge,
   GraphGroup,
@@ -17,6 +18,7 @@ import {
   legendCounts,
   NO_ROUTE,
   newStubPosition,
+  proposalOverlay,
   rankOrder,
   startSceneOf,
 } from "../src/graph/model.ts";
@@ -341,4 +343,81 @@ test("スタブを足したときのノードの位置（T2-9）", () => {
     x: 202,
     y: 116,
   });
+});
+
+test("提案ノード（T3-10）：元のシーンの次の列に縦に並べ、元から辺を引く", () => {
+  const items = ["A", "B", "C"].map((letter, i) => ({
+    key: `7-${i}`,
+    letter,
+    label: `案${letter}`,
+    target: "s013a に合流",
+    problem: i === 2,
+  }));
+  const { nodes, edges } = proposalOverlay({ x: 100, y: 200 }, "s014", items);
+  assert.deepEqual(
+    nodes.map((n) => [n.id, n.x, n.y]),
+    [
+      ["proposal:7-0", 340, 116],
+      ["proposal:7-1", 340, 200],
+      ["proposal:7-2", 340, 284],
+    ],
+  );
+  assert.deepEqual(nodes[0]?.data, {
+    head: "AI提案 A",
+    title: "案A",
+    foot: "s013a に合流",
+    problem: false,
+    key: "s014",
+  });
+  assert.equal(nodes[2]?.data.problem, true);
+  assert.deepEqual(
+    edges.map((e) => [e.source, e.target]),
+    [
+      ["s014", "proposal:7-0"],
+      ["s014", "proposal:7-1"],
+      ["s014", "proposal:7-2"],
+    ],
+  );
+  assert.deepEqual(proposalOverlay({ x: 0, y: 0 }, "s1", []), {
+    nodes: [],
+    edges: [],
+  });
+});
+
+test("提案ノードの行き先の文と、ルートの名前の候補（T3-10）", () => {
+  const scenes = [
+    scene("s013a", "灯", { title: "打ち明ける" }),
+    scene("s020", "紬"),
+  ];
+  const base = {
+    name: "案",
+    from: "s014",
+    label: "追いかける",
+    effects: [],
+    reason: null,
+    problems: [],
+  };
+  assert.equal(
+    branchTargetText({ ...base, target: "s013a", stubs: [] }, scenes),
+    "s013a「打ち明ける」に合流",
+  );
+  assert.equal(
+    branchTargetText(
+      {
+        ...base,
+        target: "s015",
+        stubs: [{ id: "s015", title: "紬と会う", summary: null }],
+      },
+      scenes,
+    ),
+    "新規 s015 · 紬と会う",
+  );
+  assert.equal(
+    branchTargetText({ ...base, target: "s999", stubs: [] }, scenes),
+    "s999（無いシーン）",
+  );
+  assert.deepEqual(
+    routeNames([...scenes, scene("s021", "灯"), scene("s001", null)]),
+    ["灯", "紬"],
+  );
 });

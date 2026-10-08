@@ -1,0 +1,9 @@
+name: 企画書とメモへの問い返し
+level: review
+model: cloud
+context: [concept, ideas, characters]
+output: findings
+prompt: |
+  企画書とアイデアメモ、キャラクターの設定を読み、まだ決めていないこと（空白）と、食い違っていること（矛盾）を、
+  作者への質問として返してください。答えを決めつけず、作者が決めるために要る問いにしてください。
+  質問は1つずつ {"severity": "info", "message": "質問"} の JSON で返し、line と scene は書かないでください。

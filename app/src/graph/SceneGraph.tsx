@@ -5,7 +5,8 @@
 // - ノードを動かしたら、その位置を `layout.json` に保存する（コアが書く）。保存した位置の無いノードは
 //   自動で置く。「自動整列」はその粒度の保存した位置を捨てる。
 // - ノードを選ぶと文脈パネルに出口・入口・変数を出し、ダブルクリックか「本文を開く」で本文へ移る。
-// - フロー図からの編集（スタブの追加、辺を引く）はフェーズ2、AIの提案ノードはフェーズ3。
+// - フロー図からの編集（スタブの追加、辺を引く）はフェーズ2、AIの提案ノードはフェーズ3（T3-10）。提案ノードは、
+//   選んだシーンの分岐案（AI の結果）を、元のシーンの次の列に点線の仮ノードとして重ねる（位置は保存しない）。
 
 import {
   Background,
@@ -19,6 +20,8 @@ import {
   useReactFlow,
 } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { RunResult, TaskRunner } from "../ai/model.ts";
+import { branchTargetText, proposalLetter, resultKey } from "../ai/model.ts";
 import {
   addFlowEdge,
   addStub,
@@ -27,6 +30,7 @@ import {
   writeLayout,
 } from "../core/api.ts";
 import type {
+  BranchProposal,
   GraphLevel,
   IrDiagnostic,
   Layout,
@@ -44,6 +48,7 @@ import {
   legendCounts,
   NO_ROUTE,
   newStubPosition,
+  proposalOverlay,
 } from "./model.ts";
 import { nodeTypes } from "./nodes.tsx";
 
@@ -61,6 +66,23 @@ interface Props {
   readonly dirtyChapters: ReadonlySet<string>;
   /** 本文に書き足した（App がエディタと表示をそろえる）。 */
   readonly onStoryWritten: (result: StoryWrittenResult) => void;
+  /** AI の分岐案（提案ノード。T3-10）。 */
+  readonly ai: FlowAi;
+}
+
+/** フロー図の AI の分岐案（T3-10）。 */
+export interface FlowAi {
+  readonly runner: TaskRunner;
+  /** 分岐案のタスクの最後の結果。 */
+  readonly result: RunResult | undefined;
+  /** 採用・却下した案。 */
+  readonly hidden: ReadonlySet<string>;
+  readonly onAdopt: (
+    proposal: BranchProposal,
+    key: string,
+    model: string,
+  ) => Promise<string>;
+  readonly onReject: (key: string) => void;
 }
 
 /** 本文が変わってから、構造グラフを取り直すまでの時間（ミリ秒）。 */
@@ -98,6 +120,7 @@ export function SceneGraph({
   chapters,
   dirtyChapters,
   onStoryWritten,
+  ai,
 }: Props) {
   /** スタブを足す欄を開いているか、書き足す辺（T2-9）。 */
   const [stubOpen, setStubOpen] = useState(false);
@@ -192,9 +215,29 @@ export function SceneGraph({
     });
   }, [graph, level, layout, moved, summary, selected, route, showConditions]);
 
+  // 提案ノード（シーンの粒度で、分岐案の元のシーンがあるとき）。
+  const overlay = useMemo(() => {
+    const result = ai.result;
+    if (level !== "scene" || result?.kind !== "ok" || result.scene === null)
+      return null;
+    const from = flow?.nodes.find((n) => n.id === result.scene);
+    if (from === undefined) return null;
+    const items = result.branches
+      .map((p, i) => ({ p, i, key: resultKey(result.run, i) }))
+      .filter(({ key }) => !ai.hidden.has(key))
+      .map(({ p, i, key }) => ({
+        key,
+        letter: proposalLetter(i),
+        label: p.label === "" ? p.name : p.label,
+        target: branchTargetText(p, summary.scenes),
+        problem: p.problems.length > 0,
+      }));
+    return items.length === 0 ? null : proposalOverlay(from, from.id, items);
+  }, [ai.result, ai.hidden, flow, level, summary.scenes]);
+
   const built: Node[] = useMemo(
-    () =>
-      (flow?.nodes ?? []).map((n) => ({
+    () => [
+      ...(flow?.nodes ?? []).map((n) => ({
         id: n.id,
         type: n.type,
         position: { x: n.x, y: n.y },
@@ -205,14 +248,23 @@ export function SceneGraph({
           n.type === "band" ? { width: n.width, height: n.height } : undefined,
         zIndex: n.type === "band" ? -1 : undefined,
       })),
-    [flow],
+      ...(overlay?.nodes ?? []).map((n) => ({
+        id: n.id,
+        type: "proposal",
+        position: { x: n.x, y: n.y },
+        data: { ...n.data },
+        draggable: false,
+        connectable: false,
+      })),
+    ],
+    [flow, overlay],
   );
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>(built);
   useEffect(() => setNodes(built), [built, setNodes]);
 
   const edges: Edge[] = useMemo(
-    () =>
-      (flow?.edges ?? []).map((e) => ({
+    () => [
+      ...(flow?.edges ?? []).map((e) => ({
         id: e.id,
         source: e.source,
         target: e.target,
@@ -226,7 +278,21 @@ export function SceneGraph({
           height: 16,
         },
       })),
-    [flow],
+      ...(overlay?.edges ?? []).map((e) => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        type: "smoothstep",
+        className: "flow-edge proposal",
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: "#2e9c90",
+          width: 16,
+          height: 16,
+        },
+      })),
+    ],
+    [flow, overlay],
   );
 
   /** まだ書いていない位置を、すぐに書く。 */
@@ -372,6 +438,7 @@ export function SceneGraph({
                 (id) =>
                   id !== null &&
                   !id.startsWith("missing:") &&
+                  !id.startsWith("proposal:") &&
                   !id.startsWith("_anon_"),
               )
             }
@@ -430,6 +497,12 @@ export function SceneGraph({
             <span className="legend-box stub" />
             スタブ（本文なし）
           </span>
+          {overlay !== null && (
+            <span className="legend-item">
+              <span className="legend-box proposal" />
+              AI提案（未採用）
+            </span>
+          )}
           <span className="legend-counts">
             到達できない {counts.unreachable} · 行き止まり {counts.deadEnds} ·
             スタブ {counts.stubs} · AI下書き {counts.aiDrafts}
@@ -499,6 +572,7 @@ export function SceneGraph({
           scenes={summary.scenes}
           selected={selected}
           onOpen={onOpen}
+          ai={ai}
         />
       )}
     </div>

@@ -13,13 +13,20 @@ import {
   findingLines,
   findingOffset,
   findingsForScene,
+  findTask,
   type HistoryEntry,
   historyStatus,
+  isSkeleton,
   mergeFindings,
   type ProposalSet,
+  plotWrittenText,
   proposalsByFile,
   type RunResult,
   type RunState,
+  resultKey,
+  type SkeletonTarget,
+  type SummarizeRun,
+  type TaskRunner,
   tokensText,
 } from "./ai/model.ts";
 import { AssetsScreen } from "./assets/AssetsScreen.tsx";
@@ -30,6 +37,7 @@ import { PlaythroughPanel } from "./check/PlaythroughPanel.tsx";
 import { ConceptScreen } from "./concept/ConceptScreen.tsx";
 import {
   addChapter,
+  adoptBranchProposal,
   adoptProposals,
   aiBranchDelete,
   aiBranchDiff,
@@ -61,6 +69,7 @@ import {
   onAiAutoProgress,
   onAiDraftWritten,
   onAiRunProgress,
+  onAiSummarizeProgress,
   onPreviewWindowClosed,
   onWorkspaceChanged,
   onWorkspaceError,
@@ -79,6 +88,7 @@ import {
   renamePreview,
   routeStats,
   runAiAuto,
+  runAiSummarize,
   runAiTask,
   runPlaythrough,
   saveFile,
@@ -88,11 +98,14 @@ import {
   setAiCloudAllowed,
   setAiKey,
   setAiOverride,
+  setSceneSummary,
   setViewMode,
+  summaryDrift,
   symbolAt,
   testAiConnection,
   viewModes,
   writeAiDraft,
+  writeAiSkeleton,
 } from "./core/api.ts";
 import type { PreviewData } from "./core/ir.ts";
 import { PositionMap } from "./core/position.ts";
@@ -105,6 +118,7 @@ import type {
   AssistData,
   AutoResult,
   Bracket,
+  BranchProposal,
   EditorSettings,
   GraphLevel,
   IrDiagnostic,
@@ -112,16 +126,27 @@ import type {
   MergeView,
   OpenedProject,
   Playthrough,
+  PlotWriteResult,
   PreviewRequest,
   RecentProject,
   RenameSymbol,
   RouteStat,
   SceneInfo,
   SceneSummary,
+  SkeletonScene,
+  SummarizeResult,
   Summary,
+  SummaryDrift,
   ViewMode,
   WorkspaceChanged,
 } from "./core/types.ts";
+
+/** 書き込んだ結果の文と、書けたか（T3-9・T3-10）。 */
+interface Written {
+  readonly text: string;
+  readonly ok: boolean;
+}
+
 import { ConflictBar } from "./editor/ConflictBar.tsx";
 import {
   type Analysis,
@@ -394,6 +419,34 @@ export function App() {
   const [rejectedProposals, setRejectedProposals] = useState<
     ReadonlyMap<string, ReadonlySet<number>>
   >(() => new Map());
+  /**
+   * プロットとフローへの支援（T3-10）：採用・却下した分岐案、当てた・閉じた分類案、却下した要約のずれ、要約の
+   * ずれ、章の要約の作り直し、ほかの画面からAI実行の画面で開くタスク。
+   */
+  const [branchHidden, setBranchHidden] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const [ideaHidden, setIdeaHidden] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const [driftHidden, setDriftHidden] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const [drift, setDrift] = useState<readonly SummaryDrift[] | null>(null);
+  const [driftPending, setDriftPending] = useState<
+    Readonly<Record<string, number>>
+  >({});
+  const [driftError, setDriftError] = useState<string | null>(null);
+  const [driftVersion, setDriftVersion] = useState(0);
+  const [summarizeRun, setSummarizeRun] = useState<SummarizeRun | null>(null);
+  const [summarizeResult, setSummarizeResult] =
+    useState<SummarizeResult | null>(null);
+  const [summarizeError, setSummarizeError] = useState<string | null>(null);
+  const summarizing = useRef<number | null>(null);
+  const [aiScreenRequest, setAiScreenRequest] = useState<{
+    readonly task: string;
+    readonly seq: number;
+  } | null>(null);
   /** プロジェクトを開いた回数。開くたびにエディタを作り直す。 */
   const [openSeq, setOpenSeq] = useState(0);
 
@@ -429,6 +482,7 @@ export function App() {
     screen,
     previewMarker,
     previewWindow,
+    aiResults,
   });
   latest.current = {
     project,
@@ -442,6 +496,7 @@ export function App() {
     screen,
     previewMarker,
     previewWindow,
+    aiResults,
   };
 
   /**
@@ -1740,6 +1795,15 @@ export function App() {
     setAiHistory([]);
     setAiFindings([]);
     setRejectedProposals(new Map());
+    if (summarizing.current !== null) void cancelAi(summarizing.current);
+    summarizing.current = null;
+    setSummarizeRun(null);
+    setSummarizeResult(null);
+    setSummarizeError(null);
+    setBranchHidden(new Set());
+    setIdeaHidden(new Set());
+    setDriftHidden(new Set());
+    setDrift(null);
   }, [projectRoot, openSeq]);
   // 実行の進み具合（届いた文字の数）。
   useEffect(() => {
@@ -1781,23 +1845,29 @@ export function App() {
     },
     [replaceText, showSummary],
   );
-  /** 生成の下書きをスタブのシーンに書き込む（T3-9）。結果の文を返す。 */
+  /** 生成の下書きをスタブのシーンに書き込む（T3-9）。結果の文と、書けたかを返す。 */
   const writeDraft = useCallback(
     async (
       scene: string,
       body: readonly string[],
       task: string,
       model: string,
-    ): Promise<string> => {
+    ): Promise<Written> => {
       const file = latest.current.project?.summary.scenes.find(
         (s) => s.id === scene,
       )?.file;
-      if (file === undefined) return `シーン ${scene} が見つかりません`;
-      if (body.length === 0) return "下書きの本文がありませんでした";
+      if (file === undefined)
+        return { text: `シーン ${scene} が見つかりません`, ok: false };
+      if (body.length === 0)
+        return { text: "下書きの本文がありませんでした", ok: false };
       if (latest.current.conflicts.has(file))
-        return `${file} は外部の変更とぶつかっています。選んでから実行します`;
+        return {
+          text: `${file} は外部の変更とぶつかっています。選んでから実行します`,
+          ok: false,
+        };
       const text = buffers.current.get(file);
-      if (text === undefined) return `${file} が開かれていません`;
+      if (text === undefined)
+        return { text: `${file} が開かれていません`, ok: false };
       const result = await writeAiDraft(
         file,
         scene,
@@ -1816,27 +1886,148 @@ export function App() {
             result.summary,
             result.checks,
           );
-          return result.provenance_problem === null
-            ? `${scene} に下書きを書き込みました（${result.ids.length}行。status: ai-draft）`
-            : `${scene} に下書きを書き込みましたが、出自を記録できませんでした：${result.provenance_problem}`;
+          return {
+            text:
+              result.provenance_problem === null
+                ? `${scene} に下書きを書き込みました（${result.ids.length}行。status: ai-draft）`
+                : `${scene} に下書きを書き込みましたが、出自を記録できませんでした：${result.provenance_problem}`,
+            ok: true,
+          };
         case "conflict":
           setConflicts((map) =>
             new Map(map).set(file, { deleted: result.deleted }),
           );
-          return `${file} は外部で変更されていたので、書き込んでいません`;
+          return {
+            text: `${file} は外部で変更されていたので、書き込んでいません`,
+            ok: false,
+          };
         case "refused":
-          return result.reason;
+          return { text: result.reason, ok: false };
       }
     },
     [applyWrittenText],
   );
+  /**
+   * AI が書いた結果（提案ノードの採用、ルートの骨格。T3-10）を、エディタと App の本文に入れる。新しい章なら一覧に
+   * 足す。
+   */
+  const applyPlotWritten = useCallback(
+    (result: PlotWriteResult) => {
+      if (result.kind === "saved") {
+        const file = result.file;
+        if (!(latest.current.project?.files.includes(file) ?? true)) {
+          buffers.current.set(file, "");
+          saved.current.set(file, "");
+          setProject((p) =>
+            p === null ? null : { ...p, files: withFile(p.files, file) },
+          );
+        }
+        const before = buffers.current.get(file) ?? "";
+        applyWrittenText(
+          file,
+          result.text,
+          before,
+          result.summary,
+          result.checks,
+        );
+      }
+    },
+    [applyWrittenText],
+  );
+  /**
+   * ルートの骨格を書く先の問題（T3-10）。LLM を呼ぶ前にも確かめる（書けないと分かっているのに送らない）。無ければ
+   * null。
+   */
+  const skeletonProblem = useCallback(
+    (target: SkeletonTarget | undefined): string | null => {
+      if (target === undefined) return "書く章を選んでいません";
+      if (target.route === null) return "対象のルートを入れていません";
+      if (autoRunning.current !== null)
+        return "自律で実行しています。終わってから書きます";
+      const file = target.file;
+      if (file === null) {
+        const name = (target.newChapter ?? "").trim();
+        if (name === "") return "書く章を選んでいません";
+        const path = `story/${name.endsWith(".scn") ? name : `${name}.scn`}`;
+        if (latest.current.project?.files.includes(path) === true)
+          return `同じ名前の章（${path}）があります`;
+        return null;
+      }
+      if (latest.current.dirty.has(file))
+        return `${file} に保存していない変更があります。保存してから実行します`;
+      if (latest.current.conflicts.has(file))
+        return `${file} は外部の変更とぶつかっています。選んでから実行します`;
+      return null;
+    },
+    [],
+  );
+  /** ルートの骨格を書く（T3-10）。結果の文と、書けたかを返す。 */
+  const writeSkeleton = useCallback(
+    async (
+      scenes: readonly SkeletonScene[],
+      model: string,
+      task: string,
+      target: SkeletonTarget | undefined,
+    ): Promise<Written> => {
+      if (scenes.length === 0)
+        return { text: "足すスタブのシーンを読めませんでした", ok: false };
+      const problem = skeletonProblem(target);
+      if (problem !== null || target === undefined)
+        return { text: problem ?? "書く章を選んでいません", ok: false };
+      const file = target.file;
+      try {
+        const result = await writeAiSkeleton(
+          file,
+          target.newChapter,
+          scenes,
+          target.route,
+          task,
+          model,
+        );
+        applyPlotWritten(result);
+        if (result.kind === "conflict" && file !== null)
+          setConflicts((map) =>
+            new Map(map).set(file, { deleted: result.deleted }),
+          );
+        const ids = scenes.map((s) => s.id).join("、");
+        return {
+          text: plotWrittenText(
+            result,
+            `${scenes.length}シーン（${ids}）を足しました`,
+          ),
+          ok: result.kind === "saved",
+        };
+      } catch (e) {
+        return { text: String(e), ok: false };
+      }
+    },
+    [applyPlotWritten, skeletonProblem],
+  );
   const runTask = useCallback(
-    (info: AiTaskInfo, scene: string | null, digest: string | null) => {
+    (
+      info: AiTaskInfo,
+      scene: string | null,
+      digest: string | null,
+      target?: SkeletonTarget,
+    ) => {
       if (taskRun.current !== null) return;
       aiRun.current += 1;
       const run = aiRun.current;
-      taskRun.current = run;
       const task = info.task;
+      // ルートの骨格は、書く先を送る前に確かめる（書けないのに送らない）。
+      const blocked = isSkeleton(task) ? skeletonProblem(target) : null;
+      if (blocked !== null) {
+        setAiResults((m) =>
+          new Map(m).set(task.id, {
+            kind: "failed",
+            run,
+            scene,
+            message: blocked,
+          }),
+        );
+        return;
+      }
+      taskRun.current = run;
       taskRunTarget.current = { task: task.id, scene };
       const at = new Date().toLocaleTimeString("ja-JP", {
         hour: "2-digit",
@@ -1857,12 +2048,18 @@ export function App() {
           ),
         );
       };
-      runAiTask(task.id, scene, run, digest)
+      runAiTask(task.id, scene, run, digest, target?.route ?? null)
         .then(async (outcome) => {
           if (taskRun.current !== run) return;
-          // 生成は、下書きをスタブに書き込む（人が書いた行は変えない）。
-          const written =
-            task.level === "generate" && scene !== null
+          // 生成は、下書きをスタブに書き込む・ルートの骨格のスタブを足す（人が書いた行は変えない）。
+          const written = isSkeleton(task)
+            ? await writeSkeleton(
+                outcome.skeleton,
+                outcome.model,
+                task.id,
+                target,
+              )
+            : task.level === "generate" && scene !== null
               ? await writeDraft(scene, outcome.draft, task.id, outcome.model)
               : null;
           if (taskRun.current !== run) return;
@@ -1893,7 +2090,11 @@ export function App() {
               summaryProblem: outcome.summary_problem,
               proposals: outcome.proposals,
               model: outcome.model,
-              written,
+              written: written?.text ?? null,
+              wroteOk: written?.ok ?? false,
+              branches: outcome.branches,
+              skeleton: outcome.skeleton,
+              ideas: outcome.ideas,
               unread: outcome.unread,
               tokens: tokensText(outcome.completion.usage),
             },
@@ -1907,8 +2108,182 @@ export function App() {
           finish({ kind: "failed", run, scene, message: String(e) }, 0);
         });
     },
-    [whenIdle, writeDraft],
+    [whenIdle, writeDraft, writeSkeleton, skeletonProblem],
   );
+  /** 骨格を書き直している（二度押しで同じ骨格を2回書かない）。 */
+  const rewriting = useRef(false);
+  /** ルートの骨格を、LLM を呼ばずに書き直す（前の回の結果の骨格。T3-10）。 */
+  const rewriteSkeleton = useCallback(
+    async (info: AiTaskInfo, target: SkeletonTarget) => {
+      const result = latest.current.aiResults.get(info.task.id);
+      if (result?.kind !== "ok" || rewriting.current) return;
+      rewriting.current = true;
+      const written = await writeSkeleton(
+        result.skeleton,
+        result.model,
+        info.task.id,
+        target,
+      ).finally(() => {
+        rewriting.current = false;
+      });
+      setAiResults((m) => {
+        const now = m.get(info.task.id);
+        return now?.kind === "ok" && now.run === result.run
+          ? new Map(m).set(info.task.id, {
+              ...now,
+              written: written.text,
+              wroteOk: written.ok,
+            })
+          : m;
+      });
+    },
+    [writeSkeleton],
+  );
+  /** 提案ノードを採用する（人の操作。T3-10）。結果の文を返す。 */
+  const adoptBranch = useCallback(
+    async (
+      proposal: BranchProposal,
+      key: string,
+      model: string,
+      task: string,
+    ): Promise<string> => {
+      const file = latest.current.project?.summary.scenes.find(
+        (s) => s.id === proposal.from,
+      )?.file;
+      if (file !== undefined && latest.current.dirty.has(file))
+        return `${file} に保存していない変更があります。保存してから採用します`;
+      if (file !== undefined && latest.current.conflicts.has(file))
+        return `${file} は外部の変更とぶつかっています。選んでから採用します`;
+      try {
+        const result = await adoptBranchProposal(proposal, task, model);
+        applyPlotWritten(result);
+        if (result.kind === "saved")
+          setBranchHidden((h) => new Set(h).add(key));
+        if (result.kind === "conflict" && file !== undefined)
+          setConflicts((map) =>
+            new Map(map).set(file, { deleted: result.deleted }),
+          );
+        return plotWrittenText(
+          result,
+          `「${proposal.label}」を ${proposal.from} に足しました`,
+        );
+      } catch (e) {
+        return String(e);
+      }
+    },
+    [applyPlotWritten],
+  );
+  // 要約のずれ（T3-10）：AI実行の画面を開いているとき、本文や要約が変わったときに取り直す。
+  useEffect(() => {
+    void savedVersion;
+    void driftVersion;
+    if (projectRoot === null || screen !== "ai") return;
+    let live = true;
+    summaryDrift()
+      .then((d) => {
+        if (!live) return;
+        setDrift(d.drift);
+        setDriftPending(d.pending);
+        setDriftError(null);
+      })
+      .catch((e: unknown) => {
+        if (live) setDriftError(String(e));
+      });
+    return () => {
+      live = false;
+    };
+  }, [projectRoot, screen, savedVersion, driftVersion]);
+  /** 要約のずれを summary に書く（T3-10）。誤りの文を返す。 */
+  const adoptDrift = useCallback(
+    async (d: SummaryDrift): Promise<string | null> => {
+      const text = buffers.current.get(d.file);
+      if (text === undefined) return `${d.file} が開かれていません`;
+      if (latest.current.conflicts.has(d.file))
+        return `${d.file} は外部の変更とぶつかっています。選んでから書きます`;
+      try {
+        const result = await setSceneSummary(
+          d.file,
+          d.scene,
+          d.proposed,
+          text,
+          saved.current.get(d.file) ?? null,
+        );
+        switch (result.kind) {
+          case "saved":
+            applyWrittenText(
+              d.file,
+              result.text,
+              text,
+              result.summary,
+              result.checks,
+            );
+            setDriftVersion((n) => n + 1);
+            return result.cache_problem === null
+              ? null
+              : `summary は書きましたが、要約のキャッシュを書けませんでした：${result.cache_problem}`;
+          case "conflict":
+            setConflicts((map) =>
+              new Map(map).set(d.file, { deleted: result.deleted }),
+            );
+            return `${d.file} は外部で変更されていたので、書いていません`;
+          case "refused":
+            return result.reason;
+        }
+      } catch (e) {
+        return String(e);
+      }
+    },
+    [applyWrittenText],
+  );
+  /** 章のシーンの要約をまとめて作り直す（T3-10）。 */
+  const runSummarize = useCallback(
+    (task: string, file: string, confirmed: boolean) => {
+      if (summarizing.current !== null) return;
+      aiRun.current += 1;
+      const run = aiRun.current;
+      summarizing.current = run;
+      setSummarizeError(null);
+      setSummarizeResult(null);
+      setSummarizeRun({ run, file, scene: null, done: 0, total: 0 });
+      runAiSummarize(task, file, run, confirmed)
+        .then((result) => {
+          if (summarizing.current !== run) return;
+          setSummarizeResult(result);
+        })
+        .catch((e: unknown) => {
+          if (summarizing.current === run) setSummarizeError(String(e));
+        })
+        .finally(() => {
+          if (summarizing.current !== run) return;
+          summarizing.current = null;
+          setSummarizeRun(null);
+          setDriftVersion((n) => n + 1);
+        });
+    },
+    [],
+  );
+  const cancelSummarize = useCallback(() => {
+    const run = summarizing.current;
+    if (run !== null) void cancelAi(run);
+  }, []);
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+    let live = true;
+    void onAiSummarizeProgress((p) => {
+      setSummarizeRun((r) =>
+        r !== null && r.run === p.run
+          ? { ...r, scene: p.scene, done: p.done, total: p.total }
+          : r,
+      );
+    }).then((u) => {
+      if (live) unlisten = u;
+      else u();
+    });
+    return () => {
+      live = false;
+      unlisten?.();
+    };
+  }, []);
   // 自律の進み具合と、自律が章に書き込んだ本文（T3-9）。
   useEffect(() => {
     const offs: (() => void)[] = [];
@@ -2328,6 +2703,35 @@ export function App() {
     [savedText],
   );
 
+  // プロットとフローへの支援（T3-10）に使うタスク。組み込みの名前のタスク、無ければ出力の形が合うもの。
+  const branchTask = findTask(
+    aiTasks,
+    "branch_ideas",
+    (t) => t.level === "propose" && t.output === "proposals",
+  );
+  const questionTask = findTask(aiTasks, "concept_questions", () => false);
+  const sortTask = findTask(aiTasks, "idea_sort", (t) => t.output === "ideas");
+  const skeletonTask = findTask(aiTasks, "route_skeleton", isSkeleton);
+  /** ほかの画面から1つのタスクを実行する（実行はAI実行の画面と同じ）。 */
+  const runnerOf = (info: AiTaskInfo | null): TaskRunner => ({
+    info,
+    running: aiRunState,
+    onPrepare: prepareAiTask,
+    onRun: runTask,
+    onCancel: cancelTaskRun,
+  });
+  const sortResult =
+    sortTask === null ? undefined : aiResults.get(sortTask.task.id);
+  const ideaSuggestions =
+    sortResult?.kind === "ok"
+      ? sortResult.ideas
+          .map((suggestion, i) => ({
+            key: resultKey(sortResult.run, i),
+            suggestion,
+          }))
+          .filter(({ key }) => !ideaHidden.has(key))
+      : [];
+
   return (
     <div className="app">
       <TitleBar
@@ -2502,6 +2906,23 @@ export function App() {
                       onStoryWritten(result.file, result.text);
                       showSummary(result.summary, result.checks);
                     }}
+                    ai={{
+                      runner: runnerOf(branchTask),
+                      result:
+                        branchTask === null
+                          ? undefined
+                          : aiResults.get(branchTask.task.id),
+                      hidden: branchHidden,
+                      onAdopt: (proposal, key, model) =>
+                        adoptBranch(
+                          proposal,
+                          key,
+                          model,
+                          branchTask?.task.id ?? "branch_ideas",
+                        ),
+                      onReject: (key) =>
+                        setBranchHidden((h) => new Set(h).add(key)),
+                    }}
                   />
                 </section>
               )}
@@ -2518,6 +2939,30 @@ export function App() {
                     onOpenLocation={openFromSettings}
                     onOpenEntry={openEntry}
                     onUnsaved={onConceptDraft}
+                    ai={{
+                      questions: runnerOf(questionTask),
+                      sort: runnerOf(sortTask),
+                      findings:
+                        questionTask === null
+                          ? []
+                          : aiFindings.filter(
+                              (f) => f.task === questionTask.task.id,
+                            ),
+                      onDismissFinding: dismissFinding,
+                      suggestions: ideaSuggestions,
+                      onHideSuggestion: (key) =>
+                        setIdeaHidden((h) => new Set(h).add(key)),
+                      onSkeleton:
+                        skeletonTask === null
+                          ? null
+                          : () => {
+                              setAiScreenRequest((r) => ({
+                                task: skeletonTask.task.id,
+                                seq: (r?.seq ?? 0) + 1,
+                              }));
+                              selectScreen("ai");
+                            },
+                    }}
                   />
                 </section>
               )}
@@ -2647,6 +3092,29 @@ export function App() {
                         setBranchesVersion((n) => n + 1);
                       }
                       return true;
+                    }}
+                    request={aiScreenRequest}
+                    onRewriteSkeleton={(info, target) =>
+                      void rewriteSkeleton(info, target)
+                    }
+                    plot={{
+                      chapters: project.files,
+                      branchHidden,
+                      onAdoptBranch: adoptBranch,
+                      onRejectBranch: (key) =>
+                        setBranchHidden((h) => new Set(h).add(key)),
+                      drift,
+                      driftPending,
+                      driftError,
+                      driftHidden,
+                      onRejectDrift: (key) =>
+                        setDriftHidden((h) => new Set(h).add(key)),
+                      onAdoptDrift: adoptDrift,
+                      summarizeRun,
+                      summarizeResult,
+                      summarizeError,
+                      onSummarize: runSummarize,
+                      onCancelSummarize: cancelSummarize,
                     }}
                   />
                 </section>

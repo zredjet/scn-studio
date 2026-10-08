@@ -36,6 +36,8 @@ pub enum FlowEdge {
 pub struct FlowInsert {
     pub file: String,
     pub text: String,
+    /// 書き足した範囲（バイト位置）。
+    pub inserted: (usize, usize),
 }
 
 /// 文の後ろへは進めない（行き先が決まっている）か。枝の中のどこかに行き先の決まった文があれば、その枝は出ていく
@@ -122,6 +124,53 @@ fn check_label(label: &str) -> Result<&str, String> {
 
 /// 辺を引いたときに書き足す中身を作る。
 pub fn insert_edge(project: &Project, edge: &FlowEdge) -> Result<FlowInsert, String> {
+    insert_edge_with(project, edge, &[])
+}
+
+/// 選択肢を足す中身を作る。`effects` は選んだときの `@設定` の行（選択肢の中に字下げして、行き先の前に書く。
+/// 提案ノードの採用。T3-10）。
+pub fn insert_choice(
+    project: &Project,
+    from: &str,
+    to: &str,
+    label: &str,
+    effects: &[String],
+) -> Result<FlowInsert, String> {
+    for effect in effects {
+        let t = effect.trim();
+        if !(t.starts_with("@設定 ") || t.starts_with("@set ")) || t.contains(['\n', '\r']) {
+            return Err(format!("選択肢の中に書けるのは @設定 の行だけです：{t}"));
+        }
+    }
+    insert_edge_with(
+        project,
+        &FlowEdge::Choice {
+            from: from.to_owned(),
+            to: to.to_owned(),
+            label: label.to_owned(),
+        },
+        effects,
+    )
+}
+
+/// 選択肢の行（と中身）。
+fn option_lines(indent: &str, label: &str, to: &str, effects: &[String], nl: &str) -> String {
+    if effects.is_empty() {
+        return format!("{indent}- {label} -> {to}{nl}");
+    }
+    let mut out = format!("{indent}- {label}{nl}");
+    for effect in effects {
+        out.push_str(&format!("{indent}  {}{nl}", effect.trim()));
+    }
+    out.push_str(&format!("{indent}  -> {to}{nl}"));
+    out
+}
+
+fn insert_edge_with(
+    project: &Project,
+    edge: &FlowEdge,
+    effects: &[String],
+) -> Result<FlowInsert, String> {
     let (from, to) = match edge {
         FlowEdge::Jump { from, to } | FlowEdge::Choice { from, to, .. } => (from, to),
     };
@@ -159,7 +208,7 @@ pub fn insert_edge(project: &Project, edge: &FlowEdge) -> Result<FlowInsert, Str
         ));
     }
     let ends = scene.body.iter().any(terminal);
-    let insert_at = |at: usize, add: &str| -> String {
+    let insert_at = |at: usize, add: &str| -> (String, (usize, usize)) {
         let head = text.get(..at).unwrap_or_default();
         let tail = text.get(at..).unwrap_or_default();
         let lead = if head.is_empty() || head.ends_with('\n') {
@@ -167,9 +216,13 @@ pub fn insert_edge(project: &Project, edge: &FlowEdge) -> Result<FlowInsert, Str
         } else {
             nl
         };
-        format!("{head}{lead}{add}{tail}")
+        let start = head.len() + lead.len();
+        (
+            format!("{head}{lead}{add}{tail}"),
+            (start, start + add.len()),
+        )
     };
-    let new_text = match edge {
+    let (new_text, inserted) = match edge {
         FlowEdge::Jump { .. } => {
             if ends {
                 return Err(format!(
@@ -209,7 +262,7 @@ pub fn insert_edge(project: &Project, edge: &FlowEdge) -> Result<FlowInsert, Str
                         .get(..end_line)
                         .and_then(|h| h.rfind('\n'))
                         .map_or(0, |n| n + 1);
-                    insert_at(at, &format!("{indent}- {label} -> {to}{nl}"))
+                    insert_at(at, &option_lines(indent, label, to, effects, nl))
                 }
                 _ => {
                     if ends {
@@ -219,7 +272,10 @@ pub fn insert_edge(project: &Project, edge: &FlowEdge) -> Result<FlowInsert, Str
                     }
                     insert_at(
                         after_last_line(text, &scene, end),
-                        &format!("@選択{nl}- {label} -> {to}{nl}@end{nl}"),
+                        &format!(
+                            "@選択{nl}{}@end{nl}",
+                            option_lines("", label, to, effects, nl)
+                        ),
                     )
                 }
             }
@@ -228,5 +284,6 @@ pub fn insert_edge(project: &Project, edge: &FlowEdge) -> Result<FlowInsert, Str
     Ok(FlowInsert {
         file: file.path.clone(),
         text: new_text,
+        inserted,
     })
 }

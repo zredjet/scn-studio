@@ -173,6 +173,9 @@ enum AiCommand {
         /// 文脈の長さ（トークン数）。省くと、タスクの接続先の context_tokens
         #[arg(long)]
         tokens: Option<u64>,
+        /// 対象のルート（ルートの骨格を作るタスクで。依頼に書き足す）
+        #[arg(long)]
+        route: Option<String>,
         /// JSONで出す
         #[arg(long)]
         json: bool,
@@ -341,9 +344,17 @@ fn run(command: Command) -> Result<u8, CliError> {
                     project,
                     scene,
                     tokens,
+                    route,
                     json,
                 },
-        } => run_ai_context(&project, &task, scene.as_deref(), tokens, json),
+        } => run_ai_context(
+            &project,
+            &task,
+            scene.as_deref(),
+            route.as_deref(),
+            tokens,
+            json,
+        ),
         Command::Export {
             what:
                 ExportCommand::Script {
@@ -1074,6 +1085,7 @@ fn run_ai_context(
     dir: &Path,
     task_id: &str,
     scene: Option<&str>,
+    route: Option<&str>,
     tokens: Option<u64>,
     json: bool,
 ) -> Result<u8, CliError> {
@@ -1127,6 +1139,17 @@ fn run_ai_context(
     };
     let ir = analyze(&project);
     let sources = ai::read_sources(dir);
+    let task = &match route {
+        Some(route) if ai::is_skeleton(task) => ai::with_route(task, route),
+        Some(_) => {
+            eprintln!(
+                "{} はルートの骨格を作るタスクではないので、--route を使いません",
+                task.id
+            );
+            task.clone()
+        }
+        None => task.clone(),
+    };
     let assembled = ai::assemble(&project, &ir, &sources, task, scene, context_tokens);
     let code = if assembled.problem.is_some() {
         HAS_ERRORS

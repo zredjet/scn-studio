@@ -289,7 +289,8 @@ fn run_summary_task() {
     assert!(outcome.findings.is_empty() && outcome.unread.is_empty());
 }
 
-/// 実行できない：提案ノード（T3-10）、生成・自律（T3-9）、シーンが要るのに無い。送る前に断る。
+/// 実行できない：自律（章を選んで実行する）、対象のシーンを文脈に入れない提案ノード、シーンが要るのに無い。
+/// 送る前に断る。
 #[test]
 fn run_refuses_before_sending() {
     let project = houkago();
@@ -297,18 +298,28 @@ fn run_refuses_before_sending() {
     let sources = ai::ContextSources::default();
     let conn = connection("http://127.0.0.1:9/v1".to_owned());
     let cancel = AtomicBool::new(false);
-    for (id, scene) in [
-        ("branch_ideas", Some("s012")),
-        ("route_skeleton", None),
-        ("draft_chapter", None),
-    ] {
-        let task = project.ai_tasks.iter().find(|t| t.id == id).unwrap();
+    let no_scene = ai::parse_task(
+        "ideas_without_scene",
+        "ai/ideas_without_scene.yaml",
+        &yaml_serde::from_str(
+            "name: x\nlevel: propose\noutput: proposals\ncontext: [concept]\nprompt: x\n",
+        )
+        .unwrap(),
+    )
+    .0;
+    let draft_chapter = project
+        .ai_tasks
+        .iter()
+        .find(|t| t.id == "draft_chapter")
+        .unwrap();
+    for task in [draft_chapter, &no_scene] {
+        let id = &task.id;
         let error = ai::run_task(
             &project,
             &ir,
             &sources,
             task,
-            scene,
+            None,
             &conn,
             None,
             None,

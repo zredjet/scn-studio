@@ -12,6 +12,13 @@ import type {
   AutoEvent,
   AutoResult,
   AutoScene,
+  BranchProposal,
+  IdeaSuggestion,
+  PlotWriteResult,
+  SceneSummary,
+  SkeletonScene,
+  SummarizeResult,
+  SummaryDrift,
 } from "../core/types.ts";
 import { locateLine } from "../preview/locate.ts";
 
@@ -148,8 +155,16 @@ export type RunResult =
       /** 提案（`output: diff`。T3-8）と、出自に記録するモデル。 */
       readonly proposals: readonly AiProposal[];
       readonly model: string;
-      /** 生成の下書きを書き込んだ結果の文（T3-9。生成でなければ null）。 */
+      /** 生成の下書き・ルートの骨格を書き込んだ結果の文（T3-9・T3-10。生成でなければ null）。 */
       readonly written: string | null;
+      /** 書き込めたか（`written` があるとき）。 */
+      readonly wroteOk: boolean;
+      /** ルートの骨格（書き直すときに使う。T3-10）。 */
+      readonly skeleton: readonly SkeletonScene[];
+      /** 提案ノード（`output: proposals`。T3-10）。 */
+      readonly branches: readonly BranchProposal[];
+      /** アイデアメモの分類案（`output: ideas`。T3-10）。 */
+      readonly ideas: readonly IdeaSuggestion[];
       readonly unread: readonly string[];
       readonly tokens: string;
     }
@@ -190,6 +205,20 @@ export function historyStatus(
         return result.proposals.length === 0
           ? "提案なし"
           : `提案 ${result.proposals.length}件`;
+      if (output === "proposals")
+        return result.branches.length === 0
+          ? "分岐案なし"
+          : `分岐案 ${result.branches.length}件`;
+      if (output === "ideas")
+        return result.ideas.length === 0
+          ? "分類案なし"
+          : `分類案 ${result.ideas.length}件`;
+      if (output === "draft")
+        return result.written === null
+          ? "書き込みなし"
+          : result.wroteOk
+            ? "書き込みました"
+            : "書き込めませんでした";
       return findings === 0 ? "指摘なし" : `指摘 ${findings}件`;
     case "failed":
       return "失敗";
@@ -390,4 +419,161 @@ export function autoSceneText(run: AutoRun, scene: string): string {
       : `${step}中`;
   }
   return "待機";
+}
+
+// ---- プロットとフローへの AI 支援（T3-10） ----
+
+/** ほかの画面（フロー図、企画の画面）から1つのタスクを実行するためのもの。 */
+export interface TaskRunner {
+  /** タスク（無ければ null。`ai/<名前>.yaml` が無い）。 */
+  readonly info: AiTaskInfo | null;
+  readonly running: RunState | null;
+  readonly onPrepare: (
+    task: string,
+    scene: string | null,
+  ) => Promise<AiPrepared>;
+  readonly onRun: (
+    info: AiTaskInfo,
+    scene: string | null,
+    digest: string | null,
+  ) => void;
+  readonly onCancel: () => void;
+}
+
+/** ルートの骨格を作るタスク（生成の段階で、今のシーンを文脈に入れない）か。 */
+export function isSkeleton(task: AiTask): boolean {
+  return (
+    task.level === "generate" && !task.context.some((c) => c.kind === "scene")
+  );
+}
+
+/** 使うタスク：`id` のタスク、無ければ `fits` に合う最初のタスク。 */
+export function findTask(
+  tasks: readonly AiTaskInfo[] | null,
+  id: string,
+  fits: (task: AiTask) => boolean,
+): AiTaskInfo | null {
+  if (tasks === null) return null;
+  return (
+    tasks.find((t) => t.task.id === id) ??
+    tasks.find((t) => fits(t.task)) ??
+    null
+  );
+}
+
+/** 提案ノードと分類案の見分け（回と順番）。 */
+export function resultKey(run: number, index: number): string {
+  return `${run}-${index}`;
+}
+
+/** 提案ノードの記号（A、B、C…）。 */
+export function proposalLetter(index: number): string {
+  return String.fromCharCode(65 + (index % 26));
+}
+
+/** 提案ノードの行き先の文（`s013a に合流`、`新規 · 紬と会う`）。 */
+export function branchTargetText(
+  p: BranchProposal,
+  scenes: readonly SceneSummary[],
+): string {
+  const stub = p.stubs.find((s) => s.id === p.target);
+  if (stub !== undefined) return `新規 ${stub.id} · ${stub.title}`;
+  const scene = scenes.find((s) => s.id === p.target);
+  return scene === undefined
+    ? `${p.target}（無いシーン）`
+    : `${p.target}「${scene.title}」に合流`;
+}
+
+/** AI が書いた結果の文（提案ノードの採用、ルートの骨格）。 */
+export function plotWrittenText(result: PlotWriteResult, what: string): string {
+  switch (result.kind) {
+    case "refused":
+      return `書きませんでした：${result.reason}`;
+    case "conflict":
+      return result.deleted
+        ? "章が外で消されていたので、書きませんでした"
+        : "章が外で変わっていたので、書きませんでした。取り込んでからもう一度";
+    case "saved": {
+      const checks =
+        result.verification.length === 0
+          ? "検証：問題なし"
+          : `検証：${result.verification.length}件（${result.verification.join("／")}）`;
+      const problem =
+        result.provenance_problem === null
+          ? ""
+          : `。出自を記録できませんでした：${result.provenance_problem}`;
+      return `${what}（${result.file}）。${checks}${problem}`;
+    }
+  }
+}
+
+/** 分類案を当てたタグ（今のタグの後ろに、無いものだけを足す）。 */
+export function mergedTags(
+  current: readonly string[],
+  suggested: readonly string[],
+): string[] {
+  const out = [...current];
+  for (const t of suggested) if (!out.includes(t)) out.push(t);
+  return out;
+}
+
+/** ルートの名前の候補（シーンのメタ情報の route。本文の順）。 */
+export function routeNames(scenes: readonly SceneSummary[]): string[] {
+  const out: string[] = [];
+  for (const s of scenes) {
+    const r = s.meta.route;
+    if (r !== null && r !== "" && !out.includes(r)) out.push(r);
+  }
+  return out;
+}
+
+/** ルートの骨格を書く先（T3-10）：対象のルートと、書く章（今ある章か、新しい章の名前）。 */
+export interface SkeletonTarget {
+  readonly route: string | null;
+  readonly file: string | null;
+  readonly newChapter: string | null;
+}
+
+/** 章の要約をまとめて作り直している回（T3-10）。 */
+export interface SummarizeRun {
+  readonly run: number;
+  readonly file: string;
+  readonly scene: string | null;
+  readonly done: number;
+  readonly total: number;
+}
+
+/** 同期のずれの見分け（シーンと案）。 */
+export function driftKey(d: SummaryDrift): string {
+  return `${d.scene}\n${d.proposed}`;
+}
+
+/** AI実行の画面の、プロットとフローへの支援（T3-10）。 */
+export interface PlotAi {
+  readonly chapters: readonly string[];
+  readonly branchHidden: ReadonlySet<string>;
+  /** 提案ノードを採用する（`task` は出自に記録するタスク）。結果の文を返す。 */
+  readonly onAdoptBranch: (
+    proposal: BranchProposal,
+    key: string,
+    model: string,
+    task: string,
+  ) => Promise<string>;
+  readonly onRejectBranch: (key: string) => void;
+  readonly drift: readonly SummaryDrift[] | null;
+  /** 章ごとの、要約を作り直すシーンの数。 */
+  readonly driftPending: Readonly<Record<string, number>>;
+  readonly driftError: string | null;
+  readonly driftHidden: ReadonlySet<string>;
+  readonly onRejectDrift: (key: string) => void;
+  readonly onAdoptDrift: (drift: SummaryDrift) => Promise<string | null>;
+  readonly summarizeRun: SummarizeRun | null;
+  readonly summarizeResult: SummarizeResult | null;
+  readonly summarizeError: string | null;
+  readonly onSummarize: (
+    task: string,
+    file: string,
+    confirmedCloud: boolean,
+  ) => void;
+  readonly onCancelSummarize: () => void;
 }

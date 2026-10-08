@@ -1,11 +1,16 @@
 // 企画の画面（T2-6、D057。docs/ui/mockups/01-ideas.html）：左にアイデアメモ（状態ごとの列、タグの絞り込み、
-// メモの追加、直す、昇格）、右に企画書（フォームとソース。エンディングと本文の対応、主要キャラの欲求と葛藤）。
-// AIの問い返しと分類案の欄はフェーズ3で作る。
+// メモの追加、直す、昇格）、中に企画書（フォームとソース。エンディングと本文の対応、主要キャラの欲求と葛藤）、
+// 右にAIの問い返しと分類案（T3-10。`AiAside`）。
 //
 // 書き換えはすべてコアが行う（項目は直したキーの行だけ、本文はフロントマターの後ろだけ。D049）。書く時点の
 // ファイルの中身を添え、外で同じところが変わっていれば、コアが書かずに知らせる。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type FindingRecord,
+  mergedTags,
+  type TaskRunner,
+} from "../ai/model.ts";
 import { BodyField } from "../bible/BibleScreen.tsx";
 import { FieldInput, type RefCandidate } from "../bible/FieldInput.tsx";
 import {
@@ -33,12 +38,14 @@ import type {
   EntryEdit,
   FieldDef,
   Idea,
+  IdeaSuggestion,
   IrDiagnostic,
   JsonValue,
   Promotion,
   SceneSummary,
   Summary,
 } from "../core/types.ts";
+import { AiAside } from "./AiAside.tsx";
 import { IdeaCard } from "./IdeaCard.tsx";
 import {
   allTags,
@@ -76,6 +83,23 @@ interface Props {
   readonly onOpenEntry: (path: string) => void;
   /** 企画書のソースに保存していない変更があるか。 */
   readonly onUnsaved: (unsaved: boolean) => void;
+  /** AIの問い返しと分類案（T3-10）。 */
+  readonly ai: ConceptAi;
+}
+
+/** 企画の画面の AI（T3-10）：問い返しと分類案のタスク、その結果。 */
+export interface ConceptAi {
+  readonly questions: TaskRunner;
+  readonly sort: TaskRunner;
+  readonly findings: readonly FindingRecord[];
+  readonly onDismissFinding: (id: string) => void;
+  readonly suggestions: readonly {
+    readonly key: string;
+    readonly suggestion: IdeaSuggestion;
+  }[];
+  readonly onHideSuggestion: (key: string) => void;
+  /** AI実行の画面で、ルートの骨格のタスクを開く（無ければ null）。 */
+  readonly onSkeleton: (() => void) | null;
 }
 
 /** 企画書のフォームの項目。 */
@@ -166,6 +190,7 @@ export function ConceptScreen({
   onOpenLocation,
   onOpenEntry,
   onUnsaved,
+  ai,
 }: Props) {
   const [ideas, setIdeas] = useState<readonly Idea[] | null>(null);
   const [concept, setConcept] = useState<ConceptData | null>(null);
@@ -345,6 +370,52 @@ export function ConceptScreen({
         setStatus({ kind: "error", message: String(e) });
       }
     });
+  };
+
+  /** 問い返しの質問を、アイデアメモにする（タグ「問い返し」）。 */
+  const makeMemo = (text: string) =>
+    new Promise<string | null>((resolve) => {
+      queue.current = queue.current.then(async () => {
+        try {
+          setStatus({ kind: "saving" });
+          await createIdea(text, ["問い返し"]);
+          await reload();
+          setStatus({ kind: "saved" });
+          resolve(null);
+        } catch (e) {
+          setStatus({ kind: "error", message: String(e) });
+          resolve(String(e));
+        }
+      });
+    });
+
+  /** 分類案を当てる：メモの状態を書き、タグを足す（直したキーの行だけ。コアが書く）。 */
+  const applySuggestion = async (s: IdeaSuggestion): Promise<string | null> => {
+    const status = s.status;
+    if (status !== null) {
+      const edit = await enqueue(() => {
+        const idea = ideaNow(s.file);
+        return idea === null || idea.text === null
+          ? null
+          : setEntryField(s.file, "status", status, idea.text);
+      });
+      if (edit?.kind !== "saved") return "メモの状態を書けませんでした";
+    }
+    if (s.tags.length > 0) {
+      const edit = await enqueue(() => {
+        const idea = ideaNow(s.file);
+        return idea === null || idea.text === null
+          ? null
+          : setEntryField(
+              s.file,
+              "tags",
+              mergedTags(idea.tags, s.tags),
+              idea.text,
+            );
+      });
+      if (edit?.kind !== "saved") return "メモのタグを書けませんでした";
+    }
+    return null;
   };
 
   const openTarget = (idea: Idea) => {
@@ -873,6 +944,18 @@ export function ConceptScreen({
               : ""}
         </p>
       </section>
+      <AiAside
+        questions={ai.questions}
+        sort={ai.sort}
+        findings={ai.findings}
+        onDismissFinding={ai.onDismissFinding}
+        suggestions={ai.suggestions}
+        onHideSuggestion={ai.onHideSuggestion}
+        ideas={ideas ?? []}
+        onMakeMemo={makeMemo}
+        onApply={applySuggestion}
+        onSkeleton={ai.onSkeleton}
+      />
     </div>
   );
 }

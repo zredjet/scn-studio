@@ -15,7 +15,7 @@ const SPEC: &str = include_str!("../../../docs/spec/scn-format-v0.md");
 const PROJECT_FILES: &str = include_str!("../../../docs/spec/project-files.md");
 
 /// 作品フォルダの中に置くファイル（パスと中身）。`{{title}}` は作品名にする。
-const TEMPLATES: [(&str, &str); 19] = [
+const TEMPLATES: [(&str, &str); 22] = [
     ("project.toml", include_str!("../templates/project.toml")),
     ("CLAUDE.md", include_str!("../templates/CLAUDE.md")),
     ("concept.md", include_str!("../templates/concept.md")),
@@ -33,7 +33,15 @@ const TEMPLATES: [(&str, &str); 19] = [
         include_str!("../templates/character.yaml"),
     ),
     ("ai/provenance.jsonl", ""),
-    // 組み込みの AI タスク（T3-6、D067）。
+    // 組み込みの AI タスク（T3-6、D067。T3-10 で分岐案・問い返し・メモの分類案を足した）。
+    (
+        "ai/branch_ideas.yaml",
+        include_str!("../templates/ai/branch_ideas.yaml"),
+    ),
+    (
+        "ai/concept_questions.yaml",
+        include_str!("../templates/ai/concept_questions.yaml"),
+    ),
     (
         "ai/draft_chapter.yaml",
         include_str!("../templates/ai/draft_chapter.yaml"),
@@ -41,6 +49,10 @@ const TEMPLATES: [(&str, &str); 19] = [
     (
         "ai/draft_stub.yaml",
         include_str!("../templates/ai/draft_stub.yaml"),
+    ),
+    (
+        "ai/idea_sort.yaml",
+        include_str!("../templates/ai/idea_sort.yaml"),
     ),
     (
         "ai/rephrase.yaml",

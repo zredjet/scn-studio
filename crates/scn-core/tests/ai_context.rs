@@ -76,6 +76,9 @@ fn sample_tasks_load() {
             .collect();
         assert!(ai_diags.is_empty(), "{name}：{ai_diags:?}");
         for builtin in [
+            "branch_ideas",
+            "concept_questions",
+            "idea_sort",
             "draft_chapter",
             "draft_stub",
             "rephrase",
@@ -498,7 +501,7 @@ fn builtin_tasks_match_templates() {
         .map(|e| e.unwrap().file_name())
         .collect();
     names.sort();
-    assert_eq!(names.len(), 9);
+    assert_eq!(names.len(), 12);
     for name in names {
         let template = fs::read_to_string(templates.join(&name)).unwrap();
         for sample_name in ["houkago", "amayadori"] {

@@ -4091,3 +4091,161 @@ body {
 .ai-auto .context-heading {
   padding-left: 0;
 }
+
+/* プロットとフローへの AI 支援（T3-10）：提案ノード、分岐案のカード、ルートの骨格の欄、同期、企画の画面の問い返し。 */
+
+.flow-node.proposal {
+  border: 1.5px dashed var(--ai-line);
+  background: var(--ai-tint-2);
+  color: var(--ai-text);
+}
+
+.flow-node.proposal .flow-node-head {
+  color: var(--ai-text);
+  font-weight: 700;
+}
+
+.flow-node.proposal.problem {
+  border-color: var(--warn-border);
+  background: var(--warn-tint);
+}
+
+.flow-edge.proposal .react-flow__edge-path {
+  stroke: var(--ai-line);
+  stroke-dasharray: 5 4;
+}
+
+.legend-box.proposal {
+  border: 1.5px dashed var(--ai-line);
+  background: var(--ai-tint-2);
+}
+
+.flow-ai {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-quick {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ai-branches-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-branch-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1.5px dashed var(--ai-line);
+  border-radius: var(--radius-item);
+  background: var(--ai-tint-2);
+  font-size: 12.5px;
+}
+
+.ai-branch-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.ai-branch-letter {
+  color: var(--ai-text);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.ai-branch-effect {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ai-skeleton-target {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-skeleton-target input[type="text"] {
+  min-height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  font: inherit;
+}
+
+.ai-sync {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.ai-idea-list {
+  margin: 4px 0 0;
+  padding-left: 20px;
+}
+
+.concept-ai {
+  display: flex;
+  flex: 1 1 280px;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 260px;
+  padding: 16px 14px;
+  overflow: auto;
+  border-left: 1px solid var(--border);
+  background: var(--paper);
+}
+
+.concept-ai-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.concept-ai-head h2 {
+  margin: 0;
+  color: var(--ai-text);
+  font-size: 14px;
+}
+
+.concept-ai-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--ai-border);
+  border-radius: 10px;
+  background: var(--ai-tint-2);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.concept-ai-more {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.concept-ai-label {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.concept-ai-link {
+  align-self: flex-start;
+}
