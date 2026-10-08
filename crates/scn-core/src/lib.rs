@@ -50,6 +50,7 @@ pub mod plaintext;
 pub mod playthrough;
 pub mod preview;
 pub mod project;
+pub mod provenance;
 pub mod rename;
 pub mod renpy;
 pub mod route;

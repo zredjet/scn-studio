@@ -8,6 +8,7 @@ import { ask, open, save } from "@tauri-apps/plugin-dialog";
 import type { PreviewData } from "./ir.ts";
 import type {
   AddedChapter,
+  AiLines,
   AssetKey,
   AssetKind,
   AssetList,
@@ -357,8 +358,12 @@ export function reloadFile(file: string): Promise<ReloadedFile> {
  * 外部の変更と衝突したファイルで、自分の変更（`text`）を残す。外で消されていれば、保存で作り直す。
  * ディスクの中身（外の中身）を受け取る。
  */
-export function keepMine(file: string, text: string): Promise<KeptFile> {
-  return invoke<KeptFile>("keep_mine", { file, text });
+export function keepMine(
+  file: string,
+  text: string,
+  base: string | null = null,
+): Promise<KeptFile> {
+  return invoke<KeptFile>("keep_mine", { file, text, base });
 }
 
 /** `story/` に章を足す（`part1/ch01` のようにフォルダも書ける。無いフォルダは作る）。 */
@@ -479,6 +484,16 @@ export function assetUrl(path: string): string {
 }
 
 // ---- 台本（T1-12、D051） ----
+
+/** AIが書いた行と数（出自の記録。T3-4）。 */
+export function aiLines(): Promise<AiLines> {
+  return invoke<AiLines>("ai_lines");
+}
+
+/** AIが書いた行の一覧を `export/provenance.csv` に書き出す。 */
+export function exportProvenance(): Promise<{ path: string; rows: number }> {
+  return invoke<{ path: string; rows: number }>("export_provenance");
+}
 
 /** 自動巡回（検証の段階2。T3-2）。保存していない本文も含む。 */
 export function runPlaythrough(): Promise<Playthrough> {

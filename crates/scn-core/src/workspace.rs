@@ -25,6 +25,9 @@ use crate::merge::{Choice, Merge, merge_scn, merge_text};
 use crate::project::{
     Project, ProjectError, SourceFile, load_project, scn_paths, without_bom, write_source,
 };
+use crate::provenance::{
+    PROVENANCE_FILE, append_provenance, edited_ai_lines, now as provenance_now, read_provenance,
+};
 use crate::rename::{RenameTarget, plan_rename};
 use crate::scaffold::CONCEPT_TEMPLATE;
 use crate::typedef::{TypeEdit, edit_type};
@@ -52,6 +55,10 @@ pub struct Workspace {
     settings_written: BTreeMap<String, String>,
     /// 名前の変更で、自分で移したエントリの元のパス（監視の知らせを無視する。T2-8）。
     moved_away: BTreeSet<String>,
+    /// 本文のファイルの、人が直し始めた元の中身（読んだか、書いたか、読み込み直したときの中身）。外の変更と
+    /// ぶつかって「自分の変更を残す」・マージをしても変えない。出自の記録で、人が直した AI の行を見分ける
+    /// （T3-4、D065）。
+    base: BTreeMap<String, String>,
 }
 
 /// 名前の変更の結果（T2-8、D059）。
@@ -67,6 +74,8 @@ pub struct Renamed {
     pub notes: Vec<String>,
     /// 途中で書けなかったとき、その理由（それまでに書いたものは `story` と `settings` にある）。
     pub problem: Option<String>,
+    /// 保存していない変更ごと書いた章で、人が直した AI の行として `ai-edited` を書き足した行ID（T3-4）。
+    pub provenance: Vec<String>,
 }
 
 /// マージを当てた結果（T2-7、D058）。
@@ -100,6 +109,9 @@ pub enum Change {
     Settings,
     /// アイデアメモ（`ideas/*.md`）が外で変わった。アプリはメモの一覧を読み直す（T2-6）。
     Ideas,
+    /// 出自の記録（`ai/provenance.jsonl`）が変わった（外部のエージェントが書き足した、`git pull` など）。
+    /// アプリは AI の行の印を取り直す（T3-4）。
+    Provenance,
 }
 
 /// 書いた本文。
@@ -109,6 +121,10 @@ pub struct Saved {
     pub text: String,
     /// 保存のときに付けた行ID（D045）。
     pub assigned: Vec<AssignedLineId>,
+    /// 人が直した AI の行として、出自を `ai-edited` に書き足した行ID（T3-4、D065）。
+    pub provenance: Vec<String>,
+    /// 出自の記録を読めなかった・書けなかったわけ（保存は済んでいる）。
+    pub provenance_problem: Option<String>,
 }
 
 /// 保存の結果。
@@ -263,7 +279,13 @@ impl Workspace {
             .iter()
             .map(|f| (f.path.clone(), Some(f.text.clone())))
             .collect();
+        let base = project
+            .files
+            .iter()
+            .map(|f| (f.path.clone(), f.text.clone()))
+            .collect();
         Ok(Self {
+            base,
             root: root.to_owned(),
             canonical: fs::canonicalize(root).unwrap_or_else(|_| root.to_owned()),
             project,
@@ -377,8 +399,67 @@ impl Workspace {
         };
         write_source(&self.root, file, &text)?;
         self.set_buffer(file, &text);
-        self.disk.insert(file.to_owned(), Some(text.clone()));
-        Ok(SaveOutcome::Saved(Saved { text, assigned }))
+        // アプリで直して保存した AI の行は、人が直した（`ai-edited`）と記録する（T3-4、D065）。比べるのは、
+        // 人が直し始めた元の中身と、外の中身（自分の変更を残したとき）。
+        let before = self.base.get(file).cloned().or_else(|| on_disk.clone());
+        let (provenance, provenance_problem) = match &before {
+            Some(before) => self.record_edited_ai_lines(before, on_disk.as_deref(), &text),
+            None => (Vec::new(), None),
+        };
+        self.synced(file, &text);
+        Ok(SaveOutcome::Saved(Saved {
+            text,
+            assigned,
+            provenance,
+            provenance_problem,
+        }))
+    }
+
+    /// 人が直し始めた元を覚え直す（アプリが覚えていた、知らせの途中の競合の元。コアは読み込み直した後の
+    /// 中身しか知らないので、そのまま比べると、外で変わった行を人が直した行と数えてしまう。T3-4）。
+    pub fn remember_base(&mut self, file: &str, base: &str) {
+        if self.file(file).is_some() {
+            self.base.insert(file.to_owned(), base.to_owned());
+        }
+    }
+
+    /// ディスクと本文がそろった（読んだ、書いた、読み込み直した）。人が直し始める元も、その中身にする。
+    fn synced(&mut self, file: &str, text: &str) {
+        self.disk.insert(file.to_owned(), Some(text.to_owned()));
+        self.base.insert(file.to_owned(), text.to_owned());
+    }
+
+    /// 人が直した AI の行（今の出自が `ai`。行をつないだときは残った行）を、`ai-edited` として出自の記録に
+    /// 書き足す。`before` は人が直し始めた元、`external` は今のディスクの中身、`after` は書く本文。
+    fn record_edited_ai_lines(
+        &self,
+        before: &str,
+        external: Option<&str>,
+        after: &str,
+    ) -> (Vec<String>, Option<String>) {
+        let provenance = match read_provenance(&self.root) {
+            Ok(p) => p,
+            Err(e) => return (Vec::new(), Some(e.to_string())),
+        };
+        if provenance.records.is_empty() {
+            return (Vec::new(), None);
+        }
+        let records = edited_ai_lines(
+            before,
+            external,
+            after,
+            &self.project.parse_options(),
+            &provenance,
+            &provenance_now(),
+        );
+        let ids: Vec<String> = records.iter().map(|r| r.line.clone()).collect();
+        match append_provenance(&self.root, &records) {
+            Ok(()) => (ids, None),
+            Err(e) => (
+                Vec::new(),
+                Some(format!("{e}（記録できなかった行ID：{}）", ids.join("、"))),
+            ),
+        }
     }
 
     /// 作品フォルダの根からの相対パス（区切りは `/`）。作品フォルダの外なら `None`。
@@ -469,6 +550,7 @@ impl Workspace {
                     Change::Layout
                 }
             }
+            _ if rel == PROVENANCE_FILE => Change::Provenance,
             _ if is_idea_path(&rel) => {
                 let on_disk = fs::read(self.root.join(&rel)).ok();
                 let mine = self.settings_written.get(&rel).map(String::as_bytes);
@@ -534,7 +616,7 @@ impl Workspace {
         match on_disk {
             Some(text) => {
                 self.set_buffer(file, &text);
-                self.disk.insert(file.to_owned(), Some(text.clone()));
+                self.synced(file, &text);
                 Change::Reloaded {
                     file: file.to_owned(),
                     text,
@@ -555,7 +637,7 @@ impl Workspace {
             text: text.to_owned(),
         });
         self.project.files.sort_by(|a, b| a.path.cmp(&b.path));
-        self.disk.insert(file.to_owned(), Some(text.to_owned()));
+        self.synced(file, text);
         self.removed.remove(file);
     }
 
@@ -563,6 +645,7 @@ impl Workspace {
     fn remove_file(&mut self, file: &str) {
         self.project.files.retain(|f| f.path != file);
         self.disk.remove(file);
+        self.base.remove(file);
         self.pending.remove(file);
         self.removed.insert(file.to_owned());
     }
@@ -594,7 +677,7 @@ impl Workspace {
         match on_disk {
             Some(text) => {
                 self.set_buffer(file, &text);
-                self.disk.insert(file.to_owned(), Some(text.clone()));
+                self.synced(file, &text);
                 Ok(Some(text))
             }
             None => {
@@ -1216,8 +1299,7 @@ impl Workspace {
         }
         write_source(&self.root, &insert.file, &insert.text)?;
         self.set_buffer(&insert.file, &insert.text);
-        self.disk
-            .insert(insert.file.clone(), Some(insert.text.clone()));
+        self.synced(&insert.file, &insert.text);
         Ok(StoryWritten {
             file: insert.file,
             text: insert.text,
@@ -1288,6 +1370,7 @@ impl Workspace {
             story_edits: plan.story_edits,
             notes: plan.notes.clone(),
             problem: None,
+            provenance: Vec::new(),
         };
         let result = self.write_rename(&plan, &mut done);
         if !plan.settings.is_empty() || !plan.moves.is_empty() {
@@ -1306,10 +1389,25 @@ impl Workspace {
         done: &mut Renamed,
     ) -> Result<(), ProjectError> {
         for change in &plan.story {
+            // 保存していない変更ごと書くので、名前を置き換える前の本文で、人が直した AI の行を記録する
+            // （名前の置き換えそのものは数えない。本文を書けてから記録する。T3-4、D065）。
+            let before = self.base.get(&change.file).cloned();
+            let current = self.text(&change.file).map(str::to_owned);
+            let external = self.disk.get(&change.file).cloned().flatten();
             write_source(&self.root, &change.file, &change.text)?;
+            if let (Some(before), Some(current)) = (before, current)
+                && before != current
+            {
+                let (ids, problem) =
+                    self.record_edited_ai_lines(&before, external.as_deref(), &current);
+                done.provenance.extend(ids);
+                if let Some(problem) = problem {
+                    done.notes
+                        .push(format!("出自の記録を書けませんでした：{problem}"));
+                }
+            }
             self.set_buffer(&change.file, &change.text);
-            self.disk
-                .insert(change.file.clone(), Some(change.text.clone()));
+            self.synced(&change.file, &change.text);
             done.story.push(StoryWritten {
                 file: change.file.clone(),
                 text: change.text.clone(),
@@ -1383,6 +1481,9 @@ impl Workspace {
         if let Some(disk) = self.disk.remove(file) {
             self.disk.insert(to.clone(), disk);
         }
+        if let Some(base) = self.base.remove(file) {
+            self.base.insert(to.clone(), base);
+        }
         if let Ok(Some(text)) = rename_layout_key(&self.root, "chapter", file, &to) {
             self.layout_written = Some(text);
         }
@@ -1453,6 +1554,8 @@ impl Workspace {
         choices: &[Choice],
         token: &str,
     ) -> Result<MergeApplied, ProjectError> {
+        // アプリが覚えていた元（知らせの途中の競合）は、人が直し始めた元でもある（出自の記録。T3-4）。
+        let given = base.map(str::to_owned);
         let (base, mine, theirs) = self.merge_inputs(file, base)?;
         let merge = merge_scn(&base, &mine, &theirs);
         let refuse = |message: &str| {
@@ -1470,6 +1573,9 @@ impl Workspace {
         let Some(text) = merge.resolve(choices) else {
             return refuse("選んだ数が、ぶつかりの数と合いません。もう一度マージしてください");
         };
+        if let Some(given) = &given {
+            self.remember_base(file, given);
+        }
         let disk = self.keep_mine(file, &text)?;
         Ok(MergeApplied { text, disk })
     }
@@ -1682,7 +1788,7 @@ impl Workspace {
         let text = format!("{current}{}", stub_scene(&current, title, id, summary));
         write_source(&self.root, file, &text)?;
         self.set_buffer(file, &text);
-        self.disk.insert(file.to_owned(), Some(text.clone()));
+        self.synced(file, &text);
         Ok(text)
     }
 }

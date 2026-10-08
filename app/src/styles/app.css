@@ -3404,3 +3404,20 @@ body {
   font-family: var(--font-mono);
   font-size: 12px;
 }
+
+/* ---- AIが書いた行の印（T3-4、D065） ---- */
+
+.cm-ai-line {
+  box-shadow: inset 3px 0 0 var(--ai-line);
+}
+
+/* 人が直した AI の行は、色だけで分けず、点線にする（docs/ui/README.md）。 */
+.cm-ai-edited-line {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--ai-line) 0 3px,
+    transparent 3px 6px
+  );
+  background-repeat: no-repeat;
+  background-size: 3px 100%;
+}

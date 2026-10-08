@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { keyed } from "../bible/fields.ts";
 import type { RenpyResult } from "../core/api.ts";
 import type {
+  AiLines,
   ReadingChoice,
   ReadingTarget,
   ScriptFormat,
@@ -39,6 +40,100 @@ interface Props {
     target: ReadingTarget,
     notes: boolean,
   ) => Promise<{ readonly path: string }>;
+  /** AIが書いた行の数（出自の記録。T3-4）。 */
+  readonly loadProvenance: () => Promise<AiLines>;
+  /** AIが書いた行の一覧を書き出す。 */
+  readonly writeProvenance: () => Promise<{
+    readonly path: string;
+    readonly rows: number;
+  }>;
+}
+
+/** AIの出自（T3-4、D065）：AIが書いた行の数と、一覧の書き出し（賞や公募の申告用）。 */
+function ProvenanceCard({
+  summary,
+  load,
+  write,
+}: {
+  readonly summary: Summary;
+  readonly load: () => Promise<AiLines>;
+  readonly write: () => Promise<{
+    readonly path: string;
+    readonly rows: number;
+  }>;
+}) {
+  const [data, setData] = useState<AiLines | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    void summary;
+    let live = true;
+    load()
+      .then((d) => {
+        if (live) setData(d);
+      })
+      .catch((e: unknown) => {
+        if (live) setError(String(e));
+      });
+    return () => {
+      live = false;
+    };
+  }, [summary, load]);
+  return (
+    <section className="export-card" aria-label="AIの出自">
+      <div className="export-card-head">
+        <div>
+          <h2>AIの出自</h2>
+          <p className="export-note">
+            出自の記録（ai/provenance.jsonl）で、AIが書いた行（ai）と、AIが書いた行を人が直した行（ai-edited）の一覧。アプリで
+            AI の行を直して保存すると、ai-edited
+            と記録します。書き出し先：export/provenance.csv
+          </p>
+        </div>
+        <button
+          type="button"
+          className="primary-small"
+          disabled={busy}
+          onClick={() => {
+            setBusy(true);
+            write()
+              .then((r) => {
+                setNotice(`${r.path} に書き出しました（${r.rows}行）`);
+                setError(null);
+              })
+              .catch((e: unknown) => setError(String(e)))
+              .finally(() => setBusy(false));
+          }}
+        >
+          書き出す
+        </button>
+      </div>
+      {data !== null && (
+        <p className="export-info">
+          行IDのある行 {data.counts.lines} のうち、AIが書いた行{" "}
+          {data.counts.ai + data.counts.ai_edited}（ai {data.counts.ai}
+          、ai-edited {data.counts.ai_edited}）
+        </p>
+      )}
+      {data !== null && data.problems > 0 && (
+        <p className="export-warning">
+          出自の記録に読めない行が {data.problems}{" "}
+          あります（読み飛ばしました）。
+        </p>
+      )}
+      {notice !== null && (
+        <p className="export-notice" role="status">
+          {notice}
+        </p>
+      )}
+      {error !== null && (
+        <p className="export-error" role="alert">
+          {error}
+        </p>
+      )}
+    </section>
+  );
 }
 
 /** プレーンテキストの書き出し（ルート単位の通読用。ルビはなろう・カクヨム記法）。 */
@@ -250,6 +345,8 @@ export function ExportScreen({
   writeRenpy,
   loadChoices,
   writeText,
+  loadProvenance,
+  writeProvenance,
 }: Props) {
   const [sheet, setSheet] = useState<ScriptSheet | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -290,6 +387,11 @@ export function ExportScreen({
         summary={summary}
         loadChoices={loadChoices}
         writeText={writeText}
+      />
+      <ProvenanceCard
+        summary={summary}
+        load={loadProvenance}
+        write={writeProvenance}
       />
       <section className="export-card" aria-label="台本">
         <div className="export-card-head">

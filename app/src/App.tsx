@@ -13,6 +13,7 @@ import { PlaythroughPanel } from "./check/PlaythroughPanel.tsx";
 import { ConceptScreen } from "./concept/ConceptScreen.tsx";
 import {
   addChapter,
+  aiLines,
   applyMerge,
   applyRename,
   assetUrl,
@@ -21,6 +22,7 @@ import {
   deleteChapter,
   devReport,
   devSettings,
+  exportProvenance,
   exportRenpy,
   exportScript,
   exportText,
@@ -290,6 +292,10 @@ export function App() {
   const [modes, setModes] = useState<ReadonlyMap<string, ViewMode>>(new Map());
   /** ディスクの中身が変わった回数（エディタに渡す savedText を作り直すため）。 */
   const [savedVersion, setSavedVersion] = useState(0);
+  /** AIが書いた行（行IDから、今の出自。T3-4）。作品を開いたとき、保存・読み込み直しのたびに取り直す。 */
+  const [aiLineMap, setAiLineMap] = useState<ReadonlyMap<string, string>>(
+    () => new Map(),
+  );
   /** プロジェクトを開いた回数。開くたびにエディタを作り直す。 */
   const [openSeq, setOpenSeq] = useState(0);
 
@@ -613,6 +619,10 @@ export function App() {
             changed.push("アイデアメモ");
             setIdeasVersion((n) => n + 1);
             break;
+          case "provenance":
+            // 出自の記録が外で変わった：AI の行の印を取り直す（T3-4）。
+            setSavedVersion((n) => n + 1);
+            break;
           case "layout":
             setLayoutVersion((n) => n + 1);
             break;
@@ -709,8 +719,13 @@ export function App() {
 
   /** 「自分の変更を残す」。ディスクの中身（外の中身）を覚え直す。 */
   const keep = useCallback(
-    async (file: string, text: string) => {
-      const kept = await keepMine(file, text);
+    async (
+      file: string,
+      text: string,
+      base: string | null = mergeBases.current.get(file) ?? null,
+    ) => {
+      // 知らせの途中の競合で覚えた元は、人が直し始めた元としてコアにも渡す（出自の記録。T3-4）。
+      const kept = await keepMine(file, text, base);
       if (kept.disk === null) saved.current.delete(file);
       else saved.current.set(file, kept.disk);
       setConflicts((map) => withoutConflict(map, file));
@@ -757,7 +772,11 @@ export function App() {
               ? `${file} を保存しました（行IDを ${result.assigned} 行に付けました）`
               : `${file} を保存しました`,
           );
-          setError(null);
+          setError(
+            result.provenance_problem === null
+              ? null
+              : `出自の記録（ai/provenance.jsonl）を書けませんでした：${result.provenance_problem}`,
+          );
         });
         return result.text;
       } catch (e) {
@@ -830,6 +849,8 @@ export function App() {
   const resolveConflict = useCallback(
     async (file: string, reload: boolean) => {
       setMerge((m) => (m?.file === file ? null : m));
+      // 元は消す前に読んでおく（「自分の変更を残す」でコアに渡す。T3-4）。
+      const base = mergeBases.current.get(file) ?? null;
       mergeBases.current.delete(file);
       try {
         if (reload) {
@@ -846,7 +867,7 @@ export function App() {
           setSavedVersion((n) => n + 1);
           showSummary(result.summary, result.checks);
         } else {
-          await keep(file, buffers.current.get(file) ?? "");
+          await keep(file, buffers.current.get(file) ?? "", base);
         }
       } catch (e) {
         setError(String(e));
@@ -1510,6 +1531,25 @@ export function App() {
     currentFile === null ? undefined : conflicts.get(currentFile);
   const savedText =
     currentFile === null ? "" : (saved.current.get(currentFile) ?? "");
+  // AIが書いた行を取り直す（作品を開いたとき、保存・読み込み直しのたびに）。
+  const projectRoot = project?.root ?? null;
+  useEffect(() => {
+    void savedVersion;
+    if (projectRoot === null) return;
+    let live = true;
+    aiLines()
+      .then((result) => {
+        if (live) setAiLineMap(new Map(Object.entries(result.lines)));
+      })
+      .catch(() => {
+        // 読めなければ印を消す（前の作品の印を残さない）。
+        if (live) setAiLineMap(new Map());
+      });
+    return () => {
+      live = false;
+    };
+  }, [projectRoot, savedVersion]);
+
   // savedVersion が変わるたびに、エディタへ渡すディスクの中身を読み直す。
   void savedVersion;
   const mode: ViewMode =
@@ -1771,6 +1811,7 @@ export function App() {
                         void onRename(file, offset, text)
                       }
                       typewriter={viewPrefs.typewriter}
+                      aiLines={aiLineMap}
                       previewLine={previewMarker}
                     />
                   ) : (
@@ -1902,6 +1943,8 @@ export function App() {
                     writeRenpy={exportRenpy}
                     loadChoices={readingChoices}
                     writeText={exportText}
+                    loadProvenance={aiLines}
+                    writeProvenance={exportProvenance}
                   />
                 </section>
               )}

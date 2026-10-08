@@ -178,7 +178,8 @@
 | 指摘・提案・生成・自律 | review / propose / generate / auto | 段階の名前 |
 | 提案ノード | proposal node | フロー図上の未採用の仮ノード |
 | AI下書き | ai draft | 状態が `ai-draft` のシーン |
-| 出自 | provenance | `ai` / `ai-edited` / `human` |
+| 出自 | provenance | `ai` / `ai-edited` / `human`。`ai/provenance.jsonl` の、行IDごとのいちばん後ろの記録（`provenance`） |
+| 出自の記録 | provenance record | `ai/provenance.jsonl` の1行（`provenance::Record`）。書き足すだけで、消さない |
 | 展開メモ | beats | シーンの流れのメモ。スタブと本文の間の段 |
 | 書き込む範囲 | scope | `empty_only` など。AIが書いてよい範囲 |
 | AI実行 | ai run | 1回のタスク実行 |

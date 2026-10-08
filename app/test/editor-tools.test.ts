@@ -3,6 +3,7 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { lineOrigin } from "../src/editor/provenance.ts";
 import { halfwidthOf } from "../src/editor/quickfix.ts";
 import { type Command, filterCommands } from "../src/shell/palette.ts";
 import { routeStatText, statOfRoute } from "../src/shell/scene.ts";
@@ -67,4 +68,18 @@ test("ステータスバーの道の文字数と、読み終えるまでの目�
   assert.equal(statOfRoute(stats, "知らない")?.label, "共通のみ");
   assert.equal(statOfRoute(stats, null)?.label, "共通のみ");
   assert.equal(statOfRoute([], "灯"), null);
+});
+
+test("AIが書いた行の印（T3-4）：行末の行IDで出自を引く", () => {
+  const origins = new Map([
+    ["aaaa", "ai"],
+    ["bbbb", "ai-edited"],
+    ["cccc", "human"],
+  ]);
+  assert.equal(lineOrigin("灯「やあ」 ^aaaa", origins), "ai");
+  assert.equal(lineOrigin("　地の文。 ^bbbb  ", origins), "ai-edited");
+  assert.equal(lineOrigin("　人の行。 ^cccc", origins), null);
+  assert.equal(lineOrigin("　行IDの無い行", origins), null);
+  assert.equal(lineOrigin("^aaaa", origins), null);
+  assert.equal(lineOrigin("　知らない行 ^zzzz", origins), null);
 });

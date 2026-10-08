@@ -329,6 +329,8 @@ fn save_file(
                 "kind": "saved",
                 "text": saved.text,
                 "assigned": saved.assigned.len(),
+                "provenance": saved.provenance,
+                "provenance_problem": saved.provenance_problem,
                 "summary": summary,
                 "checks": checks,
             }))
@@ -356,9 +358,18 @@ fn reload_file(file: String, state: State<'_, AppState>) -> Result<Response, Str
 /// 外部の変更と衝突したファイルで「自分の変更を残す」。`text` は、エディタの今の本文。
 /// ディスクの中身（外の中身。消されていれば null）と、表示に要る分と、検証の段階1の診断を返す。
 #[tauri::command]
-fn keep_mine(file: String, text: String, state: State<'_, AppState>) -> Result<Response, String> {
+fn keep_mine(
+    file: String,
+    text: String,
+    base: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
+    // アプリが覚えていた元（知らせの途中の競合）は、人が直し始めた元でもある（出自の記録。T3-4）。
+    if let Some(base) = &base {
+        workspace.remember_base(&file, base);
+    }
     let disk = workspace
         .keep_mine(&file, &text)
         .map_err(|e| e.to_string())?;
@@ -793,6 +804,47 @@ fn with_retakes(root: &Path, sheet: &mut script::ScriptSheet) -> Option<String> 
         Ok(None) => None,
         Err(problem) => Some(problem),
     }
+}
+
+// ---- 出自の記録（T3-4、D065） ----
+
+/// AI が書いた行（行IDから、今の出自 `ai`・`ai-edited`）と、数と、出自の記録の読めない行の数。
+/// エディタの印と、出力の画面の「AIの出自」に使う。保存していない本文も含む。
+#[tauri::command]
+fn ai_lines(state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let provenance =
+        scn_core::provenance::read_provenance(workspace.root()).map_err(|e| e.to_string())?;
+    let project = workspace.project();
+    let (rows, counts) =
+        scn_core::provenance::provenance_rows(project, &analyze(project), &provenance);
+    let lines: BTreeMap<&str, &str> = rows
+        .iter()
+        .map(|r| (r.id.as_str(), r.origin.as_str()))
+        .collect();
+    json_response(&json!({
+        "lines": lines,
+        "counts": counts,
+        "problems": provenance.problems.len(),
+    }))
+}
+
+/// AI が書いた行の一覧を、作品フォルダの `export/provenance.csv` に書き出す（`scn provenance -o` と同じ）。
+#[tauri::command]
+fn export_provenance(state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let provenance =
+        scn_core::provenance::read_provenance(workspace.root()).map_err(|e| e.to_string())?;
+    let project = workspace.project();
+    let (rows, _) = scn_core::provenance::provenance_rows(project, &analyze(project), &provenance);
+    let path = scn_core::provenance::write_provenance_csv(workspace.root(), &rows)
+        .map_err(|e| e.to_string())?;
+    json_response(&json!({
+        "path": path.display().to_string(),
+        "rows": rows.len(),
+    }))
 }
 
 // ---- 検証の段階2（T3-2、D063） ----
@@ -1632,6 +1684,8 @@ pub fn run() {
             preview_data,
             script_sheet,
             playthrough,
+            ai_lines,
+            export_provenance,
             export_script,
             export_renpy,
             asset_list,

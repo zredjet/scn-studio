@@ -686,6 +686,82 @@ fn snapshot_dir(dir: &Path) -> std::collections::BTreeMap<PathBuf, Vec<u8>> {
     files
 }
 
+/// `scn fmt --provenance <タスク> --model <モデル>`：付けた行IDを、AIが書いた行として出自の記録に書き足す
+/// （T3-4、D065）。今の記録は変えない。`--check` では書かない。`--model` が無ければ使い方の誤り。`scn provenance` は
+/// AIの行の一覧と数を出し、`-o` で CSV に書く。
+#[test]
+fn fmt_provenance_and_listing() {
+    let dir = temp_dir("fmt-provenance", &[]);
+    copy_dir(&repo_root().join("samples/houkago"), &dir);
+    let path = dir.join("ai/provenance.jsonl");
+    let before = fs::read_to_string(&path).unwrap();
+    assert_eq!(
+        scn(&["fmt", ".", "--provenance", "external:claude-code"], &dir).code,
+        2
+    );
+    let out = scn(
+        &["fmt", ".", "--check", "--provenance", "t", "--model", "m"],
+        &dir,
+    );
+    assert_eq!(out.code, 1, "{}", out.stderr);
+    assert_eq!(fs::read_to_string(&path).unwrap(), before);
+    let out = scn(
+        &[
+            "fmt",
+            ".",
+            "--provenance",
+            "external:claude-code",
+            "--model",
+            "test-model",
+        ],
+        &dir,
+    );
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    assert!(
+        out.stderr.contains("出自を記録しました：5件"),
+        "{}",
+        out.stderr
+    );
+    let after = fs::read_to_string(&path).unwrap();
+    assert!(after.starts_with(&before), "{after}");
+    let added: Vec<&str> = after[before.len()..].lines().collect();
+    assert_eq!(added.len(), 5);
+    let ids: Vec<String> = fmt_lines(&out.stdout)
+        .into_iter()
+        .filter_map(|l| l.id)
+        .collect();
+    for (line, id) in added.iter().zip(&ids) {
+        let v: Value = serde_json::from_str(line).unwrap();
+        assert_eq!(v["line"], id.as_str());
+        assert_eq!(v["origin"], "ai");
+        assert_eq!(v["task"], "external:claude-code");
+        assert_eq!(v["model"], "test-model");
+        assert!(v["at"].as_str().unwrap().ends_with('Z'));
+    }
+    // 一覧：付けた5行と、もとの ai-edited の1行。
+    let out = scn(&["provenance", "."], &dir);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    assert!(
+        out.stderr.contains("AIの行 6（ai 5、ai-edited 1）"),
+        "{}",
+        out.stderr
+    );
+    assert_eq!(out.stdout.lines().count(), 6);
+    assert!(
+        out.stdout.contains(" ^k3fa ai-edited draft_stub "),
+        "{}",
+        out.stdout
+    );
+    let out = scn(&["provenance", ".", "-o", "out/p.csv"], &dir);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    let csv = fs::read_to_string(dir.join("out/p.csv")).unwrap();
+    assert!(csv.starts_with("\u{feff}行ID,ファイル,シーン,出自,タスク,モデル,日時,本文\r\n"));
+    let out = scn(&["provenance", ".", "--json"], &dir);
+    let list: Value = serde_json::from_str(&out.stdout).unwrap();
+    assert_eq!(list.as_array().unwrap().len(), 6);
+    let _ = fs::remove_dir_all(&dir);
+}
+
 /// 完了条件：サンプルの写しに `scn fmt` を実行すると、I302 の5行にだけ行IDが付き、
 /// ほかのバイトは変わらない。2回目は何も変えない。
 #[test]

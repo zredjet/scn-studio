@@ -729,3 +729,15 @@
   - どれも情報で、検証の段階2（`scn check --stage 2`、アプリの検証の画面の「走らせる」）で出す（`playthrough::stage2` が自動巡回とまとめる）。サンプル houkago の `^k3ff` の「私」（README で「フェーズ2以降の検証で出る予定」としていたもの）が I204 として出る。amayadori は0件。
 - 理由：書いている最中の表記のゆれは、設定DBに書いたこと（一人称、呼び名、避ける書き方）と照らせば、機械で確かめられる。誤った知らせが多いと読まれなくなるので、規則で決まるものに絞った。
 - 影響：`crates/scn-core/src/wording.rs`（新規）、`diag.rs`（I204〜I206）、`playthrough.rs`（`stage2`）、`scn-cli`・`app/src-tauri`（段階2で表記の検査も）、`app/src/check/PlaythroughPanel.tsx`（見出しと説明）、仕様書16節、`docs/spec/project-files.md` の5節（`variants`）、fixture（`wording/`）、`samples/houkago/README.md`、`.claude/rules/`、用語集。
+
+## D065 出自の記録の自動化（2026-10-08）
+
+- 決定：
+  - コアに `provenance` を作る：`ai/provenance.jsonl` を読む（同じ行IDはいちばん後ろの記録が今の出自。読めない行は読み飛ばして知らせる）、書き足す（今の中身の後ろに足すだけ）、AI の行の一覧と CSV。
+  - `scn fmt --provenance <タスク> --model <モデル名>`：付けた行IDを `origin: ai` として書き足す（「フェーズ3へ」。外部のAIエージェントが手で JSON を組み立てなくてよい）。`scn new` のひな形と両サンプルの作品フォルダの指示書（`CLAUDE.template.md`。houkago は共通のひな形と同じ中身をテストで確かめている）の手順を、この選択肢に書き換えた。
+  - アプリで今の出自が `ai` の行を直して保存すると（名前の変更で保存していない変更ごと書くときも）、`origin: ai-edited`（タスクとモデルは前の記録から）を書き足す。直したかは、人が直し始めた元の本文（ワークスペースが覚える。外の変更とぶつかって「自分の変更を残す」・マージをしても変えない）と書く本文を、行IDごとの範囲で、字下げと行IDを除いて比べ、外の中身と同じになった行は数えない。外部のエディタの変更は、誰が直したか分からないので数えない（外部のエージェントが直したかもしれない）。もう `ai-edited` の行には書き足さない。
+  - 出自の粒度（設計検討書の「未決事項とリスク」）は行の単位にする。行を分けたときの新しい行IDには記録を引き継がず、人の行とみなす（分けた残りの行は、文字が変わるので `ai-edited` になる）。行をつないで AI の行が無くなり、残ったすぐ前の行がその文字を含んでいたら、その行を `ai-edited` にする（申告で AI の行を少なく数えないため）。行を消しても記録は消さない。AI の行を人がそっくり書き直しても `ai-edited`（区別できないので）。
+  - 記録の時刻は協定世界時（`Z`）にする（依存を足さずに地域の時差を求められないため。ISO 8601 の時差つきの形）。
+  - アプリ：エディタで、今の出自が `ai` の行に緑青の実線、`ai-edited` の行に緑青の点線を付ける（色だけで分けない。行IDで引く。見た目だけ）。`ai/provenance.jsonl` が外で変わったら印を取り直す（ワークスペースの変更の知らせ `provenance`）。出力の画面に「AIの出自」（数と、`export/provenance.csv` への書き出し）。CLI の `scn provenance`。
+- 理由：AI が書いた行と人が直した行を、後から一覧・出力できるようにする（設計検討書「出力の扱いと出自の記録」。賞や公募の申告）。記録を書き足すだけにするのは、Git の差分を小さくし、外部の道具が書いた行を壊さないため。
+- 影響：`crates/scn-core/src/provenance.rs`（新規）、`workspace.rs`（保存で ai-edited）、`scn-cli`（`fmt --provenance`、`provenance`）、`app/src-tauri`（`ai_lines`・`export_provenance`、保存の結果）、`app/src/editor/provenance.ts`（新規）・`Editor.tsx`、`App.tsx`、`export/ExportScreen.tsx`、CSS、`docs/spec/project-files.md` の9節、`crates/scn-core/templates/CLAUDE.md` と両サンプルの `CLAUDE.template.md`。

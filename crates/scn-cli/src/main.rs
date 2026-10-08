@@ -131,6 +131,25 @@ enum Command {
         /// JSONで出す
         #[arg(long)]
         json: bool,
+        /// 付けた行IDを、AIが書いた行として出自の記録（ai/provenance.jsonl）に書き足す。値はタスクの名前
+        /// （外部のエージェントなら external:claude-code など）
+        #[arg(long, value_name = "TASK", requires = "model")]
+        provenance: Option<String>,
+        /// 出自の記録に書くモデルの名前（--provenance と一緒に）
+        #[arg(long, requires = "provenance")]
+        model: Option<String>,
+    },
+    /// AIが書いた行（出自の記録で ai か ai-edited の行）の一覧を出す。賞や公募の申告に使う
+    Provenance {
+        /// プロジェクトのフォルダ（project.toml のあるところ）。省くと今のフォルダ
+        #[arg(default_value = ".")]
+        project: PathBuf,
+        /// JSONで出す
+        #[arg(long)]
+        json: bool,
+        /// 一覧を CSV（UTF-8 の BOM 付き、CRLF）で書き出す先。`-` なら標準出力
+        #[arg(long, short)]
+        output: Option<PathBuf>,
     },
 }
 
@@ -267,7 +286,19 @@ fn run(command: Command) -> Result<u8, CliError> {
             project,
             check,
             json,
-        } => run_fmt(&project, check, json),
+            provenance,
+            model,
+        } => run_fmt(
+            &project,
+            check,
+            json,
+            provenance.as_deref().zip(model.as_deref()),
+        ),
+        Command::Provenance {
+            project,
+            json,
+            output,
+        } => run_provenance(&project, json, output.as_deref()),
         Command::Export {
             what:
                 ExportCommand::Script {
@@ -795,7 +826,7 @@ fn run_export_renpy(dir: &Path, output: Option<&Path>) -> Result<u8, CliError> {
 // ---- scn fmt ----
 
 /// 行IDを付けた（`--check` では、付ける）行。行と列は1から数える（列は文字の数）。
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 struct FmtEntry {
     /// 引数のフォルダにプロジェクトの根からの相対パスをつなげたもの（`.` なら相対パスだけ）。
     file: String,
@@ -808,7 +839,12 @@ struct FmtEntry {
 
 /// 付けた行IDは、ファイルを1つ書くたびに、その分を出す。途中のファイルで書き込みに失敗しても、
 /// 書き終えたファイルの行IDは出してから終了コード2で終える（AIの出自の記録に使うため。D041）。
-fn run_fmt(dir: &Path, check: bool, json: bool) -> Result<u8, CliError> {
+fn run_fmt(
+    dir: &Path,
+    check: bool,
+    json: bool,
+    provenance: Option<(&str, &str)>,
+) -> Result<u8, CliError> {
     let project = load_project(dir).map_err(CliError::Project)?;
     // 台詞の括弧が既定に戻っていると、複数行の台詞の途中の行にも行IDを付けてしまう（D042、D045）。
     if project.has_reading_errors() {
@@ -863,6 +899,8 @@ fn run_fmt(dir: &Path, check: bool, json: bool) -> Result<u8, CliError> {
                 }
             })
             .collect();
+        // 書いたファイルの行IDは、出力に失敗しても出自の記録に書き足せるよう、先に覚える。
+        done.extend(entries.iter().cloned());
         if !json {
             let written = entries.iter().try_for_each(|e| match &e.id {
                 Some(id) => writeln!(out, "{}:{}:{} ^{id}", e.file, e.line, e.column),
@@ -871,10 +909,10 @@ fn run_fmt(dir: &Path, check: bool, json: bool) -> Result<u8, CliError> {
             if let Err(e) = written
                 && e.kind() != io::ErrorKind::BrokenPipe
             {
-                return Err(CliError::Write(e));
+                failure = Some(CliError::Write(e));
+                break;
             }
         }
-        done.extend(entries);
     }
 
     if json {
@@ -883,7 +921,36 @@ fn run_fmt(dir: &Path, check: bool, json: bool) -> Result<u8, CliError> {
         if let Err(e) = written
             && e.kind() != io::ErrorKind::BrokenPipe
         {
-            return Err(CliError::Write(e));
+            // 出力に失敗しても、書いたファイルの出自は下で書き足す（先の誤りがあれば、それを残す）。
+            failure.get_or_insert(CliError::Write(e));
+        }
+    }
+    // 付けた行IDを、AIが書いた行として出自の記録に書き足す（T3-4、D065。書き終えたファイルの分だけ）。
+    if let Some((task, model)) = provenance
+        && !check
+    {
+        let at = scn_core::provenance::now();
+        let records: Vec<scn_core::provenance::Record> = done
+            .iter()
+            .filter_map(|e| e.id.clone())
+            .map(|line| scn_core::provenance::Record {
+                line,
+                origin: scn_core::provenance::AI.to_owned(),
+                task: task.to_owned(),
+                model: model.to_owned(),
+                at: at.clone(),
+            })
+            .collect();
+        match scn_core::provenance::append_provenance(dir, &records) {
+            Ok(()) if !records.is_empty() => eprintln!(
+                "出自を記録しました：{}件（{}）",
+                records.len(),
+                scn_core::provenance::PROVENANCE_FILE
+            ),
+            Ok(()) => {}
+            // 書き込みの誤りが先にあれば、それを返す（出自の誤りは知らせるだけ）。
+            Err(e) if failure.is_some() => eprintln!("scn: 出自を記録できませんでした：{e}"),
+            Err(e) => return Err(CliError::Project(e)),
         }
     }
     if let Some(e) = failure {
@@ -911,6 +978,108 @@ fn run_fmt(dir: &Path, check: bool, json: bool) -> Result<u8, CliError> {
     } else {
         SUCCESS
     })
+}
+
+// ---- scn provenance ----
+
+/// JSONで出す、AIの行。
+#[derive(Serialize)]
+struct CliProvenance<'a> {
+    file: String,
+    line: usize,
+    column: usize,
+    id: &'a str,
+    scene: &'a str,
+    origin: &'a str,
+    task: &'a str,
+    model: &'a str,
+    at: &'a str,
+    text: &'a str,
+}
+
+/// AIが書いた行の一覧を出す（T3-4、D065）。`-o` で CSV に書き出す。出自の記録の読めない行と数を標準エラーに。
+fn run_provenance(dir: &Path, json: bool, output: Option<&Path>) -> Result<u8, CliError> {
+    use scn_core::provenance::{provenance_csv, provenance_rows, read_provenance};
+    let project = load_project(dir).map_err(CliError::Project)?;
+    let ir = analyze(&project);
+    let provenance = read_provenance(dir).map_err(CliError::Project)?;
+    for (line, problem) in &provenance.problems {
+        eprintln!(
+            "{}:{line}:1 出自の記録の行を読めません：{problem}",
+            display_path(dir, scn_core::provenance::PROVENANCE_FILE)
+        );
+    }
+    let (rows, counts) = provenance_rows(&project, &ir, &provenance);
+    eprintln!(
+        "AIの行 {}（ai {}、ai-edited {}）／行IDのある行 {}",
+        counts.ai + counts.ai_edited,
+        counts.ai,
+        counts.ai_edited,
+        counts.lines
+    );
+    let mut out = io::stdout().lock();
+    if let Some(path) = output {
+        let csv = provenance_csv(&rows);
+        if path == Path::new("-") {
+            return finish(out.write_all(csv.as_bytes()), SUCCESS);
+        }
+        if let Some(parent) = path.parent()
+            && !parent.as_os_str().is_empty()
+        {
+            fs::create_dir_all(parent).map_err(|e| {
+                CliError::Refused(format!("{} を作れません：{e}", parent.display()))
+            })?;
+        }
+        fs::write(path, csv)
+            .map_err(|e| CliError::Refused(format!("{} に書けません：{e}", path.display())))?;
+        return finish(
+            writeln!(out, "{}（{}行）", path.display(), rows.len()),
+            SUCCESS,
+        );
+    }
+    let positions = |file: &str, offset: usize| {
+        project
+            .files
+            .iter()
+            .find(|f| f.path == file)
+            .map_or((1, 1), |f| LineIndex::new(&f.text).line_col(offset))
+    };
+    if json {
+        let list: Vec<CliProvenance<'_>> = rows
+            .iter()
+            .map(|r| {
+                let (line, column) = positions(&r.file, r.span.start);
+                CliProvenance {
+                    file: display_path(dir, &r.file),
+                    line,
+                    column,
+                    id: &r.id,
+                    scene: &r.scene,
+                    origin: &r.origin,
+                    task: &r.task,
+                    model: &r.model,
+                    at: &r.at,
+                    text: &r.text,
+                }
+            })
+            .collect();
+        let body = serde_json::to_string_pretty(&list).map_err(|e| CliError::Write(e.into()))?;
+        return finish(writeln!(out, "{body}"), SUCCESS);
+    }
+    let written = rows.iter().try_for_each(|r| {
+        let (line, column) = positions(&r.file, r.span.start);
+        writeln!(
+            out,
+            "{}:{line}:{column} ^{} {} {} {} {}",
+            display_path(dir, &r.file),
+            r.id,
+            r.origin,
+            r.task,
+            r.model,
+            r.at
+        )
+    });
+    finish(written, SUCCESS)
 }
 
 /// 出力するパス。引数のフォルダに、プロジェクトの根からの相対パスをつなげる（`.` なら相対パスだけ）。

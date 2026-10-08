@@ -152,10 +152,10 @@ AIのタスク（T3-5〜T3-10）は順に積み上げる。ほかは互いにほ
 
 **完了条件**
 
-- [ ] 記録の形と規則が `docs/spec/project-files.md` の9節にあり、書き足しでほかの行が変わらないことをテストで確かめている
-- [ ] 人が直した AI の行が `ai-edited` になることをテストで確かめている
-- [ ] 人がmacOSで画面を確かめた
-- [ ] `scripts/check-all` が成功する
+- [x] 記録の形と規則が `docs/spec/project-files.md` の9節にあり、書き足しでほかの行が変わらないことをテストで確かめている（`tests/provenance.rs` の `append_keeps_existing_lines`）
+- [x] 人が直した AI の行が `ai-edited` になることをテストで確かめている（`saving_edited_ai_lines`）
+- [ ] 人がmacOSで画面を確かめた（H19）
+- [x] `scripts/check-all` が成功する
 
 ---
 

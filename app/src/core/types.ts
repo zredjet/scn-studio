@@ -151,6 +151,10 @@ export type SavedFile =
       readonly kind: "saved";
       readonly text: string;
       readonly assigned: number;
+      /** 人が直した AI の行として、出自を `ai-edited` に書き足した行ID（T3-4）。 */
+      readonly provenance: readonly string[];
+      /** 出自の記録を読めなかった・書けなかったわけ（保存は済んでいる）。 */
+      readonly provenance_problem: string | null;
       readonly summary: Summary;
       readonly checks: readonly IrDiagnostic[];
     }
@@ -191,7 +195,8 @@ export type Change =
   | { readonly kind: "layout" }
   | { readonly kind: "settings" }
   /** アイデアメモ（`ideas/*.md`）が外で変わった（T2-6）。 */
-  | { readonly kind: "ideas" };
+  | { readonly kind: "ideas" }
+  | { readonly kind: "provenance" };
 
 /** `workspace-changed` の知らせ。 */
 export interface WorkspaceChanged {
@@ -456,6 +461,20 @@ export interface EndingReach {
   >;
   /** 値が多くて、`values` に書ききれなかった変数。 */
   readonly more: readonly string[];
+}
+
+/** AIが書いた行（`ai_lines`、T3-4）。 */
+export interface AiLines {
+  /** 行IDから、今の出自（`ai`・`ai-edited`）。 */
+  readonly lines: Readonly<Record<string, string>>;
+  readonly counts: {
+    /** 本文の、行IDのある行。 */
+    readonly lines: number;
+    readonly ai: number;
+    readonly ai_edited: number;
+  };
+  /** 出自の記録の読めない行の数。 */
+  readonly problems: number;
 }
 
 /** 自動巡回の結果（検証の段階2。コアの `playthrough::Playthrough`、T3-2）。 */
