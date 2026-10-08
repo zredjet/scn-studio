@@ -1327,6 +1327,41 @@ fn export_renpy() {
     let _ = fs::remove_dir_all(&dir);
 }
 
+/// `scn export tyrano`：書き出し先（既定はプロファイルの output）の data/scenario/scn/ と素材の data/*/scn/ を
+/// 作り、書き出し先とファイルの数を出す。人の置いたフォルダは消さずに止める（2）。
+#[test]
+fn export_tyrano() {
+    let dir = std::env::temp_dir().join(format!("scn-cli-tyrano-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    copy_dir(&repo_root().join("samples/amayadori"), &dir);
+    let _ = fs::remove_dir_all(dir.join("export/tyrano"));
+    let out = scn(&["export", "tyrano"], &dir);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    assert!(out.stdout.contains("tyrano（"), "{}", out.stdout);
+    assert!(out.stderr.contains("SVG"), "{}", out.stderr);
+    let story =
+        fs::read_to_string(dir.join("export/tyrano/data/scenario/scn/story_chapter02.ks")).unwrap();
+    assert!(story.contains("*s07\n"), "{story}");
+    assert!(
+        dir.join("export/tyrano/data/scenario/scn/scn_start.ks")
+            .exists()
+    );
+    // 書き出し先を指定する。
+    let out = scn(
+        &["export", "tyrano", ".", "-o", "out/ty", "--no-ai-drafts"],
+        &dir,
+    );
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    assert!(dir.join("out/ty/data/scenario/scn/scn_start.ks").exists());
+    // 人の置いた data/scenario/scn/ は消さずに止める（2）。
+    fs::create_dir_all(dir.join("mine/data/scenario/scn")).unwrap();
+    fs::write(dir.join("mine/data/scenario/scn/a.ks"), "; mine\n").unwrap();
+    let out = scn(&["export", "tyrano", ".", "-o", "mine"], &dir);
+    assert_eq!(out.code, 2, "{}", out.stderr);
+    assert!(dir.join("mine/data/scenario/scn/a.ks").exists());
+    let _ = fs::remove_dir_all(&dir);
+}
+
 /// `scn ai context`：タスクの文脈を組み立てて出す（LLM は呼ばない）。実行できなければ1、無いタスクは2。
 #[test]
 fn ai_context() {

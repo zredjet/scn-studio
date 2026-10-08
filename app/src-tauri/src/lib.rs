@@ -1286,6 +1286,40 @@ fn export_renpy(ai_drafts: Option<bool>, state: State<'_, AppState>) -> Result<R
     }))
 }
 
+/// ティラノスクリプトのシナリオを、出力プロファイル（`export/tyrano.yaml`）に従って書き出す（`scn export tyrano`
+/// と同じ。T3-11、D072）。保存していない本文も含める。書き出し先、ファイルの数、知らせ、プロファイルの誤りを返す。
+#[tauri::command]
+fn export_tyrano(ai_drafts: Option<bool>, state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let (project, root) = (workspace.project(), workspace.root());
+    let (profile, problems) = scn_core::tyrano::read_profile(root);
+    let export = thread::scope(|scope| {
+        thread::Builder::new()
+            .name("tyrano".into())
+            .stack_size(ANALYZE_STACK_SIZE)
+            .spawn_scoped(scope, || {
+                scn_core::tyrano::export_tyrano(
+                    project,
+                    root,
+                    &export_ir(project, ai_drafts.unwrap_or(true)),
+                    &profile,
+                )
+            })
+            .map_err(|e| format!("解析のスレッドを作れません：{e}"))?
+            .join()
+            .map_err(|_| "解析が途中で止まりました".to_owned())
+    })?;
+    let path =
+        scn_core::tyrano::write_tyrano(root, &profile, &export, None).map_err(|e| e.to_string())?;
+    json_response(&json!({
+        "path": path.display().to_string(),
+        "files": export.files.len(),
+        "warnings": export.warnings,
+        "problems": problems,
+    }))
+}
+
 /// 大きなスタックのスレッドで解析して索引を作り、`f` に渡す（IRはこのスレッドの中で捨てる）。
 fn with_index<T: Send>(
     project: &Project,
@@ -3070,6 +3104,7 @@ pub fn run() {
             ai_branch_delete,
             export_script,
             export_renpy,
+            export_tyrano,
             asset_list,
             route_at,
             route_to_scene,

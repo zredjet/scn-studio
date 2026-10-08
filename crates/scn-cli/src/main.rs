@@ -14,6 +14,7 @@
 //! - `scn export script [project-dir] [--format csv|xlsx] [--baseline] [-o file]`：台本を CSV か Excel 形式で
 //!   書き出す（D051、D061）。収録の基準（`export/script-baseline.json`）があれば、変わった台詞を再収録候補にする。
 //! - `scn export renpy [project-dir] [-o dir]`：Ren'Py のスクリプトを書き出す（D053）。
+//! - `scn export tyrano [project-dir] [-o dir]`：ティラノスクリプトのシナリオを書き出す（D072）。
 //! - `scn export orders [project-dir] [-o file]`：発注リストを CSV で書き出す（D054）。
 //! - `scn export text [project-dir] [--route 名前 | --ending ID] [--no-notes] [-o file]`：ルート単位の通読用の
 //!   テキストを書き出す（D056）。
@@ -248,6 +249,20 @@ enum ExportCommand {
         #[arg(long)]
         no_ai_drafts: bool,
     },
+    /// ティラノスクリプトのシナリオを、出力プロファイル（export/tyrano.yaml）に従って書き出す。書き出し先の
+    /// data/scenario/scn/ と素材の data/*/scn/ を作り直す
+    Tyrano {
+        /// プロジェクトのフォルダ（project.toml のあるところ）。省くと今のフォルダ
+        #[arg(default_value = ".")]
+        project: PathBuf,
+        /// 書き出し先（ティラノスクリプトのプロジェクトのフォルダ）。省くとプロファイルの output（既定は
+        /// export/tyrano）
+        #[arg(long, short)]
+        output: Option<PathBuf>,
+        /// AI下書き（status: ai-draft）のシーンの台詞と地の文を省く（流れは残し、省いたことを地の文で示す）
+        #[arg(long)]
+        no_ai_drafts: bool,
+    },
 }
 
 /// 使い方や入出力の誤り（終了コード2）。
@@ -379,6 +394,14 @@ fn run(command: Command) -> Result<u8, CliError> {
                     no_ai_drafts,
                 },
         } => run_export_renpy(&project, output.as_deref(), no_ai_drafts),
+        Command::Export {
+            what:
+                ExportCommand::Tyrano {
+                    project,
+                    output,
+                    no_ai_drafts,
+                },
+        } => run_export_tyrano(&project, output.as_deref(), no_ai_drafts),
         Command::Export {
             what: ExportCommand::Orders { project, output },
         } => run_export_orders(&project, output.as_deref()),
@@ -894,6 +917,43 @@ fn run_export_renpy(dir: &Path, output: Option<&Path>, no_ai_drafts: bool) -> Re
         eprintln!("scn: エラーの診断が {errors} 件あります（scn check で確かめられます）");
     }
     let base = write_renpy(dir, &profile, &export, output).map_err(CliError::Project)?;
+    finish(
+        writeln!(
+            io::stdout().lock(),
+            "{}（{}ファイル）",
+            base.display(),
+            export.files.len()
+        ),
+        code,
+    )
+}
+
+fn run_export_tyrano(
+    dir: &Path,
+    output: Option<&Path>,
+    no_ai_drafts: bool,
+) -> Result<u8, CliError> {
+    use scn_core::tyrano::{TYRANO_PROFILE, export_tyrano, read_profile, write_tyrano};
+    let project = load_project(dir).map_err(CliError::Project)?;
+    let ir = analyze_for_export(&project, no_ai_drafts);
+    let code = exit_code(&ir.diagnostics);
+    let (profile, problems) = read_profile(dir);
+    for problem in &problems {
+        eprintln!("scn: {TYRANO_PROFILE}：{problem}");
+    }
+    let export = export_tyrano(&project, dir, &ir, &profile);
+    for warning in &export.warnings {
+        eprintln!("scn: {warning}");
+    }
+    let errors = ir
+        .diagnostics
+        .iter()
+        .filter(|d| d.severity == Severity::Error.as_str())
+        .count();
+    if errors > 0 {
+        eprintln!("scn: エラーの診断が {errors} 件あります（scn check で確かめられます）");
+    }
+    let base = write_tyrano(dir, &profile, &export, output).map_err(CliError::Project)?;
     finish(
         writeln!(
             io::stdout().lock(),

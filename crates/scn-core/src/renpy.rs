@@ -97,7 +97,7 @@ impl Default for RenpyProfile {
     }
 }
 
-fn yaml_text(value: &Yaml) -> Option<String> {
+pub(crate) fn yaml_text(value: &Yaml) -> Option<String> {
     match value {
         Yaml::String(s) => Some(s.clone()),
         Yaml::Number(n) => Some(n.to_string()),
@@ -107,7 +107,11 @@ fn yaml_text(value: &Yaml) -> Option<String> {
 }
 
 /// 文字列から文字列への対応表を読む。値の `null` は `None`（トランジションを付けない）。
-fn yaml_map(root: &Yaml, key: &str, problems: &mut Vec<String>) -> BTreeMap<String, String> {
+pub(crate) fn yaml_map(
+    root: &Yaml,
+    key: &str,
+    problems: &mut Vec<String>,
+) -> BTreeMap<String, String> {
     let mut out = BTreeMap::new();
     match root.get(key) {
         None | Some(Yaml::Null) => {}
@@ -135,7 +139,7 @@ fn yaml_map(root: &Yaml, key: &str, problems: &mut Vec<String>) -> BTreeMap<Stri
     out
 }
 
-fn yaml_string(root: &Yaml, key: &str, problems: &mut Vec<String>) -> Option<String> {
+pub(crate) fn yaml_string(root: &Yaml, key: &str, problems: &mut Vec<String>) -> Option<String> {
     match root.get(key) {
         None | Some(Yaml::Null) => None,
         Some(value) => {
@@ -149,7 +153,7 @@ fn yaml_string(root: &Yaml, key: &str, problems: &mut Vec<String>) -> Option<Str
 }
 
 /// 位置のキーワードを、IRの値（英語）にそろえる。
-fn position_key(key: &str) -> &str {
+pub(crate) fn position_key(key: &str) -> &str {
     match key {
         "左" => "left",
         "中" => "center",
@@ -241,7 +245,7 @@ pub fn read_profile(root: &Path) -> (RenpyProfile, Vec<String>) {
 }
 
 /// 作品フォルダの中を指す相対パスか（`..` や絶対パスでない）。
-fn relative_inside(path: &str) -> bool {
+pub(crate) fn relative_inside(path: &str) -> bool {
     !path.is_empty()
         && Path::new(path)
             .components()
@@ -444,7 +448,7 @@ fn unique(taken: &mut BTreeSet<String>, wanted: &str) -> String {
 }
 
 /// 名前から決まる数（仮素材の画像の名前と色）。FNV-1a。
-fn hash_of(name: &str) -> u32 {
+pub(crate) fn hash_of(name: &str) -> u32 {
     let mut hash: u32 = 0x811c_9dc5;
     for b in name.bytes() {
         hash ^= u32::from(b);
@@ -454,7 +458,7 @@ fn hash_of(name: &str) -> u32 {
 }
 
 /// 仮素材の色（暗めの色）。
-fn color_of(name: &str) -> String {
+pub(crate) fn color_of(name: &str) -> String {
     let hash = hash_of(name);
     let r = 0x30 + (hash & 0x3f);
     let g = 0x30 + ((hash >> 8) & 0x3f);
@@ -463,7 +467,7 @@ fn color_of(name: &str) -> String {
 }
 
 /// Ren'Py の画像の名前の1語（英小文字と数字と `_`。数字で始まれば `i` を付ける）。英数字を含まなければ `None`。
-fn image_word(text: &str) -> Option<String> {
+pub(crate) fn image_word(text: &str) -> Option<String> {
     let word: String = text
         .to_lowercase()
         .chars()
@@ -488,7 +492,7 @@ fn image_word(text: &str) -> Option<String> {
 }
 
 /// 名前から決まる印（`ph_` と16進の6桁）。
-fn mark_of(prefix: &str, name: &str) -> String {
+pub(crate) fn mark_of(prefix: &str, name: &str) -> String {
     format!("{prefix}{:06x}", hash_of(name) & 0x00ff_ffff)
 }
 
@@ -1275,12 +1279,12 @@ fn label_name(id: &str) -> String {
 
 /// 本文で使われている素材の意味名と、変数。
 #[derive(Default)]
-struct Used {
-    backgrounds: BTreeSet<String>,
-    sprites: BTreeSet<(String, String)>,
-    bgm: BTreeSet<String>,
-    se: BTreeSet<String>,
-    variables: BTreeSet<String>,
+pub(crate) struct Used {
+    pub(crate) backgrounds: BTreeSet<String>,
+    pub(crate) sprites: BTreeSet<(String, String)>,
+    pub(crate) bgm: BTreeSet<String>,
+    pub(crate) se: BTreeSet<String>,
+    pub(crate) variables: BTreeSet<String>,
 }
 
 impl Used {
@@ -1310,7 +1314,7 @@ impl Used {
         }
     }
 
-    fn ops(&mut self, ops: &[Op]) {
+    pub(crate) fn ops(&mut self, ops: &[Op]) {
         for op in ops {
             match op {
                 Op::Bg { name, .. } => {

@@ -1,0 +1,279 @@
+---
+source: crates/scn-core/tests/tyrano.rs
+expression: "dump(&root, &export, &problems)"
+---
+==== data/bgimage/scn/.scn-studio
+; scn-studio が .scn から書き出したファイル。手で直さない（書き出すたびに作り直す）。
+==== data/bgimage/scn/ph_4dbc26.svg
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720"><rect width="100%" height="100%" fill="#566c4d"/><text x="36" y="72" font-size="36" fill="#ffffff" font-family="sans-serif">背景：帰り道/夕方（仮素材）</text></svg>
+==== data/bgimage/scn/ph_6ef666.svg
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720"><rect width="100%" height="100%" fill="#56666e"/><text x="36" y="72" font-size="36" fill="#ffffff" font-family="sans-serif">背景：屋上/夜（仮素材）</text></svg>
+==== data/bgimage/scn/ph_8c9059.svg
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720"><rect width="100%" height="100%" fill="#49404c"/><text x="36" y="72" font-size="36" fill="#ffffff" font-family="sans-serif">背景：灯の家/朝（仮素材）</text></svg>
+==== data/bgimage/scn/ph_9ef9c0.svg
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720"><rect width="100%" height="100%" fill="#30695e"/><text x="36" y="72" font-size="36" fill="#ffffff" font-family="sans-serif">背景：屋上/夕方（仮素材）</text></svg>
+==== data/bgimage/scn/ph_a16472.svg
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720"><rect width="100%" height="100%" fill="#625461"/><text x="36" y="72" font-size="36" fill="#ffffff" font-family="sans-serif">背景：通学路/朝（仮素材）</text></svg>
+==== data/bgimage/scn/ph_fa78a2.svg
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720"><rect width="100%" height="100%" fill="#52687a"/><text x="36" y="72" font-size="36" fill="#ffffff" font-family="sans-serif">背景：駅/夕方（仮素材）</text></svg>
+==== data/bgimage/scn/ph_fe29c1.svg
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720"><rect width="100%" height="100%" fill="#31597e"/><text x="36" y="72" font-size="36" fill="#ffffff" font-family="sans-serif">背景：教室/昼（仮素材）</text></svg>
+==== data/fgimage/scn/.scn-studio
+; scn-studio が .scn から書き出したファイル。手で直さない（書き出すたびに作り直す）。
+==== data/fgimage/scn/ph_3734ec.svg
+<svg xmlns="http://www.w3.org/2000/svg" width="384" height="612" viewBox="0 0 384 612"><rect width="100%" height="100%" fill="#595069"/><text x="28" y="56" font-size="28" fill="#ffffff" font-family="sans-serif">灯：真顔（仮素材）</text></svg>
+==== data/fgimage/scn/ph_9ffd76.svg
+<svg xmlns="http://www.w3.org/2000/svg" width="384" height="612" viewBox="0 0 384 612"><rect width="100%" height="100%" fill="#59697f"/><text x="28" y="56" font-size="28" fill="#ffffff" font-family="sans-serif">紬：笑顔（仮素材）</text></svg>
+==== data/fgimage/scn/ph_abec96.svg
+<svg xmlns="http://www.w3.org/2000/svg" width="384" height="612" viewBox="0 0 384 612"><rect width="100%" height="100%" fill="#595069"/><text x="28" y="56" font-size="28" fill="#ffffff" font-family="sans-serif">灯：照れ（仮素材）</text></svg>
+==== data/fgimage/scn/ph_b605b6.svg
+<svg xmlns="http://www.w3.org/2000/svg" width="384" height="612" viewBox="0 0 384 612"><rect width="100%" height="100%" fill="#595069"/><text x="28" y="56" font-size="28" fill="#ffffff" font-family="sans-serif">灯：笑顔（仮素材）</text></svg>
+==== data/fgimage/scn/ph_d913ac.svg
+<svg xmlns="http://www.w3.org/2000/svg" width="384" height="612" viewBox="0 0 384 612"><rect width="100%" height="100%" fill="#59697f"/><text x="28" y="56" font-size="28" fill="#ffffff" font-family="sans-serif">紬：真顔（仮素材）</text></svg>
+==== data/scenario/scn/.scn-studio
+; scn-studio が .scn から書き出したファイル。手で直さない（書き出すたびに作り直す）。
+==== data/scenario/scn/scn_start.ks
+; scn-studio が .scn から書き出したファイル。手で直さない（書き出すたびに作り直す）。
+; 準備（メッセージ枠と名前の欄）、定義（キャラクターと変数）と、開始シーンへのジャンプ。first.ks か title.ks から [jump storage="scn/scn_start.ks"] で始める。
+
+*start
+[clearstack]
+[cm]
+[chara_hide_all time="0"]
+[stopbgm]
+; メッセージ枠と名前の欄（プロファイルの setup で変える）
+[layopt layer="message0" visible="true"]
+[position layer="message0" left="160" top="496" width="960" height="194" page="fore" visible="true"]
+[position layer="message0" page="fore" margint="45" marginl="50" marginr="70" marginb="60"]
+[free name="chara_name_area" layer="message0"]
+[ptext name="chara_name_area" layer="message0" color="white" size="28" bold="true" x="180" y="506"]
+[chara_config ptext="chara_name_area"]
+[chara_new name="akari" storage="scn/ph_abec96.svg" jname="灯"]
+[chara_face name="akari" face="f_5eb175" storage="scn/ph_abec96.svg"]
+[chara_face name="akari" face="f_74da1b" storage="scn/ph_3734ec.svg"]
+[chara_face name="akari" face="f_7389e9" storage="scn/ph_b605b6.svg"]
+[chara_new name="tsumugi" storage="scn/ph_d913ac.svg" jname="紬"]
+[chara_face name="tsumugi" face="f_74da1b" storage="scn/ph_d913ac.svg"]
+[chara_face name="tsumugi" face="f_7389e9" storage="scn/ph_9ffd76.svg"]
+[eval exp="f['flag.勇気'] = 0"]
+[eval exp="f['flag.ルート'] = '共通'"]
+[eval exp="f['akari.好感度'] = 0"]
+[eval exp="f['akari.転校済み'] = false"]
+[eval exp="f['tsumugi.好感度'] = 0"]
+[eval exp="if (sf['周回.トゥルー解放'] === undefined) sf['周回.トゥルー解放'] = false"]
+[jump storage="scn/story_chapter01.ks" target="*s010"]
+==== data/scenario/scn/story_chapter01.ks
+; scn-studio が .scn から書き出したファイル。手で直さない（書き出すたびに作り直す）。
+
+; s010 登校
+*s010
+[bg storage="scn/ph_a16472.svg" time="0"]
+; BGM 日常（ファイルが無いので鳴らさない）
+[stopbgm]
+#
+[emb exp="String.fromCharCode(12288)"]坂道の途中で、後ろから鞄がぶつかってきた。[p]
+#灯
+「おはよ、湊。今日も眠そうだね」[p]
+#湊
+「灯が元気すぎるんだよ」[p]
+[chara_mod name="akari" face="f_7389e9" time="0"]
+[chara_show name="akari" face="f_7389e9" time="0" left="448"]
+[chara_move name="akari" left="448" time="1"]
+#灯
+「ひどいなあ。元気なのは、わたしの数少ない取り柄なのに」[p]
+#
+[emb exp="String.fromCharCode(12288)"]そう言って笑う顔に、昨日までと違うところは見つからなかった。[p]
+[jump storage="scn/story_chapter01.ks" target="*s011"]
+
+; s011 昼休みの教室
+*s011
+[bg storage="scn/ph_fe29c1.svg" time="0"]
+[chara_mod name="tsumugi" face="f_74da1b" time="0"]
+[chara_show name="tsumugi" face="f_74da1b" time="0" left="832"]
+[chara_move name="tsumugi" left="832" time="1"]
+#紬
+「湊くん。灯ちゃん、最近なにか言ってた？」[p]
+#湊
+「なにかって？」[p]
+#紬
+「……ううん、なんでもない」[p]
+[chara_hide name="tsumugi" time="0"]
+; SE チャイム（ファイルが無いので鳴らさない）
+#
+[emb exp="String.fromCharCode(12288)"]五限の予鈴が鳴った。机の中に、二つ折りのメモが入っていた。[p]
+#
+[emb exp="String.fromCharCode(12288)"][ruby text="﹅"]放[ruby text="﹅"]課[ruby text="﹅"]後[ruby text="﹅"]、[ruby text="﹅"]屋[ruby text="﹅"]上[ruby text="﹅"]で。丸い字は、灯のものだった。[p]
+#
+屋上へ行くか
+[glink color="black" size="24" width="768" x="256" y="280" target="*s011__2" text="すぐに行く"]
+[glink color="black" size="24" width="768" x="256" y="360" target="*s011__3" text="少し迷ってから行く"]
+[s]
+*s011__2
+[cm]
+[eval exp="f['flag.勇気'] += (1)"]
+[eval exp="f['akari.好感度'] += (2)"]
+[jump target="*s011__1"]
+*s011__3
+[cm]
+[eval exp="f['akari.好感度'] += (1)"]
+[jump target="*s011__1"]
+*s011__1
+[jump storage="scn/story_chapter01.ks" target="*s012"]
+
+; s012 放課後の屋上
+*s012
+[bg storage="scn/ph_9ef9c0.svg" time="1000"]
+; BGM 切ない（ファイルが無いので鳴らさない）
+[stopbgm]
+[chara_mod name="akari" face="f_7389e9" time="0"]
+[chara_show name="akari" face="f_7389e9" time="0" left="64"]
+[chara_move name="akari" left="64" time="1"]
+; SE 風（ファイルが無いので鳴らさない）
+; @raw renpy（読み飛ばし）
+#灯
+「やっと来た。遅いよ」[p]
+#
+[emb exp="String.fromCharCode(12288)"]風が強くて、灯の髪が[ruby text="みだ"]乱れていた。[p]
+#灯
+「あのね、[wait time="500"]話があるんだ」[p]
+[chara_mod name="akari" face="f_74da1b" time="0"]
+[chara_show name="akari" face="f_74da1b" time="0"]
+#灯
+『……やっぱり、言えないかも』[p]
+#
+どう答える
+[glink color="black" size="24" width="768" x="256" y="280" target="*s012__2" text="「ごめん、遅くなって」"]
+[glink color="black" size="24" width="768" x="256" y="360" target="*s012__3" text="黙ってうなずく" cond="(f['flag.勇気'] >= (2))"]
+[s]
+*s012__2
+[cm]
+[eval exp="f['akari.好感度'] += (1)"]
+[jump target="*s012__1"]
+*s012__3
+[cm]
+#灯
+「……そういうところ、ずるいよね。昔からずっとそうだった。言わなくても分かってくれるって、私が勝手に思ってるだけなのに。だから今日も、言えないまま来ちゃった」[p]
+[jump storage="scn/story_chapter01.ks" target="*s014"]
+[jump target="*s012__1"]
+*s012__1
+[jump target="*s012__5" cond="(f['akari.好感度'] >= (3))"]
+[jump target="*s012__6"]
+*s012__5
+#灯
+「やっぱり、君には言っておく」[p]
+[jump storage="scn/story_chapter01.ks" target="*s013a"]
+[jump target="*s012__4"]
+*s012__6
+[jump storage="scn/story_chapter01.ks" target="*s013b"]
+[jump target="*s012__4"]
+*s012__4
+
+; s013a 打ち明ける
+*s013a
+[chara_mod name="akari" face="f_74da1b" time="0"]
+[chara_show name="akari" face="f_74da1b" time="0" left="448"]
+[chara_move name="akari" left="448" time="1"]
+[stopbgm]
+#灯
+「わたし、夏休みが終わったら、転校するんだ」[p]
+#
+[emb exp="String.fromCharCode(12288)"]風の音だけが、しばらく続いた。[p]
+[eval exp="f['flag.ルート'] = '灯'"]
+[jump storage="scn/story_chapter02.ks" target="*s020"]
+
+; s013b 帰り道
+; AI下書き（status: ai-draft）
+*s013b
+[bg storage="scn/ph_4dbc26.svg" time="0"]
+; BGM 切ない（ファイルが無いので鳴らさない）
+[stopbgm]
+#
+[emb exp="String.fromCharCode(12288)"]結局、灯は何も言わなかった。[p]
+#
+[emb exp="String.fromCharCode(12288)"]校門を出たところで、見慣れた後ろ姿が待っていた。[p]
+[chara_mod name="tsumugi" face="f_7389e9" time="0"]
+[chara_show name="tsumugi" face="f_7389e9" time="0" left="448"]
+[chara_move name="tsumugi" left="448" time="1"]
+#紬
+「湊くん、一緒に帰ろ」[p]
+[eval exp="f['tsumugi.好感度'] += (1)"]
+[eval exp="f['flag.ルート'] = '紬'"]
+[jump storage="scn/story_chapter03.ks" target="*s030"]
+
+; s014 沈黙のあと
+*s014
+#
+（行き止まり：s014 沈黙のあと（スタブ））[p]
+[jump storage="title.ks"]
+
+==== data/scenario/scn/story_chapter02.ks
+; scn-studio が .scn から書き出したファイル。手で直さない（書き出すたびに作り直す）。
+
+; s020 灯の家の前
+*s020
+[bg storage="scn/ph_8c9059.svg" time="0"]
+#
+[emb exp="String.fromCharCode(12288)"]灯の家の前に、段ボールが積まれていた。[p]
+#灯
+「見られちゃったか」[p]
+[jump storage="scn/story_chapter02.ks" target="*s021"]
+
+; s021 屋上の約束
+; AI下書き（status: ai-draft）
+*s021
+[bg storage="scn/ph_6ef666.svg" time="0"]
+[chara_mod name="akari" face="f_5eb175" time="0"]
+[chara_show name="akari" face="f_5eb175" time="0" left="448"]
+[chara_move name="akari" left="448" time="1"]
+#灯
+「じゃあ約束。夏休みまで、毎日ここで」[p]
+#
+[emb exp="String.fromCharCode(12288)"]灯は髪留めに触れながら、小さく笑った。[p]
+[jump storage="scn/story_chapter02.ks" target="*s022"]
+
+; s022 雨の図書室
+*s022
+[jump storage="scn/story_chapter02.ks" target="*s040"]
+
+; s040 見送り
+*s040
+[bg storage="scn/ph_fa78a2.svg" time="0"]
+; BGM 切ない（ファイルが無いので鳴らさない）
+[stopbgm]
+#灯
+「またね、湊。[p]……またね[wait time="1000"]」[p]
+[eval exp="f['akari.転校済み'] = true"]
+; エンディング akari_end
+[jump storage="title.ks"]
+
+==== data/scenario/scn/story_chapter03.ks
+; scn-studio が .scn から書き出したファイル。手で直さない（書き出すたびに作り直す）。
+
+; s030 紬と帰る
+*s030
+[jump target="*s030__2" cond="(f['tsumugi.好感度'] >= (1))"]
+[jump target="*s030__3"]
+*s030__2
+[jump storage="scn/story_chapter03.ks" target="*s060"]
+[jump target="*s030__1"]
+*s030__3
+[jump storage="scn/story_chapter03.ks" target="*s061"]
+[jump target="*s030__1"]
+*s030__1
+
+; s060 紬エンド
+*s060
+; エンディング tsumugi_end
+[jump storage="title.ks"]
+
+; s061 すれ違い
+*s061
+; エンディング bad_end
+[jump storage="title.ks"]
+
+==== warnings
+ファイルの無い画像が 12 個あります（名前入りの色の矩形の SVG にしました）
+ファイルの無い音が 4 個あります（鳴らさずに、コメントを書きました）
+@raw renpy はティラノスクリプトへの書き出しでは使わないので、読み飛ばしました
+出口の無い経路が残るシーンが 1 個あります（W503）。終わりで知らせてタイトルへ戻るようにしました
+==== profile

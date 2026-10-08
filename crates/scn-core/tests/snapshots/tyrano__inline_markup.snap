@@ -1,0 +1,26 @@
+---
+source: crates/scn-core/tests/tyrano.rs
+expression: text
+---
+; scn-studio が .scn から書き出したファイル。手で直さない（書き出すたびに作り直す）。
+
+; s1 屋上
+*s1
+#灯
+「前[p]後」[p]
+#灯
+「前だけ」[p]
+#灯
+「ドアが開いた」[p]
+#
+[emb exp="(f['flag.ok'] ? 'true' : 'false')"] [emb exp="((f['flag.勇気'] >= (1)) ? 'true' : 'false')"] [emb exp="f['flag.名前']"][p]
+#灯
+『心の声』[p]
+#
+「名無し」[p]
+#
+[emb exp="String.fromCharCode(91)"]x] #見出し @命令 "引用" 'it''s'[p]
+#
+[emb exp="String.fromCharCode(12288)"][ruby text="みだ"]乱れて[ruby text="﹅"]強[ruby text="﹅"]調[wait time="500"][delay speed="60"]ゆっくり[resetdelay]。[p]
+; エンディング end
+[jump storage="title.ks"]

@@ -1,0 +1,76 @@
+---
+source: crates/scn-core/tests/tyrano.rs
+expression: text
+---
+; scn-studio が .scn から書き出したファイル。手で直さない（書き出すたびに作り直す）。
+
+; start 始まり
+*start
+#
+どうする
+[glink color="black" size="24" width="768" x="256" y="280" target="*start__2" text="&'行く ' + String(f['flag.勇気']) + '回目'" cond="(f['flag.勇気'] >= (1))"]
+[glink color="black" size="24" width="768" x="256" y="360" target="*start__3" text="待つ"]
+[s]
+*start__2
+[cm]
+[eval exp="f['flag.勇気'] += (1)"]
+[jump storage="scn/story_a.ks" target="*s_001"]
+[jump target="*start__1"]
+*start__3
+[cm]
+[jump target="*start__1"]
+*start__1
+[jump target="*start__5" cond="(Math.trunc(f['flag.勇気'] / (2)) > (0))"]
+[jump target="*start__6" cond="(!sf['周回.解放'])"]
+[jump target="*start__7"]
+*start__5
+#
+地の文。[p]
+[jump target="*start__4"]
+*start__6
+[jump target="*start__4"]
+*start__7
+[eval exp="sf['周回.解放'] = true"]
+[jump target="*start__4"]
+*start__4
+[call storage="scn/story_a.ks" target="*sub"]
+[eval exp="f['flag.未宣言'] += (1)"]
+[if exp="!((f['flag.勇気'] >= (3)) || false)"]
+#
+（行き止まり：選べる選択肢がありません）[p]
+[jump storage="title.ks"]
+[endif]
+[glink color="black" size="24" width="768" x="256" y="280" target="*start__9" text="勇者なら" cond="(f['flag.勇気'] >= (3))"]
+[glink color="black" size="24" width="768" x="256" y="360" target="*start__10" text="崩れた" cond="false"]
+[s]
+*start__9
+[cm]
+[jump storage="scn/story_a.ks" target="*sub"]
+*start__10
+[cm]
+[jump storage="scn/story_a.ks" target="*sub"]
+*start__8
+#
+（行き止まり：存在しないシーン nowhere）[p]
+[jump storage="title.ks"]
+
+; 001 番号
+*s_001
+[cm]
+; @raw renpy（読み飛ばし）
+; @ふしぎ（知らないディレクティブ）
+#
+（行き止まり：001 番号（スタブ））[p]
+[jump storage="title.ks"]
+
+; sub 呼ばれる
+*sub
+[return]
+
+; s9 行き止まり
+*s9
+#
+地の文だけ。[p]
+#
+（行き止まり：s9 行き止まり）[p]
+[jump storage="title.ks"]

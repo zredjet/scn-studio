@@ -907,6 +907,11 @@ export function exportRenpy(aiDrafts = true): Promise<RenpyResult> {
   return invoke<RenpyResult>("export_renpy", { aiDrafts });
 }
 
+/** ティラノスクリプトへ書き出す（T3-11）。結果の形は Ren'Py と同じ。 */
+export function exportTyrano(aiDrafts = true): Promise<RenpyResult> {
+  return invoke<RenpyResult>("export_tyrano", { aiDrafts });
+}
+
 // ---- カーソル位置から再生と、プレビューの別ウィンドウ（T2-4、D055） ----
 
 /** 永続の変数の今の値（最短経路をプレビューと同じ初めの変数で探すため）。 */

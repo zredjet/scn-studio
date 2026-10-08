@@ -817,3 +817,16 @@
   - ほかの画面（フロー図、企画の画面）からの実行は、AI実行の画面と同じ実行（App の `runTask`）と同じ確かめ方（クラウドでは送る中身を見せてから）で行う（`ai/QuickRun.tsx`）。使うタスクは組み込みの名前のもの、無ければ出力の形が合う最初のもの。
 - 理由：設計検討書「プロット／フローへのAI支援」（5つの役割、提案ノードを点線の仮ノードで重ねてノード単位で採用・却下、採用した時点で検証して出自を記録、到達性やフラグはコアが計算して AI に推論させない、要約は `.cache/`）と原則6（空いている部分にだけ書き、人の行は変えない。人の行への変更は提案として出し、人が採用する）。提案ノードを「選択肢1つ」に絞るのは、フロー図の1本の辺として見せ、採用をフロー図からの編集と同じ規則（人の行を変えない書き足し）にできるため。骨格に出力の形を足さないのは、`route_skeleton` の定義（T3-6）を変えずに済み、文脈に `scene` があるかで今のシーンへの書き込みと見分けられるため。
 - 影響：`crates/scn-core/src/ai/plot.rs`（新規）、`task.rs`（`structure`・`ideas`、`output: ideas`）、`context.rs`（節、削る順番、指示）、`run.rs`（実行できる段階、結果）、`flowedit.rs`（`@設定` つきの選択肢、書き足した範囲）、`workspace.rs`（`adopt_branch`・`write_skeleton`・`set_scene_summary`）、組み込みのタスク（`branch_ideas`・`concept_questions`・`idea_sort`、`thin_branches`）と両サンプルの写し、`scn ai context --route`、`app/src-tauri`（`adopt_branch_proposal`・`write_ai_skeleton`・`summary_drift`・`set_scene_summary`・`ai_summarize`、`ai_prepare`・`ai_run` の `route`）、`app/src/ai/`（`QuickRun`・`BranchProposals`・`SyncPanel`、AI実行の画面）、`app/src/graph/`（提案ノード）、`app/src/concept/AiAside.tsx`、`docs/spec/project-files.md` の9節。
+
+## D072 ティラノスクリプトへの書き出し（2026-10-09）
+
+- 決定：
+  - 出力プロファイルは `export/tyrano.yaml`（Ren'Py の11節にそろえる）：`target`・`output`（既定 `export/tyrano`）・`positions`（立ち絵の左端の px。既定は画面の幅の5%・35%・65%）・`transitions`（ミリ秒）・`fx`（タグ）・`voice`・`ending`（既定 `[jump storage="title.ks"]`）・`characters`（キャラクターの名前）・`first`（`first.ks` を書くか。既定 `false`）。
+  - 書き出し先のうち、`data/scenario/scn/` と素材の `data/{bgimage,fgimage,bgm,sound}/scn/` だけを作り直す（印のファイル `.scn-studio`）。開始は `data/scenario/scn/scn_start.ks`（定義と開始シーンへのジャンプ）で、人の `first.ks`・`title.ks` から飛ぶ。`first: true` なら `first.ks` も書く（書き出したものでなければ上書きしない）。
+  - 流れはラベルとジャンプだけで書く：選択肢は `[glink]`（条件は `cond`）と `[s]` で選択肢ごとのラベルへ飛び、中身の後で続きのラベルへ飛ぶ。`@if` は条件つきの `[jump cond]` で枝のラベルへ飛ぶ。どれも選べない選択と、出口の無いシーンの終わりは、行き止まりを見せて `ending` で戻る。
+  - 変数は名前を変えずに `f['akari.好感度']`（永続は `sf[…]`）。式は JavaScript（`===`、`Math.trunc` の割り算）。
+  - 台詞は `#名前`（表示名かキャラクターの名前）と本文と `[p]`。括弧は本文の初めと終わり。本文の `[` と、行の初めの空白・特別な文字は `[emb exp="String.fromCharCode(…)"]`。ルビは読みを親文字の初めの文字に付ける。
+  - 立ち絵は `chara_new`・`chara_face`（名前と表情は英数字にする）、表示は `[chara_mod … time="0"]` と `[chara_show face …]`、位置があれば `[chara_move]`。ファイルの無い画像は名前入りの色の矩形の SVG。
+  - 開始のファイルで舞台を空にし（`[clearstack]`・`[cm]`・`[chara_hide_all]`・`[stopbgm]`）、準備（プロファイルの `setup`。既定は画面の大きさから決めたメッセージ枠と名前の欄。`#名前` に `[chara_config ptext]` が要るため）を書く。
+- 理由：計画 T3-11 の手順と、Ren'Py と同じ考え（D053：書き出しは一方向、生成物は作り直す、人のファイルに触れない、素材は意味名から、仮素材を見せる）。ティラノスクリプトのラベルの中への `[if]` の扱いは処理系に頼れないので、ラベルとジャンプだけで書く（`cond` はどのタグにも書ける）。変数の名前を変えないのは、JavaScript の添字で日本語と `.` をそのまま使えるため（名前の対応表が要らない）。`first.ks` を既定で書かないのは、人のプロジェクトの入口を勝手に変えないため。
+- 影響：`crates/scn-core/src/tyrano.rs`（新規）、`renpy.rs`（プロファイルの読み方と素材の集め方を `pub(crate)` に）、`scn export tyrano`、`app/src-tauri`（`export_tyrano`）、`app/src/export/ExportScreen.tsx`（書き出しのカードを Ren'Py と共通に）、`docs/spec/project-files.md` の12節。

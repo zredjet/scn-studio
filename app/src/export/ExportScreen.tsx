@@ -2,7 +2,8 @@
 // 中身を表で見られる。書き出し先は作品フォルダの `export/script.csv`・`export/script.xlsx`（CLI の
 // `scn export script` と同じ）。書き出した台本を収録の基準として記録すると、次から変わった台詞が再収録候補になる。
 // Ren'Py への書き出し（T2-2、D053）は、出力プロファイル（export/renpy.yaml）に従って、書き出し先の
-// game/scn/ を作り直す（CLI の `scn export renpy` と同じ）。プレーンテキスト（T2-5、D056）は、道（共通、ルート、
+// game/scn/ を作り直す（CLI の `scn export renpy` と同じ）。ティラノスクリプト（T3-11、D072）も同じく、
+// export/tyrano.yaml に従って data/scenario/scn/ と素材の data/*/scn/ を作り直す。プレーンテキスト（T2-5、D056）は、道（共通、ルート、
 // エンディング）を選んで export/text/ に書く（CLI の `scn export text` と同じ）。
 
 import { useEffect, useState } from "react";
@@ -35,6 +36,8 @@ interface Props {
   }>;
   /** Ren'Py へ書き出す。 */
   readonly writeRenpy: (aiDrafts: boolean) => Promise<RenpyResult>;
+  /** ティラノスクリプトへ書き出す（T3-11）。 */
+  readonly writeTyrano: (aiDrafts: boolean) => Promise<RenpyResult>;
   /** 通読の道の候補。 */
   readonly loadChoices: () => Promise<ReadingChoice[]>;
   /** プレーンテキストを書き出す。 */
@@ -257,28 +260,27 @@ const COLUMNS = [
   "備考",
 ] as const;
 
-/** Ren'Py への書き出し。書き出した後に、知らせとプロファイルの誤りを並べる。 */
-function RenpyCard({
+/** ゲームエンジン（Ren'Py、ティラノスクリプト）への書き出し。書き出した後に、知らせとプロファイルの誤りを並べる。 */
+function EngineCard({
+  name,
+  note,
   unsaved,
-  writeRenpy,
+  write,
 }: {
+  readonly name: string;
+  readonly note: string;
   readonly unsaved: number;
-  readonly writeRenpy: () => Promise<RenpyResult>;
+  readonly write: () => Promise<RenpyResult>;
 }) {
   const [result, setResult] = useState<RenpyResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   return (
-    <section className="export-card" aria-label="Ren'Py">
+    <section className="export-card" aria-label={name}>
       <div className="export-card-head">
         <div>
-          <h2>Ren'Py</h2>
-          <p className="export-note">
-            出力プロファイル（export/renpy.yaml）に従って、Ren'Py
-            のスクリプトを書き出します。書き出し先（既定は export/renpy）の
-            game/scn/
-            だけを毎回作り直し、ほかのファイルには触れません。書き出したものは手で直さず、本文を直して書き出し直してください。
-          </p>
+          <h2>{name}</h2>
+          <p className="export-note">{note}</p>
         </div>
         <button
           type="button"
@@ -286,7 +288,7 @@ function RenpyCard({
           disabled={busy}
           onClick={() => {
             setBusy(true);
-            writeRenpy()
+            write()
               .then((r) => {
                 setResult(r);
                 setError(null);
@@ -346,6 +348,7 @@ export function ExportScreen({
   load,
   write,
   writeRenpy,
+  writeTyrano,
   loadChoices,
   writeText,
   loadProvenance,
@@ -395,7 +398,20 @@ export function ExportScreen({
           AI下書き（status: ai-draft）のシーンを含める
         </label>
       </header>
-      <RenpyCard unsaved={unsaved} writeRenpy={() => writeRenpy(aiDrafts)} />
+      <EngineCard
+        name="Ren'Py"
+        note="出力プロファイル（export/renpy.yaml）に従って、Ren'Py のスクリプトを書き出します。書き出し先（既定は export/renpy）の game/scn/ だけを毎回作り直し、ほかのファイルには触れません。書き出したものは手で直さず、本文を直して書き出し直してください。"
+        unsaved={unsaved}
+        write={() => writeRenpy(aiDrafts)}
+      />
+      <EngineCard
+        name="ティラノスクリプト"
+        note={
+          '出力プロファイル（export/tyrano.yaml）に従って、ティラノスクリプトのシナリオを書き出します。書き出し先（既定は export/tyrano）の data/scenario/scn/ と素材の data/*/scn/ だけを毎回作り直し、ほかのファイルには触れません。first.ks か title.ks から [jump storage="scn/scn_start.ks"] で始めます（プロファイルの first: true なら first.ks も書きます）。'
+        }
+        unsaved={unsaved}
+        write={() => writeTyrano(aiDrafts)}
+      />
       <TextCard
         summary={summary}
         loadChoices={loadChoices}

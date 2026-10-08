@@ -1,0 +1,350 @@
+---
+source: crates/scn-core/tests/tyrano.rs
+expression: "dump(&root, &export, &problems)"
+---
+==== data/bgimage/scn/.scn-studio
+; scn-studio が .scn から書き出したファイル。手で直さない（書き出すたびに作り直す）。
+==== data/bgimage/scn/ph_18cec1.svg
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720"><rect width="100%" height="100%" fill="#313e58"/><text x="36" y="72" font-size="36" fill="#ffffff" font-family="sans-serif">背景：バス停/朝（仮素材）</text></svg>
+==== data/bgimage/scn/ph_9661ec.svg
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720"><rect width="100%" height="100%" fill="#5c5156"/><text x="36" y="72" font-size="36" fill="#ffffff" font-family="sans-serif">背景：駅/夜（仮素材）</text></svg>
+==== data/bgimage/scn/ph_bdbd26.svg
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720"><rect width="100%" height="100%" fill="#566d7d"/><text x="36" y="72" font-size="36" fill="#ffffff" font-family="sans-serif">背景：待合室/夜明け（仮素材）</text></svg>
+==== data/bgimage/scn/ph_beac49.svg
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720"><rect width="100%" height="100%" fill="#395c7e"/><text x="36" y="72" font-size="36" fill="#ffffff" font-family="sans-serif">背景：待合室/夜（仮素材）</text></svg>
+==== data/fgimage/scn/.scn-studio
+; scn-studio が .scn から書き出したファイル。手で直さない（書き出すたびに作り直す）。
+==== data/fgimage/scn/ph_2fa07b.svg
+<svg xmlns="http://www.w3.org/2000/svg" width="384" height="612" viewBox="0 0 384 612"><rect width="100%" height="100%" fill="#3a6654"/><text x="28" y="56" font-size="28" fill="#ffffff" font-family="sans-serif">志乃：伏し目（仮素材）</text></svg>
+==== data/fgimage/scn/ph_8555df.svg
+<svg xmlns="http://www.w3.org/2000/svg" width="384" height="612" viewBox="0 0 384 612"><rect width="100%" height="100%" fill="#3a6654"/><text x="28" y="56" font-size="28" fill="#ffffff" font-family="sans-serif">志乃：笑顔（仮素材）</text></svg>
+==== data/fgimage/scn/ph_94a055.svg
+<svg xmlns="http://www.w3.org/2000/svg" width="384" height="612" viewBox="0 0 384 612"><rect width="100%" height="100%" fill="#3a6654"/><text x="28" y="56" font-size="28" fill="#ffffff" font-family="sans-serif">志乃：真顔（仮素材）</text></svg>
+==== data/fgimage/scn/ph_959685.svg
+<svg xmlns="http://www.w3.org/2000/svg" width="384" height="612" viewBox="0 0 384 612"><rect width="100%" height="100%" fill="#5c3c52"/><text x="28" y="56" font-size="28" fill="#ffffff" font-family="sans-serif">佐伯：笑顔（仮素材）</text></svg>
+==== data/scenario/scn/.scn-studio
+; scn-studio が .scn から書き出したファイル。手で直さない（書き出すたびに作り直す）。
+==== data/scenario/scn/scn_start.ks
+; scn-studio が .scn から書き出したファイル。手で直さない（書き出すたびに作り直す）。
+; 準備（メッセージ枠と名前の欄）、定義（キャラクターと変数）と、開始シーンへのジャンプ。first.ks か title.ks から [jump storage="scn/scn_start.ks"] で始める。
+
+*start
+[clearstack]
+[cm]
+[chara_hide_all time="0"]
+[stopbgm]
+; メッセージ枠と名前の欄（プロファイルの setup で変える）
+[layopt layer="message0" visible="true"]
+[position layer="message0" left="160" top="496" width="960" height="194" page="fore" visible="true"]
+[position layer="message0" page="fore" margint="45" marginl="50" marginr="70" marginb="60"]
+[free name="chara_name_area" layer="message0"]
+[ptext name="chara_name_area" layer="message0" color="white" size="28" bold="true" x="180" y="506"]
+[chara_config ptext="chara_name_area"]
+[chara_new name="saeki" storage="scn/ph_959685.svg" jname="佐伯"]
+[chara_face name="saeki" face="f_7389e9" storage="scn/ph_959685.svg"]
+[chara_new name="shino" storage="scn/ph_2fa07b.svg" jname="志乃"]
+[chara_face name="shino" face="f_ff111d" storage="scn/ph_2fa07b.svg"]
+[chara_face name="shino" face="f_74da1b" storage="scn/ph_94a055.svg"]
+[chara_face name="shino" face="f_7389e9" storage="scn/ph_8555df.svg"]
+[eval exp="f['flag.話した'] = false"]
+[eval exp="f['shino.信頼'] = 0"]
+[eval exp="f['flag.傘'] = false"]
+[eval exp="f['flag.残る'] = false"]
+[jump storage="scn/story_chapter01.ks" target="*s01"]
+==== data/scenario/scn/story_chapter01.ks
+; scn-studio が .scn から書き出したファイル。手で直さない（書き出すたびに作り直す）。
+
+; s01 改札前
+; AI下書き（status: ai-draft）
+*s01
+[bg storage="scn/ph_9661ec.svg" time="0"]
+; BGM 雨音（ファイルが無いので鳴らさない）
+[stopbgm]
+; SE 雷（ファイルが無いので鳴らさない）
+#
+[emb exp="String.fromCharCode(12288)"]雨は、駅舎のトタン屋根を休みなく叩いていた。[p]
+#
+[emb exp="String.fromCharCode(12288)"]改札の上の電光板から、最終列車の文字が消える。[p]
+[call storage="scn/story_chapter02.ks" target="*s90"]
+#遥人
+『……歩いて帰れる距離じゃないな』[p]
+#
+[emb exp="String.fromCharCode(12288)"]ポケットの中の小銭を数えてから、遥人は待合室のドアを押した。[p]
+; SE ドア（ファイルが無いので鳴らさない）
+[jump storage="scn/story_chapter01.ks" target="*s02"]
+
+; s02 待合室
+; AI下書き（status: ai-draft）
+*s02
+[bg storage="scn/ph_beac49.svg" time="1000"]
+[chara_mod name="shino" face="f_ff111d" time="0"]
+[chara_show name="shino" face="f_ff111d" time="0" left="832"]
+[chara_move name="shino" left="832" time="1"]
+#
+[emb exp="String.fromCharCode(12288)"]ストーブの消えた待合室に、先客が一人いた。[p]
+#
+[emb exp="String.fromCharCode(12288)"]同じくらいの年の少女が、膝の上に大きな旅行鞄を抱えている。[p]
+#
+[emb exp="String.fromCharCode(12288)"]鞄には、隣の県の住所が書かれた札が下がっていた。[p]
+#
+どうする
+[glink color="black" size="24" width="768" x="256" y="280" target="*s02__2" text="話しかける"]
+[glink color="black" size="24" width="768" x="256" y="360" target="*s02__3" text="本を開く"]
+[s]
+*s02__2
+[cm]
+[eval exp="f['flag.話した'] = true"]
+[jump storage="scn/story_chapter01.ks" target="*s03"]
+*s02__3
+[cm]
+[jump storage="scn/story_chapter01.ks" target="*s04"]
+*s02__1
+
+; s03 鞄の理由
+; AI下書き（status: ai-draft）
+*s03
+[chara_mod name="shino" face="f_74da1b" time="0"]
+[chara_show name="shino" face="f_74da1b" time="0" left="832"]
+[chara_move name="shino" left="832" time="1"]
+#遥人
+「……列車、止まっちゃいましたね」[p]
+#少女
+「はい。[wait time="500"]バスは、朝まで来ないそうです」[p]
+#遥人
+「朝まで」[p]
+#少女
+「始発で、ここを出るんです。わたし、志乃といいます」[p]
+#
+[emb exp="String.fromCharCode(12288)"]名前を言うときだけ、少女は遥人の顔を見た。[p]
+#志乃
+「親戚の家に行くんです。……荷物、多すぎますよね」[p]
+#遥人
+「多すぎる、かな」[p]
+#
+[emb exp="String.fromCharCode(12288)"]志乃は、少しだけ笑った。[p]
+[chara_mod name="shino" face="f_7389e9" time="0"]
+[chara_show name="shino" face="f_7389e9" time="0" left="832"]
+[chara_move name="shino" left="832" time="1"]
+[eval exp="f['shino.信頼'] += (1)"]
+[jump storage="scn/story_chapter01.ks" target="*s05"]
+
+; s04 本と雨音
+; AI下書き（status: ai-draft）
+*s04
+#
+[emb exp="String.fromCharCode(12288)"]遥人は鞄から文庫本を出した。[p]
+#
+[emb exp="String.fromCharCode(12288)"]ページをめくる音と、雨の音だけが続く。[p]
+#
+[emb exp="String.fromCharCode(12288)"]少女は、ずっと窓の外を見ていた。[p]
+#
+[emb exp="String.fromCharCode(12288)"]窓ガラスの向こうでは、街灯の光が雨に[ruby text="﹅"]ほ[ruby text="﹅"]ど[ruby text="﹅"]け[ruby text="﹅"]ている。[p]
+[jump storage="scn/story_chapter01.ks" target="*s05"]
+
+; s05 見回り
+; AI下書き（status: ai-draft）
+*s05
+[chara_mod name="saeki" face="f_7389e9" time="0"]
+[chara_show name="saeki" face="f_7389e9" time="0" left="64"]
+[chara_move name="saeki" left="64" time="1"]
+; SE ドア（ファイルが無いので鳴らさない）
+#佐伯
+「いやあ、ひどい雨だなあ。毛布、二枚しかないけど使っておくれ」[p]
+[call storage="scn/story_chapter02.ks" target="*s90"]
+#佐伯
+「始発のバスは五時四十分。それまではここで辛抱だなあ」[p]
+[jump target="*s05__2" cond="f['flag.話した']"]
+[jump target="*s05__3"]
+*s05__2
+#佐伯
+「ふたり、知り合いだったのかい。そりゃよかったなあ」[p]
+[jump target="*s05__1"]
+*s05__3
+#佐伯
+「ふたりとも、黙りこくって。風邪ひくなよう」[p]
+[jump target="*s05__1"]
+*s05__1
+[chara_hide name="saeki" time="0"]
+[jump storage="scn/story_chapter01.ks" target="*s06"]
+
+; s06 雨脚
+; AI下書き（status: ai-draft）
+*s06
+; SE 雷（ファイルが無いので鳴らさない）
+; 効果 暗転（対応なし）
+[wait time="1000"]
+#
+[emb exp="String.fromCharCode(12288)"]一度だけ、空が白く光った。[p]
+#
+[emb exp="String.fromCharCode(12288)"]蛍光灯が消え、待合室は雨の音でいっぱいになった。[p]
+[jump target="*s06__2" cond="f['flag.話した']"]
+[jump target="*s06__3"]
+*s06__2
+#志乃
+「……こわくないです。こわくないけど」[p]
+[jump target="*s06__1"]
+*s06__3
+#少女
+「……こわくないです。こわくないけど」[p]
+[jump target="*s06__1"]
+*s06__1
+#
+[emb exp="String.fromCharCode(12288)"]暗がりの向こうで、鞄の留め金が鳴った。[p]
+#
+暗がりで
+[glink color="black" size="24" width="768" x="256" y="240" target="*s06__5" text="傘を差し出す"]
+[glink color="black" size="24" width="768" x="256" y="320" target="*s06__6" text="黙って待つ"]
+[glink color="black" size="24" width="768" x="256" y="400" target="*s06__7" text="「行かなくていいんじゃないか」" cond="(f['shino.信頼'] >= (1))"]
+[s]
+*s06__5
+[cm]
+[eval exp="f['flag.傘'] = true"]
+[eval exp="f['shino.信頼'] += (1)"]
+#遥人
+「朝、これ使って。バス停まで濡れるから」[p]
+[jump storage="scn/story_chapter02.ks" target="*s07"]
+*s06__6
+[cm]
+[jump storage="scn/story_chapter02.ks" target="*s07"]
+*s06__7
+[cm]
+[eval exp="f['flag.残る'] = true"]
+[eval exp="f['shino.信頼'] += (1)"]
+#志乃
+「……そんなこと、初めて言われました」[p]
+[jump storage="scn/story_chapter02.ks" target="*s07"]
+*s06__4
+
+==== data/scenario/scn/story_chapter02.ks
+; scn-studio が .scn から書き出したファイル。手で直さない（書き出すたびに作り直す）。
+
+; s07 夜明け前
+; AI下書き（status: ai-draft）
+*s07
+[bg storage="scn/ph_bdbd26.svg" time="1000"]
+; BGM 夜明け（ファイルが無いので鳴らさない）
+[stopbgm]
+#
+[emb exp="String.fromCharCode(12288)"]蛍光灯がまたたいて、点いた。[p]
+#
+[emb exp="String.fromCharCode(12288)"]窓の外が、少しずつ灰色になっていく。[p]
+[jump target="*s07__2" cond="f['flag.残る']"]
+[jump target="*s07__3" cond="(f['shino.信頼'] >= (1))"]
+[jump target="*s07__4"]
+*s07__2
+[jump storage="scn/story_chapter02.ks" target="*s10"]
+[jump target="*s07__1"]
+*s07__3
+[jump storage="scn/story_chapter02.ks" target="*s08"]
+[jump target="*s07__1"]
+*s07__4
+[jump storage="scn/story_chapter02.ks" target="*s11"]
+[jump target="*s07__1"]
+*s07__1
+
+; s08 始発バス
+; AI下書き（status: ai-draft）
+*s08
+[bg storage="scn/ph_18cec1.svg" time="1000"]
+[chara_mod name="shino" face="f_74da1b" time="0"]
+[chara_show name="shino" face="f_74da1b" time="0" left="448"]
+[chara_move name="shino" left="448" time="1"]
+[jump target="*s08__2" cond="(!f['flag.話した'])"]
+[jump target="*s08__1"]
+*s08__2
+#少女
+「……わたし、志乃といいます。傘、ありがとうございました」[p]
+[eval exp="f['flag.話した'] = true"]
+[jump target="*s08__1"]
+*s08__1
+#
+[emb exp="String.fromCharCode(12288)"]雨は、霧のような細さになっていた。[p]
+[jump target="*s08__4" cond="f['flag.傘']"]
+[jump target="*s08__5"]
+*s08__4
+#
+[emb exp="String.fromCharCode(12288)"]志乃は、遥人の傘を差していた。[p]
+[jump target="*s08__3"]
+*s08__5
+#
+[emb exp="String.fromCharCode(12288)"]志乃は、鞄を頭の上にかざしていた。[p]
+[jump target="*s08__3"]
+*s08__3
+#志乃
+「見送りは、いらないって思ってたんです」[p]
+#遥人
+「……うん」[p]
+#志乃
+「でも、いてくれて、よかったです」[p]
+[jump storage="scn/story_chapter02.ks" target="*s09"]
+
+; s09 約束
+; AI下書き（status: ai-draft）
+*s09
+; SE バス（ファイルが無いので鳴らさない）
+[chara_mod name="shino" face="f_7389e9" time="0"]
+[chara_show name="shino" face="f_7389e9" time="0" left="448"]
+[chara_move name="shino" left="448" time="1"]
+[jump target="*s09__2" cond="f['flag.傘']"]
+[jump target="*s09__3"]
+*s09__2
+#志乃
+「この傘、いつか返しに来ます。[p]この駅に」[p]
+[jump target="*s09__1"]
+*s09__3
+#志乃
+「いつか、また。[p]この駅で」[p]
+[jump target="*s09__1"]
+*s09__1
+[chara_hide name="shino" time="1000"]
+#
+[emb exp="String.fromCharCode(12288)"]バスの赤い灯が、坂の向こうに消えた。[p]
+; エンディング bus_end
+[jump storage="title.ks"]
+
+; s10 もう一日
+; AI下書き（status: ai-draft）
+*s10
+[chara_mod name="shino" face="f_7389e9" time="0"]
+[chara_show name="shino" face="f_7389e9" time="0" left="448"]
+[chara_move name="shino" left="448" time="1"]
+#志乃
+「始発、一本だけ遅らせます。[wait time="1000"]親戚には、電話しておきます」[p]
+#遥人
+「一本だけ」[p]
+#志乃
+「はい。……一日だけ、です」[p]
+#
+[emb exp="String.fromCharCode(12288)"]鞄は、待合室の椅子の上に置かれたままだった。[p]
+; エンディング stay_end
+[jump storage="title.ks"]
+
+; s11 雨上がり
+; AI下書き（status: ai-draft）
+*s11
+[stopbgm]
+#
+[emb exp="String.fromCharCode(12288)"]雨が上がった。[p]
+#
+[emb exp="String.fromCharCode(12288)"]少女は鞄を抱えてバス停へ、遥人は始発列車のホームへ。[p]
+#
+[emb exp="String.fromCharCode(12288)"]名前も知らないまま、待合室のドアが閉まった。[p]
+; SE ドア（ファイルが無いので鳴らさない）
+; エンディング rain_end
+[jump storage="title.ks"]
+
+; s90 構内放送
+; AI下書き（status: ai-draft）
+*s90
+#
+[emb exp="String.fromCharCode(12288)"]スピーカーが、ざらついた声で告げた。[p]
+#
+[emb exp="String.fromCharCode(12288)"]――大雨のため、本日の列車はすべて運転を見合わせます。始発バスは、五時四十分の予定です。[p]
+[return]
+
+==== warnings
+ファイルの無い画像が 8 個あります（名前入りの色の矩形の SVG にしました）
+ファイルの無い音が 5 個あります（鳴らさずに、コメントを書きました）
+効果「暗転」の対応がプロファイル（fx）に無いので、書き出していません
+ファイルの無い効果音（{se 雷}）は、鳴らさずに書き出しました
+==== profile
