@@ -1197,6 +1197,9 @@ body {
 }
 
 .bible-types-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
   padding: 12px 12px 8px 16px;
 }
 
@@ -2012,13 +2015,6 @@ body {
   padding: 0 16px 4px;
   font-family: var(--font-mono);
   font-weight: 700;
-}
-
-.variables-selected-desc {
-  margin: 0;
-  padding: 0 16px 8px;
-  color: var(--text-2);
-  font-size: 12.5px;
 }
 
 .flow-badge.warn {
@@ -3202,4 +3198,154 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+/* ---- 変数のフォームと型の編集（T2-10、D061） ---- */
+
+.variables-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 20px 12px;
+}
+
+.variables-add input,
+.variables-add select {
+  min-height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+
+.variables-add input {
+  flex: 1 1 200px;
+}
+
+.variables-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 16px 8px;
+}
+
+.variables-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.variables-undeclared {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 16px 8px;
+}
+
+.variables-undeclared .context-empty {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.type-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 24px;
+}
+
+.type-editor-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.type-editor-head h1 {
+  margin: 0;
+  font-size: 18px;
+  white-space: nowrap;
+}
+
+.type-editor-head .small-button {
+  flex: none;
+}
+
+.type-editor-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.type-editor-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 狭いときは、選択肢とボタンを次の行へ送る。 */
+.type-editor-row,
+.type-editor-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.type-editor-add {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.type-editor-row input,
+.type-editor-row select,
+.type-editor-add input,
+.type-editor-add select {
+  min-width: 0;
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+
+.type-editor-key {
+  flex: 0 0 100px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+
+.type-editor-add > input:first-child {
+  flex: 0 0 100px;
+}
+
+.type-editor-row > input:nth-child(2),
+.type-editor-add > input:nth-child(2) {
+  flex: 1 1 100px;
+}
+
+.type-editor-row select,
+.type-editor-add select {
+  flex: 0 1 150px;
+}
+
+.type-editor-row > input:nth-child(4),
+.type-editor-add > input:nth-child(4) {
+  flex: 1 1 160px;
+}
+
+.type-editor-buttons {
+  display: flex;
+  flex: none;
+  gap: 4px;
+  margin-left: auto;
 }

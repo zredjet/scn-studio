@@ -147,7 +147,7 @@ export function FlowPanel({ graph, scenes, selected, onOpen }: Props) {
     <aside className="flow-panel" aria-label="選択中のシーン">
       <div className="flow-panel-head">
         <span className="flow-panel-id">
-          {scene.id} · {scene.file.split("/").pop()}
+          {scene.id} · {scene.file.replace(/^story\//, "")}
         </span>
         <h2>{scene.title}</h2>
         <div>

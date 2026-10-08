@@ -159,6 +159,7 @@
 | `variables_broken/` | `variables.yaml` の構文の誤り。宣言の無い変数（W602）を出さない | E801 |
 | `variables_not_map/` | `variables.yaml` が対応表でない。W602 を出さない | E802 |
 | `variables_items/` | 形の合わない変数（型、列挙の値、名前）だけを読み飛ばす。読み飛ばした変数への参照は W602 | E802 W602 |
+| `variables_values/` | 宣言の値が型に合わない（`default` の型、列挙の値、`range` の形・向き・型、`default` が範囲の外、`scope`）。宣言は読み飛ばさない（T2-10、D061） | W807 |
 | `catalog_broken/` | 素材カタログの構文の誤り。カタログを空として扱う | E801 I403 |
 | `catalog_sections/` | 形の合わない節（背景の節、差分）と、文字列にできない意味名だけを読み飛ばす | E802 I403 |
 | `bible_type_broken/` | キャラクターの型定義を読めない。フォルダ名 `character` でキャラクターを見分ける | E801 |
@@ -200,3 +201,7 @@
 | ファイル | 内容 |
 | --- | --- |
 | `placement.scn` | 付ける場所：BOM、CRLF、行末の半角空白とタブ、行末の全角空白、絵文字、複数行の台詞、閉じ括弧の後ろのインライン命令、`@選択` と選択肢の行、改行の無い最後の行。形の合わない候補のある行（E304）、コメントの行、行IDのある行、見出しに付いた行ID（W303）には付けない |
+
+## `story/` の下のフォルダ（T2-10、`subfolders/`）
+
+- `subfolders/`：`story/prologue.scn`・`story/part1/ch01.scn`・`story/part2/ch01.scn`（同じファイル名）と、読まない隠しフォルダ `story/.trash/`。パスの順に読み、IDの無いシーンの仮のIDは `_anon_part1_ch01_1` のように重ならない（`tests/analyze.rs` の `subfolders_fixture`。D061）。

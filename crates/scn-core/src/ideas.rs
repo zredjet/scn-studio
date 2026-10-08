@@ -79,7 +79,7 @@ pub enum Promotion {
         id: String,
         name: String,
     },
-    /// 章（`story/*.scn`）の末尾にスタブのシーンを足す（要約はメモの最初の行）。
+    /// 章（`story/` の下の `*.scn`）の末尾にスタブのシーンを足す（要約はメモの最初の行）。
     Scene {
         file: String,
         id: String,

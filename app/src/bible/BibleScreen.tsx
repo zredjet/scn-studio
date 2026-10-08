@@ -6,12 +6,14 @@
 // - 書くのは入力が決まったとき（項目ごとの自動保存）。書き込みは1つずつ順に行い、それぞれ、その時点で
 //   画面が知っているファイルの中身を添える（外で変わっていれば、コアが重ねるか、書かずに知らせる）。
 // - エントリを新しく作る（「＋」）。未登録の話者の登録（T1-8）もここへ渡される。
-// - 型定義の編集、差分の追加、AIに渡す内容は作らない（フェーズ2・3）。
+// - 型定義の編集（項目を足す・直す・並べ替える・消す）と、型を作る（「＋ 型」。T2-10、D061）。
+// - 差分の追加、AIに渡す内容は作らない（フェーズ3）。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   confirm,
   createEntry,
+  createType,
   entryUsage,
   readBible,
   setEntryBody,
@@ -45,6 +47,7 @@ import {
   typeOfPath,
 } from "./fields.ts";
 import { SourceView } from "./SourceView.tsx";
+import { TypeEditor } from "./TypeEditor.tsx";
 import { UsagePanel } from "./UsagePanel.tsx";
 
 /** ほかの画面からの頼み（エントリを開く、キャラクターを開く、新しいエントリを作る）。 */
@@ -117,6 +120,14 @@ export function BibleScreen({
     error: string | null;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** 型定義を直している（中央に型の編集を出す）。 */
+  const [editingType, setEditingType] = useState(false);
+  /** 型を作る欄。 */
+  const [newType, setNewType] = useState<{
+    id: string;
+    name: string;
+    error: string | null;
+  } | null>(null);
   /** 書き込みを1つずつ順に行う。 */
   const queue = useRef<Promise<void>>(Promise.resolve());
   /** 最新の設定DBの中身（書いた結果は、描き直しを待たずにここへ入れる。続けて書くときに使う）。 */
@@ -386,6 +397,22 @@ export function BibleScreen({
     else if (r.path !== null) openPath(r.path);
   };
 
+  const makeType = async () => {
+    if (newType === null) return;
+    try {
+      const id = newType.id.trim();
+      applied(await createType(id, newType.name.trim()));
+      setNewType(null);
+      setTypeId(id);
+      setPath(null);
+      setQuery("");
+      setCreating(null);
+      setEditingType(true);
+    } catch (e) {
+      setNewType((t) => (t === null ? null : { ...t, error: String(e) }));
+    }
+  };
+
   const create = async () => {
     if (creating === null || currentType === null) return;
     try {
@@ -426,7 +453,68 @@ export function BibleScreen({
       <aside className="bible-types" aria-label="設定の型">
         <div className="bible-types-head">
           <h2 className="bible-small-heading">設定の型</h2>
+          <button
+            type="button"
+            className="link-button"
+            onClick={() =>
+              setNewType(
+                newType === null ? { id: "", name: "", error: null } : null,
+              )
+            }
+          >
+            ＋ 型
+          </button>
         </div>
+        {newType !== null && (
+          <form
+            className="bible-create"
+            onSubmit={(event) => {
+              event.preventDefault();
+              guard(() => void makeType());
+            }}
+          >
+            <label>
+              名前
+              <input
+                // biome-ignore lint/a11y/noAutofocus: 作るときは名前から入れる
+                autoFocus
+                value={newType.name}
+                onChange={(event) =>
+                  setNewType({ ...newType, name: event.target.value })
+                }
+                required
+              />
+            </label>
+            <label>
+              ID（英数字と _）
+              <input
+                value={newType.id}
+                pattern="[A-Za-z0-9_]+"
+                onChange={(event) =>
+                  setNewType({ ...newType, id: event.target.value })
+                }
+                required
+              />
+            </label>
+            <div className="bible-create-buttons">
+              <button type="submit" className="primary-small">
+                作る
+              </button>
+              <button
+                type="button"
+                className="small-button"
+                onClick={() => setNewType(null)}
+              >
+                やめる
+              </button>
+            </div>
+            {newType.error !== null && (
+              <span className="bible-field-error" role="alert">
+                {newType.error}
+              </span>
+            )}
+          </form>
+        )}
         <div className="bible-type-list">
           {types.map((t) => (
             <button
@@ -440,6 +528,7 @@ export function BibleScreen({
                   setPath(null);
                   setQuery("");
                   setCreating(null);
+                  setEditingType(false);
                 })
               }
             >
@@ -452,7 +541,17 @@ export function BibleScreen({
         </div>
         {definedType !== undefined && (
           <section className="bible-type-fields" aria-label="型の項目">
-            <h2 className="bible-small-heading">型の項目</h2>
+            <h2 className="bible-small-heading">
+              型の項目
+              <button
+                type="button"
+                className="link-button"
+                aria-pressed={editingType}
+                onClick={() => guard(() => setEditingType(!editingType))}
+              >
+                {editingType ? "閉じる" : "直す"}
+              </button>
+            </h2>
             <span className="bible-type-file">
               bible/types/{definedType.id}.yaml
               {definedType.builtin !== null ? " · 組み込み" : ""}
@@ -565,7 +664,11 @@ export function BibleScreen({
                   className="bible-entry-item"
                   aria-pressed={f.path === file?.path}
                   onClick={() => {
-                    if (f.path !== file?.path) guard(() => setPath(f.path));
+                    if (f.path !== file?.path || editingType)
+                      guard(() => {
+                        setPath(f.path);
+                        setEditingType(false);
+                      });
                   }}
                 >
                   <span className="bible-initial">{initialOf(label)}</span>
@@ -590,7 +693,15 @@ export function BibleScreen({
       </aside>
 
       <main className="bible-main" aria-label="エントリの中身">
-        {file === null ? (
+        {editingType && definedType !== undefined ? (
+          <TypeEditor
+            key={definedType.id}
+            type={definedType}
+            types={data.types}
+            onWritten={applied}
+            onClose={() => setEditingType(false)}
+          />
+        ) : file === null ? (
           <p className="placeholder">エントリを選んでください。</p>
         ) : (
           <>

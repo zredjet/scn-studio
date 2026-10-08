@@ -34,6 +34,7 @@
 | フロントマター | front matter | エントリの先頭の `---` で囲んだYAML |
 | 本文（エントリの） | body | フロントマターの後ろのMarkdown |
 | 紐づく変数 | character variables | キャラクターIDを名前空間にした変数 |
+| 型定義の編集 | type edit | 型の項目を足す・直す・並べ替える・消す（`typedef::TypeEdit`。アプリの `TypeEditor`） |
 
 ## 構造と本文
 
@@ -108,6 +109,8 @@
 | 変数 | variable | `variables.yaml` で宣言する |
 | 名前空間 | namespace | `akari.好感度` の `akari` |
 | スコープ | scope | `save`（セーブ単位）/ `persistent`（周回をまたぐ） |
+| 宣言 | declaration | `variables.yaml` の1つの変数の定義（型、値、既定値、範囲、スコープ、説明。フォームは `vardecl`） |
+| 範囲 | range | 整数の変数の `[最小, 最大]` |
 | 式 | expr | 条件式 |
 | 代入 | assignment | `@設定` |
 | 構文木 | AST | パーサの出力 |
@@ -153,7 +156,10 @@
 | 縦書きビュー | vertical view | プレビューの縦書きの表示（`preview/VerticalView.tsx`、組み方は `vertical.ts`） |
 | プレーンテキスト | plain text | 通読用のテキスト（`export/text/`。`scn export text`、`plaintext`） |
 | 原稿用紙換算 | manuscript sheets | 本文を20字×20行で数えた枚数 |
-| 台本 | script sheet | 収録・校正用の表（`export/script.csv`。`scn export script`） |
+| 台本 | script sheet | 収録・校正用の表（`export/script.csv`、Excel 形式は `export/script.xlsx`。`scn export script`） |
+| 台本の形式 | script format | `csv` か `xlsx`（`script::ScriptFormat`） |
+| 収録の基準 | baseline | 収録に出した台本の、行IDごとの話者と台詞のハッシュ（`export/script-baseline.json`） |
+| 再収録候補 | retake | 収録の基準の後に話者か台詞が変わった台詞（`script::Retakes`） |
 | ボイスファイル名 | voice file name | `キャラID_行ID`（拡張子なし） |
 | 直前の地の文 | preceding narration | 台本の列。同じシーンで、その台詞より前のいちばん近い地の文 |
 

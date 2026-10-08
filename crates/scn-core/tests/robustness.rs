@@ -6,6 +6,8 @@
 //! 行IDの付与（`scn fmt`）も、同じ入力で確かめる（足した部分のほかはバイトが変わらない、など）。
 //! 素材の一覧と発注リスト（`assets`）、カーソル位置から再生の最短経路（`route`）、Ren'Py への書き出し（`renpy`）、
 //! アイデアメモと企画書（`ideas`・`concept`）、名前の変更（`rename`）も、同じ入力でパニックしないことを確かめる。
+//! 変数の宣言と型定義のフォームの書き換え（`vardecl`・`typedef`）と、台本の Excel 形式（`script_xlsx`）は、
+//! YAML の断片を組み合わせた入力と任意の文字列で確かめる。
 
 mod support;
 
@@ -27,6 +29,9 @@ use scn_core::project::{MessageWindow, Project, SourceFile};
 use scn_core::rename::{RenameTarget, plan_rename, symbol_at};
 use scn_core::renpy::{RenpyProfile, export_renpy};
 use scn_core::route::{ReadingTarget, read, reading_choices, route_at};
+use scn_core::script::{ScriptRow, ScriptSheet, script_xlsx};
+use scn_core::typedef::{TypeEdit, edit_type};
+use scn_core::vardecl::{add_decl, set_decl_field};
 use scn_core::{DialogueBracket, ParseOptions, analyze, load_project, parse};
 
 /// 意味系のfixtureで使う共通のプロジェクト。本文だけを差し替えて、意味解析とIRも通す。
@@ -313,8 +318,122 @@ fn fragment() -> impl Strategy<Value = String> {
     ]
 }
 
+/// 変数の宣言と型定義の、YAML の行の断片。
+fn yaml_fragment() -> impl Strategy<Value = String> {
+    let fixed = prop::sample::select(vec![
+        "flag.a:",
+        "a:",
+        "akari.信頼:",
+        "flag.a: { type: int }",
+        "  type: int",
+        "  type: enum",
+        "  values: [x, y]",
+        "  values:",
+        "    - x",
+        "  default: 0",
+        "  default: yes",
+        "  range: [0, 3]",
+        "  scope: save",
+        "  desc: |",
+        "    説明",
+        "  desc: 説明 # コメント",
+        "name: 場所",
+        "fields:",
+        "fields: []",
+        "fields: [{ key: a, type: text }]",
+        "  - { key: a, label: A, type: text }",
+        "  - { key: b, label: B, type: select, options: [x] }",
+        "  - { label: 壊れ, type: text }",
+        "  - key: c",
+        "    type: text",
+        "# コメント",
+        "\u{feff}flag.b:",
+        "---",
+        "",
+    ]);
+    prop_oneof![
+        6 => fixed.prop_map(str::to_owned),
+        1 => "\\PC{0,10}",
+    ]
+}
+
+fn type_edit() -> impl Strategy<Value = TypeEdit> {
+    let key = prop::sample::select(vec!["a", "b", "c", "x"]).prop_map(str::to_owned);
+    let ty = prop::sample::select(vec!["text", "select", "list<ref<scene>>", "txt"])
+        .prop_map(str::to_owned);
+    prop_oneof![
+        (key.clone(), ty.clone()).prop_map(|(key, ty)| TypeEdit::Add {
+            key,
+            label: "L".to_owned(),
+            ty,
+            options: vec!["o".to_owned()],
+        }),
+        (key.clone(), ty).prop_map(|(key, ty)| TypeEdit::Set {
+            key,
+            label: "名前".to_owned(),
+            ty,
+            options: Vec::new(),
+        }),
+        (key.clone(), -2i64..3).prop_map(|(key, delta)| TypeEdit::Move { key, delta }),
+        key.prop_map(|key| TypeEdit::Remove { key }),
+    ]
+}
+
+/// 書き換えが通れば、結果は YAML として読める（読めなければ書き換えない約束）。
+fn settings_edits(text: &str, edit: &TypeEdit) {
+    for (key, field, value) in [
+        ("flag.a", "default", serde_json::json!(3)),
+        ("a", "range", serde_json::json!([0, 9])),
+        ("akari.信頼", "desc", serde_json::json!("a: b")),
+        ("flag.a", "scope", serde_json::Value::Null),
+        ("flag.b", "values", serde_json::json!(["x", "y z"])),
+    ] {
+        if let Ok(next) = set_decl_field(text, key, field, &value) {
+            assert!(
+                yaml_serde::from_str::<yaml_serde::Value>(next.trim_start_matches('\u{feff}'))
+                    .is_ok()
+            );
+        }
+    }
+    let _ = add_decl(text, "flag.new", "enum", &["x".to_owned()]);
+    if let Ok(next) = edit_type(text, edit) {
+        assert!(
+            yaml_serde::from_str::<yaml_serde::Value>(next.trim_start_matches('\u{feff}')).is_ok()
+        );
+    }
+}
+
 // 件数は proptest の既定（256件）。多く試すときは環境変数 `PROPTEST_CASES` で増やす。
 proptest! {
+    #[test]
+    fn settings_forms(lines in prop::collection::vec(yaml_fragment(), 0..20), edit in type_edit()) {
+        settings_edits(&lines.join("\n"), &edit);
+        settings_edits(&lines.join("\r\n"), &edit);
+    }
+
+    #[test]
+    fn settings_forms_arbitrary(text in "\\PC{0,120}", edit in type_edit()) {
+        settings_edits(&text, &edit);
+    }
+
+    #[test]
+    fn script_xlsx_any_text(cells in prop::collection::vec("\\PC{0,20}", 0..14)) {
+        let rows = cells
+            .chunks(7)
+            .map(|c| ScriptRow {
+                line_id: c.first().cloned().unwrap_or_default(),
+                scene: c.get(1).cloned().unwrap_or_default(),
+                character: c.get(2).cloned().unwrap_or_default(),
+                text: c.get(3).cloned().unwrap_or_default(),
+                narration: c.get(4).cloned().unwrap_or_default(),
+                voice: c.get(5).cloned().unwrap_or_default(),
+                note: c.get(6).cloned().unwrap_or_default(),
+            })
+            .collect();
+        let bytes = script_xlsx(&ScriptSheet { rows, missing_line_ids: 0, retakes: None }).unwrap();
+        assert!(bytes.starts_with(b"PK\x03\x04"));
+    }
+
     #[test]
     fn random_lines(lines in prop::collection::vec(fragment(), 0..40), cut in any::<Index>()) {
         let source = lines.join("\n");

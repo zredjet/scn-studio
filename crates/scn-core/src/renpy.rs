@@ -25,7 +25,7 @@ use crate::assets::assets_relative;
 use crate::check::falls_through;
 use crate::ir::{Ir, IrExpr, IrInline, IrOption, Op};
 use crate::preview::{PreviewData, preview_data};
-use crate::project::{Project, ProjectError, VarType};
+use crate::project::{Project, ProjectError, VarType, without_bom};
 
 /// 出力プロファイルの置き場所（作品フォルダから）。
 pub const RENPY_PROFILE: &str = "export/renpy.yaml";
@@ -172,7 +172,7 @@ pub fn read_profile(root: &Path) -> (RenpyProfile, Vec<String>) {
             return (profile, problems);
         }
     };
-    let yaml: Yaml = match yaml_serde::from_str(&text) {
+    let yaml: Yaml = match yaml_serde::from_str(without_bom(&text)) {
         Ok(value) => value,
         Err(e) => {
             problems.push(format!(
@@ -1490,9 +1490,13 @@ pub fn export_renpy(
             exporter.line(1, "pass");
         }
         exporter.out.push('\n');
-        let stem = Path::new(&scene.file)
-            .file_stem()
-            .map_or_else(|| "story".to_owned(), |s| s.to_string_lossy().into_owned());
+        // `story/` の下のフォルダの章も、ほかと名前が重ならないように（`story_part1_ch01`）。
+        let stem = crate::ir::anonymous_stem(&scene.file);
+        let stem = if stem.is_empty() {
+            "story".to_owned()
+        } else {
+            stem
+        };
         let file = format!("story_{}", identifier(&stem, "f_"));
         let body = std::mem::take(&mut exporter.out);
         match chapters.iter_mut().find(|(name, _)| *name == file) {

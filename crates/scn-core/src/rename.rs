@@ -487,13 +487,17 @@ fn key_len(body: &str, key: &str) -> Option<usize> {
 }
 
 /// YAML のキーの行を差し替える：`section` が `None` なら字下げの無いキー、あれば `section:` の下の1段目のキー。
-/// `olds` のどれかに当てはまる最初のキーを `new` にする。変わらなければ `None`。
+/// `olds` のどれかに当てはまる最初のキーを `new` にする。変わらなければ `None`。先頭の BOM は除いて書き換え、
+/// 戻す（T2-10）。
 fn rename_yaml_key(
     text: &str,
     section: Option<&str>,
     olds: &[String],
     new: &str,
 ) -> Option<String> {
+    if let Some(rest) = text.strip_prefix('\u{feff}') {
+        return rename_yaml_key(rest, section, olds, new).map(|next| format!("\u{feff}{next}"));
+    }
     let all = lines(text);
     let mut out = String::with_capacity(text.len() + new.len());
     let mut inside = section.is_none();
@@ -1156,6 +1160,17 @@ mod tests {
             "backgrounds:\n  akari: {}\ncharacters:\n  akari2:\n    dir: a/\n  tsumugi: {}\n"
         );
         assert!(rename_yaml_key(catalog, Some("characters"), &["x".to_owned()], "y").is_none());
+        // 先頭の BOM は残す。
+        assert_eq!(
+            rename_yaml_key(
+                "\u{feff}flag.勇気:\n  type: int\n",
+                None,
+                &["flag.勇気".to_owned()],
+                "flag.覚悟"
+            )
+            .unwrap(),
+            "\u{feff}flag.覚悟:\n  type: int\n"
+        );
     }
 
     #[test]

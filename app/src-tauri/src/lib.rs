@@ -33,6 +33,7 @@ use scn_core::renpy;
 use scn_core::route;
 use scn_core::scaffold::create_project as scaffold_project;
 use scn_core::script;
+use scn_core::typedef::TypeEdit;
 use scn_core::workspace::{AssetKey, Change, SaveOutcome, Workspace};
 use scn_core::{Project, Span, analyze};
 use serde::{Deserialize, Serialize};
@@ -279,7 +280,7 @@ fn parse_buffer(
 ) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
-    // 本文として読むのは story/*.scn だけ（仕様書17節）。知らないファイルは受け付けない。
+    // 本文として読むのは `story/` の下（下のフォルダも）の *.scn だけ（仕様書17節）。知らないファイルは受け付けない。
     if !workspace.set_buffer(&file, &text) {
         return Err(format!("作品フォルダに無いファイルです：{file}"));
     }
@@ -615,6 +616,46 @@ fn create_concept(state: State<'_, AppState>) -> Result<Response, String> {
     after_settings_write(workspace, json!({ "kind": "saved", "text": text }))
 }
 
+/// 型定義のファイルの中身（型の編集の画面。T2-10）。
+#[tauri::command]
+fn type_text(type_id: String, state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let text = workspace.type_text(&type_id).map_err(|e| e.to_string())?;
+    json_response(&json!(text))
+}
+
+/// 型定義を編集する（項目を足す・直す・動かす・消す。T2-10）。
+#[tauri::command]
+fn edit_type(
+    type_id: String,
+    edit: TypeEdit,
+    seen: String,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let result = workspace
+        .edit_type(&type_id, &edit, &seen)
+        .map_err(|e| e.to_string())?;
+    after_settings_write(workspace, to_json(&result, "書いた結果")?)
+}
+
+/// 型を作る（T2-10）。
+#[tauri::command]
+fn create_type(
+    type_id: String,
+    name: String,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let file = workspace
+        .create_type(&type_id, &name)
+        .map_err(|e| e.to_string())?;
+    after_settings_write(workspace, json!({ "kind": "created", "path": file }))
+}
+
 /// 変数の画面の中身：`variables.yaml` の中身（無ければ null）と、変数の一覧（読み書きの位置を含む）。
 fn variables_data(workspace: &Workspace) -> Result<Value, String> {
     let project = workspace.project();
@@ -656,6 +697,53 @@ fn write_variables(
     }))
 }
 
+/// 変数の宣言を書いた後に返すもの（`write_variables` と同じ形）。
+fn after_variables_write(workspace: &Workspace, edit: Value) -> Result<Response, String> {
+    let Analyzed {
+        summary, checks, ..
+    } = analyze_summary(workspace.project(), true, None)?;
+    json_response(&json!({
+        "edit": edit,
+        "variables": variables_data(workspace)?,
+        "assist": completion_data(workspace.project()),
+        "summary": summary,
+        "checks": checks,
+    }))
+}
+
+/// 変数の宣言の1つの項目を直す（フォーム。T2-10）。`value` が null なら項目を消す。
+#[tauri::command]
+fn set_variable_field(
+    key: String,
+    field: String,
+    value: Value,
+    seen: String,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let edit = workspace
+        .set_variable_field(&key, &field, &value, &seen)
+        .map_err(|e| e.to_string())?;
+    after_variables_write(workspace, to_json(&edit, "書いた結果")?)
+}
+
+/// 変数を宣言する（フォーム。T2-10）。
+#[tauri::command]
+fn add_variable(
+    key: String,
+    ty: String,
+    values: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let edit = workspace
+        .add_variable(&key, &ty, &values)
+        .map_err(|e| e.to_string())?;
+    after_variables_write(workspace, to_json(&edit, "書いた結果")?)
+}
+
 /// 簡易ADVプレビューのデータ（T1-11、D050）：IR全体と、画面・ウィンドウ・括弧・キャラクター・変数・素材。
 /// プレビューの画面を開いているときにだけ呼ぶ（入力のたびの解析には入れない。D042）。
 #[tauri::command]
@@ -695,21 +783,49 @@ fn script_of(project: &Project) -> Result<script::ScriptSheet, String> {
     })
 }
 
-/// 台本（出力の画面で、書き出す前に中身を見る）。保存していない本文も含む。
+/// 台本に、収録の基準と比べた再収録候補を書き足す（T2-10、D061）。基準を読めなければ、そのわけを返す。
+fn with_retakes(root: &Path, sheet: &mut script::ScriptSheet) -> Option<String> {
+    match script::read_baseline(root) {
+        Ok(Some(base)) => {
+            script::mark_retakes(sheet, &base);
+            None
+        }
+        Ok(None) => None,
+        Err(problem) => Some(problem),
+    }
+}
+
+/// 台本（出力の画面で、書き出す前に中身を見る）。保存していない本文も含む。収録の基準があれば、変わった台詞を
+/// 再収録候補にする（`baseline_problem` は基準を読めなかったわけ）。
 #[tauri::command]
 fn script_sheet(state: State<'_, AppState>) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
-    let project = open_workspace(&mut guard)?.project();
-    json_response(&to_json(&script_of(project)?, "台本")?)
+    let workspace = open_workspace(&mut guard)?;
+    let mut sheet = script_of(workspace.project())?;
+    let problem = with_retakes(workspace.root(), &mut sheet);
+    let mut value = to_json(&sheet, "台本")?;
+    if let Value::Object(map) = &mut value {
+        map.insert("baseline_problem".to_owned(), json!(problem));
+    }
+    json_response(&value)
 }
 
-/// 台本を作品フォルダの `export/script.csv` に書き出す（`scn export script` と同じ）。書いたパスと行数を返す。
+/// 台本を作品フォルダの `export/script.csv`（Excel 形式は `export/script.xlsx`）に書き出す（`scn export script`
+/// と同じ）。`baseline` なら、書き出した台本を収録の基準として記録する。書いたパスと行数を返す。
 #[tauri::command]
-fn export_script(state: State<'_, AppState>) -> Result<Response, String> {
+fn export_script(
+    format: script::ScriptFormat,
+    baseline: bool,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
-    let sheet = script_of(workspace.project())?;
-    let path = script::write_script(workspace.root(), &sheet).map_err(|e| e.to_string())?;
+    let mut sheet = script_of(workspace.project())?;
+    with_retakes(workspace.root(), &mut sheet);
+    let path = script::write_script(workspace.root(), &sheet, format).map_err(|e| e.to_string())?;
+    if baseline {
+        script::write_baseline(workspace.root(), &sheet).map_err(|e| e.to_string())?;
+    }
     json_response(&json!({
         "path": path.display().to_string(),
         "rows": sheet.rows.len(),
@@ -1246,8 +1362,7 @@ fn take_changes(app: &AppHandle, paths: &BTreeSet<PathBuf>) -> Result<(), String
     };
     let changes: Vec<Change> = paths
         .iter()
-        .map(|path| workspace.external_change(path))
-        .filter(|change| *change != Change::None)
+        .flat_map(|path| workspace.external_changes(path))
         .collect();
     if changes.is_empty() {
         return Ok(());
@@ -1477,6 +1592,9 @@ pub fn run() {
             set_entry_body,
             write_entry_source,
             create_entry,
+            type_text,
+            edit_type,
+            create_type,
             read_ideas,
             create_idea,
             promote_idea,
@@ -1484,6 +1602,8 @@ pub fn run() {
             create_concept,
             read_variables,
             write_variables,
+            set_variable_field,
+            add_variable,
             preview_data,
             script_sheet,
             export_script,

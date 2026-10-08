@@ -212,6 +212,8 @@ pub enum Code {
     W805,
     /// 設定DBの参照（`ref<…>`）の参照先が無い（段階1）
     W806,
+    /// 変数の宣言の値が型に合わない（`default`・`range`・`scope`。T2-10）
+    W807,
 }
 
 impl Code {
@@ -264,6 +266,7 @@ impl Code {
             Code::W804 => "W804",
             Code::W805 => "W805",
             Code::W806 => "W806",
+            Code::W807 => "W807",
         }
     }
 

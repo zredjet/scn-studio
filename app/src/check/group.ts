@@ -4,7 +4,7 @@ import type { IrDiagnostic, Severity } from "../core/types.ts";
 
 export interface FileDiagnostics {
   readonly file: string;
-  /** 本文のファイル（story/*.scn）か。本文なら、選ぶとエディタのその行へ移れる。 */
+  /** 本文のファイル（`story/` の下の `*.scn`）か。本文なら、選ぶとエディタのその行へ移れる。 */
   readonly story: boolean;
   /** 位置の順。 */
   readonly diagnostics: readonly IrDiagnostic[];

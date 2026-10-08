@@ -1,8 +1,8 @@
 //! プロジェクトフォルダの読み込み。
 //!
 //! `project.toml`、設定DB（`bible/`）、`variables.yaml`、`assets/catalog.yaml`、
-//! `story/*.scn` を読む。設定ファイルの誤りは、読み込みのエラーで止めずに診断にし（E801〜W805）、
-//! 読めた部分で解析を続ける（D042）。無いファイルは空として扱う。`project.toml` の無いフォルダは
+//! `story/` の下（下のフォルダも）の `*.scn` を読む。設定ファイルの誤りは、読み込みのエラーで止めずに診断にし
+//! （E801〜W807）、読めた部分で解析を続ける（D042）。無いファイルは空として扱う。`project.toml` の無いフォルダは
 //! プロジェクトではないので、エラーにする。
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -33,7 +33,7 @@ pub struct Project {
     pub catalog: AssetCatalog,
     /// 企画書（`concept.md`）。無ければ `None`。
     pub concept: Option<Concept>,
-    /// `story/*.scn`。パスの辞書順に並べてある。読めなかったファイル（E801）は含まない。
+    /// `story/` の下（下のフォルダも）の `*.scn`。パスの辞書順に並べてある。読めなかったファイル（E801）は含まない。
     pub files: Vec<SourceFile>,
     /// 読み込みの診断（E801〜W805）。読んだ順に並べてある。
     pub load_diagnostics: Vec<LoadDiagnostic>,
@@ -338,6 +338,12 @@ pub fn load_project(root: &Path) -> Result<Project, ProjectError> {
     })
 }
 
+/// 先頭の BOM（U+FEFF）を除いた中身。Windows のエディタが設定ファイルに付けることがあり、YAML の読み手は
+/// BOM の後ろを2つ目の文書として読んでしまうので、読む前に除く（T2-10、D061）。
+pub(crate) fn without_bom(text: &str) -> &str {
+    text.strip_prefix('\u{feff}').unwrap_or(text)
+}
+
 /// 本文のファイルを書き換える（`scn fmt`、保存）。`file` はプロジェクトの根からの相対パス
 /// （`SourceFile::path`）。中身は渡したバイトのまま書く。
 ///
@@ -345,6 +351,11 @@ pub fn load_project(root: &Path) -> Result<Project, ProjectError> {
 /// 止まっても、元のファイルは壊れない。読み取り専用のファイルは書き換えない（OSによらず）。
 /// シンボリックリンクは、リンクを残したまま、リンク先を書き換える。
 pub fn write_source(root: &Path, file: &str, text: &str) -> Result<(), ProjectError> {
+    write_bytes(root, file, text.as_bytes())
+}
+
+/// [`write_source`] と同じ書き方で、バイト列を書く（台本の Excel 形式など。T2-10）。
+pub fn write_bytes(root: &Path, file: &str, bytes: &[u8]) -> Result<(), ProjectError> {
     let path = root.join(file);
     let error = |path: &Path, source| ProjectError::Write {
         path: path.to_owned(),
@@ -373,7 +384,7 @@ pub fn write_source(root: &Path, file: &str, text: &str) -> Result<(), ProjectEr
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_default();
     let temp = target.with_file_name(format!(".{name}.{}.tmp", std::process::id()));
-    let result = write_synced(&temp, text).and_then(|()| {
+    let result = write_synced(&temp, bytes).and_then(|()| {
         if let Some(permissions) = permissions {
             fs::set_permissions(&temp, permissions)?;
         }
@@ -386,9 +397,9 @@ pub fn write_source(root: &Path, file: &str, text: &str) -> Result<(), ProjectEr
 }
 
 /// ファイルを作って書き、ディスクへ書き出す。
-fn write_synced(path: &Path, text: &str) -> io::Result<()> {
+fn write_synced(path: &Path, bytes: &[u8]) -> io::Result<()> {
     let mut file = fs::File::create(path)?;
-    file.write_all(text.as_bytes())?;
+    file.write_all(bytes)?;
     file.sync_all()
 }
 
@@ -495,7 +506,7 @@ fn key_span(text: &str, from: usize, key: &str) -> Span {
         if start < from {
             continue;
         }
-        let trimmed = line.trim_start_matches([' ', '\t']);
+        let trimmed = line.trim_start_matches([' ', '\t', '\u{feff}']);
         let trimmed = trimmed.strip_prefix("- ").unwrap_or(trimmed);
         let at = start + (line.len() - trimmed.len());
         for quoted in [key.to_owned(), format!("\"{key}\""), format!("'{key}'")] {
@@ -623,14 +634,16 @@ impl Loader<'_> {
     }
 
     /// YAMLを読む。構文が崩れていれば E801 を出して `None`。`text` は、ファイル（`whole`）の行と
-    /// 行の番号がそろうようにしたもの（フロントマターは、前の行を空行で埋める）。
+    /// 行の番号がそろうようにしたもの（フロントマターは、前の行を空行で埋める）。先頭の BOM は読み飛ばす。
     fn yaml(&mut self, file: &str, whole: &str, text: &str) -> Option<Value> {
-        match yaml_serde::from_str(text) {
+        let bom = text.starts_with('\u{feff}');
+        match yaml_serde::from_str(without_bom(text)) {
             Ok(value) => Some(value),
             Err(e) => {
-                let at = e
-                    .location()
-                    .map_or(0, |l| offset_of(whole, l.line(), l.column()));
+                let at = e.location().map_or(0, |l| {
+                    let column = l.column() + usize::from(bom && l.line() == 1);
+                    offset_of(whole, l.line(), column)
+                });
                 self.diag(
                     file,
                     Code::E801,
@@ -1263,6 +1276,10 @@ impl Loader<'_> {
                 },
                 _ => None,
             };
+            // 値の検査（W807。T2-10、D061）。宣言は読み飛ばさない。
+            for problem in declaration_problems(&ty, def, range, scope.as_deref()) {
+                self.diag(file, Code::W807, span, format!("変数 {written}：{problem}"));
+            }
             let desc = def.get("desc").and_then(scalar);
             decls.push(VarDecl {
                 key,
@@ -1438,15 +1455,26 @@ impl Loader<'_> {
 
     // ---- story/ ----
 
-    /// `story/*.scn` を読み、パスの辞書順に並べる。サブディレクトリは読まない（D036）。
-    /// 読めないファイル（UTF-8でないなど）は E801 を出して読み飛ばす。
+    /// `story/` の下（下のフォルダも。T2-10、D061）の `.scn` を読み、パスの辞書順に並べる。隠しフォルダと隠し
+    /// ファイル（`.` で始まるもの）は読まない。読めないファイル（UTF-8でないなど）は E801 を出して読み飛ばす。
+    /// 下のフォルダを読めなければ、そのフォルダを読み飛ばす。シンボリックリンクで同じフォルダを2回読まない。
     fn story(&mut self) -> Result<Vec<SourceFile>, ProjectError> {
+        let root = self.root.join("story");
+        // `story/` そのものを読めなければ、読み込みのエラー。
+        read_dir_sorted(&root)?;
+        let (paths, unreadable) = scn_paths(&root);
+        for dir in unreadable {
+            let file = self.relative(&dir);
+            self.diag(
+                &file,
+                Code::E801,
+                Span::new(0, 0),
+                format!("フォルダ {file} を読めません。中の章を読み飛ばします"),
+            );
+        }
         let mut files = Vec::new();
-        for path in read_dir_sorted(&self.root.join("story"))? {
-            if path.is_file()
-                && has_extension(&path, "scn")
-                && let Some(text) = self.read(&path)
-            {
+        for path in paths {
+            if let Some(text) = self.read(&path) {
                 files.push(SourceFile {
                     path: self.relative(&path),
                     text,
@@ -1456,6 +1484,96 @@ impl Loader<'_> {
         files.sort_by(|a, b| a.path.cmp(&b.path));
         Ok(files)
     }
+}
+
+/// `dir` の下（下のフォルダも）の `*.scn` のパスと、読めなかった下のフォルダ（T2-10、D061）。`.` で始まる
+/// フォルダとファイルは読まない。シンボリックリンクで同じフォルダに戻っても、一度だけ読む。
+pub(crate) fn scn_paths(dir: &Path) -> (Vec<PathBuf>, Vec<PathBuf>) {
+    let mut found = Vec::new();
+    let mut unreadable = Vec::new();
+    let mut seen = std::collections::BTreeSet::new();
+    let mut dirs = vec![dir.to_owned()];
+    while let Some(dir) = dirs.pop() {
+        if !seen.insert(fs::canonicalize(&dir).unwrap_or_else(|_| dir.clone())) {
+            continue;
+        }
+        let Ok(paths) = read_dir_sorted(&dir) else {
+            unreadable.push(dir);
+            continue;
+        };
+        for path in paths {
+            let hidden = path
+                .file_name()
+                .is_some_and(|n| n.to_string_lossy().starts_with('.'));
+            if hidden {
+                continue;
+            }
+            if path.is_dir() {
+                dirs.push(path);
+            } else if path.is_file() && has_extension(&path, "scn") {
+                found.push(path);
+            }
+        }
+    }
+    found.sort();
+    unreadable.sort();
+    (found, unreadable)
+}
+
+/// 変数の宣言の値の問題（W807。T2-10、D061）：`default` が型に合わない（`bool` は真偽、`int` は整数、`enum` は
+/// `values` のどれか。`string` は文字列・数・真偽のどれでもよい）、`range` が `[最小, 最大]` の整数でない・最小が
+/// 最大より大きい・`int` でない変数にある、`default` が `range` の外、`scope` が `save`・`persistent` のどちらでもない。
+fn declaration_problems(
+    ty: &VarType,
+    def: &Value,
+    range: Option<(i64, i64)>,
+    scope: Option<&str>,
+) -> Vec<String> {
+    let mut out = Vec::new();
+    let default = def.get("default").filter(|v| !v.is_null());
+    if let Some(value) = default {
+        let fits = match ty {
+            VarType::Bool => value.is_bool(),
+            VarType::Int => value.as_i64().is_some(),
+            VarType::String => scalar(value).is_some(),
+            VarType::Enum(values) => scalar(value).is_some_and(|v| values.contains(&v)),
+        };
+        if !fits {
+            out.push(match ty {
+                VarType::Enum(_) => "default が values のどれでもありません".to_owned(),
+                _ => format!("default が型（{}）に合いません", ty.name()),
+            });
+        }
+    }
+    if let Some(written) = def.get("range").filter(|v| !v.is_null()) {
+        if !matches!(ty, VarType::Int) {
+            out.push("range は int の変数にだけ書けます".to_owned());
+        } else {
+            match range {
+                None => out.push(format!(
+                    "range は [最小, 最大] の整数で書きます：{}",
+                    serde_json::to_string(written).unwrap_or_default()
+                )),
+                Some((min, max)) if min > max => out.push(format!(
+                    "range の最小（{min}）が最大（{max}）より大きくなっています"
+                )),
+                Some((min, max)) => {
+                    if let Some(v) = default.and_then(Value::as_i64)
+                        && (v < min || v > max)
+                    {
+                        out.push(format!("default（{v}）が range [{min}, {max}] の外です"));
+                    }
+                }
+            }
+        }
+    }
+    if let Some(scope) = scope
+        && scope != "save"
+        && scope != "persistent"
+    {
+        out.push(format!("scope「{scope}」は save か persistent で書きます"));
+    }
+    out
 }
 
 #[cfg(test)]

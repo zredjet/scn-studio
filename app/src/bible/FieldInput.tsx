@@ -41,6 +41,8 @@ interface Props {
   readonly problems: readonly IrDiagnostic[];
   /** 添え書き（「台詞の話者判定に使われます」など）。 */
   readonly hint?: string;
+  /** 消せない項目（選択肢の欄に「（未設定）」を出さない。変数の型）。 */
+  readonly required?: boolean;
   /** エントリのファイルの今の中身（直し始めたときの中身を覚え、外の変更と照らすため）。 */
   readonly fileText: string;
   /** 直す。書いた結果（書かなければ null）を返す。 */
@@ -322,6 +324,7 @@ export function FieldInput({
   candidates,
   problems,
   hint,
+  required = false,
   fileText,
   onCommit,
   onOpenRef,
@@ -377,7 +380,9 @@ export function FieldInput({
             onCommit(set(event.target.value === "" ? null : event.target.value))
           }
         >
-          <option value="">（未設定）</option>
+          {(!required || current === "") && (
+            <option value="">（未設定）</option>
+          )}
           {current !== "" && !field.options.includes(current) && (
             <option value={current}>{current}（選択肢に無い）</option>
           )}

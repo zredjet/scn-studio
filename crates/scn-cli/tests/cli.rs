@@ -100,6 +100,19 @@ fn ir_of_sample() {
     assert_eq!(codes.len(), 7);
 }
 
+/// `scn ir --compact`：整形しない1行のJSON（中身は整形したものと同じ。T2-10）。
+#[test]
+fn ir_compact() {
+    let pretty = scn(&["ir", "samples/houkago"], &repo_root());
+    let compact = scn(&["ir", "samples/houkago", "--compact"], &repo_root());
+    assert_eq!(compact.code, SUCCESS, "{}", compact.stderr);
+    assert_eq!(compact.stdout.trim_end().lines().count(), 1);
+    assert!(compact.stdout.len() < pretty.stdout.len());
+    let a: Value = serde_json::from_str(&pretty.stdout).unwrap();
+    let b: Value = serde_json::from_str(&compact.stdout).unwrap();
+    assert_eq!(a, b);
+}
+
 /// エラー（E）の診断があれば、IRを出したうえで終了コード1。
 #[test]
 fn ir_with_errors() {
@@ -998,6 +1011,61 @@ fn export_script() {
     assert!(dir.join("export/script.csv").exists());
     // 作品フォルダでなければ2。
     assert_eq!(scn(&["export", "script", "story"], &dir).code, 2);
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// `export script --format xlsx`：Excel 形式を `export/script.xlsx` に書く。`--baseline` で収録の基準を記録し、
+/// 次からの書き出しで、変わった台詞の備考に「再収録候補」と書いて、数を標準エラーに出す（T2-10、D061）。
+#[test]
+fn export_script_xlsx_and_baseline() {
+    let dir = std::env::temp_dir().join(format!("scn-cli-export-xlsx-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    copy_dir(&repo_root().join("samples/houkago"), &dir);
+    let _ = fs::remove_file(dir.join("export/script-baseline.json"));
+    let out = scn(&["export", "script", "--format", "xlsx"], &dir);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    assert!(out.stdout.contains("script.xlsx（16行）"), "{}", out.stdout);
+    let bytes = fs::read(dir.join("export/script.xlsx")).unwrap();
+    assert!(bytes.starts_with(b"PK\x03\x04"));
+    // 基準が無ければ、再収録候補は付けない。
+    let out = scn(&["export", "script", "--baseline"], &dir);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    assert!(!out.stderr.contains("再収録候補"), "{}", out.stderr);
+    assert!(out.stderr.contains("収録の基準を"), "{}", out.stderr);
+    assert!(dir.join("export/script-baseline.json").exists());
+    // 台詞を直すと、次の書き出しで再収録候補になる。
+    let chapter = dir.join("story/chapter01.scn");
+    let text = fs::read_to_string(&chapter).unwrap();
+    fs::write(
+        &chapter,
+        text.replace(
+            "灯「やっと来た。遅いよ」 ^k3f9",
+            "灯「やっと来たね。遅いよ」 ^k3f9",
+        ),
+    )
+    .unwrap();
+    let out = scn(&["export", "script"], &dir);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    assert!(
+        out.stderr
+            .contains("変わった台詞 1 行（再収録候補）、足した台詞 0 行、無くなった台詞 0 行"),
+        "{}",
+        out.stderr
+    );
+    let csv = fs::read_to_string(dir.join("export/script.csv")).unwrap();
+    assert!(
+        csv.contains("k3f9,s012 放課後の屋上,灯,やっと来たね。遅いよ,,akari_k3f9,再収録候補（収録の基準の後に変わった）\r\n"),
+        "{csv}"
+    );
+    // 読めない基準は知らせて、再収録候補を付けずに書き出す。
+    fs::write(dir.join("export/script-baseline.json"), "{").unwrap();
+    let out = scn(&["export", "script"], &dir);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    assert!(
+        out.stderr.contains("script-baseline.json を読めません"),
+        "{}",
+        out.stderr
+    );
     let _ = fs::remove_dir_all(&dir);
 }
 

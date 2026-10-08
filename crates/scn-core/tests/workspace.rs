@@ -471,13 +471,16 @@ fn external_added_and_removed_files() {
     );
     save(&mut ws, "story/a.scn");
     assert!(dir.join("story/a.scn").is_file());
-    // サブディレクトリやほかの拡張子、一時ファイルは本文として扱わない。
+    // 下のフォルダの章は本文として取り込む（T2-10、D061）。ほかの拡張子、一時ファイルは本文として扱わない。
     fs::create_dir_all(dir.join("story/sub")).unwrap();
     write(&dir, "story/sub/d.scn", "## d #s4\n");
     write(&dir, "story/.a.scn.123.tmp", "x");
     assert_eq!(
         ws.external_change(&dir.join("story/sub/d.scn")),
-        Change::None
+        Change::Added {
+            file: "story/sub/d.scn".into(),
+            text: "## d #s4\n".into()
+        }
     );
     assert_eq!(
         ws.external_change(&dir.join("story/.a.scn.123.tmp")),
@@ -847,6 +850,102 @@ fn catalog_edits() {
         CatalogEdit::Saved {
             text: "# 人が書いた\nbackgrounds:\n  屋上: {}\nse:\n  ドア: {}\n".to_owned()
         }
+    );
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// `story/` の下のフォルダ（T2-10、D061）：章を足す、外で足された章を取り込む、同じフォルダの中で名前を変える。
+/// 隠しフォルダの中は取り込まない。
+#[test]
+fn story_subfolders() {
+    let dir = temp_project(
+        "subfolders",
+        &[("project.toml", TOML), ("story/a.scn", b"## a #s1\n")],
+    );
+    let mut ws = Workspace::open(&dir).unwrap();
+    assert_eq!(
+        ws.add_chapter("part1/ch01").unwrap(),
+        "story/part1/ch01.scn"
+    );
+    assert!(dir.join("story/part1/ch01.scn").exists());
+    for bad in ["../x", "part1/.x", "part1//x", "", ".x"] {
+        assert!(ws.add_chapter(bad).is_err(), "{bad}");
+    }
+    fs::create_dir_all(dir.join("story/part2")).unwrap();
+    fs::write(dir.join("story/part2/ch02.scn"), "## b #s2\n").unwrap();
+    assert_eq!(
+        ws.external_change(&dir.join("story/part2/ch02.scn")),
+        Change::Added {
+            file: "story/part2/ch02.scn".to_owned(),
+            text: "## b #s2\n".to_owned()
+        }
+    );
+    fs::create_dir_all(dir.join("story/.trash")).unwrap();
+    fs::write(dir.join("story/.trash/x.scn"), "## x #s9\n").unwrap();
+    assert_eq!(
+        ws.external_change(&dir.join("story/.trash/x.scn")),
+        Change::None
+    );
+    let to = ws.rename_chapter("story/part2/ch02.scn", "ch03").unwrap();
+    assert_eq!(to, "story/part2/ch03.scn");
+    assert!(ws.rename_chapter("story/part2/ch03.scn", "x/y").is_err());
+    // フォルダごとの変更（中のファイルの知らせが来ないことがある）：フォルダの知らせで、下の章をまとめて調べる。
+    fs::rename(dir.join("story/part2"), dir.join("story/part3")).unwrap();
+    assert_eq!(
+        ws.external_changes(&dir.join("story/part2")),
+        [Change::Removed {
+            file: "story/part2/ch03.scn".to_owned()
+        }]
+    );
+    assert_eq!(
+        ws.external_changes(&dir.join("story/part3")),
+        [Change::Added {
+            file: "story/part3/ch03.scn".to_owned(),
+            text: "## b #s2\n".to_owned()
+        }]
+    );
+    // ファイルの知らせは今までどおり。隠しフォルダは見ない。
+    assert!(ws.external_changes(&dir.join("story/.trash")).is_empty());
+    assert!(
+        ws.external_changes(&dir.join("story/part3/ch03.scn"))
+            .is_empty()
+    );
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// 読めない下のフォルダは、E801 で知らせて読み飛ばす（T2-10、D061）。
+#[cfg(unix)]
+#[test]
+fn unreadable_story_subfolder() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = temp_project(
+        "subfolder-unreadable",
+        &[
+            ("project.toml", TOML),
+            ("story/a.scn", b"## a #s1\n"),
+            ("story/locked/b.scn", b"## b #s2\n"),
+        ],
+    );
+    let locked = dir.join("story/locked");
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o000)).unwrap();
+    // 権限を無視できる（root など）環境では確かめられない。
+    if fs::read_dir(&locked).is_ok() {
+        fs::set_permissions(&locked, fs::Permissions::from_mode(0o755)).unwrap();
+        let _ = fs::remove_dir_all(&dir);
+        return;
+    }
+    let project = scn_core::load_project(&dir);
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o755)).unwrap();
+    let project = project.unwrap();
+    let paths: Vec<&str> = project.files.iter().map(|f| f.path.as_str()).collect();
+    assert_eq!(paths, ["story/a.scn"]);
+    assert!(
+        project
+            .load_diagnostics
+            .iter()
+            .any(|d| d.diag.code == scn_core::diag::Code::E801 && d.file == "story/locked"),
+        "{:?}",
+        project.load_diagnostics
     );
     let _ = fs::remove_dir_all(&dir);
 }

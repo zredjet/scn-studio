@@ -7,7 +7,7 @@ import { groupDiagnostics, unregisteredSpeaker } from "./group.ts";
 
 interface Props {
   readonly diagnostics: readonly IrDiagnostic[];
-  /** 本文のファイル（story/*.scn）。 */
+  /** 本文のファイル（`story/` の下の `*.scn`）。 */
   readonly files: readonly string[];
   readonly onSelect: (diagnostic: IrDiagnostic) => void;
   /** 見出しを出すか（文脈パネルでは出さない）。 */

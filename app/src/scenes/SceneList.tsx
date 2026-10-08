@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { SceneSummary } from "../core/types.ts";
 
 interface Props {
-  /** 本文のファイル（story/*.scn）。シーンの無い章も出す。 */
+  /** 本文のファイル（`story/` の下の `*.scn`。下のフォルダも）。シーンの無い章も出す。 */
   readonly files: readonly string[];
   readonly scenes: readonly SceneSummary[];
   readonly currentFile: string | null;
@@ -123,7 +123,8 @@ export function SceneList({
                 onClick={() =>
                   setRenaming({
                     file,
-                    name: file.replace(/^story\//, "").replace(/\.scn$/, ""),
+                    // 名前を変えるのは同じフォルダの中だけなので、ファイル名だけを出す。
+                    name: file.replace(/^.*\//, "").replace(/\.scn$/, ""),
                     problem: null,
                   })
                 }

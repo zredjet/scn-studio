@@ -14,7 +14,7 @@ use serde::Serialize;
 use yaml_serde::{Mapping, Value as Yaml};
 
 use crate::index::{Index, Location};
-use crate::project::{Project, ProjectError, write_source};
+use crate::project::{Project, ProjectError, without_bom, write_source};
 use crate::script::csv_table;
 
 /// 素材カタログのファイル（作品フォルダから）。
@@ -62,7 +62,7 @@ pub(crate) fn catalog_files(root: &Path) -> CatalogFiles {
     let Ok(text) = fs::read_to_string(root.join(CATALOG_FILE)) else {
         return out;
     };
-    let Ok(yaml) = yaml_serde::from_str::<Yaml>(&text) else {
+    let Ok(yaml) = yaml_serde::from_str::<Yaml>(without_bom(&text)) else {
         return out;
     };
     let section = |name: &str| match yaml.get(name) {
@@ -648,6 +648,10 @@ pub fn add_entry(
     character: Option<&str>,
     name: &str,
 ) -> Result<String, CatalogEditError> {
+    // 先頭の BOM は除いて書き換え、戻す（T2-10）。
+    if let Some(rest) = text.strip_prefix('\u{feff}') {
+        return add_entry(rest, kind, character, name).map(|next| format!("\u{feff}{next}"));
+    }
     let path = section_path(kind, character)?;
     let before = parse(text)?;
     if !before.is_null() && !before.is_mapping() {
@@ -852,6 +856,10 @@ pub fn set_file(
     name: &str,
     file: &str,
 ) -> Result<String, CatalogEditError> {
+    // 先頭の BOM は除いて書き換え、戻す（T2-10）。
+    if let Some(rest) = text.strip_prefix('\u{feff}') {
+        return set_file(rest, kind, character, name, file).map(|next| format!("\u{feff}{next}"));
+    }
     let path = section_path(kind, character)?;
     let before = parse(text)?;
     let not_found = || {

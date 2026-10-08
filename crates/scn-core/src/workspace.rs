@@ -22,9 +22,13 @@ use crate::ideas::{
 use crate::layout::{LAYOUT_FILE, LayoutError, Point, rename_layout_key, update_layout};
 use crate::line_id::{AssignedLineId, LineIdGenerator, assign_line_ids};
 use crate::merge::{Choice, Merge, merge_scn, merge_text};
-use crate::project::{Project, ProjectError, SourceFile, load_project, write_source};
+use crate::project::{
+    Project, ProjectError, SourceFile, load_project, scn_paths, without_bom, write_source,
+};
 use crate::rename::{RenameTarget, plan_rename};
 use crate::scaffold::CONCEPT_TEMPLATE;
+use crate::typedef::{TypeEdit, edit_type};
+use crate::vardecl::{add_decl, set_decl_field};
 
 /// 開いている作品フォルダ。
 pub struct Workspace {
@@ -195,6 +199,23 @@ fn same_newlines(current: &str, text: &str) -> String {
     } else {
         text.to_owned()
     }
+}
+
+/// 章のファイル名（`story/` から）：前後の空白を除き、`.scn` が無ければ補う。`/` で区切ったどの部分も空でなく、
+/// `.` で始まらず、`\` を含まない。合わなければ `None`。
+fn chapter_name(name: &str) -> Option<String> {
+    let name = name.trim();
+    let name = if name.ends_with(".scn") {
+        name.to_owned()
+    } else {
+        format!("{name}.scn")
+    };
+    let ok = name
+        .trim_end_matches(".scn")
+        .split('/')
+        .all(|part| !part.is_empty() && !part.starts_with('.') && !part.contains('\\'))
+        && !name.trim_end_matches(".scn").is_empty();
+    ok.then_some(name)
 }
 
 /// 設定ファイル（変われば設定を読み直す）。`bible/` の中はすべて。
@@ -384,6 +405,42 @@ impl Workspace {
         Some(parts.join("/"))
     }
 
+    /// 外部の変更（ファイルとフォルダの監視の知らせ）を取り込む。`story/` の下のフォルダの知らせ（Finder で
+    /// フォルダごと動かした、消した、持ち込んだなど。中のファイルの知らせが来ないことがある）では、そのフォルダの
+    /// 下の、知っている章とディスクの章をすべて調べる（T2-10、D061）。
+    pub fn external_changes(&mut self, path: &Path) -> Vec<Change> {
+        if let Some(rel) = self.relative(path) {
+            let parts: Vec<&str> = rel.split('/').collect();
+            let folder = parts.first() == Some(&"story")
+                && !rel.ends_with(".scn")
+                && !parts.iter().any(|p| p.starts_with('.'))
+                && !path.is_file();
+            if folder {
+                let prefix = format!("{rel}/");
+                let mut files: BTreeSet<String> = self
+                    .project
+                    .files
+                    .iter()
+                    .map(|f| f.path.clone())
+                    .filter(|p| p.starts_with(&prefix))
+                    .collect();
+                if path.is_dir() {
+                    let (found, _) = scn_paths(path);
+                    files.extend(found.iter().filter_map(|p| self.relative(p)));
+                }
+                return files
+                    .iter()
+                    .map(|file| self.story_change(file))
+                    .filter(|change| *change != Change::None)
+                    .collect();
+            }
+        }
+        match self.external_change(path) {
+            Change::None => Vec::new(),
+            change => vec![change],
+        }
+    }
+
     /// 外部の変更（ファイルの監視の知らせ）を取り込む。
     pub fn external_change(&mut self, path: &Path) -> Change {
         let Some(rel) = self.relative(path) else {
@@ -395,7 +452,12 @@ impl Workspace {
             return Change::None;
         }
         match parts.as_slice() {
-            ["story", name] if name.ends_with(".scn") => self.story_change(&rel),
+            // `story/` の下のフォルダの章も（T2-10、D061）。隠しフォルダの中は読まない（上で隠しファイルは除いた）。
+            ["story", .., name]
+                if name.ends_with(".scn") && !parts.iter().any(|p| p.starts_with('.')) =>
+            {
+                self.story_change(&rel)
+            }
             [LAYOUT_FILE] => {
                 let on_disk = fs::read(self.root.join(LAYOUT_FILE)).ok();
                 let mine = self.layout_written.as_deref().map(str::as_bytes);
@@ -859,6 +921,121 @@ impl Workspace {
         Ok(EntryEdit::Saved { text })
     }
 
+    /// 変数の宣言の1つの項目を直す（フォーム。T2-10、D061）。`seen` は画面が知っている中身で、外で変わって
+    /// いても、その宣言のその項目が外で変わっていなければ、今の中身に重ねて書く。変わっていれば
+    /// [`EntryEdit::Conflict`]。直したキーの行のほかを変えずに書けなければ [`EntryEdit::Unsupported`]。
+    pub fn set_variable_field(
+        &mut self,
+        key: &str,
+        field: &str,
+        value: &serde_json::Value,
+        seen: &str,
+    ) -> Result<EntryEdit, ProjectError> {
+        let current = self.variables_text()?.unwrap_or_default();
+        if current != seen {
+            let of = |text: &str| -> Option<serde_json::Value> {
+                let doc: yaml_serde::Value = yaml_serde::from_str(without_bom(text)).ok()?;
+                let doc = serde_json::to_value(doc).ok()?;
+                let bare = key.strip_prefix("flag.").unwrap_or(key);
+                doc.get(key)
+                    .or_else(|| doc.get(bare))
+                    .and_then(|d| d.get(field))
+                    .cloned()
+            };
+            if of(seen) != of(&current) {
+                return Ok(EntryEdit::Conflict { text: current });
+            }
+        }
+        match set_decl_field(&current, key, field, value) {
+            Ok(text) => {
+                self.write_settings_file(VARIABLES_FILE, &text)?;
+                Ok(EntryEdit::Saved { text })
+            }
+            Err(e) => Ok(EntryEdit::Unsupported {
+                message: e.to_string(),
+            }),
+        }
+    }
+
+    /// 変数を宣言する（フォーム。T2-10、D061）。ファイルが無ければ作る。
+    pub fn add_variable(
+        &mut self,
+        key: &str,
+        ty: &str,
+        values: &[String],
+    ) -> Result<EntryEdit, ProjectError> {
+        let current = self.variables_text()?.unwrap_or_default();
+        let text = add_decl(&current, key, ty, values).map_err(ProjectError::Refused)?;
+        self.write_settings_file(VARIABLES_FILE, &text)?;
+        Ok(EntryEdit::Saved { text })
+    }
+
+    /// 型定義のファイルのパス（`bible/types/<型>.yaml`）。型のIDが正しくなければ断る。
+    fn type_path(&self, type_id: &str) -> Result<String, ProjectError> {
+        if type_id.is_empty()
+            || type_id.starts_with('.')
+            || type_id.contains(['/', '\\'])
+            || !type_id
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_')
+        {
+            return Err(ProjectError::Refused(
+                "型のIDは英数字と _ で書きます".to_owned(),
+            ));
+        }
+        Ok(format!("bible/types/{type_id}.yaml"))
+    }
+
+    /// 型定義のファイルの中身（T2-10）。
+    pub fn type_text(&self, type_id: &str) -> Result<String, ProjectError> {
+        let file = self.type_path(type_id)?;
+        self.read_settings_file(&self.root.join(file))
+    }
+
+    /// 型定義を編集する（フォーム。T2-10、D061。[`crate::typedef`]）。`seen` が今の中身と違えば（外で変わった）
+    /// 書かずに [`EntryEdit::Conflict`]。直した行のほかを変えずに書けなければ [`EntryEdit::Unsupported`]。
+    pub fn edit_type(
+        &mut self,
+        type_id: &str,
+        edit: &TypeEdit,
+        seen: &str,
+    ) -> Result<EntryEdit, ProjectError> {
+        let file = self.type_path(type_id)?;
+        let current = self.read_settings_file(&self.root.join(&file))?;
+        if current != seen {
+            return Ok(EntryEdit::Conflict { text: current });
+        }
+        match edit_type(&current, edit) {
+            Ok(text) => {
+                self.write_settings_file(&file, &text)?;
+                Ok(EntryEdit::Saved { text })
+            }
+            Err(e) => Ok(EntryEdit::Unsupported {
+                message: e.to_string(),
+            }),
+        }
+    }
+
+    /// 型を作る（`bible/types/<型>.yaml` に名前だけを書く。T2-10）。もうあれば断る。
+    pub fn create_type(&mut self, type_id: &str, name: &str) -> Result<String, ProjectError> {
+        let file = self.type_path(type_id)?;
+        let name = name.trim();
+        if name.is_empty() || name.contains(['\n', '\r']) {
+            return Err(ProjectError::Refused("型の名前を1行で書きます".to_owned()));
+        }
+        let path = self.root.join(&file);
+        if path.exists() || self.project.bible.types.iter().any(|t| t.id == type_id) {
+            return Err(ProjectError::Refused(format!(
+                "型 {type_id} はもうあります"
+            )));
+        }
+        let dir = self.root.join("bible/types");
+        fs::create_dir_all(&dir).map_err(|source| ProjectError::Write { path: dir, source })?;
+        let text = format!("name: {}\nfields:\n", yaml_scalar(name));
+        self.write_settings_file(&file, &text)?;
+        Ok(file)
+    }
+
     // ---- 素材カタログ（T2-3、D054） ----
 
     /// 素材カタログのテキスト（無ければ `None`）。
@@ -965,22 +1142,16 @@ impl Workspace {
         Ok(())
     }
 
-    /// `story/` に章（空の `.scn`）を足す。`name` に `.scn` が無ければ補う。足したファイルのパスを返す。
+    /// `story/` に章（空の `.scn`）を足す。`name` に `.scn` が無ければ補う。`part1/ch01` のように `/` で区切れば、
+    /// `story/` の下のフォルダに足す（無ければ作る。T2-10、D061）。足したファイルのパスを返す。
     pub fn add_chapter(&mut self, name: &str) -> Result<String, ProjectError> {
-        let name = name.trim();
-        let name = if name.ends_with(".scn") {
-            name.to_owned()
-        } else {
-            format!("{name}.scn")
-        };
-        let stem = name.trim_end_matches(".scn");
-        if stem.is_empty() || stem.starts_with('.') || name.contains(['/', '\\']) {
-            return Err(error(
+        let name = chapter_name(name).ok_or_else(|| {
+            error(
                 &self.root.join("story"),
                 io::ErrorKind::InvalidInput,
-                "章のファイル名は、フォルダを含まない名前で書きます",
-            ));
-        }
+                "章のファイル名は、`.` で始まらない名前を `/` で区切って書きます（`..` は使えません）",
+            )
+        })?;
         let file = format!("story/{name}");
         let path = self.root.join(&file);
         if self.file(&file).is_some() || path.exists() {
@@ -990,11 +1161,12 @@ impl Workspace {
                 "同じ名前の章があります",
             ));
         }
-        let story = self.root.join("story");
-        fs::create_dir_all(&story).map_err(|source| ProjectError::Write {
-            path: story,
-            source,
-        })?;
+        if let Some(dir) = path.parent() {
+            fs::create_dir_all(dir).map_err(|source| ProjectError::Write {
+                path: dir.to_owned(),
+                source,
+            })?;
+        }
         write_source(&self.root, &file, "")?;
         self.insert_file(&file, "");
         Ok(file)
@@ -1177,21 +1349,18 @@ impl Workspace {
                 "外で変わっています。取り込んでから名前を変えてください",
             ));
         }
-        let name = name.trim();
-        let name = if name.ends_with(".scn") {
-            name.to_owned()
-        } else {
-            format!("{name}.scn")
-        };
-        let stem = name.trim_end_matches(".scn");
-        if stem.is_empty() || stem.starts_with('.') || name.contains(['/', '\\']) {
-            return Err(error(
-                &path,
-                io::ErrorKind::InvalidInput,
-                "章のファイル名は、フォルダを含まない名前で書きます",
-            ));
-        }
-        let to = format!("story/{name}");
+        // 同じフォルダの中で名前を変える。
+        let name = chapter_name(name)
+            .filter(|n| !n.contains('/'))
+            .ok_or_else(|| {
+                error(
+                    &path,
+                    io::ErrorKind::InvalidInput,
+                    "章のファイル名は、フォルダを含まない名前で書きます",
+                )
+            })?;
+        let dir = file.rsplit_once('/').map_or("story", |(dir, _)| dir);
+        let to = format!("{dir}/{name}");
         if to == file {
             return Ok(to);
         }

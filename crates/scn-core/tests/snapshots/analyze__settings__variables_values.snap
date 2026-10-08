@@ -1,0 +1,11 @@
+---
+source: crates/scn-core/tests/analyze.rs
+expression: "dump_with_disk(&ir, &dir)"
+---
+variables.yaml:2:1-2:7 W807 変数 flag.a：default が型（bool）に合いません
+variables.yaml:5:1-5:7 W807 変数 flag.b：default が型（int）に合いません
+variables.yaml:8:1-8:7 W807 変数 flag.c：default が values のどれでもありません
+variables.yaml:12:1-12:7 W807 変数 flag.d：default（20）が range [0, 10] の外です
+variables.yaml:16:1-16:7 W807 変数 flag.e：range の最小（5）が最大（1）より大きくなっています
+variables.yaml:19:1-19:7 W807 変数 flag.f：range は int の変数にだけ書けます
+variables.yaml:22:1-22:7 W807 変数 flag.g：scope「global」は save か persistent で書きます

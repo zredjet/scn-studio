@@ -363,7 +363,7 @@ fn project_without_toml() {
 }
 
 /// 設定ファイルの診断（E801〜W804）。
-const SETTINGS_CODES: [&str; 5] = ["E801", "E802", "E803", "W804", "W805"];
+const SETTINGS_CODES: [&str; 6] = ["E801", "E802", "E803", "W804", "W805", "W807"];
 
 /// 設定ファイルのfixture（`settings/<名前>/`。それぞれが1つのプロジェクト）。
 fn settings_fixtures() -> Vec<(String, PathBuf)> {
@@ -501,11 +501,86 @@ fn character_id_and_story_paths() {
             ("story/b.scn", "## b #s2\n"),
             ("story/a/c.scn", "## c #s3\n"),
             ("story/a.scn", "## a #s1\n"),
+            ("story/.trash/d.scn", "## d #s4\n"),
+            ("story/.e.scn", "## e #s5\n"),
+            ("story/a/notes.txt", "メモ\n"),
         ],
     );
     let project = load_project(&dir).unwrap();
     assert_eq!(project.characters[0].id, "akari");
+    // `story/` の下のフォルダも読む（T2-10、D061）。隠しフォルダと隠しファイルは読まない。パスの順。
     let paths: Vec<&str> = project.files.iter().map(|f| f.path.as_str()).collect();
-    assert_eq!(paths, ["story/a.scn", "story/b.scn"]);
+    assert_eq!(paths, ["story/a.scn", "story/a/c.scn", "story/b.scn"]);
     let _ = fs::remove_dir_all(&dir);
+}
+
+/// IDの無いシーンの仮のIDは、`story/` からのパス（拡張子を除き、`/` を `_` に）と番号（T2-10、D061）。
+/// `story/` の直下の章は、前と同じ（ファイル名）。
+#[test]
+fn anonymous_ids_in_subfolders() {
+    let dir = temp_project(
+        "anon",
+        &[
+            ("project.toml", "format_version = 0\n"),
+            ("story/a.scn", "## 見出し\n　a。\n"),
+            (
+                "story/part1/b.scn",
+                "## 見出し\n　b。\n## もう1つ\n　b2。\n",
+            ),
+            ("story/part2/b.scn", "## 見出し\n　c。\n"),
+            // `part1/b` と同じ名前になる章は、パスの順に番号を続ける（仮のIDを重ねない）。
+            ("story/part1_b.scn", "## 見出し\n　d。\n"),
+        ],
+    );
+    let project = load_project(&dir).unwrap();
+    let ir = analyze(&project);
+    let ids: Vec<&str> = ir.scenes.iter().map(|s| s.id.as_str()).collect();
+    assert_eq!(
+        ids,
+        [
+            "_anon_a_1",
+            "_anon_part1_b_1",
+            "_anon_part1_b_2",
+            "_anon_part1_b_3",
+            "_anon_part2_b_1"
+        ]
+    );
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// fixture `subfolders/`（T2-10、D061）：`story/` の下のフォルダの章をパスの順に読み、隠しフォルダは読まない。
+/// 同じファイル名の章の、IDの無いシーンの仮のIDが重ならない。フォルダをまたぐジャンプが辺になる。
+#[test]
+fn subfolders_fixture() {
+    let dir = fixtures_dir().join("subfolders");
+    let project = load_project(&dir).unwrap();
+    let paths: Vec<&str> = project.files.iter().map(|f| f.path.as_str()).collect();
+    assert_eq!(
+        paths,
+        [
+            "story/part1/ch01.scn",
+            "story/part2/ch01.scn",
+            "story/prologue.scn"
+        ]
+    );
+    let ir = analyze(&project);
+    let ids: Vec<&str> = ir.scenes.iter().map(|s| s.id.as_str()).collect();
+    assert_eq!(
+        ids,
+        [
+            "s010",
+            "_anon_part1_ch01_1",
+            "s020",
+            "_anon_part2_ch01_1",
+            "s001"
+        ]
+    );
+    let edges: Vec<(&str, &str)> = ir
+        .edges
+        .iter()
+        .map(|e| (e.from.as_str(), e.to.as_str()))
+        .collect();
+    assert!(edges.contains(&("s001", "s010")) && edges.contains(&("s010", "s020")));
+    let codes: Vec<&str> = ir.diagnostics.iter().map(|d| d.code).collect();
+    assert_eq!(codes, ["W107", "W107"]);
 }

@@ -1,0 +1,28 @@
+# 値の検査（W807）。どの宣言も読み飛ばさない
+flag.a:
+  type: bool
+  default: 1
+flag.b:
+  type: int
+  default: 十
+flag.c:
+  type: enum
+  values: [甲, 乙]
+  default: 丙
+flag.d:
+  type: int
+  default: 20
+  range: [0, 10]
+flag.e:
+  type: int
+  range: [5, 1]
+flag.f:
+  type: string
+  range: [0, 1]
+flag.g:
+  type: int
+  default: 0
+  scope: global
+flag.h:
+  type: string
+  default: 12

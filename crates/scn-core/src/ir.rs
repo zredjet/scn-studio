@@ -327,20 +327,17 @@ pub fn analyze(project: &Project) -> Ir {
         edges: Vec::new(),
     };
     let mut scenes = Vec::new();
+    // 仮のIDの番号は、同じ名前になる章（`story/part1/b.scn` と `story/part1_b.scn`）をまとめて、パスの順に数える。
+    let mut anonymous: BTreeMap<String, usize> = BTreeMap::new();
     for file in &files {
-        let stem = file
-            .path
-            .rsplit('/')
-            .next()
-            .unwrap_or(file.path)
-            .trim_end_matches(".scn");
-        let mut anonymous = 0;
+        let stem = anonymous_stem(file.path);
         for scene in &file.parsed.chapter.scenes {
             let id = match &scene.id {
                 Some(id) => id.value.clone(),
                 None => {
-                    anonymous += 1;
-                    format!("_anon_{stem}_{anonymous}")
+                    let n = anonymous.entry(stem.clone()).or_insert(0);
+                    *n += 1;
+                    format!("_anon_{stem}_{n}")
                 }
             };
             scenes.push(builder.scene(scene, id, file.path));
@@ -807,4 +804,13 @@ fn has_text(ops: &[Op]) -> bool {
         }
         _ => false,
     })
+}
+
+/// IDの無いシーンの仮のIDに使う、ファイルの名前（仕様書5節）：`story/` からのパスの拡張子を除き、`/` を `_` に
+/// したもの。`story/` の直下の章ならファイル名（T2-10、D061）。
+pub(crate) fn anonymous_stem(path: &str) -> String {
+    path.strip_prefix("story/")
+        .unwrap_or_else(|| path.rsplit('/').next().unwrap_or(path))
+        .trim_end_matches(".scn")
+        .replace('/', "_")
 }

@@ -1,5 +1,6 @@
-// 出力の画面（T1-12、D051）：台本（収録と校正の表）を CSV で書き出す。書き出す前に、中身を表で見られる。
-// 書き出し先は作品フォルダの `export/script.csv`（CLI の `scn export script` と同じ）。
+// 出力の画面（T1-12、D051）：台本（収録と校正の表）を CSV か Excel 形式（T2-10、D061）で書き出す。書き出す前に、
+// 中身を表で見られる。書き出し先は作品フォルダの `export/script.csv`・`export/script.xlsx`（CLI の
+// `scn export script` と同じ）。書き出した台本を収録の基準として記録すると、次から変わった台詞が再収録候補になる。
 // Ren'Py への書き出し（T2-2、D053）は、出力プロファイル（export/renpy.yaml）に従って、書き出し先の
 // game/scn/ を作り直す（CLI の `scn export renpy` と同じ）。プレーンテキスト（T2-5、D056）は、道（共通、ルート、
 // エンディング）を選んで export/text/ に書く（CLI の `scn export text` と同じ）。
@@ -10,6 +11,7 @@ import type { RenpyResult } from "../core/api.ts";
 import type {
   ReadingChoice,
   ReadingTarget,
+  ScriptFormat,
   ScriptSheet,
   Summary,
 } from "../core/types.ts";
@@ -21,7 +23,10 @@ interface Props {
   readonly unsaved: number;
   readonly load: () => Promise<ScriptSheet>;
   /** 書き出す。書いたファイルのパスを返す。 */
-  readonly write: () => Promise<{
+  readonly write: (
+    format: ScriptFormat,
+    baseline: boolean,
+  ) => Promise<{
     readonly path: string;
     readonly rows: number;
   }>;
@@ -250,9 +255,14 @@ export function ExportScreen({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [format, setFormat] = useState<ScriptFormat>("csv");
+  const [baseline, setBaseline] = useState(false);
+  /** 書き出した回数（基準を記録したら、台本を取り直す）。 */
+  const [written, setWritten] = useState(0);
 
   useEffect(() => {
     void summary;
+    void written;
     let live = true;
     load()
       .then((s) => {
@@ -267,7 +277,7 @@ export function ExportScreen({
     return () => {
       live = false;
     };
-  }, [summary, load]);
+  }, [summary, load, written]);
 
   return (
     <div className="export-screen-body">
@@ -284,11 +294,12 @@ export function ExportScreen({
       <section className="export-card" aria-label="台本">
         <div className="export-card-head">
           <div>
-            <h2>台本（CSV）</h2>
+            <h2>台本</h2>
             <p className="export-note">
-              収録と校正の表。1行が1つの台詞で、ボイスファイル名は「キャラID_行ID」。UTF-8（BOM付き）と
-              CRLF で書くので、Excel
-              でそのまま開けます。書き出し先：export/script.csv
+              収録と校正の表。1行が1つの台詞で、ボイスファイル名は「キャラID_行ID」。CSV
+              は UTF-8（BOM付き）と CRLF で書くので、Excel
+              でそのまま開けます。Excel
+              形式は、欄をすべて文字列にし、見出しの行を固定します。書き出し先：export/script.csv・export/script.xlsx
             </p>
           </div>
           <button
@@ -297,10 +308,16 @@ export function ExportScreen({
             disabled={busy || sheet === null}
             onClick={() => {
               setBusy(true);
-              write()
+              write(format, baseline)
                 .then((r) => {
-                  setNotice(`${r.path} に書き出しました（${r.rows}行）`);
+                  setNotice(
+                    `${r.path} に書き出しました（${r.rows}行）${baseline ? "。収録の基準として記録しました" : ""}`,
+                  );
                   setError(null);
+                  if (baseline) {
+                    setBaseline(false);
+                    setWritten((n) => n + 1);
+                  }
                 })
                 .catch((e: unknown) => setError(String(e)))
                 .finally(() => setBusy(false));
@@ -308,6 +325,28 @@ export function ExportScreen({
           >
             書き出す
           </button>
+        </div>
+        <div className="export-options">
+          <label>
+            形式
+            <select
+              value={format}
+              onChange={(event) =>
+                setFormat(event.target.value === "xlsx" ? "xlsx" : "csv")
+              }
+            >
+              <option value="csv">CSV</option>
+              <option value="xlsx">Excel（.xlsx）</option>
+            </select>
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={baseline}
+              onChange={(event) => setBaseline(event.target.checked)}
+            />
+            収録の基準として記録する（次から、変わった台詞を再収録候補にする）
+          </label>
         </div>
         {notice !== null && (
           <p className="export-notice" role="status">
@@ -317,6 +356,20 @@ export function ExportScreen({
         {error !== null && (
           <p className="export-error" role="alert">
             {error}
+          </p>
+        )}
+        {sheet !== null && sheet.retakes !== null && (
+          <p className="export-info">
+            収録の基準（export/script-baseline.json）から：変わった台詞{" "}
+            {sheet.retakes.changed} 行（備考に「再収録候補」）、足した台詞{" "}
+            {sheet.retakes.added} 行、無くなった台詞 {sheet.retakes.removed} 行
+            {sheet.retakes.removed_ids.length > 0 &&
+              `（${sheet.retakes.removed_ids.join(" ")}）`}
+          </p>
+        )}
+        {sheet !== null && sheet.baseline_problem !== null && (
+          <p className="export-warning">
+            {sheet.baseline_problem}（再収録候補を付けずに作りました）
           </p>
         )}
         {unsaved > 0 && (

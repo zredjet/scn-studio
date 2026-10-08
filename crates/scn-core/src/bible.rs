@@ -314,6 +314,9 @@ pub enum EditError {
     /// フォームでは直せない項目（`id`）か、キーの形が不正。
     #[error("{0} はフォームでは直せません")]
     ReadOnly(String),
+    /// 値が正しくない（型定義の項目の名前・型など。T2-10）。
+    #[error("{0}")]
+    Invalid(String),
 }
 
 /// フロントマターの位置：中身の始まり、閉じの `---` の行の始まり、閉じの行の後ろ。
@@ -385,7 +388,7 @@ pub fn front_fields(text: &str) -> Result<BTreeMap<String, Value>, String> {
 }
 
 /// ファイルの改行（最初の行の終わり）。
-fn newline_of(text: &str) -> &'static str {
+pub(crate) fn newline_of(text: &str) -> &'static str {
     match text.find('\n') {
         Some(at) if at > 0 && text.as_bytes().get(at - 1) == Some(&b'\r') => "\r\n",
         _ => "\n",
@@ -424,7 +427,7 @@ fn plain_ok(text: &str, in_flow: bool) -> bool {
 }
 
 /// 文字列の1行の書き方：素のままか、JSONの文字列（YAMLの二重引用符の文字列としても読める）。
-fn scalar_inline(text: &str, in_flow: bool) -> String {
+pub(crate) fn scalar_inline(text: &str, in_flow: bool) -> String {
     if plain_ok(text, in_flow) {
         text.to_owned()
     } else {
@@ -505,7 +508,7 @@ fn candidates(value: &Value) -> Vec<Written> {
 }
 
 /// キーの行：行頭に字下げの無い `キー:`（引用符で囲んだキーも）。キーの部分（`:` の手前まで）の長さを返す。
-fn key_prefix(line: &str, key: &str) -> Option<usize> {
+pub(crate) fn key_prefix(line: &str, key: &str) -> Option<usize> {
     for written in [
         key.to_owned(),
         serde_json::to_string(key).unwrap_or_default(),
@@ -524,7 +527,7 @@ fn key_prefix(line: &str, key: &str) -> Option<usize> {
 /// 行の中の、行末のコメントの始まり（前の空白を含む）。引用符は、値の始まり（直前の空白でない文字が無い、
 /// または `[`・`{`・`,`・`-`・`:`・`?`）でだけ開いたとみなす（`It's`、`5"`、`灯 'x` のような素の文字列の
 /// 途中の引用符で、コメントを見落とさないため）。
-fn comment_start(value: &str) -> Option<usize> {
+pub(crate) fn comment_start(value: &str) -> Option<usize> {
     let mut quote: Option<char> = None;
     let mut prev: Option<char> = None;
     let mut prev_solid: Option<char> = None;

@@ -45,9 +45,11 @@ import type {
   SavedFile,
   SceneGraphData,
   SceneInfo,
+  ScriptFormat,
   ScriptSheet,
   StoryWrittenResult,
   Summary,
+  TypeEdit,
   VariablesData,
   VariablesWritten,
   ViewMode,
@@ -274,6 +276,52 @@ export function createConcept(): Promise<BibleWritten> {
   return invoke<BibleWritten>("create_concept");
 }
 
+/** 型定義のファイルの中身（T2-10）。 */
+export function typeText(typeId: string): Promise<string> {
+  return invoke<string>("type_text", { typeId });
+}
+
+/** 型定義を編集する（項目を足す・直す・動かす・消す）。`seen` は書く前に読んだ中身。 */
+export function editType(
+  typeId: string,
+  edit: TypeEdit,
+  seen: string,
+): Promise<BibleWritten> {
+  return invoke<BibleWritten>("edit_type", { typeId, edit, seen });
+}
+
+/** 型を作る。 */
+export function createType(
+  typeId: string,
+  name: string,
+): Promise<BibleWritten> {
+  return invoke<BibleWritten>("create_type", { typeId, name });
+}
+
+/** 変数の宣言の1つの項目を直す（フォーム。T2-10）。`value` が null なら項目を消す。 */
+export function setVariableField(
+  key: string,
+  field: string,
+  value: JsonValue,
+  seen: string,
+): Promise<VariablesWritten> {
+  return invoke<VariablesWritten>("set_variable_field", {
+    key,
+    field,
+    value,
+    seen,
+  });
+}
+
+/** 変数を宣言する（フォーム。T2-10）。 */
+export function addVariable(
+  key: string,
+  ty: string,
+  values: readonly string[],
+): Promise<VariablesWritten> {
+  return invoke<VariablesWritten>("add_variable", { key, ty, values });
+}
+
 /** 変数の画面の中身。 */
 export function readVariables(): Promise<VariablesData> {
   return invoke<VariablesData>("read_variables");
@@ -312,7 +360,7 @@ export function keepMine(file: string, text: string): Promise<KeptFile> {
   return invoke<KeptFile>("keep_mine", { file, text });
 }
 
-/** `story/` に章を足す。 */
+/** `story/` に章を足す（`part1/ch01` のようにフォルダも書ける。無いフォルダは作る）。 */
 export function addChapter(name: string): Promise<AddedChapter> {
   return invoke<AddedChapter>("add_chapter", { name });
 }
@@ -436,9 +484,16 @@ export function scriptSheet(): Promise<ScriptSheet> {
   return invoke<ScriptSheet>("script_sheet");
 }
 
-/** 台本を作品フォルダの `export/script.csv` に書き出す。 */
-export function exportScript(): Promise<{ path: string; rows: number }> {
-  return invoke<{ path: string; rows: number }>("export_script");
+/** 台本を作品フォルダの `export/script.csv`（Excel 形式は `export/script.xlsx`）に書き出す。`baseline` なら、
+ * 書き出した台本を収録の基準として記録する（T2-10）。 */
+export function exportScript(
+  format: ScriptFormat,
+  baseline: boolean,
+): Promise<{ path: string; rows: number }> {
+  return invoke<{ path: string; rows: number }>("export_script", {
+    format,
+    baseline,
+  });
 }
 
 /** 素材の一覧（素材カタログの画面）。 */

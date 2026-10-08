@@ -413,7 +413,9 @@ function groupFlow(
       (id) => byScene.get(id)?.is_stub === true,
     ).length;
     const head =
-      graph.level === "chapter" ? (g.id?.split("/").pop() ?? "") : "ルート";
+      graph.level === "chapter"
+        ? (g.id?.replace(/^story\//, "") ?? "")
+        : "ルート";
     const title =
       graph.level === "chapter"
         ? (summary.scenes.find((s) => s.id === g.scenes[0])?.title ?? "")

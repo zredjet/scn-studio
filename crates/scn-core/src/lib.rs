@@ -56,7 +56,10 @@ pub mod scaffold;
 pub mod script;
 mod sema;
 pub mod syntax;
+pub mod typedef;
+pub mod vardecl;
 pub mod workspace;
+mod xlsx;
 
 pub use diag::{Code, Diagnostic, LineIndex, Severity, Span, Spanned};
 pub use ir::{Ir, analyze};

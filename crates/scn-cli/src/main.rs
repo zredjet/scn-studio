@@ -4,14 +4,15 @@
 //!   （上のディレクトリに `project.toml` がある）なら、プロジェクト全体で意味解析を行い、
 //!   設定ファイルの診断（E801〜W804）と、そのファイルの診断を出す（ほかの章の診断は出さない）。
 //!   プロジェクトの外なら、構文解析だけを行う。
-//! - `scn ir <project-dir>`：プロジェクト全体のIRを、標準出力にJSONで出す。
+//! - `scn ir <project-dir> [--compact]`：プロジェクト全体のIRを、標準出力にJSONで出す（`--compact` は整形しない）。
 //! - `scn check [project-dir] [--json]`：プロジェクト全体を検証し（読み込み・構文解析・意味解析の診断と、
 //!   検証の段階1。D043）、診断を `ファイル:行:列 コード メッセージ ^行ID` の形で出す。
 //! - `scn graph [project-dir] [--level scene|chapter|route] [--json]`：シーン、辺、条件、変数の読み書きを、
 //!   粒度ごとに一覧で出す（D044）。
 //! - `scn new <dir> [--title 作品名]`：新しい作品フォルダを作る（D044）。
 //! - `scn format-doc [project-dir] [--check]`：`FORMAT.md` を、今のツールの版で書き直す（D044）。
-//! - `scn export script [project-dir] [-o file]`：台本を CSV で書き出す（D051）。
+//! - `scn export script [project-dir] [--format csv|xlsx] [--baseline] [-o file]`：台本を CSV か Excel 形式で
+//!   書き出す（D051、D061）。収録の基準（`export/script-baseline.json`）があれば、変わった台詞を再収録候補にする。
 //! - `scn export renpy [project-dir] [-o dir]`：Ren'Py のスクリプトを書き出す（D053）。
 //! - `scn export orders [project-dir] [-o file]`：発注リストを CSV で書き出す（D054）。
 //! - `scn export text [project-dir] [--route 名前 | --ending ID] [--no-notes] [-o file]`：ルート単位の通読用の
@@ -69,6 +70,9 @@ enum Command {
     Ir {
         /// プロジェクトのフォルダ（project.toml のあるところ）
         project: PathBuf,
+        /// 整形しない（字下げと改行の無い）JSONで出す。入れ子の深い本文でも大きくならない
+        #[arg(long)]
+        compact: bool,
     },
     /// プロジェクト全体を検証し、診断を `ファイル:行:列 コード メッセージ ^行ID` の形で出す
     Check {
@@ -128,12 +132,19 @@ enum Command {
 
 #[derive(Subcommand)]
 enum ExportCommand {
-    /// 台本（収録と校正の表）を CSV（UTF-8 の BOM 付き、CRLF）で書き出す
+    /// 台本（収録と校正の表）を CSV（UTF-8 の BOM 付き、CRLF）か Excel 形式で書き出す
     Script {
         /// プロジェクトのフォルダ（project.toml のあるところ）。省くと今のフォルダ
         #[arg(default_value = ".")]
         project: PathBuf,
-        /// 書き出す先。省くと作品フォルダの export/script.csv。`-` なら標準出力
+        /// 形式
+        #[arg(long, value_enum, default_value_t = ScriptFormatArg::Csv)]
+        format: ScriptFormatArg,
+        /// 書き出した台本を、収録の基準として記録する（export/script-baseline.json。次からの書き出しで、
+        /// 変わった台詞の備考に「再収録候補」と書く）
+        #[arg(long)]
+        baseline: bool,
+        /// 書き出す先。省くと作品フォルダの export/script.csv（Excel 形式は export/script.xlsx）。`-` なら標準出力
         #[arg(long, short)]
         output: Option<PathBuf>,
     },
@@ -235,7 +246,7 @@ fn main() -> ExitCode {
 fn run(command: Command) -> Result<u8, CliError> {
     match command {
         Command::Parse { file, json } => run_parse(&file, json),
-        Command::Ir { project } => run_ir(&project),
+        Command::Ir { project, compact } => run_ir(&project, compact),
         Command::Check { project, json } => run_check(&project, json),
         Command::Graph {
             project,
@@ -250,8 +261,14 @@ fn run(command: Command) -> Result<u8, CliError> {
             json,
         } => run_fmt(&project, check, json),
         Command::Export {
-            what: ExportCommand::Script { project, output },
-        } => run_export_script(&project, output.as_deref()),
+            what:
+                ExportCommand::Script {
+                    project,
+                    format,
+                    baseline,
+                    output,
+                },
+        } => run_export_script(&project, format.into(), baseline, output.as_deref()),
         Command::Export {
             what: ExportCommand::Renpy { project, output },
         } => run_export_renpy(&project, output.as_deref()),
@@ -421,7 +438,7 @@ fn parse_alone(text: &str) -> Vec<IrDiagnostic> {
 }
 
 /// プロジェクトの中：プロジェクト全体で解析し、設定ファイルの読み込みの診断（E801〜W804。どの本文の
-/// 解析にも響くため）と、そのファイルの診断を返す。ファイルが `story/*.scn` でなくても、
+/// 解析にも響くため）と、そのファイルの診断を返す。ファイルが `story/` の下の `*.scn` でなくても、
 /// プロジェクトの本文に加えて解析する。
 fn analyze_in_project(root: &Path, file: &Path, text: String) -> Result<Vec<Shown>, CliError> {
     let mut project = load_project(root).map_err(CliError::Project)?;
@@ -497,10 +514,15 @@ fn typed_root(file: &Path, relative: &str) -> Option<PathBuf> {
 
 // ---- scn ir ----
 
-fn run_ir(dir: &Path) -> Result<u8, CliError> {
+fn run_ir(dir: &Path, compact: bool) -> Result<u8, CliError> {
     let project = load_project(dir).map_err(CliError::Project)?;
     let ir = analyze(&project);
-    let body = serde_json::to_string_pretty(&ir).map_err(|e| CliError::Write(e.into()))?;
+    let body = if compact {
+        serde_json::to_string(&ir)
+    } else {
+        serde_json::to_string_pretty(&ir)
+    }
+    .map_err(|e| CliError::Write(e.into()))?;
     finish(
         writeln!(io::stdout().lock(), "{body}"),
         exit_code(&ir.diagnostics),
@@ -509,14 +531,55 @@ fn run_ir(dir: &Path) -> Result<u8, CliError> {
 
 // ---- scn export script ----
 
-/// 台本を書き出す（T1-12、D051）。既定の書き出し先は作品フォルダの `export/script.csv`（コアの `write_script`）。
-/// 行IDの無い台詞とエラーの診断があれば、数を標準エラーに出す。終了コードは `ir` と同じ（エラーの診断が
-/// あれば1）。
-fn run_export_script(dir: &Path, output: Option<&Path>) -> Result<u8, CliError> {
+/// `--format` の値。
+#[derive(Clone, Copy, ValueEnum)]
+enum ScriptFormatArg {
+    /// CSV（UTF-8 の BOM 付き、CRLF）
+    Csv,
+    /// Excel 形式（.xlsx。欄はすべて文字列）
+    Xlsx,
+}
+
+impl From<ScriptFormatArg> for scn_core::script::ScriptFormat {
+    fn from(format: ScriptFormatArg) -> Self {
+        match format {
+            ScriptFormatArg::Csv => Self::Csv,
+            ScriptFormatArg::Xlsx => Self::Xlsx,
+        }
+    }
+}
+
+/// 台本を書き出す（T1-12、D051。Excel 形式と再収録候補は T2-10、D061）。既定の書き出し先は作品フォルダの
+/// `export/script.csv`（Excel 形式は `export/script.xlsx`。コアの `write_script`）。行IDの無い台詞、エラーの
+/// 診断、収録の基準と比べた数があれば、標準エラーに出す。`baseline` なら、書き出した後に収録の基準を書き直す。
+/// 終了コードは `ir` と同じ（エラーの診断があれば1）。
+fn run_export_script(
+    dir: &Path,
+    format: scn_core::script::ScriptFormat,
+    baseline: bool,
+    output: Option<&Path>,
+) -> Result<u8, CliError> {
+    use scn_core::script::{mark_retakes, read_baseline, write_baseline};
     let project = load_project(dir).map_err(CliError::Project)?;
     let ir = analyze(&project);
-    let sheet = scn_core::script::script(&project, &ir);
+    let mut sheet = scn_core::script::script(&project, &ir);
     let code = exit_code(&ir.diagnostics);
+    match read_baseline(dir) {
+        Ok(Some(base)) => {
+            mark_retakes(&mut sheet, &base);
+            if let Some(r) = &sheet.retakes {
+                eprintln!(
+                    "scn: 収録の基準から、変わった台詞 {} 行（再収録候補）、足した台詞 {} 行、無くなった台詞 {} 行",
+                    r.changed, r.added, r.removed
+                );
+                if !r.removed_ids.is_empty() {
+                    eprintln!("scn: 無くなった台詞の行ID：{}", r.removed_ids.join(" "));
+                }
+            }
+        }
+        Ok(None) => {}
+        Err(problem) => eprintln!("scn: {problem}（再収録候補を付けずに書き出します）"),
+    }
     if sheet.missing_line_ids > 0 {
         eprintln!(
             "scn: 行IDの無い（または形の合わない）台詞が {} 行あります。ボイスファイル名を空にしました（scn check で確かめ、scn fmt で行IDを付けられます）",
@@ -531,11 +594,9 @@ fn run_export_script(dir: &Path, output: Option<&Path>) -> Result<u8, CliError> 
     if errors > 0 {
         eprintln!("scn: エラーの診断が {errors} 件あります（scn check で確かめられます）");
     }
+    let bytes = format.bytes(&sheet).map_err(CliError::Project)?;
     let path = match output {
-        Some(path) if path == Path::new("-") => {
-            let csv = scn_core::script::script_csv(&sheet);
-            return finish(io::stdout().lock().write_all(csv.as_bytes()), code);
-        }
+        Some(path) if path == Path::new("-") => None,
         Some(path) => {
             if let Some(parent) = path.parent()
                 && !parent.as_os_str().is_empty()
@@ -544,11 +605,20 @@ fn run_export_script(dir: &Path, output: Option<&Path>) -> Result<u8, CliError> 
                     CliError::Refused(format!("{} を作れません：{e}", parent.display()))
                 })?;
             }
-            fs::write(path, scn_core::script::script_csv(&sheet))
+            fs::write(path, &bytes)
                 .map_err(|e| CliError::Refused(format!("{} に書けません：{e}", path.display())))?;
-            path.to_owned()
+            Some(path.to_owned())
         }
-        None => scn_core::script::write_script(dir, &sheet).map_err(CliError::Project)?,
+        None => {
+            Some(scn_core::script::write_script(dir, &sheet, format).map_err(CliError::Project)?)
+        }
+    };
+    if baseline {
+        let written = write_baseline(dir, &sheet).map_err(CliError::Project)?;
+        eprintln!("scn: 収録の基準を {} に記録しました", written.display());
+    }
+    let Some(path) = path else {
+        return finish(io::stdout().lock().write_all(&bytes), code);
     };
     finish(
         writeln!(

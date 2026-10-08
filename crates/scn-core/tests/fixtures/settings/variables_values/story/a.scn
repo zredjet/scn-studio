@@ -1,0 +1,11 @@
+// expect: W807
+// 宣言の値が型に合わない。宣言は読み飛ばさない（W602 にならない）
+## a #s001
+@設定 flag.a = true
+@設定 flag.b += 1
+@設定 flag.c = "甲"
+@設定 flag.d += 1
+@設定 flag.e += 1
+@設定 flag.f = "x"
+@設定 flag.g += 1
+@設定 flag.h = "y"

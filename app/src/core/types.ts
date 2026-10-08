@@ -452,7 +452,20 @@ export interface ScriptSheet {
   readonly rows: readonly ScriptRow[];
   /** 行IDの無い台詞の数。 */
   readonly missing_line_ids: number;
+  /** 収録の基準と比べた数（基準が無ければ null。T2-10）。 */
+  readonly retakes: {
+    readonly changed: number;
+    readonly added: number;
+    readonly removed: number;
+    /** 基準にあって、今の台本に無い行ID。 */
+    readonly removed_ids: readonly string[];
+  } | null;
+  /** 収録の基準を読めなかったわけ。 */
+  readonly baseline_problem: string | null;
 }
+
+/** 台本の形式（コアの `script::ScriptFormat`）。 */
+export type ScriptFormat = "csv" | "xlsx";
 
 /** 素材の種類（コアの索引と同じ）。 */
 export type AssetKind = "background" | "expression" | "bgm" | "se";
@@ -826,3 +839,22 @@ export interface StoryWrittenResult {
   readonly summary: Summary;
   readonly checks: readonly IrDiagnostic[];
 }
+
+/** 型定義の編集（コアの `typedef::TypeEdit`、T2-10）。 */
+export type TypeEdit =
+  | {
+      readonly kind: "add";
+      readonly key: string;
+      readonly label: string;
+      readonly type: string;
+      readonly options: readonly string[];
+    }
+  | {
+      readonly kind: "set";
+      readonly key: string;
+      readonly label: string;
+      readonly type: string;
+      readonly options: readonly string[];
+    }
+  | { readonly kind: "move"; readonly key: string; readonly delta: number }
+  | { readonly kind: "remove"; readonly key: string };

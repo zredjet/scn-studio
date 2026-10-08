@@ -115,7 +115,7 @@ interface ProjectView {
   readonly summary: Summary;
   /** 検証の段階1の診断。 */
   readonly checks: readonly IrDiagnostic[];
-  /** 本文のファイル（story/*.scn）。 */
+  /** 本文のファイル（`story/` の下の `*.scn`。下のフォルダも）。 */
   readonly files: readonly string[];
 }
 

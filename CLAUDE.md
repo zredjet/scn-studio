@@ -55,7 +55,7 @@ app/                    Tauri＋React（src-tauri/ と src/）
   - スナップショット（`crates/scn-core/tests/snapshots/`）が合わないと、テストが失敗し、新しい結果が `*.snap.new` に出る。中身を読んで確かめてから、環境変数 `INSTA_UPDATE=always` を付けて `cargo test -p scn-core` を実行すると受け入れる（`*.snap.new` は消してから）
   - パニックしないことの検査（proptest）を多く試す：`PROPTEST_CASES=20000 cargo test -p scn-core --release --test robustness`
   - 解析の速さを測る（1万行と10万行の合成データ、`criterion`。10万行のIRのJSONを `target/tmp/ir-100k.json` に書き出す）：`cargo bench -p scn-core --bench analyze`
-- 開発用CLI `scn`（`crates/scn-cli`）：`cargo run -p scn-cli -- parse <file.scn>`（診断を `ファイル:行:列 コード メッセージ` で出す。`--json` でJSON）／`cargo run -p scn-cli -- ir <project-dir>`（IRをJSONで出す。例：`cargo run -p scn-cli -- ir samples/houkago`）
+- 開発用CLI `scn`（`crates/scn-cli`）：`cargo run -p scn-cli -- parse <file.scn>`（診断を `ファイル:行:列 コード メッセージ` で出す。`--json` でJSON）／`cargo run -p scn-cli -- ir <project-dir> [--compact]`（IRをJSONで出す。`--compact` は整形しない。例：`cargo run -p scn-cli -- ir samples/houkago`）
   - 終了コードは、成功が0、エラー（E）の診断があれば1、使い方の誤り・`project.toml` の無いフォルダ・フォルダを読めないなどの入出力の誤りは2。設定ファイルの誤り（読めないものを含む）はエラーの診断（E801〜E803）になるので1
   - `parse` は、上のディレクトリに `project.toml` があればプロジェクト全体で意味解析を行い、設定ファイルの診断と、そのファイルの診断を出す（ほかの章の診断は出さない）。無ければ構文解析だけを行う
   - `cargo run -p scn-cli -- fmt <project-dir>`：行IDの無い行（I302）に行IDを付け、付けた行を `ファイル:行:列 ^ID` で出す（`--json` でJSON）。`--check` は書き換えずに、付ける行があれば終了コード1。本文の診断では1にしない。`project.toml` の `format_version` か `[dialogue]` を読めなければ（`project.toml` そのものを読めないときを含む）、何もせずに終了コード2
@@ -63,7 +63,7 @@ app/                    Tauri＋React（src-tauri/ と src/）
   - `cargo run -p scn-cli -- graph [project-dir] [--level scene|chapter|route]`：シーン、辺、条件、変数の読み書きを、粒度ごとに一覧で出す（`--json` でJSON）。辺の文脈は、いちばん内側のもの（選択肢、条件、`@else` の枝）だけ。診断は出さず、終了コードは0（作品フォルダでなければ2）
   - `cargo run -p scn-cli -- new <dir> [--title 作品名]`：新しい作品フォルダを作る（無いフォルダか空のフォルダに。`project.toml`、スタブの章、`CLAUDE.md`、`FORMAT.md` など）。ひな形は `crates/scn-core/templates/`
   - `cargo run -p scn-cli -- format-doc [project-dir]`：作品フォルダの `FORMAT.md`（仕様書の1〜16節と作品フォルダの規約）を、今のツールの版で書き直す。`--check` は書き直さずに、古ければ終了コード1
-  - `cargo run -p scn-cli -- export script [project-dir] [-o 書き出し先]`：台本（行ID、シーン、キャラ、台詞、直前の地の文、ボイスファイル名、備考）を CSV（UTF-8 の BOM 付き、CRLF）で書き出す。既定の書き出し先は作品フォルダの `export/script.csv`、`-o -` で標準出力。行IDの無い台詞の数は標準エラーに出す。終了コードは `ir` と同じ（エラーの診断があれば1）
+  - `cargo run -p scn-cli -- export script [project-dir] [--format csv|xlsx] [--baseline] [-o 書き出し先]`：台本（行ID、シーン、キャラ、台詞、直前の地の文、ボイスファイル名、備考）を CSV（UTF-8 の BOM 付き、CRLF）か Excel 形式（`--format xlsx`。欄はすべて文字列）で書き出す。既定の書き出し先は作品フォルダの `export/script.csv`（Excel 形式は `export/script.xlsx`）、`-o -` で標準出力。`--baseline` で書き出した台本を収録の基準（`export/script-baseline.json`）として記録し、基準があれば、変わった台詞の備考に「再収録候補」と書いて数を標準エラーに出す。行IDの無い台詞の数も標準エラーに出す。終了コードは `ir` と同じ（エラーの診断があれば1）
   - `cargo run -p scn-cli -- export orders [project-dir] [-o 書き出し先]`：発注リスト（まだファイルの無い素材の表。種別、名前、キャラ、差分、使用回数、初出、使用シーン、備考）を CSV（UTF-8 の BOM 付き、CRLF）で書き出す。既定の書き出し先は作品フォルダの `export/orders.csv`、`-o -` で標準出力。終了コードは `export script` と同じ
   - `cargo run -p scn-cli -- export text [project-dir] [--route 名前 | --ending ID] [--no-notes] [-o 書き出し先]`：道（共通・ルート・エンディング）を一本道にした通読用のテキスト（話者名なし、ルビは `｜親文字《読み》`）を書き出す。`--route` も `--ending` も無ければ、共通とすべてのルートを作品フォルダの `export/text/<道の名前>.txt` に書く。`-o -` で標準出力（1つの道のときだけ）。ルートの無い作品は「通し」として書く。まとめて書くとき、着けない道は標準エラーに知らせて書かない。終了コードは `export script` と同じで、加えて `--route`・`--ending` で指定した道が無い・着けないときは2
   - `cargo run -p scn-cli -- export renpy [project-dir] [-o 書き出し先]`：出力プロファイル（`export/renpy.yaml`）に従って Ren'Py のスクリプトを書き出す。既定の書き出し先はプロファイルの `output`（既定は作品フォルダの `export/renpy`）で、その `game/scn/` だけを作り直す。知らせとプロファイルの誤りは標準エラーに出す。終了コードは `export script` と同じ（`game/scn/` が書き出したものでなければ消さずに2）
@@ -75,7 +75,7 @@ app/                    Tauri＋React（src-tauri/ と src/）
 - Lezer文法（`packages/lezer-scn`）：`pnpm -C packages/lezer-scn test`（文法から構文解析器を作り直してから、`node --test` でテスト）／`pnpm -C packages/lezer-scn build`（構文解析器を作るだけ）
   - 作った `src/parser.ts`・`src/parser.terms.ts` はコミットしない（`typecheck` と `test` が先に作る）
   - サンプルの行の種類の期待値（`test/expected/*.txt`）を作り直す：`UPDATE_EXPECTED=1 pnpm -C packages/lezer-scn test`。差分を読んで確かめてから受け入れる
-- アプリ（`app/`、Tauri＋React）：`pnpm -C app tauri dev`（開発用に起動する。デバッグビルドでは起動時に `samples/houkago` を開く）／`pnpm -C app test`（位置の変換、グラフの配置、エディタ、置き換え、執筆表示、行IDを守る扱い、入力補助、検証の画面、設定DBの画面、素材カタログの画面、企画の画面、マージの画面、名前の変更とパレットなどエディタの残り、プレビューのランタイムと縦書きの組み方のテスト。プレビューと「ここから再生」のテストはコアのスナップショット（`crates/scn-core/tests/snapshots/preview__*.snap`・`route__*.snap`）を読むので、`cargo test -p scn-core` の後に走らせる）／`pnpm -C app build`（フロントのビルド）
+- アプリ（`app/`、Tauri＋React）：`pnpm -C app tauri dev`（開発用に起動する。デバッグビルドでは起動時に `samples/houkago` を開く）／`pnpm -C app test`（位置の変換、グラフの配置、エディタ、置き換え、執筆表示、行IDを守る扱い、入力補助、検証の画面、設定DBの画面、変数と型定義のフォーム、素材カタログの画面、企画の画面、マージの画面、名前の変更とパレットなどエディタの残り、プレビューのランタイムと縦書きの組み方のテスト。プレビューと「ここから再生」のテストはコアのスナップショット（`crates/scn-core/tests/snapshots/preview__*.snap`・`route__*.snap`）を読むので、`cargo test -p scn-core` の後に走らせる）／`pnpm -C app build`（フロントのビルド）
   - 開発用の環境変数：`SCN_DEV_PROJECT=<作品フォルダ>`（起動時に開く）、`SCN_MEASURE_IPC=1`（開いた後に、入力が止まったときの受け渡しの時間を10回測ってターミナルに書く）。解析の速さを見るときは、Rustをリリースビルドにする `pnpm -C app tauri dev --release` で測る
   - Rust側（`app/src-tauri`、パッケージ名 `scn-app`）はCargoのワークスペースに入っているので、`cargo test --workspace`・`cargo clippy --workspace` の対象になる
   - フロントの `dev`・`build`・`typecheck` は、先に `packages/lezer-scn` の文法から構文解析器を作る
