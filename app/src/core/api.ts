@@ -14,14 +14,18 @@ import type {
   BibleData,
   BibleWritten,
   CatalogWritten,
+  ConceptData,
   DevSettings,
   EntryUsage,
   GraphLevel,
+  Idea,
   JsonValue,
   KeptFile,
   LoadedLayout,
   OpenedProject,
   PreviewRequest,
+  PromotedWritten,
+  Promotion,
   ReadingChoice,
   ReadingResult,
   ReadingTarget,
@@ -123,6 +127,38 @@ export function createEntry(
   name: string,
 ): Promise<BibleWritten> {
   return invoke<BibleWritten>("create_entry", { typeId, id, name });
+}
+
+/** アイデアメモの一覧（T2-6）。 */
+export function readIdeas(): Promise<Idea[]> {
+  return invoke<Idea[]>("read_ideas");
+}
+
+/** アイデアメモを新しく作る（`ideas/idea-NNN.md`）。 */
+export function createIdea(
+  body: string,
+  tags: readonly string[],
+): Promise<{ file: string; text: string }> {
+  return invoke<{ file: string; text: string }>("create_idea", { body, tags });
+}
+
+/** アイデアメモを昇格する。`seen` は画面が知っているメモの中身。 */
+export function promoteIdea(
+  path: string,
+  seen: string,
+  promotion: Promotion,
+): Promise<PromotedWritten> {
+  return invoke<PromotedWritten>("promote_idea", { path, seen, promotion });
+}
+
+/** 企画書の画面の中身。 */
+export function readConcept(): Promise<ConceptData> {
+  return invoke<ConceptData>("read_concept");
+}
+
+/** 企画書をひな形で作る。 */
+export function createConcept(): Promise<BibleWritten> {
+  return invoke<BibleWritten>("create_concept");
 }
 
 /** 変数の画面の中身。 */

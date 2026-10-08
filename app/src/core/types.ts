@@ -189,7 +189,9 @@ export type Change =
     }
   | { readonly kind: "unreadable"; readonly file: string }
   | { readonly kind: "layout" }
-  | { readonly kind: "settings" };
+  | { readonly kind: "settings" }
+  /** アイデアメモ（`ideas/*.md`）が外で変わった（T2-6）。 */
+  | { readonly kind: "ideas" };
 
 /** `workspace-changed` の知らせ。 */
 export interface WorkspaceChanged {
@@ -613,4 +615,118 @@ export interface ReadingResult {
     readonly stop: string;
     readonly message: string | null;
   };
+}
+
+/** アイデアメモの昇格先（コアの `ideas::IdeaTarget`）。 */
+export type IdeaTarget =
+  | {
+      readonly kind: "scene";
+      readonly id: string;
+      readonly title: string;
+      readonly file: string;
+      readonly span: readonly [number, number];
+    }
+  | {
+      readonly kind: "entry";
+      readonly type_id: string;
+      readonly type_name: string;
+      readonly id: string;
+      readonly name: string;
+      readonly path: string;
+    }
+  | { readonly kind: "missing"; readonly value: string };
+
+/** アイデアメモ1枚（コアの `ideas::Idea`、T2-6）。 */
+export interface Idea {
+  readonly file: string;
+  /** ファイルの中身（UTF-8で読めなければ null）。 */
+  readonly text: string | null;
+  /** `未整理`・`採用`・`保留`・`没`。 */
+  readonly status: string;
+  readonly tags: readonly string[];
+  readonly promoted_to: string | null;
+  readonly target: IdeaTarget | null;
+  readonly body: string;
+  readonly problems: readonly string[];
+}
+
+/** 昇格のしかた（コアの `ideas::Promotion`）。 */
+export type Promotion =
+  | {
+      readonly kind: "entry";
+      readonly type_id: string;
+      readonly id: string;
+      readonly name: string;
+    }
+  | {
+      readonly kind: "scene";
+      readonly file: string;
+      readonly id: string;
+      readonly title: string;
+    };
+
+/** 昇格の結果（コアの `workspace::Promoted`）。 */
+export type Promoted =
+  | {
+      readonly kind: "saved";
+      readonly text: string;
+      readonly target: string;
+      readonly scene: { readonly file: string; readonly text: string } | null;
+    }
+  | {
+      /** 昇格先は作ったが、メモを書けなかった。 */
+      readonly kind: "memo_unwritten";
+      readonly target: string;
+      readonly scene: { readonly file: string; readonly text: string } | null;
+      readonly message: string;
+    }
+  | { readonly kind: "conflict"; readonly text: string }
+  | { readonly kind: "unsupported"; readonly message: string };
+
+/** 昇格した後に受け取るもの（設定DBを書いた後と同じ形）。 */
+export interface PromotedWritten extends Omit<BibleWritten, "edit"> {
+  readonly edit: Promoted;
+}
+
+/** 本文のシーン（企画書のエンディングの場所）。 */
+export interface ConceptScene {
+  readonly id: string;
+  readonly title: string;
+  readonly file: string;
+  readonly span: readonly [number, number];
+}
+
+/** 企画書の画面のデータ（コアの `concept::ConceptData`、T2-6）。 */
+export interface ConceptData {
+  /** `concept.md` の中身（無ければ null）。 */
+  readonly text: string | null;
+  readonly problems: readonly string[];
+  /** フロントマターの値（フォームの入力欄の値）。 */
+  readonly fields: Readonly<Record<string, JsonValue>>;
+  readonly logline: string;
+  readonly theme: string;
+  readonly tone: string;
+  readonly volume_chars: number | null;
+  readonly volume_routes: number | null;
+  readonly main_characters: readonly {
+    readonly id: string;
+    readonly name: string | null;
+    readonly path: string | null;
+    readonly traits: readonly {
+      readonly label: string;
+      readonly value: string;
+    }[];
+  }[];
+  readonly endings: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly intent: string;
+    readonly scenes: readonly ConceptScene[];
+  }[];
+  readonly endings_listed: boolean;
+  readonly unplanned: readonly {
+    readonly id: string;
+    readonly scenes: readonly ConceptScene[];
+  }[];
+  readonly body: string;
 }

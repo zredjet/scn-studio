@@ -18,7 +18,9 @@ use scn_core::assets;
 use scn_core::assist::{self, completion_data, scene_chars};
 use scn_core::bible;
 use scn_core::check::{check, overflow};
+use scn_core::concept::concept_data;
 use scn_core::graph::{Level, build_graph};
+use scn_core::ideas::{self, Promotion};
 use scn_core::index::build_index;
 use scn_core::ir::{Edge, IrDiagnostic, IrMeta};
 use scn_core::layout::{Point, read_layout as read_layout_file};
@@ -492,6 +494,73 @@ fn create_entry(
         .create_entry(&type_id, &id, &name)
         .map_err(|e| e.to_string())?;
     after_settings_write(workspace, json!({ "kind": "created", "path": file }))
+}
+
+/// アイデアメモの一覧（`ideas/*.md`。昇格先を解いたもの。T2-6、D057）。
+#[tauri::command]
+fn read_ideas(state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let root = workspace.root().to_owned();
+    let project = workspace.project();
+    let list = with_ir(project, |ir| {
+        to_json(&ideas::ideas(&root, project, ir), "アイデアメモ")
+    })?;
+    json_response(&list)
+}
+
+/// アイデアメモを新しく作る（`ideas/idea-NNN.md`）。
+#[tauri::command]
+fn create_idea(
+    body: String,
+    tags: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let (file, text) = workspace
+        .create_idea(&body, &tags)
+        .map_err(|e| e.to_string())?;
+    json_response(&json!({ "file": file, "text": text }))
+}
+
+/// アイデアメモを昇格する（エントリかスタブのシーンを作り、メモに `promoted_to` を書く）。`seen` はフロントが
+/// 知っているメモの中身。設定と本文が変わるので、設定DBを書いた後と同じものを返す。
+#[tauri::command]
+fn promote_idea(
+    path: String,
+    seen: String,
+    promotion: Promotion,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let promoted = workspace
+        .promote_idea(&path, &seen, &promotion)
+        .map_err(|e| e.to_string())?;
+    after_settings_write(workspace, to_json(&promoted, "昇格の結果")?)
+}
+
+/// 企画書の画面の中身（フロントマターの項目、主要キャラ、エンディングと本文の対応）。
+#[tauri::command]
+fn read_concept(state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let root = workspace.root().to_owned();
+    let project = workspace.project();
+    let data = with_ir(project, |ir| {
+        to_json(&concept_data(&root, project, ir), "企画書")
+    })?;
+    json_response(&data)
+}
+
+/// 企画書（`concept.md`）をひな形で作る。
+#[tauri::command]
+fn create_concept(state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let text = workspace.create_concept().map_err(|e| e.to_string())?;
+    after_settings_write(workspace, json!({ "kind": "saved", "text": text }))
 }
 
 /// 変数の画面の中身：`variables.yaml` の中身（無ければ null）と、変数の一覧（読み書きの位置を含む）。
@@ -1213,6 +1282,11 @@ pub fn run() {
             set_entry_body,
             write_entry_source,
             create_entry,
+            read_ideas,
+            create_idea,
+            promote_idea,
+            read_concept,
+            create_concept,
             read_variables,
             write_variables,
             preview_data,

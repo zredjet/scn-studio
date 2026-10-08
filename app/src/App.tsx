@@ -9,6 +9,7 @@ import { AssetsScreen } from "./assets/AssetsScreen.tsx";
 import { type BibleRequest, BibleScreen } from "./bible/BibleScreen.tsx";
 import { CheckList } from "./check/CheckList.tsx";
 import { countBySeverity } from "./check/group.ts";
+import { ConceptScreen } from "./concept/ConceptScreen.tsx";
 import {
   addChapter,
   assetUrl,
@@ -166,6 +167,8 @@ export function App() {
   const [bibleRequest, setBibleRequest] = useState<BibleRequest | null>(null);
   /** 設定ファイルが外で変わった回数（設定DBと変数の画面が読み直す）。 */
   const [settingsVersion, setSettingsVersion] = useState(0);
+  /** アイデアメモが外で変わった回数（企画の画面が読み直す。T2-6）。 */
+  const [ideasVersion, setIdeasVersion] = useState(0);
   /** プレビューのデータ（プレビューの画面を開いているときだけ取る。T1-11、D050）。 */
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -488,6 +491,10 @@ export function App() {
             changed.push("設定ファイル");
             setSettingsVersion((n) => n + 1);
             break;
+          case "ideas":
+            changed.push("アイデアメモ");
+            setIdeasVersion((n) => n + 1);
+            break;
           case "layout":
             setLayoutVersion((n) => n + 1);
             break;
@@ -746,7 +753,8 @@ export function App() {
     const here = latest.current.screen;
     const draft =
       (here === "bible" && drafts.has("bible")) ||
-      (here === "variables" && drafts.has("variables"));
+      (here === "variables" && drafts.has("variables")) ||
+      (here === "concept" && drafts.has("concept"));
     if (!draft) {
       go();
       return;
@@ -774,6 +782,42 @@ export function App() {
   const onVariablesDraft = useCallback(
     (value: boolean) => onSettingsDraft("variables", value),
     [onSettingsDraft],
+  );
+  const onConceptDraft = useCallback(
+    (value: boolean) => onSettingsDraft("concept", value),
+    [onSettingsDraft],
+  );
+
+  /** 企画の画面から設定DBのエントリを開く。 */
+  const openEntry = useCallback(
+    (path: string) =>
+      leaveSettings(() =>
+        requestBible((seq) => ({ kind: "entry", path, seq })),
+      ),
+    [leaveSettings, requestBible],
+  );
+
+  /**
+   * コアが本文のファイルを書いた（アイデアメモの昇格で、章にスタブのシーンを足した。T2-6）。外部の変更を
+   * 読み込み直したときと同じく、エディタの中身を差し替える。まだ送っていない編集があれば（ふつうは選べない）、
+   * コアに自分の編集を戻し、読み込み直すか残すかを選ばせる。
+   */
+  const onStoryWritten = useCallback(
+    (file: string, text: string) => {
+      const before = saved.current.get(file);
+      saved.current.set(file, text);
+      if (latest.current.dirty.has(file)) {
+        setConflicts((m) => new Map(m).set(file, { deleted: false }));
+        const mine = buffers.current.get(file);
+        if (mine !== undefined) void parseBuffer(file, mine).catch(() => {});
+      } else {
+        buffers.current.set(file, text);
+        if (file === latest.current.currentFile && before !== undefined)
+          replaceText(file, text, before);
+      }
+      setSavedVersion((n) => n + 1);
+    },
+    [replaceText],
   );
 
   /** 本文の画面で、あるファイルのある位置へ移る。 */
@@ -1197,6 +1241,22 @@ export function App() {
                     onLevel={setFlowLevel}
                     layoutVersion={layoutVersion}
                     onOpen={selectScene}
+                  />
+                </section>
+              )}
+              {screen === "concept" && (
+                <section className="screen concept-screen" aria-label="企画">
+                  <ConceptScreen
+                    scenes={project.summary.scenes}
+                    chapters={project.files}
+                    dirtyChapters={dirty}
+                    settingsVersion={settingsVersion}
+                    ideasVersion={ideasVersion}
+                    onWritten={onSettingsWritten}
+                    onStoryWritten={onStoryWritten}
+                    onOpenLocation={openFromSettings}
+                    onOpenEntry={openEntry}
+                    onUnsaved={onConceptDraft}
                   />
                 </section>
               )}

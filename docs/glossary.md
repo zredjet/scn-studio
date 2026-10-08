@@ -13,6 +13,7 @@
 | 文体見本 | style sample | 自分で書いた見本の文章。AI生成の文脈に入れる |
 | アイデアメモ | idea | `ideas/` の1ファイル |
 | 昇格 | promote | メモから設定エントリ・スタブシーン・伏線を作ること |
+| 昇格先 | promoted_to / target | メモの `promoted_to`（`scene/<ID>` か `<型>/<ID>`）。解いたものは `IdeaTarget` |
 
 ## 設定DB
 

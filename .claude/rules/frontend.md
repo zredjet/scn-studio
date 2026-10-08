@@ -47,6 +47,12 @@ paths:
 - 縦書きビュー（`preview/VerticalView.tsx`）は、コアの通読（`route::read`）を `preview/vertical.ts` で段落・行・ページにする。組み方（折り返し、縦中横、原稿用紙換算）は `vertical.ts` に置き、テストを付ける（`app/test/vertical.test.ts`）。
 - プレビューの別ウィンドウ（`preview/PreviewWindow.tsx`。ウィンドウのラベルは `preview`）とメインウィンドウは、Tauri のイベントでだけつなぐ（`core/api.ts` の `sendPreviewLine` など）。ウィンドウどうしで状態を共有しない。
 
+## 企画の画面（app/src/concept/）
+
+- メモと企画書の項目は、設定DBの画面と同じ入力欄（`bible/FieldInput.tsx`、`BodyField`）と書き換え（`set_entry_field` など。直したキーの行だけ）を使う。フロントで YAML を組み立てない。
+- 昇格はコア（`promote_idea`）が行う。章にスタブのシーンを足したら、App の `onStoryWritten` でエディタの中身を差し替える（外部の変更の読み込み直しと同じ扱い）。保存していない変更のある章は選ばせない。
+- メモの並べ方、絞り込み、昇格の欄の初めの値は `concept/ideas.ts` に置き、テストを付ける（`app/test/ideas.test.ts`）。
+
 ## フロー図（xyflow）
 
 - ノードと辺はIRから作る。座標は自動で配置し、人が動かした位置は `layout.json` に保存する（T1-9）。

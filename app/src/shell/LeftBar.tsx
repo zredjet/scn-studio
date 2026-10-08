@@ -2,6 +2,8 @@
 // まだ作っていない画面は押せなくする。
 
 export type Screen =
+  /** 企画（企画書とアイデアメモ。T2-6）。 */
+  | "concept"
   | "text"
   | "flow"
   | "bible"
@@ -13,6 +15,7 @@ export type Screen =
   | "preview";
 
 const ITEMS: readonly { screen: Screen; label: string; later?: string }[] = [
+  { screen: "concept", label: "企画" },
   { screen: "text", label: "本文" },
   { screen: "flow", label: "フロー" },
   { screen: "bible", label: "設定" },

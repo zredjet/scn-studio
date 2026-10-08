@@ -895,7 +895,7 @@ fn reading_goals(ir: &Ir, target: &ReadingTarget) -> Vec<RouteTarget> {
 }
 
 /// 命令の木の中のエンディング（本文の順）。
-fn collect_ending_ops<'a>(ops: &'a [Op], out: &mut Vec<&'a Op>) {
+pub(crate) fn collect_ending_ops<'a>(ops: &'a [Op], out: &mut Vec<&'a Op>) {
     for op in ops {
         match op {
             Op::Ending { .. } => out.push(op),

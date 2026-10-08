@@ -809,14 +809,21 @@ export function BibleScreen({
  * （打っている間に外で本文が変わっていれば、コアが書かずに知らせる）。打っていない間は、下書きと元の中身を
  * 今のものに合わせる。
  */
-function BodyField({
+export function BodyField({
   body,
   fileText,
   onCommit,
+  id = "field-body",
+  label = "本文（Markdown）",
+  rows = 5,
 }: {
   readonly body: string;
   readonly fileText: string;
   readonly onCommit: (body: string, seen: string) => Promise<EntryEdit | null>;
+  /** 入力欄のID（企画の画面のように、1つの画面に2つ置くとき）。 */
+  readonly id?: string;
+  readonly label?: string;
+  readonly rows?: number;
 }) {
   const [draft, setDraft] = useState(normalizeNewlines(body));
   const touched = useRef(false);
@@ -851,14 +858,14 @@ function BodyField({
   };
   return (
     <div className="bible-field">
-      <label className="bible-label" htmlFor="field-body">
-        本文（Markdown）
+      <label className="bible-label" htmlFor={id}>
+        {label}
         <span className="bible-label-note">フロントマターの後ろ</span>
       </label>
       <textarea
-        id="field-body"
+        id={id}
         className="bible-body"
-        rows={5}
+        rows={rows}
         value={draft}
         onChange={(event) => {
           touched.current = true;

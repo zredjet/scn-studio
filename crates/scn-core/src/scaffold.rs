@@ -36,6 +36,9 @@ const TEMPLATES: [(&str, &str); 9] = [
     (".gitignore", include_str!("../templates/gitignore")),
 ];
 
+/// 企画書のひな形（アプリの「企画書を作る」。`scn new` と同じ中身）。
+pub const CONCEPT_TEMPLATE: &str = include_str!("../templates/concept.md");
+
 /// 中身の無いまま作るフォルダ。
 const EMPTY_DIRS: [&str; 1] = ["bible/entries/character"];
 

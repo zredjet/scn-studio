@@ -617,3 +617,14 @@
     - CLI で1つの道（`--route`・`--ending`）を指定して、無い・着けないときは終了コード2。まとめて書くときは、着けない道を知らせて飛ばす。
 - 理由：分岐した本文を、一本道として読み通して確かめるため（設計検討書「縦書きビュー」「エクスポート」）。道の解決をコアに置き、CLI とアプリで同じ結果にする。
 - 影響：`crates/scn-core/src/route.rs`（通読）、`plaintext.rs`（新規）、`diag.rs`（`Span` を JSON から読む）、`crates/scn-cli`（`export text`）、`app/src-tauri`（`reading_choices`・`read_route`・`export_text`）、`app/src/preview/`（`VerticalView.tsx`・`vertical.ts` 新規、`PreviewScreen.tsx`、`runtime.ts` の `stepsFromLog`）、`ExportScreen.tsx`、`api.ts`・`types.ts`、CSS、`docs/spec/project-files.md` の1節・10節、`CLAUDE.md`。
+
+## D057 企画の画面とアイデアメモ（2026-10-08）
+
+- 決定：
+  - 左端のバーの先頭に「企画」を置く（モックの順）。左にアイデアメモ（状態ごとの列：未整理・採用・保留・没。没は畳む。タグで絞り込む。メモの追加）、右に企画書（フォームとソース）。AIの問い返しと分類案の欄はフェーズ3で作り、今は出さない。
+  - メモはコアの `ideas`（読み方、昇格先の解決）が読み、企画書はコアの `concept`（フロントマターの項目、主要キャラの欲求と葛藤、エンディングと本文の `@エンディング` の対応。W701・W702 と同じ照らし方）が画面のデータにする。メモと企画書の項目と本文の書き換えは、設定DBのエントリと同じ（直したキーの行だけを差し替え、読み直して確かめる。D049）。
+  - 昇格は3種類：設定（選んだ型のエントリ）、スタブシーン（章の末尾に見出しと `summary` だけ）、伏線（型 `foreshadow` のエントリ。型の定義が無ければ標準の定義を作る）。エントリの本文はメモの本文、スタブの要約はメモの最初の行。メモには `status: 採用` と `promoted_to` を書く。保存していない変更のある章には足さない。作れないとき（伏線の型の定義があるのに読めない、メモが読み取り専用を含む）は何も変えない。昇格先を作った後でメモを書けなかったときは、作ったものを画面に入れて知らせる（`Promoted::MemoUnwritten`）。既にあるシーンやエントリへの結びつけは、メモの「昇格先」の欄で `promoted_to` を書く。
+  - 新しいメモは `ideas/idea-NNN.md`。`ideas/` の外部の変更は、アプリがメモの一覧を読み直す（`Change::Ideas`）。
+  - 企画書の `volume` はフォームで `{ chars: …, routes: … }` の形で書く（`set_field` が、値が文字列・数・真偽値だけの対応表を、この形で書くようにした）。`endings` はソースで直す。
+- 理由：アイデアから企画、構造へ進む入口を作る（設計検討書「アイデアと企画」）。価値はメモそのものではなく、下流のシーンや設定への接続に置くので、昇格を画面の中心にする。書き換えは設定DBと同じ仕組みにして、外部エディタ（Obsidian など）で書いたメモの行を崩さない。
+- 影響：`crates/scn-core/src/ideas.rs`・`concept.rs`（新規）、`workspace.rs`（企画書とメモのパス、`create_idea`・`create_concept`・`promote_idea`、`Change::Ideas`）、`bible.rs`（対応表の書き方）、`route.rs`（エンディングの集め方を共有）、`scaffold.rs`（企画書のひな形）、`app/src-tauri`（`read_ideas`・`create_idea`・`promote_idea`・`read_concept`・`create_concept`）、`app/src/concept/`（新規）、`App.tsx`・`LeftBar.tsx`、`BibleScreen.tsx`（本文の欄を共有）、CSS、`docs/spec/project-files.md` の6節・8節。

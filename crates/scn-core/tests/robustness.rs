@@ -4,8 +4,8 @@
 //! パニックしないこと、診断とASTのスパンが範囲内で文字の境界にあることを確かめる。
 //! 構文解析だけでなく、意味解析とIR（`analyze`）、索引、検証の段階1（`check`）も通す。
 //! 行IDの付与（`scn fmt`）も、同じ入力で確かめる（足した部分のほかはバイトが変わらない、など）。
-//! 素材の一覧と発注リスト（`assets`）、カーソル位置から再生の最短経路（`route`）、Ren'Py への書き出し（`renpy`）も、
-//! 同じ入力でパニックしないことを確かめる。
+//! 素材の一覧と発注リスト（`assets`）、カーソル位置から再生の最短経路（`route`）、Ren'Py への書き出し（`renpy`）、
+//! アイデアメモと企画書（`ideas`・`concept`）も、同じ入力でパニックしないことを確かめる。
 
 mod support;
 
@@ -17,6 +17,8 @@ use proptest::prelude::*;
 use proptest::sample::Index;
 use scn_core::assets::{AssetState, asset_list, orders};
 use scn_core::check::check as check_project;
+use scn_core::concept::concept_data;
+use scn_core::ideas::{read_idea, stub_scene, summary_line};
 use scn_core::index::build_index;
 use scn_core::line_id::{LineIdGenerator, assign_line_ids};
 use scn_core::plaintext::plain_text;
@@ -116,6 +118,13 @@ fn check(source: &str) {
     }
     let reading = read(&windowed, &ir, &ReadingTarget::Common, &Default::default());
     let _ = plain_text(&windowed, &reading, "共通", false);
+
+    // アイデアメモとして読む、スタブのシーンを足す（前の中身は変えない）、企画書の画面のデータ。
+    let idea = read_idea("ideas/x.md", Some(source));
+    let summary = summary_line(&idea.body);
+    let stub = stub_scene(source, "題", "zz_stub", summary.as_deref());
+    assert!(stub.contains("## 題 #zz_stub"));
+    let _ = concept_data(&fixture_root(), &windowed, &ir);
 
     // Ren'Py への書き出し（定義のファイルは必ず書く）。
     let export = export_renpy(&windowed, &fixture_root(), &ir, &RenpyProfile::default());

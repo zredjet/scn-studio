@@ -480,7 +480,27 @@ fn candidates(value: &Value) -> Vec<Written> {
                 json_inline(value),
             ]
         }
-        Value::Object(_) => vec![json_inline(value)],
+        // `{ chars: 300000, routes: 2 }` の形（値が文字列・数・真偽値だけのとき）。読み直して違えば JSON。
+        Value::Object(map) => {
+            let parts: Option<Vec<String>> = map
+                .iter()
+                .map(|(k, v)| {
+                    let v = match v {
+                        Value::String(s) => scalar_inline(s, true),
+                        Value::Number(_) | Value::Bool(_) => v.to_string(),
+                        _ => return None,
+                    };
+                    Some(format!("{}: {v}", key_text(k)))
+                })
+                .collect();
+            match parts {
+                Some(parts) if !parts.is_empty() => vec![
+                    Written::Inline(format!("{{ {} }}", parts.join(", "))),
+                    json_inline(value),
+                ],
+                _ => vec![json_inline(value)],
+            }
+        }
     }
 }
 

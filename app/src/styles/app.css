@@ -1778,7 +1778,8 @@ body {
   white-space: nowrap;
 }
 
-.bible-table td.variables-desc {
+.bible-table td.variables-desc,
+.bible-table td.concept-intent {
   white-space: normal;
 }
 
@@ -2517,4 +2518,418 @@ body {
 .bible-chip-mark {
   font-size: 11px;
   font-weight: 700;
+}
+
+/* ---- 企画の画面（docs/ui/mockups/01-ideas.html、T2-6、D057） ---- */
+
+.concept-body {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.ideas-main {
+  display: flex;
+  flex: 999 1 560px;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--paper);
+}
+
+.ideas-head,
+.concept-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px 12px;
+}
+
+.ideas-title {
+  display: flex;
+  flex-direction: column;
+}
+
+.ideas-title h1,
+.ideas-title h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.ideas-title h2 {
+  font-size: 18px;
+}
+
+.ideas-count {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.ideas-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ideas-filter button {
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border-control);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ideas-filter button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+  color: var(--accent-strong);
+}
+
+.ideas-add {
+  display: flex;
+  gap: 8px;
+  padding: 0 20px 14px;
+}
+
+.ideas-add input {
+  flex: 1;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-item);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13.5px;
+}
+
+.ideas-error {
+  margin: 0 20px 10px;
+  color: var(--danger-text);
+  font-size: 12.5px;
+}
+
+.ideas-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 20px 16px;
+}
+
+.ideas-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.ideas-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--panel-bg);
+}
+
+.ideas-column h2 {
+  margin: 0 2px 2px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+/* 選んだメモの列は広げる（直す欄と昇格の欄を開くため）。 */
+.ideas-column:has(.idea-card.selected) {
+  grid-column: span 2;
+}
+
+.ideas-show-folded {
+  min-height: 32px;
+  border: 1px dashed var(--border-control);
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.idea-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--paper);
+}
+
+.idea-card.selected {
+  border: 2px solid var(--accent);
+  padding: 9px 11px;
+}
+
+.idea-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.idea-text {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.idea-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.idea-tag {
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--border-soft);
+  color: var(--text-2);
+  font-size: 11px;
+}
+
+.idea-target {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.idea-target.missing {
+  color: var(--warn-text);
+  cursor: default;
+}
+
+.idea-problem {
+  margin: 0;
+  color: var(--warn-text);
+  font-size: 12px;
+}
+
+.idea-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.idea-file {
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+
+.idea-promote {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.idea-promote-label {
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.idea-promote button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+
+.idea-promote-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--radius-item);
+  background: var(--accent-tint-2);
+}
+
+.idea-promote-note {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.idea-promote-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.idea-promote-field input,
+.idea-promote-field select {
+  min-height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.idea-promote-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.concept-panel {
+  display: flex;
+  flex: 1 1 420px;
+  flex-direction: column;
+  min-width: 320px;
+  min-height: 0;
+  overflow: auto;
+  border-left: 1px solid var(--border);
+  background: var(--panel-bg-2);
+}
+
+.concept-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0 18px 20px;
+}
+
+.concept-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.concept-characters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.concept-character {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-item);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.concept-character:disabled {
+  cursor: default;
+}
+
+.concept-character-name {
+  font-weight: 700;
+}
+
+.concept-trait-label {
+  margin-right: 6px;
+  color: var(--text-muted);
+}
+
+.concept-ending-name {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.concept-ending-id {
+  display: block;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.concept-scene {
+  margin-right: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.concept-missing-scene {
+  color: var(--warn-text);
+  font-weight: 700;
+}
+
+.concept-note {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.concept-unplanned {
+  margin-left: 6px;
+  font-family: var(--font-mono);
+}
+
+.concept-missing {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 0 18px;
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.concept-status {
+  min-height: 1.5em;
+  margin: 0;
+  padding: 0 18px 10px;
+  color: var(--text-muted);
+  font-size: 12px;
 }

@@ -12,10 +12,16 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 
 use crate::assets::{CATALOG_FILE, CatalogEditError, add_entry, assets_relative, set_file};
-use crate::bible::{body_of, front_fields, set_body, set_field, yaml_scalar};
+use crate::bible::{FORESHADOW_TYPE, body_of, front_fields, set_body, set_field, yaml_scalar};
+use crate::concept::CONCEPT_FILE;
+use crate::ideas::{
+    ADOPTED, FORESHADOW_TYPE_TEXT, IDEAS_DIR, Promotion, is_idea_path, new_idea_file,
+    new_idea_text, stub_scene, summary_line,
+};
 use crate::layout::{LAYOUT_FILE, LayoutError, Point, update_layout};
 use crate::line_id::{AssignedLineId, LineIdGenerator, assign_line_ids};
 use crate::project::{Project, ProjectError, SourceFile, load_project, write_source};
+use crate::scaffold::CONCEPT_TEMPLATE;
 
 /// 開いている作品フォルダ。
 pub struct Workspace {
@@ -59,6 +65,8 @@ pub enum Change {
     Layout,
     /// 設定ファイル（`project.toml`、変数、素材カタログ、設定DB、企画書）が変わったので、設定を読み直した。
     Settings,
+    /// アイデアメモ（`ideas/*.md`）が外で変わった。アプリはメモの一覧を読み直す（T2-6）。
+    Ideas,
 }
 
 /// 書いた本文。
@@ -91,6 +99,37 @@ pub enum EntryEdit {
     Conflict { text: String },
     /// フォームでは書き換えられない書き方なので、書かなかった（ソース表示で直す）。
     Unsupported { message: String },
+}
+
+/// アイデアメモを昇格した結果（T2-6、D057）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum Promoted {
+    /// 昇格先を作り、メモを書いた。`text` は書いたメモ、`target` は `promoted_to` の値。スタブのシーンを
+    /// 足したら、その章の書いた中身（`scene`）。
+    Saved {
+        text: String,
+        target: String,
+        scene: Option<StoryWritten>,
+    },
+    /// 昇格先は作ったが、メモを書けなかった（書く直前に読み取り専用になった、ディスクがいっぱいなど）。
+    /// アプリは作ったもの（`scene`）を画面に入れ、`message` を知らせる。
+    MemoUnwritten {
+        target: String,
+        scene: Option<StoryWritten>,
+        message: String,
+    },
+    /// メモが外で変わっていたので、何も作らなかった。`text` は今のメモの中身。
+    Conflict { text: String },
+    /// メモのフロントマターを書き換えられない書き方なので、何も作らなかった（ソースで直す）。
+    Unsupported { message: String },
+}
+
+/// 書いた本文のファイル（アプリはエディタの中身を差し替える）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct StoryWritten {
+    pub file: String,
+    pub text: String,
 }
 
 /// 素材カタログを書いた結果（T2-3、D054）。
@@ -338,6 +377,15 @@ impl Workspace {
                     Change::Layout
                 }
             }
+            _ if is_idea_path(&rel) => {
+                let on_disk = fs::read(self.root.join(&rel)).ok();
+                let mine = self.settings_written.get(&rel).map(String::as_bytes);
+                if on_disk.is_some() && on_disk.as_deref() == mine {
+                    return Change::None;
+                }
+                self.settings_written.remove(&rel);
+                Change::Ideas
+            }
             _ if SETTINGS_FILES.contains(&rel.as_str()) || parts.first() == Some(&"bible") => {
                 let on_disk = fs::read(self.root.join(&rel)).ok();
                 let mine = self.settings_written.get(&rel).map(String::as_bytes);
@@ -500,6 +548,7 @@ impl Workspace {
 
     /// 設定DBのエントリのパス（`bible/entries/<型>/<名前>.md`）を確かめる。ほかのパスは読み書きしない
     /// （フロントに任意のパスを読ませない。`.claude/rules/rust.md`）。
+    /// フォームとソースで書き換える文書（設定DBのエントリ、企画書、アイデアメモ）のパス。
     fn entry_path(&self, file: &str) -> Result<PathBuf, ProjectError> {
         let parts: Vec<&str> = file.split('/').collect();
         let safe = |part: &str| !part.is_empty() && !part.starts_with('.') && !part.contains('\\');
@@ -509,10 +558,12 @@ impl Workspace {
             {
                 Ok(self.root.join(file))
             }
+            [CONCEPT_FILE] => Ok(self.root.join(file)),
+            _ if is_idea_path(file) => Ok(self.root.join(file)),
             _ => Err(error(
                 &self.root.join(file),
                 io::ErrorKind::InvalidInput,
-                "設定DBのエントリのパスではありません",
+                "設定DBのエントリ、企画書、アイデアメモのパスではありません",
             )),
         }
     }
@@ -530,11 +581,15 @@ impl Workspace {
         }
     }
 
-    /// 設定ファイルを書き、覚えて（監視の知らせを無視するため）、設定を読み直す。
+    /// 設定ファイルを書き、覚えて（監視の知らせを無視するため）、設定を読み直す。アイデアメモは設定ではない
+    /// ので、読み直さない。
     fn write_settings_file(&mut self, file: &str, text: &str) -> Result<(), ProjectError> {
         write_source(&self.root, file, text)?;
         self.settings_written
             .insert(file.to_owned(), text.to_owned());
+        if is_idea_path(file) {
+            return Ok(());
+        }
         self.reload_settings()
     }
 
@@ -653,12 +708,59 @@ impl Workspace {
         id: &str,
         name: &str,
     ) -> Result<String, ProjectError> {
+        self.create_entry_with_body(type_id, id, name, "")
+    }
+
+    /// エントリを新しく作り、本文（フロントマターの後ろ）に `body` を書く（[`Self::create_entry`]）。
+    fn create_entry_with_body(
+        &mut self,
+        type_id: &str,
+        id: &str,
+        name: &str,
+        body: &str,
+    ) -> Result<String, ProjectError> {
+        let file = self.check_new_entry(type_id, id, name, false)?;
+        let dir = format!("bible/entries/{type_id}");
+        let invalid =
+            |message: &str| error(&self.root.join(&dir), io::ErrorKind::InvalidInput, message);
+        let name = name.trim();
+        // `0x1F`・`1e3`・`null` のように、素のままでは文字列として読めないIDは引用して書く。
+        let text = set_field(
+            &format!("---\nid: {}\n---\n", yaml_scalar(id)),
+            "name",
+            &serde_json::Value::String(name.to_owned()),
+        )
+        .map_err(|e| invalid(&e.to_string()))?;
+        let text = if body.is_empty() {
+            text
+        } else {
+            set_body(&text, body)
+        };
+        let folder = self.root.join(&dir);
+        fs::create_dir_all(&folder).map_err(|source| ProjectError::Write {
+            path: folder,
+            source,
+        })?;
+        self.write_settings_file(&file, &text)?;
+        Ok(file)
+    }
+
+    /// 新しいエントリを作れるかを確かめ、書くパスを返す（[`Self::create_entry`]）。`type_to_come` なら、型の定義が
+    /// まだ無くてもよい（伏線への昇格で、標準の定義を先に作るとき）。
+    fn check_new_entry(
+        &self,
+        type_id: &str,
+        id: &str,
+        name: &str,
+        type_to_come: bool,
+    ) -> Result<String, ProjectError> {
         let bible = &self.project.bible;
         let dir = format!("bible/entries/{type_id}");
         let invalid =
             |message: &str| error(&self.root.join(&dir), io::ErrorKind::InvalidInput, message);
-        let known =
-            bible.types.iter().any(|t| t.id == type_id) || type_id == bible.character_type();
+        let known = type_to_come
+            || bible.types.iter().any(|t| t.id == type_id)
+            || type_id == bible.character_type();
         if !known || type_id.is_empty() || type_id.starts_with('.') || type_id.contains(['/', '\\'])
         {
             return Err(invalid("型の定義（bible/types/<型>.yaml）の無い型です"));
@@ -683,19 +785,6 @@ impl Workspace {
                 "同じIDのエントリがあります",
             ));
         }
-        // `0x1F`・`1e3`・`null` のように、素のままでは文字列として読めないIDは引用して書く。
-        let text = set_field(
-            &format!("---\nid: {}\n---\n", yaml_scalar(id)),
-            "name",
-            &serde_json::Value::String(name.to_owned()),
-        )
-        .map_err(|e| invalid(&e.to_string()))?;
-        let folder = self.root.join(&dir);
-        fs::create_dir_all(&folder).map_err(|source| ProjectError::Write {
-            path: folder,
-            source,
-        })?;
-        self.write_settings_file(&file, &text)?;
         Ok(file)
     }
 
@@ -868,5 +957,217 @@ impl Workspace {
         write_source(&self.root, &file, "")?;
         self.insert_file(&file, "");
         Ok(file)
+    }
+
+    // ---- 企画とアイデアメモ（T2-6、D057） ----
+
+    /// 企画書（`concept.md`）を、ひな形（`scn new` と同じ）で作る。もうあれば作らない。書いた中身を返す。
+    pub fn create_concept(&mut self) -> Result<String, ProjectError> {
+        let path = self.root.join(CONCEPT_FILE);
+        if path.exists() {
+            return Err(error(
+                &path,
+                io::ErrorKind::AlreadyExists,
+                "企画書（concept.md）はもうあります",
+            ));
+        }
+        let text = CONCEPT_TEMPLATE.to_owned();
+        self.write_settings_file(CONCEPT_FILE, &text)?;
+        Ok(text)
+    }
+
+    /// アイデアメモを新しく作る：`ideas/idea-NNN.md`（使われていない最初の番号）に、`status: 未整理` と
+    /// タグと本文を書く。書いたパスと中身を返す。
+    pub fn create_idea(
+        &mut self,
+        body: &str,
+        tags: &[String],
+    ) -> Result<(String, String), ProjectError> {
+        let dir = self.root.join(IDEAS_DIR);
+        if body.trim().is_empty() {
+            return Err(error(
+                &dir,
+                io::ErrorKind::InvalidInput,
+                "メモの本文が空です",
+            ));
+        }
+        let tags: Vec<String> = tags
+            .iter()
+            .map(|t| t.trim().to_owned())
+            .filter(|t| !t.is_empty())
+            .collect();
+        let text = new_idea_text(body, &tags)
+            .map_err(|e| error(&dir, io::ErrorKind::InvalidInput, &e.to_string()))?;
+        fs::create_dir_all(&dir).map_err(|source| ProjectError::Write {
+            path: dir.clone(),
+            source,
+        })?;
+        let file = new_idea_file(&self.root);
+        self.write_settings_file(&file, &text)?;
+        Ok((file, text))
+    }
+
+    /// アイデアメモを昇格する：昇格先（設定DBのエントリ、章の末尾のスタブのシーン）を作り、メモに
+    /// `status: 採用` と `promoted_to` を書く（直したキーの行だけを差し替える）。`seen` はアプリが知っている
+    /// メモの中身で、今の中身と違えば何も作らない。昇格先を作れないとき（使われているID、保存していない変更の
+    /// ある章など）はエラーで、メモも変えない。
+    pub fn promote_idea(
+        &mut self,
+        file: &str,
+        seen: &str,
+        promotion: &Promotion,
+    ) -> Result<Promoted, ProjectError> {
+        let path = self.root.join(file);
+        if !is_idea_path(file) {
+            return Err(error(
+                &path,
+                io::ErrorKind::InvalidInput,
+                "アイデアメモ（ideas/*.md）のパスではありません",
+            ));
+        }
+        let current = self.read_settings_file(&path)?;
+        if current != seen {
+            return Ok(Promoted::Conflict { text: current });
+        }
+        let target = promotion.promoted_to();
+        let text = match set_field(&current, "status", &serde_json::Value::from(ADOPTED))
+            .and_then(|t| set_field(&t, "promoted_to", &serde_json::Value::from(target.clone())))
+        {
+            Ok(text) => text,
+            Err(e) => {
+                return Ok(Promoted::Unsupported {
+                    message: e.to_string(),
+                });
+            }
+        };
+        // メモに書けなければ（読み取り専用）、昇格先を作る前に断る。
+        if fs::metadata(&path).is_ok_and(|m| m.permissions().readonly()) {
+            return Err(error(
+                &path,
+                io::ErrorKind::PermissionDenied,
+                "メモが読み取り専用なので、昇格できません",
+            ));
+        }
+        // 本文の改行は、作るファイルの改行（`\n`）にそろえる。
+        let body = body_of(&current).replace("\r\n", "\n");
+        let scene = match promotion {
+            Promotion::Entry { type_id, id, name } => {
+                // 伏線の型の定義が無ければ標準の定義を作る。ファイルはあるのに読めなければ（YAML の誤りなど）、
+                // 人の書いた定義を上書きしないように断る。
+                let type_file = self
+                    .root
+                    .join(format!("bible/types/{FORESHADOW_TYPE}.yaml"));
+                let defined = self.project.bible.types.iter().any(|t| t.id == *type_id);
+                if type_id == FORESHADOW_TYPE && !defined && type_file.exists() {
+                    return Err(error(
+                        &type_file,
+                        io::ErrorKind::InvalidData,
+                        "伏線の型の定義を読めません。直してから昇格してください",
+                    ));
+                }
+                let type_missing = type_id == FORESHADOW_TYPE && !defined;
+                self.check_new_entry(type_id, id, name, type_missing)?;
+                if type_missing {
+                    let types = self.root.join("bible/types");
+                    fs::create_dir_all(&types).map_err(|source| ProjectError::Write {
+                        path: types,
+                        source,
+                    })?;
+                    self.write_settings_file(
+                        &format!("bible/types/{FORESHADOW_TYPE}.yaml"),
+                        FORESHADOW_TYPE_TEXT,
+                    )?;
+                }
+                self.create_entry_with_body(type_id, id, name, &body)?;
+                None
+            }
+            Promotion::Scene {
+                file: chapter,
+                id,
+                title,
+            } => {
+                let title = self.check_new_scene(chapter, id, title)?;
+                let text =
+                    self.append_scene(chapter, id, &title, summary_line(&body).as_deref())?;
+                Some(StoryWritten {
+                    file: chapter.clone(),
+                    text,
+                })
+            }
+        };
+        // 昇格先はもう作ったので、メモを書けなくてもエラーにはせず、作ったものを返す（アプリの画面とコアの
+        // 中身を食い違わせない）。
+        if let Err(e) = self.write_settings_file(file, &text) {
+            return Ok(Promoted::MemoUnwritten {
+                target,
+                scene,
+                message: e.to_string(),
+            });
+        }
+        Ok(Promoted::Saved {
+            text,
+            target,
+            scene,
+        })
+    }
+
+    /// スタブのシーンを足せるかを確かめ、題名（前後の空白を除いたもの）を返す。章は開いている本文のファイルで、
+    /// 保存していない変更も、まだ取り込んでいない外部の変更も無いこと。シーンIDは形が正しく、使われていないこと。
+    fn check_new_scene(&self, file: &str, id: &str, title: &str) -> Result<String, ProjectError> {
+        let path = self.root.join(file);
+        let invalid = |message: &str| error(&path, io::ErrorKind::InvalidInput, message);
+        if self.file(file).is_none() {
+            return Err(not_open(&path));
+        }
+        if self.is_dirty(file) || self.pending.contains_key(file) {
+            return Err(invalid(
+                "この章には保存していない変更があります。保存してから昇格してください",
+            ));
+        }
+        if id.is_empty() || !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+            return Err(invalid("シーンIDは英数字と _ で書きます"));
+        }
+        if crate::analyze(&self.project)
+            .scenes
+            .iter()
+            .any(|s| s.id == id)
+        {
+            return Err(invalid(&format!("シーンID {id} はもう使われています")));
+        }
+        let title = title.trim();
+        if title.is_empty() || title.contains(['\n', '\r']) {
+            return Err(invalid("題名が空か、改行を含んでいます"));
+        }
+        Ok(title.to_owned())
+    }
+
+    /// 章の末尾にスタブのシーンを足して書く（前の中身は1バイトも変えない）。ディスクの中身が知っている中身と
+    /// 違えば（まだ取り込んでいない外部の変更）、書かない。書いた中身を返す。
+    fn append_scene(
+        &mut self,
+        file: &str,
+        id: &str,
+        title: &str,
+        summary: Option<&str>,
+    ) -> Result<String, ProjectError> {
+        let path = self.root.join(file);
+        let Some(current) = self.text(file).map(str::to_owned) else {
+            return Err(not_open(&path));
+        };
+        match read_disk(&path) {
+            Disk::Text(on_disk) if self.disk_text(file) == Some(on_disk.as_str()) => {}
+            _ => {
+                return Err(error(
+                    &path,
+                    io::ErrorKind::InvalidData,
+                    "章が外で変わっています。取り込んでから昇格してください",
+                ));
+            }
+        }
+        let text = format!("{current}{}", stub_scene(&current, title, id, summary));
+        write_source(&self.root, file, &text)?;
+        self.set_buffer(file, &text);
+        self.disk.insert(file.to_owned(), Some(text.clone()));
+        Ok(text)
     }
 }
