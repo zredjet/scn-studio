@@ -1,0 +1,8 @@
+---
+source: crates/scn-core/tests/playthrough.rs
+expression: "dump(&diagnostics, &report, &dir)"
+---
+診断なし
+調べきった：true　状態 2　周回の始め方 2　シーン 3/3　選べた選択肢 2/2
+エンディング normal_end（s2）：着く true　状態 1　選択肢 「行く」　flag.n=[1] 周回.解放=[true]
+エンディング true_end（s3）：着く true　状態 1　選択肢 「行く」 → 〔周回〕 → 「真のルート」　flag.n=[0] 周回.解放=[true]

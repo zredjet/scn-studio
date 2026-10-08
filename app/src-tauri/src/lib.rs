@@ -795,6 +795,31 @@ fn with_retakes(root: &Path, sheet: &mut script::ScriptSheet) -> Option<String> 
     }
 }
 
+// ---- 検証の段階2（T3-2、D063） ----
+
+/// 自動巡回（検証の画面の「自動巡回」）。保存していない本文も含む。大きなスタックのスレッドで行う。
+/// 時間がかかることがあるので、作品の写しを取ってワークスペースのロックを放してから調べる（その間も、
+/// ほかのコマンドが動くように）。
+#[tauri::command]
+fn playthrough(state: State<'_, AppState>) -> Result<Response, String> {
+    let project = {
+        let mut guard = locked(&state.workspace)?;
+        open_workspace(&mut guard)?.project().clone()
+    };
+    let report = thread::scope(|scope| {
+        thread::Builder::new()
+            .name("playthrough".into())
+            .stack_size(ANALYZE_STACK_SIZE)
+            .spawn_scoped(scope, || {
+                scn_core::playthrough::playthrough(&project, &analyze(&project))
+            })
+            .map_err(|e| format!("解析のスレッドを作れません：{e}"))?
+            .join()
+            .map_err(|_| "自動巡回が途中で止まりました".to_owned())
+    })?;
+    json_response(&to_json(&report, "自動巡回の結果")?)
+}
+
 /// 台本（出力の画面で、書き出す前に中身を見る）。保存していない本文も含む。収録の基準があれば、変わった台詞を
 /// 再収録候補にする（`baseline_problem` は基準を読めなかったわけ）。
 #[tauri::command]
@@ -1606,6 +1631,7 @@ pub fn run() {
             add_variable,
             preview_data,
             script_sheet,
+            playthrough,
             export_script,
             export_renpy,
             asset_list,

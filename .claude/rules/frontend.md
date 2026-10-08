@@ -51,6 +51,10 @@ paths:
 - 縦書きビュー（`preview/VerticalView.tsx`）は、コアの通読（`route::read`）を `preview/vertical.ts` で段落・行・ページにする。組み方（折り返し、縦中横、原稿用紙換算）は `vertical.ts` に置き、テストを付ける（`app/test/vertical.test.ts`）。
 - プレビューの別ウィンドウ（`preview/PreviewWindow.tsx`。ウィンドウのラベルは `preview`）とメインウィンドウは、Tauri のイベントでだけつなぐ（`core/api.ts` の `sendPreviewLine` など）。ウィンドウどうしで状態を共有しない。
 
+## 検証の画面（app/src/check/）
+
+- 自動巡回（検証の段階2。T3-2、D063）は、検証の画面の「走らせる」で、コア（`playthrough` コマンド）が行う。保存のたびには走らせない。結果の診断は検証の一覧に足し、本文が変わったら結果を捨てる（位置がずれるため）。結果の見せ方（道の例、変数の値、並べ方）は `check/playthrough.ts` に置き、テストを付ける（`app/test/check.test.ts`）。
+
 ## 名前の変更・コマンドパレット・表示の切り替え（T2-8）
 
 - F2 はエディタの keymap で受け、変換中は動かさない。開く前に今の本文をコアへ送り、カーソルのところの名前はコア（`symbol_at`）が探す。置き換えもコア（`apply_rename`）が行い、変わった本文は `replaceText` でエディタに入れる。

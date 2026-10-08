@@ -1,0 +1,3 @@
+flag.勇気:
+  type: int
+  default: 0

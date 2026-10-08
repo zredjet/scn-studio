@@ -1,0 +1,17 @@
+// expect: W507
+// 評価されても真にならない条件（@if と @elif）。@else の枝は通る。評価されない条件（前の条件が真になる）には出さない
+## 始まり #s1
+@設定 flag.n = 1
+@if flag.n > 10
+  　大きい。 ^aaaa
+@elif flag.n < 0
+  　負。 ^aaab
+@else
+  　ふつう。 ^aaac
+@end
+@if flag.n == 1
+  　一。 ^aaad
+@elif flag.n == 2
+  　二。 ^aaae
+@end
+@エンディング end1

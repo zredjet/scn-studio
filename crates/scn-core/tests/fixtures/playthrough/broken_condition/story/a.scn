@@ -1,0 +1,17 @@
+// expect: E601
+// 構文の崩れた条件（E601）は偽として実行するが、W506・W507 は重ねて出さない
+## 始まり #s1
+@設定 flag.n = 1
+@if flag.n >
+  　壊れ。 ^aaaa
+@end
+@選択 どうする ^aaab
+- 進む -> s2 ^aaac
+- 壊れ if (flag.n -> s2 ^aaad
+@end
+
+## 終わり #s2
+@if flag.n >= 1
+  　読む。 ^aaae
+@end
+@エンディング end1

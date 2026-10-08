@@ -172,6 +172,7 @@ body {
 }
 
 .check-screen {
+  flex-direction: column;
   overflow: auto;
   padding: 16px 24px;
   background: var(--paper);
@@ -3348,4 +3349,58 @@ body {
   flex: none;
   gap: 4px;
   margin-left: auto;
+}
+
+/* ---- 自動巡回（検証の段階2。T3-2、D063） ---- */
+
+.playthrough {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.playthrough-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.playthrough-head .primary-small {
+  flex: none;
+}
+
+.playthrough-note {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.playthrough-summary {
+  margin: 0;
+  font-size: 13px;
+}
+
+.playthrough-scene {
+  margin-left: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.playthrough-ok {
+  color: var(--text-2);
+}
+
+.playthrough-ng {
+  color: var(--warn-strong);
+  font-weight: 700;
+}
+
+.playthrough-values {
+  font-family: var(--font-mono);
+  font-size: 12px;
 }

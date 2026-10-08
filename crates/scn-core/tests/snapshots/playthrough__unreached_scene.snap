@@ -1,0 +1,9 @@
+---
+source: crates/scn-core/tests/playthrough.rs
+expression: "dump(&diagnostics, &report, &dir)"
+---
+story/a.scn:4:1-4:17 W507 条件（flag.n == 99）は、ここに着いても真になりません
+story/a.scn:10:1-10:10 W509 シーン s2 には、条件と選択肢をどう選んでも着きません（s1 からの辺が実行されません）
+調べきった：true　状態 0　周回の始め方 1　シーン 2/4　選べた選択肢 0/0
+エンディング end1（s4）：着く true　状態 1　選択肢を選ばずに　flag.n=[1]
+エンディング secret（s3）：着く false　状態 0　—

@@ -1,0 +1,4 @@
+周回.見た:
+  type: bool
+  default: false
+  scope: persistent

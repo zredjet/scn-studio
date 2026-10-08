@@ -25,7 +25,7 @@ paths:
 
 ## ゲートの短編（samples/amayadori/）
 
-- フェーズ1のゲートで Claude Code が書いた短編（D052）。プレビューのテストが、選択肢だけで3つのエンディングすべてに着くことを確かめている。`scn check` はエラー・警告・情報とも0件にしておく。
+- フェーズ1のゲートで Claude Code が書いた短編（D052）。プレビューのテストが、選択肢だけで3つのエンディングすべてに着くことを確かめている。`scn check` はエラー・警告・情報とも0件にしておく（段階2の `scn check --stage 2` も0件。T3-2）。
 - 作品フォルダの指示書は `CLAUDE.template.md` の名前で置く（`CLAUDE.md` にすると、開発作業中に読み込まれる）。houkago と同じく、テストを通すために書き換えない。
 
 ## fixture（crates/scn-core/tests/fixtures/）

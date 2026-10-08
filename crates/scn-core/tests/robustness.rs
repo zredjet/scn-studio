@@ -4,8 +4,9 @@
 //! パニックしないこと、診断とASTのスパンが範囲内で文字の境界にあることを確かめる。
 //! 構文解析だけでなく、意味解析とIR（`analyze`）、索引、検証の段階1（`check`）も通す。
 //! 行IDの付与（`scn fmt`）も、同じ入力で確かめる（足した部分のほかはバイトが変わらない、など）。
-//! 素材の一覧と発注リスト（`assets`）、カーソル位置から再生の最短経路（`route`）、Ren'Py への書き出し（`renpy`）、
-//! アイデアメモと企画書（`ideas`・`concept`）、名前の変更（`rename`）も、同じ入力でパニックしないことを確かめる。
+//! 素材の一覧と発注リスト（`assets`）、カーソル位置から再生の最短経路（`route`）、検証の段階2（`playthrough`）、
+//! Ren'Py への書き出し（`renpy`）、アイデアメモと企画書（`ideas`・`concept`）、名前の変更（`rename`）も、同じ入力で
+//! パニックしないことを確かめる。
 //! 変数の宣言と型定義のフォームの書き換え（`vardecl`・`typedef`）と、台本の Excel 形式（`script_xlsx`）は、
 //! YAML の断片を組み合わせた入力と任意の文字列で確かめる。
 
@@ -25,6 +26,7 @@ use scn_core::ideas::{read_idea, stub_scene, summary_line};
 use scn_core::index::build_index;
 use scn_core::line_id::{LineIdGenerator, assign_line_ids};
 use scn_core::plaintext::plain_text;
+use scn_core::playthrough::playthrough;
 use scn_core::project::{MessageWindow, Project, SourceFile};
 use scn_core::rename::{RenameTarget, plan_rename, symbol_at};
 use scn_core::renpy::{RenpyProfile, export_renpy};
@@ -94,6 +96,14 @@ fn check(source: &str) {
     let index = build_index(&windowed, &ir);
     serde_json::to_string(&index).expect("索引をJSONにできない");
     for diag in check_project(&windowed, &ir, &index) {
+        if diag.file == "story/a.scn" {
+            support::assert_span_ok(source, diag.span, diag.code);
+        }
+    }
+    // 検証の段階2（自動巡回）。
+    let report = playthrough(&windowed, &ir);
+    serde_json::to_string(&report).expect("自動巡回の結果をJSONにできない");
+    for diag in &report.diagnostics {
         if diag.file == "story/a.scn" {
             support::assert_span_ok(source, diag.span, diag.code);
         }

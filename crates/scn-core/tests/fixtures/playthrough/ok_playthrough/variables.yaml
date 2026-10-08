@@ -1,0 +1,7 @@
+flag.n:
+  type: int
+  default: 0
+周回.解放:
+  type: bool
+  default: false
+  scope: persistent

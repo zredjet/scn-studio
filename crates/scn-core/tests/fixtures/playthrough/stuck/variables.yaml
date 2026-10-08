@@ -1,0 +1,3 @@
+flag.鍵:
+  type: bool
+  default: false

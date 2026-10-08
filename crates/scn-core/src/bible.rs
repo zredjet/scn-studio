@@ -813,7 +813,7 @@ pub struct EntryUsage {
     pub variables: Vec<VariableRow>,
 }
 
-fn plain_text(text: &[IrInline]) -> String {
+pub(crate) fn plain_text(text: &[IrInline]) -> String {
     text.iter()
         .filter_map(|inline| match inline {
             IrInline::Text { text } | IrInline::Emphasis { text } => Some(text.as_str()),

@@ -330,6 +330,62 @@ fn check_sample() {
     );
 }
 
+/// `--stage 2`：自動巡回（T3-2、D063）の診断も出し、カバレッジとエンディングごとの到達条件を標準エラーに出す。
+/// `--json` では診断と結果の対応表。既定（段階1）の出力は変わらない。段階は1と2だけ。
+#[test]
+fn check_stage2() {
+    let out = scn(
+        &["check", "samples/amayadori", "--stage", "2"],
+        &repo_root(),
+    );
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    assert_eq!(out.stdout, "");
+    assert!(
+        out.stderr
+            .contains("自動巡回：状態 3、周回の始め方 1、シーン 12/12、選べた選択肢 5/5"),
+        "{}",
+        out.stderr
+    );
+    assert!(
+        out.stderr
+            .contains("エンディング stay_end（s10）：着く（状態 1。例：選択肢 「話しかける」 → 「行かなくていいんじゃないか」）"),
+        "{}",
+        out.stderr
+    );
+    let out = scn(&["check", "samples/houkago", "--stage", "2"], &repo_root());
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    assert!(out.stdout.contains(
+        "samples/houkago/story/chapter01.scn:72:1 W506 この選択肢は、条件（勇気 >= 2）が真にならないので選べません ^k3fe"
+    ));
+    assert!(
+        out.stderr
+            .contains("エンディング bad_end（s061）：着かない"),
+        "{}",
+        out.stderr
+    );
+    let out = scn(
+        &["check", "samples/houkago", "--stage", "2", "--json"],
+        &repo_root(),
+    );
+    let value: serde_json::Value = serde_json::from_str(&out.stdout).unwrap();
+    let codes: Vec<&str> = value["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|d| d["code"].as_str().unwrap())
+        .collect();
+    assert!(
+        codes.contains(&"W506") && codes.contains(&"W509"),
+        "{codes:?}"
+    );
+    assert_eq!(value["playthrough"]["complete"], true);
+    assert_eq!(value["playthrough"]["endings"][0]["id"], "akari_end");
+    assert_eq!(
+        scn(&["check", "samples/houkago", "--stage", "3"], &repo_root()).code,
+        2
+    );
+}
+
 /// `--json` は、行と列と、あれば行IDを足した診断の配列。プロジェクトのフォルダを省くと今のフォルダ。
 #[test]
 fn check_json_in_current_dir() {

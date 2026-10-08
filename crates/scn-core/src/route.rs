@@ -19,7 +19,7 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use serde::{Deserialize, Serialize};
 
 use crate::Span;
-use crate::ir::{Ir, IrExpr, IrInline, IrOption, Op};
+use crate::ir::{Ir, IrBranch, IrExpr, IrInline, IrOption, Op};
 use crate::preview::initial_value;
 use crate::project::{Project, VarType};
 
@@ -27,6 +27,8 @@ use crate::project::{Project, VarType};
 const MAX_STATES: usize = 20_000;
 /// 選択肢から次の選択肢までに実行する命令の数の上限（プレビューのランタイムと同じ）。
 const MAX_STEPS: usize = 100_000;
+/// `@呼出` の積み重ねの深さの上限（再帰する呼び出しで、状態とメモリが際限なく増えないように。T3-2）。
+pub(crate) const MAX_CALL_DEPTH: usize = 64;
 
 /// 変数の値（真偽・整数・文字列。列挙の値は文字列）。
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -110,7 +112,7 @@ fn evaluate(expr: &IrExpr, vars: &Variables) -> Option<Value> {
 }
 
 /// 条件：構文の崩れた式（E601）、誤り、真偽でない値は偽。
-fn condition(expr: Option<&IrExpr>, vars: &Variables) -> bool {
+pub(crate) fn condition(expr: Option<&IrExpr>, vars: &Variables) -> bool {
     matches!(
         expr.and_then(|e| evaluate(e, vars)),
         Some(Value::Bool(true))
@@ -249,25 +251,25 @@ pub fn scene_target(ir: &Ir, scene: &str) -> Option<RouteTarget> {
 
 /// 実行中のブロック。
 #[derive(Debug, Clone)]
-struct Frame<'a> {
-    ops: &'a [Op],
-    index: usize,
+pub(crate) struct Frame<'a> {
+    pub(crate) ops: &'a [Op],
+    pub(crate) index: usize,
     /// 中身を実行し終えたら飛ぶ先（選択肢の行の `-> ID`）。
-    after: Option<&'a str>,
+    pub(crate) after: Option<&'a str>,
 }
 
 /// 実行の状態。
 #[derive(Debug, Clone)]
-struct Machine<'a> {
-    scene: &'a str,
-    frames: Vec<Frame<'a>>,
-    calls: Vec<(&'a str, Vec<Frame<'a>>)>,
-    vars: Variables,
-    steps: Vec<RouteStep>,
+pub(crate) struct Machine<'a> {
+    pub(crate) scene: &'a str,
+    pub(crate) frames: Vec<Frame<'a>>,
+    pub(crate) calls: Vec<(&'a str, Vec<Frame<'a>>)>,
+    pub(crate) vars: Variables,
+    pub(crate) steps: Vec<RouteStep>,
 }
 
 /// 同じ状態を見分ける鍵（ブロックは命令列の場所で見分ける）。
-type Key = (
+pub(crate) type Key = (
     String,
     Vec<(usize, usize)>,
     Vec<(String, Vec<(usize, usize)>)>,
@@ -283,7 +285,7 @@ fn frames_key(frames: &[Frame<'_>]) -> Vec<(usize, usize)> {
 
 impl Machine<'_> {
     /// 状態の鍵。変数は、流れに関わるもの（`relevant`）だけ。
-    fn key(&self, relevant: &BTreeSet<String>) -> Key {
+    pub(crate) fn key(&self, relevant: &BTreeSet<String>) -> Key {
         (
             self.scene.to_owned(),
             frames_key(&self.frames),
@@ -316,7 +318,7 @@ fn read_vars(expr: &IrExpr, out: &mut BTreeSet<String>) {
 }
 
 /// 流れに関わる変数：条件で読む変数と、それを書く `@設定` で読む変数（たどって閉じたもの）。
-fn relevant_variables(ir: &Ir) -> BTreeSet<String> {
+pub(crate) fn relevant_variables(ir: &Ir) -> BTreeSet<String> {
     fn walk(ops: &[Op], conds: &mut BTreeSet<String>, sets: &mut Vec<(String, BTreeSet<String>)>) {
         for op in ops {
             match op {
@@ -375,24 +377,59 @@ fn relevant_variables(ir: &Ir) -> BTreeSet<String> {
 }
 
 /// 選択肢まで実行した結果。
-enum Outcome<'a> {
+pub(crate) enum Outcome<'a> {
     /// 目的の命令の手前に着いた。
     Reached(Machine<'a>),
     /// 選択肢で止まった（選べる選択肢がある）。
     Choice(Machine<'a>, Span, &'a [IrOption]),
-    /// 進めない（エンディング、行き止まり、無いシーン、選べる選択肢が無い、命令の数の上限）。
-    End,
+    /// 進めない。
+    End(EndReason),
 }
 
-struct Searcher<'a> {
-    ir: &'a Ir,
-    project: &'a Project,
-    target: &'a RouteTarget,
+/// 進めなくなったわけ。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum EndReason {
+    /// `@エンディング`。
+    Ending,
+    /// 行き止まり（シーンの終わりに出口が無い）、呼び出しの外での `@戻る`。
+    DeadEnd,
+    /// 無いシーンへのジャンプ・呼び出し。
+    MissingScene,
+    /// 選べる選択肢が1つも無い（`@選択` の行）。
+    NoOption(Span),
+    /// 命令の数の上限。
+    StepLimit,
+    /// `@呼出` の積み重ねの深さの上限（[`MAX_CALL_DEPTH`]）。
+    CallDepth,
+}
+
+/// 実行を見る（検証の段階2。T3-2）。最短経路と通読は見ない（[`Quiet`]）。
+pub(crate) trait Observer<'a> {
+    /// シーンに入った（ジャンプ、呼び出し、選択肢の行の `-> ID`）。
+    fn entered(&mut self, _scene: &'a str) {}
+    /// `@if`・`@elif` の条件を評価した（真になるまで、上から順に）。
+    fn branch(&mut self, _scene: &'a str, _branch: &'a IrBranch, _value: bool) {}
+    /// `@エンディング` に着いた（`vars` は着いたときの変数）。
+    fn ending(&mut self, _scene: &'a str, _id: Option<&'a str>, _vars: &Variables) {}
+    /// 選択肢に着いたが、選べる選択肢が1つも無かった。
+    fn no_option(&mut self, _scene: &'a str, _span: Span, _options: &'a [IrOption]) {}
+}
+
+/// 何も見ない。
+pub(crate) struct Quiet;
+
+impl Observer<'_> for Quiet {}
+
+pub(crate) struct Searcher<'a> {
+    pub(crate) ir: &'a Ir,
+    pub(crate) project: &'a Project,
+    /// 止まる命令（無ければ、エンディングか行き止まりまで）。
+    pub(crate) target: Option<&'a RouteTarget>,
 }
 
 impl<'a> Searcher<'a> {
     /// シーンに入る（無いシーンなら `false`）。
-    fn enter(&self, m: &mut Machine<'a>, scene: &str) -> bool {
+    pub(crate) fn enter(&self, m: &mut Machine<'a>, scene: &str) -> bool {
         match self.ir.scenes.iter().find(|s| s.id == scene) {
             Some(s) => {
                 m.scene = &s.id;
@@ -436,11 +473,11 @@ impl<'a> Searcher<'a> {
         }
     }
 
-    /// 選択肢か目的の命令に着くまで実行する。
-    fn run(&self, mut m: Machine<'a>) -> Outcome<'a> {
+    /// 選択肢か目的の命令に着くまで実行する。`obs` は、入ったシーンと評価した条件を見る。
+    pub(crate) fn run(&self, mut m: Machine<'a>, obs: &mut dyn Observer<'a>) -> Outcome<'a> {
         for _ in 0..MAX_STEPS {
             let Some(top) = m.frames.last_mut() else {
-                return Outcome::End;
+                return Outcome::End(EndReason::DeadEnd);
             };
             let Some(op) = top.ops.get(top.index) else {
                 // ブロックの終わり。シーンの終わりなら行き止まり（呼ばれた先でも）。
@@ -448,16 +485,20 @@ impl<'a> Searcher<'a> {
                 m.frames.pop();
                 if let Some(target) = after {
                     if !self.enter(&mut m, target) {
-                        return Outcome::End;
+                        return Outcome::End(EndReason::MissingScene);
                     }
+                    obs.entered(m.scene);
                     continue;
                 }
                 if m.frames.is_empty() {
-                    return Outcome::End;
+                    return Outcome::End(EndReason::DeadEnd);
                 }
                 continue;
             };
-            if m.scene == self.target.scene && op.span() == self.target.span {
+            if let Some(target) = self.target
+                && m.scene == target.scene
+                && op.span() == target.span
+            {
                 return Outcome::Reached(m);
             }
             top.index += 1;
@@ -468,7 +509,8 @@ impl<'a> Searcher<'a> {
                         .iter()
                         .any(|o| o.cond_text.is_none() || condition(o.cond.as_ref(), &m.vars));
                     if !any {
-                        return Outcome::End;
+                        obs.no_option(m.scene, *span, options);
+                        return Outcome::End(EndReason::NoOption(*span));
                     }
                     return Outcome::Choice(m, *span, options);
                 }
@@ -477,11 +519,16 @@ impl<'a> Searcher<'a> {
                     else_body,
                     ..
                 } => {
-                    let body = branches
-                        .iter()
-                        .find(|b| condition(b.cond.as_ref(), &m.vars))
-                        .map(|b| b.body.as_slice())
-                        .or(else_body.as_deref());
+                    let mut taken = None;
+                    for branch in branches {
+                        let value = condition(branch.cond.as_ref(), &m.vars);
+                        obs.branch(m.scene, branch, value);
+                        if value {
+                            taken = Some(branch.body.as_slice());
+                            break;
+                        }
+                    }
+                    let body = taken.or(else_body.as_deref());
                     if let Some(body) = body {
                         m.frames.push(Frame {
                             ops: body,
@@ -492,33 +539,41 @@ impl<'a> Searcher<'a> {
                 }
                 Op::Jump { target, .. } => {
                     if !self.enter(&mut m, target) {
-                        return Outcome::End;
+                        return Outcome::End(EndReason::MissingScene);
                     }
+                    obs.entered(m.scene);
                 }
                 Op::Call { target, .. } => {
+                    if m.calls.len() >= MAX_CALL_DEPTH {
+                        return Outcome::End(EndReason::CallDepth);
+                    }
                     let caller = (m.scene, m.frames.clone());
                     m.calls.push(caller);
                     if !self.enter(&mut m, target) {
-                        return Outcome::End;
+                        return Outcome::End(EndReason::MissingScene);
                     }
+                    obs.entered(m.scene);
                 }
                 Op::Return { .. } => match m.calls.pop() {
                     Some((scene, frames)) => {
                         m.scene = scene;
                         m.frames = frames;
                     }
-                    None => return Outcome::End,
+                    None => return Outcome::End(EndReason::DeadEnd),
                 },
-                Op::Ending { .. } => return Outcome::End,
+                Op::Ending { id, .. } => {
+                    obs.ending(m.scene, id.as_deref(), &m.vars);
+                    return Outcome::End(EndReason::Ending);
+                }
                 _ => {}
             }
         }
-        Outcome::End
+        Outcome::End(EndReason::StepLimit)
     }
 
-    fn found(&self, m: Machine<'a>) -> Route {
+    fn found(&self, m: Machine<'a>, target: &RouteTarget) -> Route {
         Route {
-            target: self.target.clone(),
+            target: target.clone(),
             reachable: true,
             steps: m.steps,
             variables: m.vars,
@@ -530,7 +585,7 @@ impl<'a> Searcher<'a> {
 
 /// 開始シーンの、初めの変数（宣言の初期値。宣言の無い変数は無い）。永続の変数は、`persistent` に宣言の型に
 /// 合う値があれば、その値（プレビューの今の値）。
-fn initial_variables(project: &Project, persistent: &Variables) -> Variables {
+pub(crate) fn initial_variables(project: &Project, persistent: &Variables) -> Variables {
     project
         .variables
         .iter()
@@ -568,7 +623,7 @@ pub fn route_to(project: &Project, ir: &Ir, target: &RouteTarget, persistent: &V
     let searcher = Searcher {
         ir,
         project,
-        target,
+        target: Some(target),
     };
     let mut first = Machine {
         scene: "",
@@ -585,9 +640,9 @@ pub fn route_to(project: &Project, ir: &Ir, target: &RouteTarget, persistent: &V
     let mut seen: BTreeSet<Key> = BTreeSet::new();
     let mut states = 0;
     while let Some(machine) = queue.pop_front() {
-        match searcher.run(machine) {
-            Outcome::Reached(m) => return searcher.found(m),
-            Outcome::End => {}
+        match searcher.run(machine, &mut Quiet) {
+            Outcome::Reached(m) => return searcher.found(m, target),
+            Outcome::End(_) => {}
             Outcome::Choice(m, span, options) => {
                 if !seen.insert(m.key(&relevant)) {
                     continue;
@@ -1013,16 +1068,10 @@ pub fn read(project: &Project, ir: &Ir, target: &ReadingTarget, persistent: &Var
     };
     let common = matches!(target, ReadingTarget::Common).then(|| start.meta.route.clone());
     // 目的の命令では止まらない（通読は、エンディングか行き止まりまで）。
-    let never = RouteTarget {
-        scene: String::new(),
-        file: String::new(),
-        span: Span::default(),
-        line_id: None,
-    };
     let searcher = Searcher {
         ir,
         project,
-        target: &never,
+        target: None,
     };
     let mut reader = Reader {
         searcher: &searcher,

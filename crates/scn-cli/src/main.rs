@@ -5,8 +5,8 @@
 //!   設定ファイルの診断（E801〜W804）と、そのファイルの診断を出す（ほかの章の診断は出さない）。
 //!   プロジェクトの外なら、構文解析だけを行う。
 //! - `scn ir <project-dir> [--compact]`：プロジェクト全体のIRを、標準出力にJSONで出す（`--compact` は整形しない）。
-//! - `scn check [project-dir] [--json]`：プロジェクト全体を検証し（読み込み・構文解析・意味解析の診断と、
-//!   検証の段階1。D043）、診断を `ファイル:行:列 コード メッセージ ^行ID` の形で出す。
+//! - `scn check [project-dir] [--stage 2] [--json]`：プロジェクト全体を検証し（読み込み・構文解析・意味解析の診断と、
+//!   検証の段階1。D043。`--stage 2` で自動巡回も。D063）、診断を `ファイル:行:列 コード メッセージ ^行ID` の形で出す。
 //! - `scn graph [project-dir] [--level scene|chapter|route] [--json]`：シーン、辺、条件、変数の読み書きを、
 //!   粒度ごとに一覧で出す（D044）。
 //! - `scn new <dir> [--title 作品名]`：新しい作品フォルダを作る（D044）。
@@ -79,6 +79,10 @@ enum Command {
         /// プロジェクトのフォルダ（project.toml のあるところ）。省くと今のフォルダ
         #[arg(default_value = ".")]
         project: PathBuf,
+        /// 検証の段階。2 なら自動巡回（条件を実行して、選べない選択肢や着かないシーンを調べる）も行い、
+        /// エンディングごとの到達条件を標準エラーに出す（`--json` では `playthrough` に）
+        #[arg(long, default_value_t = 1, value_parser = clap::value_parser!(u8).range(1..=2))]
+        stage: u8,
         /// 診断をJSONで出す
         #[arg(long)]
         json: bool,
@@ -247,7 +251,11 @@ fn run(command: Command) -> Result<u8, CliError> {
     match command {
         Command::Parse { file, json } => run_parse(&file, json),
         Command::Ir { project, compact } => run_ir(&project, compact),
-        Command::Check { project, json } => run_check(&project, json),
+        Command::Check {
+            project,
+            stage,
+            json,
+        } => run_check(&project, stage, json),
         Command::Graph {
             project,
             level,
@@ -918,13 +926,18 @@ fn display_path(dir: &Path, relative: &str) -> String {
 
 /// プロジェクト全体を検証する。読み込みの診断を先に、続けて本文のファイル（プロジェクトの順）、
 /// ほかのファイル（パスの順）の診断を、位置の順に出す。
-fn run_check(dir: &Path, json: bool) -> Result<u8, CliError> {
+fn run_check(dir: &Path, stage: u8, json: bool) -> Result<u8, CliError> {
     let project = load_project(dir).map_err(CliError::Project)?;
     let ir = analyze(&project);
     let index = build_index(&project, &ir);
     let loaded = project.load_diagnostics.len();
     let mut rest: Vec<IrDiagnostic> = ir.diagnostics.iter().skip(loaded).cloned().collect();
     rest.extend(check(&project, &ir, &index));
+    // 検証の段階2（自動巡回。T3-2、D063）。
+    let report = (stage >= 2).then(|| scn_core::playthrough::playthrough(&project, &ir));
+    if let Some(report) = &report {
+        rest.extend(report.diagnostics.iter().cloned());
+    }
     let rank = |file: &str| {
         project
             .files
@@ -1007,7 +1020,15 @@ fn run_check(dir: &Path, json: bool) -> Result<u8, CliError> {
                 }
             })
             .collect();
-        let body = serde_json::to_string_pretty(&list).map_err(|e| CliError::Write(e.into()))?;
+        let body = match &report {
+            // 段階2では、診断と自動巡回の結果を1つの対応表にする。
+            Some(report) => serde_json::to_string_pretty(&serde_json::json!({
+                "diagnostics": list,
+                "playthrough": report,
+            })),
+            None => serde_json::to_string_pretty(&list),
+        }
+        .map_err(|e| CliError::Write(e.into()))?;
         return finish(writeln!(out, "{body}"), code);
     }
     let written = diagnostics.iter().try_for_each(|d| {
@@ -1028,6 +1049,9 @@ fn run_check(dir: &Path, json: bool) -> Result<u8, CliError> {
             .filter(|d| d.severity == severity.as_str())
             .count()
     };
+    if let Some(report) = &report {
+        print_playthrough(report);
+    }
     eprintln!(
         "エラー {}件、警告 {}件、情報 {}件",
         count(Severity::Error),
@@ -1035,6 +1059,60 @@ fn run_check(dir: &Path, json: bool) -> Result<u8, CliError> {
         count(Severity::Info)
     );
     finish(written, code)
+}
+
+/// 自動巡回の結果（カバレッジ、エンディングごとの到達条件）を標準エラーに出す。
+fn print_playthrough(report: &scn_core::playthrough::Playthrough) {
+    eprintln!(
+        "自動巡回：状態 {}、周回の始め方 {}、シーン {}/{}、選べた選択肢 {}/{}",
+        report.states,
+        report.starts,
+        report.scenes.reached,
+        report.scenes.total,
+        report.options.reached,
+        report.options.total
+    );
+    if let Some(limit) = &report.limit {
+        eprintln!("自動巡回を調べきれませんでした：{limit}（W506・W507・W509 は出していません）");
+    }
+    for ending in &report.endings {
+        if !ending.reached {
+            // 調べきれなかったときは「着かない」と言わない。
+            let state = if report.complete {
+                "着かない"
+            } else {
+                "見つかっていない"
+            };
+            eprintln!("エンディング {}（{}）：{state}", ending.id, ending.scene);
+            continue;
+        }
+        let example = scn_core::playthrough::example_text(&ending.example);
+        let values: Vec<String> = ending
+            .values
+            .iter()
+            .map(|(k, v)| {
+                let mut shown: Vec<String> = v
+                    .iter()
+                    .map(|v| serde_json::to_string(v).unwrap_or_default())
+                    .collect();
+                if ending.more.contains(k) {
+                    shown.push("…".to_owned());
+                }
+                format!("{k} = {}", shown.join(" | "))
+            })
+            .collect();
+        eprintln!(
+            "エンディング {}（{}）：着く（状態 {}。例：{example}）{}",
+            ending.id,
+            ending.scene,
+            ending.states,
+            if values.is_empty() {
+                String::new()
+            } else {
+                format!("　{}", values.join("、"))
+            }
+        );
+    }
 }
 
 // ---- scn graph ----

@@ -9,6 +9,7 @@ import { AssetsScreen } from "./assets/AssetsScreen.tsx";
 import { type BibleRequest, BibleScreen } from "./bible/BibleScreen.tsx";
 import { CheckList } from "./check/CheckList.tsx";
 import { countBySeverity } from "./check/group.ts";
+import { PlaythroughPanel } from "./check/PlaythroughPanel.tsx";
 import { ConceptScreen } from "./concept/ConceptScreen.tsx";
 import {
   addChapter,
@@ -44,6 +45,7 @@ import {
   renameChapter,
   renamePreview,
   routeStats,
+  runPlaythrough,
   saveFile,
   sceneInfo,
   scriptSheet,
@@ -63,6 +65,7 @@ import type {
   MergeChoice,
   MergeView,
   OpenedProject,
+  Playthrough,
   PreviewRequest,
   RecentProject,
   RenameSymbol,
@@ -198,6 +201,13 @@ function saveViewPrefs(prefs: ViewPrefs): void {
 export function App() {
   const [project, setProject] = useState<ProjectView | null>(null);
   const [screen, setScreen] = useState<Screen>("text");
+  /** 自動巡回（検証の段階2。T3-2）の結果と、走らせている途中か。本文が変わったら捨てる。 */
+  const [stage2, setStage2] = useState<Playthrough | null>(null);
+  const [stage2Running, setStage2Running] = useState(false);
+  const [stage2Error, setStage2Error] = useState<string | null>(null);
+  const [stage2Discarded, setStage2Discarded] = useState(false);
+  /** 走らせた時点の本文（結果を受け取ったときに、本文が変わっていれば捨てる）。 */
+  const stage2Summary = useRef<Summary | null>(null);
   const [currentFile, setCurrentFile] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [focus, setFocus] = useState<Focus | null>(null);
@@ -1457,6 +1467,44 @@ export function App() {
         : [...project.summary.diagnostics, ...project.checks],
     [project],
   );
+  // 本文が変わったら、自動巡回の結果を捨てる（診断の位置がずれるため）。
+  const currentSummary = project?.summary ?? null;
+  /** 今の本文（走らせている途中で変わったかを、結果を受け取ったときに見る）。 */
+  const latestSummary = useRef(currentSummary);
+  latestSummary.current = currentSummary;
+  const stage2Ref = useRef(stage2);
+  stage2Ref.current = stage2;
+  useEffect(() => {
+    if (currentSummary === stage2Summary.current) return;
+    stage2Summary.current = null;
+    if (stage2Ref.current !== null) {
+      setStage2(null);
+      setStage2Discarded(true);
+    }
+  }, [currentSummary]);
+  const runStage2 = useCallback(() => {
+    setStage2Running(true);
+    setStage2Error(null);
+    const at = currentSummary;
+    runPlaythrough()
+      .then((report) => {
+        // 走らせている途中で本文が変わった（作品を開き直したときも）なら、結果は古いので捨てる。
+        if (latestSummary.current !== at) {
+          setStage2(null);
+          setStage2Discarded(true);
+          return;
+        }
+        stage2Summary.current = at;
+        setStage2Discarded(false);
+        setStage2(report);
+      })
+      .catch((e: unknown) => setStage2Error(String(e)))
+      .finally(() => setStage2Running(false));
+  }, [currentSummary]);
+  const checkDiagnostics = useMemo(
+    () => [...allDiagnostics, ...(stage2?.diagnostics ?? [])],
+    [allDiagnostics, stage2],
+  );
   const counts = countBySeverity(allDiagnostics);
   const conflict =
     currentFile === null ? undefined : conflicts.get(currentFile);
@@ -1859,9 +1907,16 @@ export function App() {
               )}
               {screen === "check" && (
                 <section className="screen check-screen" aria-label="検証">
+                  <PlaythroughPanel
+                    report={stage2}
+                    running={stage2Running}
+                    error={stage2Error}
+                    discarded={stage2Discarded}
+                    onRun={runStage2}
+                  />
                   <CheckList
                     heading="検証（プロジェクト全体）"
-                    diagnostics={allDiagnostics}
+                    diagnostics={checkDiagnostics}
                     files={project.files}
                     onSelect={onSelectDiagnostic}
                     onRegister={onRegister}

@@ -122,7 +122,10 @@
 | 索引 | index | IRから導く一覧。シーン、キャラクターの出現、変数の読み書き、素材の使用、行ID |
 | 到達性 | reachability | 開始シーンからたどり着けるか |
 | 行き止まり | dead end | 出口の無い経路 |
-| 自動巡回 | auto playthrough | 選択肢の組み合わせを実際に実行する検証 |
+| 自動巡回 | auto playthrough | 選択肢の組み合わせを実際に実行する検証（検証の段階2。`playthrough`、`scn check --stage 2`） |
+| カバレッジ | coverage | 自動巡回で着いたシーンと選べた選択肢の数（`playthrough::Coverage`） |
+| 到達条件 | ending reach | エンディングに着くか、道の例、着いたときの変数の値（`playthrough::EndingReach`） |
+| 周回 | replay | 永続の変数の値を引き継いで、もう一度始めること。自動巡回は、エンディングで書いた永続の変数の値から周回する |
 
 ## 素材・プレビュー・出力
 

@@ -28,6 +28,7 @@ import type {
   MergeChoice,
   MergeView,
   OpenedProject,
+  Playthrough,
   PreviewRequest,
   PromotedWritten,
   Promotion,
@@ -478,6 +479,11 @@ export function assetUrl(path: string): string {
 }
 
 // ---- 台本（T1-12、D051） ----
+
+/** 自動巡回（検証の段階2。T3-2）。保存していない本文も含む。 */
+export function runPlaythrough(): Promise<Playthrough> {
+  return invoke<Playthrough>("playthrough");
+}
 
 /** 台本（書き出す前に中身を見る）。 */
 export function scriptSheet(): Promise<ScriptSheet> {

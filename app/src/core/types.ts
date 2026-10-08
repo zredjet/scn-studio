@@ -436,6 +436,40 @@ export interface DevSettings {
 
 // ---- 台本（T1-12、D051） ----
 
+/** 数（全体のうち、着いた・選べた数。コアの `playthrough::Coverage`）。 */
+export interface Coverage {
+  readonly reached: number;
+  readonly total: number;
+}
+
+/** エンディングの到達条件（コアの `playthrough::EndingReach`）。 */
+export interface EndingReach {
+  readonly id: string;
+  readonly scene: string;
+  readonly reached: boolean;
+  readonly states: number;
+  /** 選択肢のいちばん少ない道で選ぶ選択肢の表示文。 */
+  readonly example: readonly string[];
+  /** 着いたときの、流れに関わる変数の値（多ければ先頭だけ）。 */
+  readonly values: Readonly<
+    Record<string, readonly (boolean | number | string)[]>
+  >;
+  /** 値が多くて、`values` に書ききれなかった変数。 */
+  readonly more: readonly string[];
+}
+
+/** 自動巡回の結果（検証の段階2。コアの `playthrough::Playthrough`、T3-2）。 */
+export interface Playthrough {
+  readonly complete: boolean;
+  readonly limit: string | null;
+  readonly states: number;
+  readonly starts: number;
+  readonly scenes: Coverage;
+  readonly options: Coverage;
+  readonly endings: readonly EndingReach[];
+  readonly diagnostics: readonly IrDiagnostic[];
+}
+
 /** 台本の1行（コアの `script::ScriptRow`）。 */
 export interface ScriptRow {
   readonly line_id: string;

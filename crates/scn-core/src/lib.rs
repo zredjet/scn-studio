@@ -47,6 +47,7 @@ mod line;
 pub mod line_id;
 pub mod merge;
 pub mod plaintext;
+pub mod playthrough;
 pub mod preview;
 pub mod project;
 pub mod rename;

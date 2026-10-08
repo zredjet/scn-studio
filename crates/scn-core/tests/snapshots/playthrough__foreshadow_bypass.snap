@@ -1,0 +1,7 @@
+---
+source: crates/scn-core/tests/playthrough.rs
+expression: "dump(&diagnostics, &report, &dir)"
+---
+bible/entries/foreshadow/bypass.md:5:1-5:7 W704 伏線 bypass の回収（s4）に、仕込み（s2）を通らずに着く道があります（選択肢 「帰る」）
+調べきった：true　状態 1　周回の始め方 1　シーン 4/4　選べた選択肢 2/2
+エンディング end1（s4）：着く true　状態 1　選択肢 「屋上へ」
