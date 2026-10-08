@@ -367,8 +367,8 @@ AIのタスク（T3-5〜T3-10）は順に積み上げる。ほかは互いにほ
 
 **完了条件**
 
-- [ ] 診断・補完・定義・参照・リネーム・ホバーをテストで確かめている（サロゲートペアと全角文字を含む位置の変換を含む）
-- [ ] `scripts/check-all` が成功する
+- [x] 診断・補完・定義・参照・リネーム・ホバーをテストで確かめている（サロゲートペアと全角文字を含む位置の変換を含む）（`crates/scn-lsp/tests/lsp.rs`・`src/position.rs`、`crates/scn-core/tests/navigate.rs`）
+- [x] `scripts/check-all` が成功する
 
 ---
 

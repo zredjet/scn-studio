@@ -864,3 +864,12 @@
   - プロファイルの `output` は `export/` の下だけ（書き出しは一方向で、本文や設定を書き換えない）。
 - 理由：設計検討書「プラグイン」（単純なテキストはテンプレートだけで、足りなければ IR の JSON を標準入力で受ける外部コマンド）と、計画 T3-14 の手順（渡す形、作業フォルダ・環境変数・終了コード・タイムアウト、アプリでは初めて実行する前に確かめる）。シェルを通さないのは、macOS と Windows で同じ書き方にするため。確かめた記録を作品フォルダに書かないのは、人から受け取った作品フォルダのコマンドが黙って動かないようにするため。`pdf_command` は D074 で T3-14 に回した、印刷用の HTML を CSS 組版の道具で PDF にする段。
 - 影響：`crates/scn-core/src/plugin.rs`（新規）、`book.rs`（`pdf_command`・`pdf_timeout`）、依存に `minijinja`、`scn export <名前>`・`scn export pdf --typeset`、`app/src-tauri`（`export_plugins`・`export_plugin`・`export_book` の組版と確かめ）、`app/src/export/`（`plugin.ts`、書き出しのプラグインのカード、PDF も組むチェック）、`docs/spec/project-files.md` の14節・15節。
+
+## D076 言語サーバー（2026-10-09）
+
+- 決定：
+  - 言語サーバーは `tower-lsp-server`（`tower-lsp` のコミュニティのフォーク）で、別のクレート `crates/scn-lsp` に作り、`scn lsp`（標準入出力）から動かす。処理はコアに置き、言語サーバーは LSP の形との受け渡しと位置の変換（UTF-8 のバイト位置と UTF-16 の位置）だけ。
+  - 作品フォルダは初めに渡されたフォルダか、開いた文書から上へ探して見つける。開いた文書はアプリと同じ `Workspace` に保存していない編集として持ち、変わるたびに作品全体を解析して、読み込み・構文・意味と検証の段階1の診断を、作品のすべてのファイルに出す。同期は丸ごと。
+  - 補完・定義へ移動・参照・ホバーは、コアの新しいモジュール（`complete`・`navigate`）で返す。補完の決まりはアプリのエディタと同じ（アプリの判断をコアに移したもの）。名前の変更はアプリと同じ `plan_rename` で組み、ファイルの名前が変わるもの（エントリのID）は断る。
+- 理由：計画 T3-15（保守の状況を確かめてフォークを使うかを決める、アプリと同じコアの処理、位置の変換は境界の1か所）と、設計検討書「アーキテクチャ」（言語サービスを LSP で公開し、同じ処理を Tauri からも呼ぶ）。元の `tower-lsp` は 0.20（2023年）から更新が無く、フォークは 0.23 まで保守されている。別のクレートにするのは、コアに非同期の実行環境を持ち込まず、CLI の依存を増やしすぎないため。
+- 影響：`crates/scn-lsp`（新規）、`crates/scn-core/src/complete.rs`・`navigate.rs`（新規）、`rename.rs`（`Symbol::span`、`occurrences`）、`layout.rs`（`renamed_layout_text`）、`workspace.rs`（`relative` を公開）、`scn lsp`、ワークスペースのメンバー。

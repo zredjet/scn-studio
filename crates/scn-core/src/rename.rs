@@ -57,6 +57,8 @@ pub struct Symbol {
     pub current: String,
     /// 見せ方（`シーンID`、`キャラクターの名前（akari）` など）。
     pub label: String,
+    /// 本文の中の、その名前の範囲（変数は書かれた変数全体、名前空間のキャラクターは名前空間）。
+    pub span: Span,
 }
 
 /// 本文の1か所の置き換え。
@@ -319,7 +321,7 @@ pub fn symbol_at(project: &Project, file: &str, offset: usize) -> Option<Symbol>
     let site = sites(project, source)
         .into_iter()
         .find(|s| inside(s.span()))?;
-    let character = |text: &str| -> Option<Symbol> {
+    let character = |text: &str, span: Span| -> Option<Symbol> {
         let id = character_of(project, text)?;
         let entry = project.characters.iter().find(|c| c.id == id)?;
         if text == id {
@@ -331,27 +333,30 @@ pub fn symbol_at(project: &Project, file: &str, offset: usize) -> Option<Symbol>
                 },
                 current: id.to_owned(),
                 label: format!("キャラクターのID（{}）", entry.name),
+                span,
             })
         } else {
             Some(Symbol {
                 target: RenameTarget::CharacterName { id: id.to_owned() },
                 current: entry.name.clone(),
                 label: format!("キャラクターの名前（{id}）"),
+                span,
             })
         }
     };
     match site {
-        Site::SceneId(id, _) | Site::SceneRef(id, _) => Some(Symbol {
+        Site::SceneId(id, span) | Site::SceneRef(id, span) => Some(Symbol {
             label: "シーンID".to_owned(),
             current: id.clone(),
             target: RenameTarget::Scene { id },
+            span,
         }),
-        Site::Character(text, _) => character(&text),
+        Site::Character(text, span) => character(&text, span),
         Site::Raw(..) => None,
         Site::Var { var, namespace, .. } => {
             if let (Some(ns_span), Some(ns)) = (namespace, &var.namespace)
                 && inside(ns_span)
-                && let Some(symbol) = character(ns)
+                && let Some(symbol) = character(ns, ns_span)
             {
                 return Some(symbol);
             }
@@ -360,9 +365,66 @@ pub fn symbol_at(project: &Project, file: &str, offset: usize) -> Option<Symbol>
                 label: "変数".to_owned(),
                 current: key.clone(),
                 target: RenameTarget::Variable { key },
+                span: var.span,
             })
         }
     }
+}
+
+/// 名前の本文の中の現れ（言語サーバーの参照。T3-15）：ファイル（本文の順）と範囲（位置の順）。シーンは見出しの
+/// IDとジャンプ・選択肢・`@呼出` の行き先。キャラクターは話者・`@立ち絵`・`@退場`（名前・呼び名・IDのどれで
+/// 書いても）と、変数の名前空間。変数は、そろえたキーが同じ現れ（書かれた変数全体）。エントリのIDは、
+/// キャラクターのエントリだけ本文に現れる。
+pub fn occurrences(project: &Project, target: &RenameTarget) -> Vec<(String, Span)> {
+    let resolves_to = |text: &str, id: &str| character_of(project, text) == Some(id);
+    let character_id = match target {
+        RenameTarget::CharacterName { id } => Some(id.as_str()),
+        RenameTarget::EntryId { type_id, id } if type_id == project.bible.character_type() => {
+            Some(id.as_str())
+        }
+        _ => None,
+    };
+    let mut out = Vec::new();
+    for file in &project.files {
+        for site in sites(project, &file.text) {
+            let span = match (&site, target) {
+                (
+                    Site::SceneId(id, span) | Site::SceneRef(id, span),
+                    RenameTarget::Scene { id: t },
+                ) if id == t => Some(*span),
+                (Site::Character(text, span), _)
+                    if character_id.is_some_and(|id| resolves_to(text, id)) =>
+                {
+                    Some(*span)
+                }
+                (
+                    Site::Var {
+                        var,
+                        namespace: Some(span),
+                        ..
+                    },
+                    _,
+                ) if character_id.is_some_and(|id| {
+                    var.namespace
+                        .as_deref()
+                        .is_some_and(|ns| resolves_to(ns, id))
+                }) =>
+                {
+                    Some(*span)
+                }
+                (Site::Var { var, .. }, RenameTarget::Variable { key })
+                    if var_key(project, var) == *key =>
+                {
+                    Some(var.span)
+                }
+                _ => None,
+            };
+            if let Some(span) = span {
+                out.push((file.path.clone(), span));
+            }
+        }
+    }
+    out
 }
 
 /// 名前の変更を組み立てる途中の、設定ファイルの中身（パスごと）。

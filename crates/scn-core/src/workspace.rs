@@ -502,7 +502,7 @@ impl Workspace {
     }
 
     /// 作品フォルダの根からの相対パス（区切りは `/`）。作品フォルダの外なら `None`。
-    fn relative(&self, path: &Path) -> Option<String> {
+    pub fn relative(&self, path: &Path) -> Option<String> {
         // 消されたファイルは解けないので、親のフォルダを解いてから名前をつなぐ。
         let resolved = path
             .parent()

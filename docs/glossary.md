@@ -86,7 +86,11 @@
 | 執筆表示 | writing view | 記号を畳んで見せる表示（D046） |
 | ソース表示 | source view | 生のテキストと行番号を見せる表示 |
 | 入力補助 | input assist | 括弧の補い、正規化、段落頭の字下げ（`typing.ts`、D047） |
-| 補完 | completion | 候補の窓。キャラ名、命令、引数、シーンID（`complete.ts`） |
+| 補完 | completion | 候補の窓。キャラ名、命令、引数、シーンID（`complete.ts`。言語サーバーはコアの `complete::complete_at`） |
+| 言語サーバー | language server | `scn lsp`（`crates/scn-lsp`）。LSP で診断・補完・定義へ移動・参照・名前の変更・ホバーを出す（T3-15） |
+| 定義へ移動 | definition | 名前の定義の場所へ移る（`navigate::definition`。アプリは F12） |
+| 参照 | references | 名前のすべての現れ（`navigate::references`、`rename::occurrences`） |
+| ホバー | hover | 名前の上に出す説明（`navigate::hover`） |
 | 正規化 | normalize | `...` を `……` にするなど（`[editor]` の `normalize_ellipsis`） |
 | 段落頭の字下げ | narration indent | 地の文の行頭の全角空白（`indent_narration`） |
 | 文脈パネル | context panel | エディタの右。今のシーンの登場キャラ、変数、素材、問題 |

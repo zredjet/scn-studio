@@ -20,11 +20,13 @@ use proptest::prelude::*;
 use proptest::sample::Index;
 use scn_core::assets::{AssetState, asset_list, orders};
 use scn_core::check::check as check_project;
+use scn_core::complete::complete_at;
 use scn_core::concept::concept_data;
 use scn_core::flowedit::{FlowEdge, insert_edge};
 use scn_core::ideas::{read_idea, stub_scene, summary_line};
 use scn_core::index::build_index;
 use scn_core::line_id::{LineIdGenerator, assign_line_ids};
+use scn_core::navigate::{definition, hover, references};
 use scn_core::plaintext::plain_text;
 use scn_core::playthrough::stage2;
 use scn_core::project::{MessageWindow, Project, SourceFile};
@@ -163,7 +165,16 @@ fn check(source: &str) {
         if let Some(symbol) = symbol_at(&windowed, &file, offset) {
             let _ = plan_rename(&windowed, &fixture_root(), &symbol.target, "zz_new");
         }
+        // 言語サーバーの言語サービス（T3-15）：補完、定義、参照、ホバー。
+        for c in complete_at(&windowed, &ir, source, offset) {
+            assert!(c.span.start <= c.span.end && c.span.end == offset);
+        }
+        let _ = definition(&windowed, &ir, &file, offset);
+        let _ = references(&windowed, &ir, &file, offset, true);
+        let _ = hover(&windowed, &ir, &file, offset);
     }
+    // 文字の途中や本文の外の位置でも落ちない。
+    let _ = complete_at(&windowed, &ir, source, source.len() + 3);
     let _ = plan_rename(
         &windowed,
         &fixture_root(),

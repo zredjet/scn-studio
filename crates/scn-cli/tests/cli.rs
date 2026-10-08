@@ -1708,3 +1708,67 @@ fn export_without_ai_drafts() {
         text.stdout
     );
 }
+
+/// `scn lsp`：標準入出力の言語サーバー（T3-15）。初期化して作品の診断を受け取り、終わらせると0で終わる。
+#[test]
+fn lsp_over_stdio() {
+    use std::io::{BufRead, BufReader, Read, Write};
+    use std::process::{Command as Process, Stdio};
+
+    let root = fs::canonicalize(repo_root().join("samples/amayadori")).unwrap();
+    let mut child = Process::new(env!("CARGO_BIN_EXE_scn"))
+        .arg("lsp")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = BufReader::new(child.stdout.take().unwrap());
+    let mut send = |message: Value| {
+        let body = message.to_string();
+        write!(stdin, "Content-Length: {}\r\n\r\n{body}", body.len()).unwrap();
+        stdin.flush().unwrap();
+    };
+    let mut receive = || -> Value {
+        let mut length = 0;
+        loop {
+            let mut line = String::new();
+            stdout.read_line(&mut line).unwrap();
+            let line = line.trim_end();
+            if line.is_empty() {
+                break;
+            }
+            if let Some(n) = line.strip_prefix("Content-Length: ") {
+                length = n.parse().unwrap();
+            }
+        }
+        let mut body = vec![0; length];
+        stdout.read_exact(&mut body).unwrap();
+        serde_json::from_slice(&body).unwrap()
+    };
+    // file の URI（Windows は `file:///C:/…`。canonicalize の `\\?\` は外す）。
+    let path = root.display().to_string();
+    let path = path
+        .strip_prefix(r"\\?\")
+        .unwrap_or(&path)
+        .replace('\\', "/");
+    let folder = if path.starts_with('/') {
+        format!("file://{path}")
+    } else {
+        format!("file:///{path}")
+    };
+    send(serde_json::json!({
+        "jsonrpc": "2.0", "id": 1, "method": "initialize",
+        "params": { "capabilities": {}, "workspaceFolders": [{ "uri": folder, "name": "amayadori" }] },
+    }));
+    let response = receive();
+    assert_eq!(response["id"], 1);
+    assert_eq!(response["result"]["serverInfo"]["name"], "scn");
+    send(serde_json::json!({ "jsonrpc": "2.0", "method": "initialized", "params": {} }));
+    send(serde_json::json!({ "jsonrpc": "2.0", "id": 2, "method": "shutdown" }));
+    // amayadori は診断0件なので、知らせは来ずに shutdown の応答が来る。
+    let response = receive();
+    assert_eq!(response["id"], 2, "{response}");
+    send(serde_json::json!({ "jsonrpc": "2.0", "method": "exit" }));
+    assert!(child.wait().unwrap().success());
+}

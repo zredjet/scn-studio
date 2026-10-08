@@ -39,6 +39,7 @@ samples/houkago/        サンプル作品「放課後の灯」（.scn・設定�
 samples/amayadori/      フェーズ1のゲートの短編「雨宿りの駅」（T1-13。ツールとClaude Codeで書いた。指示書は CLAUDE.template.md）
 crates/scn-core/        パーサ、AST、意味解析、IR、診断
 crates/scn-cli/         CLI `scn`
+crates/scn-lsp/         言語サーバー（`scn lsp`。T3-15）
 packages/lezer-scn/     ハイライト用のLezer文法
 app/                    Tauri＋React（src-tauri/ と src/）
 ```
@@ -75,6 +76,8 @@ app/                    Tauri＋React（src-tauri/ と src/）
   - `cargo run -p scn-cli -- export utage [project-dir] [--no-ai-drafts] [-o 書き出し先]`：出力プロファイル（`export/utage.yaml`）に従って、宴のシナリオ（`<book>.xlsx`。開始のシート `scn_start` とシーンごとのシート）と設定（`<book>_settings.xlsx`。Character・Texture・Sound・Param・Layer）と素材（`Texture/`・`Sound/`）を書き出す。既定の書き出し先はプロファイルの `output`（既定は作品フォルダの `export/utage`）で、まるごと作り直す。終了コードは `export renpy` と同じ（書き出し先が書き出したものでなく空でもなければ、消さずに2）
   - `cargo run -p scn-cli -- export epub|pdf [project-dir] [--route 名前 | --ending ID] [--horizontal] [--no-notes] [--no-ai-drafts] [-o 書き出し先]`：道（`export text` と同じ選び方）ごとに、EPUB 3（`export/epub/<道の名前>.epub`）か、縦書きPDFを組むための印刷用の HTML（`export/pdf/<道の名前>.html`。PDF は Vivliostyle などで組む）を書き出す。出力プロファイルは `export/book.yaml`。`-o` は1つの道のときだけ（`-o -` は標準出力）。`pdf --typeset` は、印刷用の HTML を書いた後に `export/book.yaml` の `pdf_command` で PDF を組む（無ければ2）。終了コードは `export text` と同じ
   - `cargo run -p scn-cli -- export <プロファイル名> [project-dir] [-o 書き出し先] [--no-ai-drafts]`：作品フォルダの出力プロファイル `export/<名前>.yaml` のプラグインで書き出す（`template:` は minijinja のテンプレートで1つのファイルを、`command:` は IR の JSON を標準入力で渡して外部コマンドを作品フォルダで実行する。仕様は `docs/spec/project-files.md` の15節）。既定の書き出し先は `export/<名前>/` の中。無い名前・プロファイルとテンプレートの誤り・コマンドの失敗は2
+  - `cargo run -p scn-cli -- lsp`：言語サーバー（LSP）を標準入出力で動かす（VS Code 拡張などのエディタから使う。診断（読み込み・構文・意味と検証の段階1）、補完、定義へ移動、参照、名前の変更、ホバー。作品フォルダは初めに渡されたフォルダか、開いた文書から上へ探した `project.toml` のあるフォルダ。位置は UTF-16）
+  - 言語サーバーのテストだけ：`cargo test -p scn-lsp`（テストの中で JSON-RPC の要求をサービスに渡す）
   - CLIのテストだけ：`cargo test -p scn-cli`
   - `scn` をパスの通った場所（`~/.cargo/bin`）に入れる：`cargo install --locked --path crates/scn-cli`（作品フォルダで `scn` として使うとき）
 - Ren'Py で確かめる（macOS、Ren'Py の SDK が要る。`scripts/check-all` には入らない）：`scripts/renpy-check [SDKのフォルダ]`（既定は環境変数 `RENPY_SDK` か `/Applications/renpy-8.5.2-sdk`）。両サンプルを `target/renpy-check/` に書き出し、SDK の lint と、Ren'Py の testcase（`scripts/renpy/*.rpy`）で全エンディングまで自動で遊ぶ。ゲームの窓が短い間開く

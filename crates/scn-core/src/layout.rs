@@ -250,19 +250,23 @@ pub fn rename_layout_key(
     from: &str,
     to: &str,
 ) -> Result<Option<String>, ProjectError> {
-    let loaded = read_layout(root);
-    if loaded.state != LayoutState::Ok {
-        return Ok(None);
-    }
-    let mut layout = loaded.layout;
-    let Some(points) = layout.level_mut(level) else {
+    let Some(text) = renamed_layout_text(root, level, from, to) else {
         return Ok(None);
     };
-    let Some(point) = points.remove(from) else {
-        return Ok(None);
-    };
-    points.insert(to.to_owned(), point);
-    let text = layout_text(&layout);
     write_source(root, LAYOUT_FILE, &text)?;
     Ok(Some(text))
+}
+
+/// 位置のキーを変えた後の `layout.json` の中身（書かない。言語サーバーの名前の変更。T3-15）。ファイルが
+/// 読めない・壊れているときと、その位置が無いときは `None`。
+pub fn renamed_layout_text(root: &Path, level: &str, from: &str, to: &str) -> Option<String> {
+    let loaded = read_layout(root);
+    if loaded.state != LayoutState::Ok {
+        return None;
+    }
+    let mut layout = loaded.layout;
+    let points = layout.level_mut(level)?;
+    let point = points.remove(from)?;
+    points.insert(to.to_owned(), point);
+    Some(layout_text(&layout))
 }

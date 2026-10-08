@@ -1247,6 +1247,8 @@ export interface RenameSymbol {
   readonly target: RenameTarget;
   readonly current: string;
   readonly label: string;
+  /** 本文の中の名前の範囲（言語サーバーが使う。T3-15。画面が作る名前の変更には無い）。 */
+  readonly span?: ByteSpan;
 }
 
 /** 名前の変更の見積もり。 */

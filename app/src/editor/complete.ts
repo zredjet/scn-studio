@@ -36,6 +36,11 @@ export const assistEnv = Facet.define<AssistEnv, AssistEnv>({
 /** シーンIDの形（仕様書5節）。 */
 const SCENE_ID = /^[A-Za-z0-9_]+$/;
 
+/** 飛び先に書けるシーン（IDの無い見出しの仮のID `_anon_…` は飛び先にできない。仕様書5節）。 */
+function targetScenes(env: AssistEnv) {
+  return env.scenes.filter((s) => !s.id.startsWith("_anon_"));
+}
+
 /** 補完の窓に出す1つ。`apply` が関数なら、選んだときの書き換えを自分で行う。 */
 type Option = Completion;
 
@@ -176,7 +181,7 @@ export function completeAt(
   const jump = /(?:^[ \t]*|[ \t])->[ \t]*([A-Za-z0-9_]*)$/.exec(before);
   if (jump !== null) {
     const typed = jump[1] ?? "";
-    const options = env.scenes
+    const options = targetScenes(env)
       .filter((s) => matches(s.id, typed))
       .map((s) => option(s.id, s.title));
     // 打ったIDで始まるシーンが1つも無いときだけ、スタブを作る候補を出す（途中まで打った段階では出さない）。
@@ -281,7 +286,7 @@ export function completeAt(
       case "call":
         return args.length === 0
           ? pick(
-              env.scenes.map((s) => s.id),
+              targetScenes(env).map((s) => s.id),
               "シーンID",
             )
           : null;

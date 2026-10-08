@@ -69,6 +69,7 @@ const ENV: AssistEnv = {
     { id: "s010", title: "登校" },
     { id: "s011", title: "昼休みの教室" },
     { id: "s013a", title: "打ち明ける" },
+    { id: "_anon_chapter01_1", title: "IDの無い場面" },
   ],
   brackets: BRACKETS,
 };
@@ -143,6 +144,9 @@ test("補完：@ と全角の ＠ で命令、命令の後ろで引数", () => {
 
 test("補完：-> のシーンID。無いIDならスタブを作る候補", () => {
   assert.deepEqual(labels("-> s01"), ["s010", "s011", "s013a"]);
+  // IDの無い見出しの仮のIDは、飛び先に出さない（言語サーバーの補完と同じ）。
+  assert.ok(!(labels("-> _anon") ?? []).includes("_anon_chapter01_1"));
+  assert.deepEqual(labels("@呼出 _"), null);
   assert.deepEqual(labels("- 行く -> s013"), ["s013a"]);
   const missing = completeAt(ENV, 0, "-> s099", "", 7);
   assert.deepEqual(

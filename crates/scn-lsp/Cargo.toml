@@ -1,0 +1,19 @@
+[package]
+name = "scn-lsp"
+description = ".scn の言語サーバー（scn lsp）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+scn-core = { path = "../scn-core" }
+serde_json = "1.0.151"
+tokio = { version = "1.53.2", features = ["rt", "io-std"] }
+# tower-lsp の保守されているフォーク（T3-15、R181）
+tower-lsp-server = "0.23.0"
+
+[dev-dependencies]
+futures = "0.3.31"
+tokio = { version = "1.53.2", features = ["rt", "macros", "sync", "time"] }
+tower = { version = "0.5.3", features = ["util"] }

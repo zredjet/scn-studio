@@ -25,6 +25,7 @@
 //! - `scn export orders [project-dir] [-o file]`：発注リストを CSV で書き出す（D054）。
 //! - `scn export text [project-dir] [--route 名前 | --ending ID] [--no-notes] [-o file]`：ルート単位の通読用の
 //!   テキストを書き出す（D056）。
+//! - `scn lsp`：言語サーバー（LSP）を標準入出力で動かす（D076。VS Code 拡張などから使う）。
 //! - `scn fmt <project-dir> [--check] [--json]`：行IDの無い行に行IDを付ける（仕様書9節、D041）。
 //!   付けた行IDを `ファイル:行:列 ^ID` の形で出す。`--check` では書き換えず、付ける行があれば1で終わる。
 //!   `project.toml` の `format_version` か `[dialogue]` を読めなければ、台詞の括弧を書かれたとおりに読めないので、
@@ -130,6 +131,9 @@ enum Command {
         #[command(subcommand)]
         what: AiCommand,
     },
+    /// 言語サーバー（LSP）を標準入出力で動かす（VS Code 拡張などのエディタから使う。診断、補完、定義へ移動、
+    /// 参照、名前の変更、ホバー）
+    Lsp,
     /// 書き出す（台本など）
     #[command(
         after_help = "ほかの名前は、作品フォルダの出力プロファイル export/<名前>.yaml のプラグイン（template か \
@@ -418,6 +422,7 @@ fn run(command: Command) -> Result<u8, CliError> {
             json,
         } => run_graph(&project, level.into(), json),
         Command::New { dir, title } => run_new(&dir, title.as_deref()),
+        Command::Lsp => run_lsp(),
         Command::FormatDoc { project, check } => run_format_doc(&project, check),
         Command::Fmt {
             project,
@@ -1111,6 +1116,17 @@ fn run_export_book(args: &BookArgs, print: bool) -> Result<u8, CliError> {
         }
     }
     Ok(code)
+}
+
+/// `scn lsp`：言語サーバーを標準入出力で動かす（T3-15、D076）。大きなスタックのスレッドの上で、1つのスレッドの
+/// 実行環境を回す（入れ子の深い本文の解析でスタックがあふれないように）。
+fn run_lsp() -> Result<u8, CliError> {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|e| CliError::Refused(format!("言語サーバーを動かせません：{e}")))?;
+    runtime.block_on(scn_lsp::serve_stdio());
+    Ok(SUCCESS)
 }
 
 /// `scn export <プロファイル名>`：作品フォルダの出力プロファイル `export/<名前>.yaml` のプラグインで書き出す
