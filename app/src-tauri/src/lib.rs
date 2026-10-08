@@ -14,6 +14,7 @@ use std::thread;
 use std::time::Duration;
 
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use scn_core::assets;
 use scn_core::assist::{self, completion_data, scene_chars};
 use scn_core::bible;
 use scn_core::check::{check, overflow};
@@ -26,7 +27,7 @@ use scn_core::preview;
 use scn_core::renpy;
 use scn_core::scaffold::create_project as scaffold_project;
 use scn_core::script;
-use scn_core::workspace::{Change, SaveOutcome, Workspace};
+use scn_core::workspace::{AssetKey, Change, SaveOutcome, Workspace};
 use scn_core::{Project, Span, analyze};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -387,6 +388,7 @@ fn bible_data(workspace: &Workspace) -> Value {
         "types": bible.types,
         "files": files,
         "expressions": project.catalog.characters,
+        "placeholders": assets::placeholder_expressions(project, workspace.root()),
     })
 }
 
@@ -587,6 +589,83 @@ fn export_script(state: State<'_, AppState>) -> Result<Response, String> {
     json_response(&json!({
         "path": path.display().to_string(),
         "rows": sheet.rows.len(),
+    }))
+}
+
+// ---- 素材カタログ（T2-3、D054） ----
+
+/// 素材の一覧（保存していない本文も含めて数える）。
+fn asset_list_of(workspace: &Workspace) -> Result<Value, String> {
+    let (project, root) = (workspace.project(), workspace.root());
+    with_index(project, |_, index| {
+        to_json(&assets::asset_list(project, root, index), "素材の一覧")
+    })
+}
+
+/// カタログを書いた後に返すもの：書いた結果、素材の一覧、補完の材料、表示に要る分、検証の段階1の診断。
+fn after_catalog_write(workspace: &Workspace, edit: Value) -> Result<Response, String> {
+    let Analyzed {
+        summary, checks, ..
+    } = analyze_summary(workspace.project(), true, None)?;
+    json_response(&json!({
+        "edit": edit,
+        "assets": asset_list_of(workspace)?,
+        "assist": completion_data(workspace.project()),
+        "summary": summary,
+        "checks": checks,
+    }))
+}
+
+/// 素材の一覧（素材カタログの画面を開いたとき、本文や設定が変わったとき）。
+#[tauri::command]
+fn asset_list(state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    json_response(&asset_list_of(workspace)?)
+}
+
+/// カタログに意味名を足す（仮素材。D054）。
+#[tauri::command]
+fn add_catalog_entries(
+    items: Vec<AssetKey>,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let edit = workspace
+        .add_catalog_entries(&items)
+        .map_err(|e| e.to_string())?;
+    after_catalog_write(workspace, to_json(&edit, "書いた結果")?)
+}
+
+/// カタログの意味名にファイルを割り当てる。`path` は選んだファイル（`assets/` の中だけ。コアで確かめる）。
+#[tauri::command]
+fn assign_asset_file(
+    item: AssetKey,
+    path: String,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let edit = workspace
+        .assign_asset_file(&item, Path::new(&path))
+        .map_err(|e| e.to_string())?;
+    after_catalog_write(workspace, to_json(&edit, "書いた結果")?)
+}
+
+/// 発注リストを作品フォルダの `export/orders.csv` に書き出す（`scn export orders` と同じ）。
+#[tauri::command]
+fn export_orders(state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let (project, root) = (workspace.project(), workspace.root());
+    let rows = with_index(project, |_, index| {
+        Ok(assets::orders(&assets::asset_list(project, root, index)))
+    })?;
+    let path = assets::write_orders(root, &rows).map_err(|e| e.to_string())?;
+    json_response(&json!({
+        "path": path.display().to_string(),
+        "rows": rows.len(),
     }))
 }
 
@@ -968,6 +1047,10 @@ pub fn run() {
             script_sheet,
             export_script,
             export_renpy,
+            asset_list,
+            add_catalog_entries,
+            assign_asset_file,
+            export_orders,
             scene_graph,
             read_layout,
             write_layout,

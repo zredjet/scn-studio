@@ -2129,3 +2129,378 @@ body {
   min-width: 220px;
   white-space: pre-wrap;
 }
+
+/* ---- 素材カタログの画面（T2-3、D054。docs/ui/mockups/05-assets.html） ---- */
+
+.secondary-small {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.secondary-small:disabled,
+.primary-small:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.assets-screen {
+  overflow: hidden;
+}
+
+.assets-screen-body {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.assets-main {
+  display: flex;
+  flex: 999 1 640px;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--paper);
+}
+
+.assets-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.assets-title {
+  display: flex;
+  flex-direction: column;
+}
+
+.assets-title h1 {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.assets-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.assets-count {
+  padding: 4px 10px;
+  border-radius: var(--radius-control);
+  background: var(--panel-bg);
+  font-size: 12.5px;
+}
+
+.assets-count.provisional {
+  border: 1px dashed var(--warn-border);
+  background: var(--warn-tint);
+  color: var(--warn-text);
+  font-weight: 500;
+}
+
+.assets-count.unregistered {
+  background: var(--warn-strong);
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.assets-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 24px;
+}
+
+.assets-check {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.assets-search {
+  flex: 0 1 240px;
+  margin-left: auto;
+}
+
+.assets-notice,
+.assets-error {
+  margin: 0 24px 8px;
+  font-size: 12.5px;
+}
+
+.assets-notice {
+  color: var(--accent-strong);
+}
+
+.assets-error {
+  color: var(--danger-text);
+}
+
+.assets-table-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 0 24px 24px;
+}
+
+.assets-table {
+  min-width: 640px;
+}
+
+.assets-table th.number,
+.assets-table td.number {
+  text-align: right;
+}
+
+.assets-table tr.unregistered td {
+  background: var(--warn-tint);
+}
+
+.assets-table tr.selected td {
+  background: var(--accent-tint);
+}
+
+.assets-kind {
+  color: var(--text-muted);
+}
+
+.assets-name {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.assets-name:hover {
+  text-decoration: underline;
+}
+
+.assets-file.muted {
+  color: var(--text-muted);
+}
+
+.assets-state-file {
+  color: var(--text-muted);
+}
+
+.assets-badge {
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.assets-badge.provisional {
+  border: 1px dashed var(--warn-border);
+  background: var(--warn-tint);
+  color: var(--warn-text);
+}
+
+.assets-badge.unregistered {
+  background: var(--warn-strong);
+  color: #ffffff;
+}
+
+.assets-note {
+  margin: 12px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.assets-side {
+  flex: 1 1 400px;
+  min-width: 300px;
+}
+
+.assets-side-note {
+  margin: 0;
+  padding: 0 16px 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.assets-matrix-scroll {
+  padding: 0 12px;
+  overflow-x: auto;
+}
+
+.assets-matrix {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 4px;
+  font-size: 12.5px;
+}
+
+.assets-matrix th {
+  color: var(--text-muted);
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.assets-matrix tbody th {
+  color: var(--ink);
+}
+
+.assets-matrix-unknown {
+  color: var(--warn-strong);
+  font-size: 11px;
+}
+
+.assets-cell-wrap {
+  padding: 0;
+}
+
+.assets-cell {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 40px;
+  min-height: 28px;
+  padding: 0 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.assets-cell.provisional {
+  border: 1px dashed var(--warn-border);
+  background: var(--warn-tint);
+  color: var(--warn-text);
+}
+
+.assets-cell.unregistered {
+  border-color: var(--warn-strong);
+  background: var(--warn-strong);
+  color: #ffffff;
+}
+
+.assets-cell.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.assets-cell-none {
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.assets-cell-mark {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.assets-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 8px 16px 0;
+  font-size: 12px;
+}
+
+.assets-legend > span {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.assets-swatch {
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 3px;
+  background: var(--paper);
+}
+
+.assets-swatch.provisional {
+  border: 1px dashed var(--warn-border);
+  background: var(--warn-tint);
+}
+
+.assets-swatch.unregistered {
+  border-color: var(--warn-strong);
+  background: var(--warn-strong);
+}
+
+.assets-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 16px 8px;
+  font-size: 12.5px;
+}
+
+.assets-detail p {
+  margin: 0;
+}
+
+.assets-muted {
+  color: var(--text-muted);
+}
+
+.assets-thumb {
+  max-width: 100%;
+  max-height: 180px;
+  align-self: flex-start;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-item);
+  object-fit: contain;
+}
+
+.assets-audio {
+  width: 100%;
+}
+
+.assets-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.assets-orders {
+  margin: 0 12px 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-item);
+  background: var(--paper);
+  font-size: 12px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+
+.bible-chip.provisional {
+  border: 1px dashed var(--warn-border);
+  background: var(--warn-tint);
+  color: var(--warn-text);
+}
+
+.bible-chip-mark {
+  font-size: 11px;
+  font-weight: 700;
+}

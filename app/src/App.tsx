@@ -5,6 +5,7 @@
 // 変換が終わってから反映する（whenIdle）。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AssetsScreen } from "./assets/AssetsScreen.tsx";
 import { type BibleRequest, BibleScreen } from "./bible/BibleScreen.tsx";
 import { CheckList } from "./check/CheckList.tsx";
 import { countBySeverity } from "./check/group.ts";
@@ -110,9 +111,13 @@ function withoutFiles(
   return new Set([...set].filter((f) => !files.has(f)));
 }
 
-/** 設定DBのエントリか `variables.yaml` か（検証の画面から、その画面を開ける）。 */
+/** 設定DBのエントリか `variables.yaml` か素材カタログか（検証の画面から、その画面を開ける）。 */
 function isSettingsFile(file: string): boolean {
-  return file.startsWith("bible/entries/") || file === "variables.yaml";
+  return (
+    file.startsWith("bible/entries/") ||
+    file === "variables.yaml" ||
+    file === "assets/catalog.yaml"
+  );
 }
 
 function withoutConflict(
@@ -853,6 +858,8 @@ export function App() {
         requestBible((seq) => ({ kind: "entry", path: d.file, seq }));
       } else if (d.file === "variables.yaml") {
         setScreen("variables");
+      } else if (d.file === "assets/catalog.yaml") {
+        setScreen("assets");
       } else {
         goTo(d.file, d.span[0]);
       }
@@ -1068,6 +1075,18 @@ export function App() {
                     onOpenLocation={openFromSettings}
                     onUnsaved={onBibleDraft}
                     onRequestHandled={onBibleRequestHandled}
+                  />
+                </section>
+              )}
+              {screen === "assets" && (
+                <section className="screen assets-screen" aria-label="素材">
+                  <AssetsScreen
+                    root={project.root}
+                    summary={project.summary}
+                    scenes={project.summary.scenes}
+                    settingsVersion={settingsVersion}
+                    onWritten={onSettingsWritten}
+                    onOpenLocation={openFromSettings}
                   />
                 </section>
               )}

@@ -1,0 +1,18 @@
+---
+source: crates/scn-core/tests/assets.rs
+expression: dump(&list)
+---
+background バス停/朝 Placeholder file=- path=false uses=1 scenes=[s08] addable=false
+background 待合室/夜 Placeholder file=- path=false uses=1 scenes=[s02] addable=false
+background 待合室/夜明け Placeholder file=- path=false uses=1 scenes=[s07] addable=false
+background 駅/夜 Placeholder file=- path=false uses=1 scenes=[s01] addable=false
+expression 佐伯/笑顔 Placeholder file=- path=false uses=1 scenes=[s05] addable=false
+expression 志乃/伏し目 Placeholder file=- path=false uses=1 scenes=[s02] addable=false
+expression 志乃/真顔 Placeholder file=- path=false uses=2 scenes=[s03 s08] addable=false
+expression 志乃/笑顔 Placeholder file=- path=false uses=3 scenes=[s03 s09 s10] addable=false
+bgm 夜明け Placeholder file=- path=false uses=1 scenes=[s07] addable=false
+bgm 雨音 Placeholder file=- path=false uses=1 scenes=[s01] addable=false
+se ドア Placeholder file=- path=false uses=3 scenes=[s01 s05 s11] addable=false
+se バス Placeholder file=- path=false uses=1 scenes=[s09] addable=false
+se 雷 Placeholder file=- path=false uses=4 scenes=[s01 s06] addable=false
+characters: saeki(佐伯) shino(志乃)

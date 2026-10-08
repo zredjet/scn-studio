@@ -123,7 +123,9 @@
 | 仮素材 | placeholder asset | ファイルの無い意味名 |
 | 差分 | expression | 立ち絵の表情の違い |
 | 位置 | position | `left` / `center` / `right` |
-| 発注リスト | asset order list | 仮素材の一覧（CSV） |
+| 発注リスト | asset order list | まだファイルの無い素材の一覧（`export/orders.csv`。`scn export orders`、`assets::orders`） |
+| 素材の状態 | asset state | ファイルあり（`file`）・仮素材（`placeholder`）・未登録（`unregistered`）。`assets::AssetState` |
+| 未登録の素材 | unregistered asset | 本文で使われているが、カタログに無い意味名（I403） |
 | プレビュー | preview | ADVプレイヤーと縦書きビュー |
 | ランタイム | runtime | IRを解釈してプレビューを進めるもの（`app/src/preview/runtime.ts`） |
 | 舞台 | stage | プレビューの背景・立ち絵・BGMの今の状態 |

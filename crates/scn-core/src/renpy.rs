@@ -21,6 +21,7 @@ use std::path::{Component, Path, PathBuf};
 use serde::Serialize;
 use yaml_serde::Value as Yaml;
 
+use crate::assets::assets_relative;
 use crate::check::falls_through;
 use crate::ir::{Ir, IrExpr, IrInline, IrOption, Op};
 use crate::preview::{PreviewData, preview_data};
@@ -1272,17 +1273,6 @@ fn label_name(id: &str) -> String {
     }
 }
 
-/// 作品フォルダの `assets/` の中のファイル（絶対パス）を、`assets/` から数えたパス（`/` 区切り）にする。
-fn assets_relative(file: &str, root: &Path) -> Option<String> {
-    let assets = fs::canonicalize(root.join("assets")).ok()?;
-    let relative = Path::new(file).strip_prefix(&assets).ok()?;
-    let parts: Vec<String> = relative
-        .components()
-        .map(|c| c.as_os_str().to_string_lossy().into_owned())
-        .collect();
-    (!parts.is_empty()).then(|| parts.join("/"))
-}
-
 /// 本文で使われている素材の意味名と、変数。
 #[derive(Default)]
 struct Used {
@@ -1563,7 +1553,7 @@ fn define_assets(exporter: &mut Exporter<'_>, used: &Used) -> String {
     let mut defs = String::new();
     let mut placeholders = 0;
     let copy = |exporter: &mut Exporter<'_>, file: &str| -> Option<String> {
-        let relative = assets_relative(file, root)?;
+        let relative = assets_relative(Path::new(file), root)?;
         let target = format!("scn/{relative}");
         exporter
             .copies

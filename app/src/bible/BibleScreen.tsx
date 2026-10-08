@@ -703,11 +703,31 @@ export function BibleScreen({
                         </span>
                       ) : (
                         <div className="bible-chips readonly">
-                          {(data.expressions[entry.id] ?? []).map((e) => (
-                            <span key={e} className="bible-chip">
-                              {e}
-                            </span>
-                          ))}
+                          {(data.expressions[entry.id] ?? []).map((e) => {
+                            const placeholder = (
+                              data.placeholders[entry.id] ?? []
+                            ).includes(e);
+                            return (
+                              <span
+                                key={e}
+                                className={
+                                  placeholder
+                                    ? "bible-chip provisional"
+                                    : "bible-chip"
+                                }
+                                title={
+                                  placeholder
+                                    ? "仮素材（ファイルがまだありません）"
+                                    : undefined
+                                }
+                              >
+                                {e}
+                                {placeholder && (
+                                  <span className="bible-chip-mark">仮</span>
+                                )}
+                              </span>
+                            );
+                          })}
                         </div>
                       )}
                     </div>

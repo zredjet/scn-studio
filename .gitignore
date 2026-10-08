@@ -32,4 +32,5 @@ packages/lezer-scn/src/parser.terms.ts
 
 # サンプルの書き出し先（scn export を -o なしで実行したとき）
 samples/*/export/script.csv
+samples/*/export/orders.csv
 samples/*/export/renpy/

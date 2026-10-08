@@ -330,6 +330,8 @@ export interface BibleData {
   readonly files: readonly EntryFile[];
   /** キャラクターIDごとの立ち絵の差分（素材カタログ）。 */
   readonly expressions: Readonly<Record<string, readonly string[]>>;
+  /** キャラクターIDごとの、ファイルの無い差分（仮素材。T2-3）。 */
+  readonly placeholders: Readonly<Record<string, readonly string[]>>;
 }
 
 /** 設定DBと変数を書いた結果（コアの `workspace::EntryEdit` と、エントリを作ったとき）。 */
@@ -448,4 +450,63 @@ export interface ScriptSheet {
   readonly rows: readonly ScriptRow[];
   /** 行IDの無い台詞の数。 */
   readonly missing_line_ids: number;
+}
+
+/** 素材の種類（コアの索引と同じ）。 */
+export type AssetKind = "background" | "expression" | "bgm" | "se";
+
+/** 素材の状態（コアの `assets::AssetState`）。 */
+export type AssetState = "file" | "placeholder" | "unregistered";
+
+/** 素材の一覧の1行（コアの `assets::AssetRow`）。 */
+export interface AssetRow {
+  readonly kind: AssetKind;
+  /** 立ち絵のキャラクターID（解決できなければ書かれた名前）。 */
+  readonly character: string | null;
+  readonly character_name: string | null;
+  readonly name: string;
+  readonly state: AssetState;
+  /** カタログに書かれたファイル（`assets/` から）。 */
+  readonly file: string | null;
+  /** 実在するファイルの絶対パス。 */
+  readonly path: string | null;
+  readonly uses: readonly Location[];
+  /** 使用シーン（初めて使われた順）。最初が初出。 */
+  readonly scenes: readonly string[];
+  /** カタログに足せるか。 */
+  readonly addable: boolean;
+}
+
+export interface AssetCharacter {
+  readonly id: string;
+  readonly name: string;
+  readonly registered: boolean;
+}
+
+/** 素材の一覧（コアの `assets::AssetList`）。 */
+export interface AssetList {
+  readonly rows: readonly AssetRow[];
+  readonly characters: readonly AssetCharacter[];
+}
+
+/** 素材を指すもの（コアの `workspace::AssetKey`）。 */
+export interface AssetKey {
+  readonly kind: AssetKind;
+  readonly character: string | null;
+  readonly name: string;
+}
+
+/** カタログを書いた結果（コアの `workspace::CatalogEdit`）。 */
+export type CatalogEdit =
+  | { readonly kind: "saved"; readonly text: string }
+  | { readonly kind: "unchanged" }
+  | { readonly kind: "unsupported"; readonly message: string };
+
+/** カタログを書いた後に受け取るもの。 */
+export interface CatalogWritten {
+  readonly edit: CatalogEdit;
+  readonly assets: AssetList;
+  readonly assist: AssistData;
+  readonly summary: Summary;
+  readonly checks: readonly IrDiagnostic[];
 }

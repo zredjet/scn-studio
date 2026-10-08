@@ -1,0 +1,26 @@
+---
+source: crates/scn-core/tests/assets.rs
+expression: dump(&list)
+---
+background 屋上/夕方 Placeholder file=files/bg/rooftop_evening.png path=false uses=1 scenes=[s012] addable=false
+background 屋上/夜 Placeholder file=- path=false uses=1 scenes=[s021] addable=false
+background 帰り道/夕方 Placeholder file=- path=false uses=1 scenes=[s013b] addable=false
+background 教室/昼 Placeholder file=files/bg/classroom_day.png path=false uses=1 scenes=[s011] addable=false
+background 灯の家/朝 Placeholder file=- path=false uses=1 scenes=[s020] addable=false
+background 通学路/朝 Placeholder file=files/bg/street_morning.png path=false uses=1 scenes=[s010] addable=false
+background 駅/夕方 Unregistered file=- path=false uses=1 scenes=[s040] addable=true
+expression 灯/泣き Placeholder file=- path=false uses=0 scenes=[] addable=false
+expression 灯/照れ Placeholder file=- path=false uses=1 scenes=[s021] addable=false
+expression 灯/真顔 Placeholder file=files/chara/akari/neutral.png path=false uses=2 scenes=[s012 s013a] addable=false
+expression 灯/笑顔 Placeholder file=files/chara/akari/smile.png path=false uses=2 scenes=[s010 s012] addable=false
+expression 三浦先生/真顔 Placeholder file=files/chara/miura/neutral.png path=false uses=0 scenes=[] addable=false
+expression 三浦先生/笑顔 Placeholder file=files/chara/miura/smile.png path=false uses=0 scenes=[] addable=false
+expression 紬/怒り Placeholder file=- path=false uses=0 scenes=[] addable=false
+expression 紬/真顔 Placeholder file=- path=false uses=1 scenes=[s011] addable=false
+expression 紬/笑顔 Placeholder file=files/chara/tsumugi/smile.png path=false uses=1 scenes=[s013b] addable=false
+bgm 切ない Placeholder file=files/bgm/setsunai.ogg path=false uses=3 scenes=[s012 s013b s040] addable=false
+bgm 日常 Placeholder file=files/bgm/nichijo.ogg path=false uses=1 scenes=[s010] addable=false
+se チャイム Unregistered file=- path=false uses=1 scenes=[s011] addable=true
+se ドア Placeholder file=- path=false uses=0 scenes=[] addable=false
+se 風 Placeholder file=- path=false uses=1 scenes=[s012] addable=false
+characters: akari(灯) miura(三浦先生) tsumugi(紬)

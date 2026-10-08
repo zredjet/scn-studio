@@ -1001,6 +1001,28 @@ fn export_script() {
     let _ = fs::remove_dir_all(&dir);
 }
 
+/// `scn export orders`：まだファイルの無い素材の表を書き出し、パスと行数を出す。`-o -` で標準出力。
+#[test]
+fn export_orders() {
+    let dir = std::env::temp_dir().join(format!("scn-cli-orders-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    copy_dir(&repo_root().join("samples/houkago"), &dir);
+    let _ = fs::remove_file(dir.join("export/orders.csv"));
+    let out = scn(&["export", "orders"], &dir);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    let csv = fs::read_to_string(dir.join("export/orders.csv")).unwrap();
+    assert!(csv.starts_with("\u{feff}種別,名前,キャラ,差分,使用回数,初出,使用シーン,備考\r\n"));
+    assert!(
+        csv.contains("SE,チャイム,,,1,s011,s011,カタログに無い\r\n"),
+        "{csv}"
+    );
+    assert!(out.stdout.contains("orders.csv（21行）"), "{}", out.stdout);
+    let piped = scn(&["export", "orders", ".", "-o", "-"], &dir);
+    assert_eq!(piped.stdout, csv);
+    assert_eq!(scn(&["export", "orders", "story"], &dir).code, 2);
+    let _ = fs::remove_dir_all(&dir);
+}
+
 /// `scn export renpy`：書き出し先（既定はプロファイルの output）の game/scn/ を作り、書き出し先とファイルの
 /// 数を出す。知らせとプロファイルの誤りは標準エラー。終了コードはエラーの診断で決まる。
 #[test]

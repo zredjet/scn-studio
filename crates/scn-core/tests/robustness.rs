@@ -4,7 +4,7 @@
 //! パニックしないこと、診断とASTのスパンが範囲内で文字の境界にあることを確かめる。
 //! 構文解析だけでなく、意味解析とIR（`analyze`）、索引、検証の段階1（`check`）も通す。
 //! 行IDの付与（`scn fmt`）も、同じ入力で確かめる（足した部分のほかはバイトが変わらない、など）。
-//! Ren'Py への書き出し（`renpy`）も、同じ入力でパニックしないことを確かめる。
+//! 素材の一覧と発注リスト（`assets`）、Ren'Py への書き出し（`renpy`）も、同じ入力でパニックしないことを確かめる。
 
 mod support;
 
@@ -14,6 +14,7 @@ use std::sync::LazyLock;
 
 use proptest::prelude::*;
 use proptest::sample::Index;
+use scn_core::assets::{AssetState, asset_list, orders};
 use scn_core::check::check as check_project;
 use scn_core::index::build_index;
 use scn_core::line_id::{LineIdGenerator, assign_line_ids};
@@ -85,6 +86,16 @@ fn check(source: &str) {
             support::assert_span_ok(source, diag.span, diag.code);
         }
     }
+
+    // 素材の一覧と発注リスト。
+    let list = asset_list(&windowed, &fixture_root(), &index);
+    assert_eq!(
+        orders(&list).len(),
+        list.rows
+            .iter()
+            .filter(|r| r.state != AssetState::File)
+            .count()
+    );
 
     // Ren'Py への書き出し（定義のファイルは必ず書く）。
     let export = export_renpy(&windowed, &fixture_root(), &ir, &RenpyProfile::default());

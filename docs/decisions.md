@@ -572,3 +572,17 @@
   - 書き出しを Ren'Py で確かめる `scripts/renpy-check`（macOS）：サンプルを書き出し、SDK で lint し（lint は誤りでも0で終わるので、誤りの行の有無で判定）、Ren'Py の testcase（`scripts/renpy/*.rpy`）で全エンディングまで自動で遊ぶ。画面の無い設定（SDL の dummy）では Ren'Py のテストが進まないので、ゲームの窓を短い間開く。SDK が要るので `scripts/check-all` には入れない。
 - 理由：ゲート（書き出したプロジェクトが起動し、最後まで遊べる）を、人の手を入れずに起動できる形で満たすため。書き出したものを手で直さない運用（設計検討書）のため、作り直す範囲を `game/scn/` に限り、人のファイルを守る。プロファイルの誤りで書き出しを止めると、壊れたまま書ける（設計の原則4）に合わない。
 - 影響：`crates/scn-core/Cargo.toml`（`unicode-ident` を足した。`proc-macro2` が使っていて Cargo.lock には既にあった）、`crates/scn-core/src/renpy.rs`（新規）、`crates/scn-core/src/check.rs`（`falls_through` をクレートの中で使えるようにした）、`crates/scn-cli`（`export renpy`）、`app/src-tauri`（`export_renpy`）、`app/src/export/ExportScreen.tsx`、`app/src/core/api.ts`、`samples/houkago/export/renpy.yaml`（`font` を足した）、`samples/amayadori/export/renpy.yaml`（新規）、`scripts/renpy-check`・`scripts/renpy/`（新規）、`docs/spec/project-files.md` の1節・10節・11節、`.gitignore`、`CLAUDE.md` のコマンド。
+
+## D054 素材カタログの画面と発注リスト（2026-10-08）
+
+- 決定：
+  - コアの `assets` モジュールに、素材の一覧（意味名ごとの状態、使用位置、使用シーン、カタログに足せるか）、発注リスト、カタログの書き換えを置く。カタログに書かれたファイルの読み方（`file`・`dir`・`loop`）はプレビュー（D050）から移し、プレビューと Ren'Py への書き出しと共通にした。
+  - 状態は、ファイルあり（`assets/` の中の実在するファイル）、仮素材（カタログにあるが `{}`、または書いたファイルが見つからない）、未登録（本文で使われているがカタログに無い）。書いたファイルが見つからないものは、プレビューと同じく仮素材として扱い、発注リストの備考に書く。
+  - 発注リストは `export/orders.csv`（`scn export orders [project-dir] [-o 書き出し先]` と素材の画面）。まだファイルの無い素材（仮素材と未登録）を1行ずつ。列はモックの7列（種別、名前、キャラ、差分、使用回数、初出、使用シーン）に備考を足した。本文で使われていない仮素材も書く（備考「本文で未使用」）。立ち絵の「キャラ×差分の表」は、別の表にせず、キャラと差分の列で表す（1つの CSV に2つの表を入れない。表計算のピボットで表にできる。画面にはキャラ×差分の表を出す）。CSV の形は台本と同じ（共通の `csv_table`）。
+  - カタログの書き換えは2つだけ：意味名を足す（`意味名: {}` の1行を節の最後の項目の次に足す。無い節・キャラクター・`expressions` は作る）、ファイルを割り当てる（その意味名の行の値だけを差し替える。背景・BGM・SE は `{ file: … }` でほかのキーを残し、立ち絵の差分は `dir` から数える）。どちらも書いた後に読み直して、意図した値になったことを確かめ、ならなければ書かずに「テキストで直す」よう知らせる（設定DBの D049 と同じ考え）。1行の `{ … }` で書いた節や複数行の値は書き換えない。
+  - ワークスペースは、いつも今のディスクの中身に書き換えを当てる（外の変更との衝突を調べない）。足すか1行を差し替えるだけで、人の書いたほかの行を上書きしないため。書いた中身は覚えて、その監視の知らせを無視する（D049 の `settings_written`）。
+  - ファイルの割り当ては、フロントで OS のファイル選択（`assets/` から始める）を開き、選んだパスをコアに渡す。`assets/` の中かどうか（正規化して比べる）と、`dir` の中かどうかはコアで確かめる。
+  - 画面：左端のバーの「設定」の次に「素材」（`docs/ui/README.md` の並び）。モックどおり、件数、種類のタブ、「仮素材と未登録のみ」、検索、一覧の表、キャラ×差分の表（使用回数と仮・未の印）、選んだ素材の使用シーン（本文へ移る）とファイルの割り当て、発注リストの列。ファイルのある画像は縮小して、音は再生欄で見せる（アセットプロトコル）。「未登録をカタログに追加」は、足せる未登録（立ち絵はキャラクターが設定DBにあるもの）をまとめて1回で書く。検証の画面からカタログの問題（E802）を開くと、この画面に移る。
+  - 設定DBの画面の立ち絵差分に、仮素材の印（点線の枠と「仮」）を付けた（T1-10 の残り）。
+- 理由：素材の発注と差し替えを、本文（意味名）を変えずに進めるため（設計の原則3）。カタログは人がテキストで書く設定ファイルなので、コメントや桁そろえを残し、書き換えを最小にする。
+- 影響：`crates/scn-core/src/assets.rs`（新規）、`preview.rs`・`renpy.rs`（カタログの読み方を共通にした）、`script.rs`（`csv_table`）、`workspace.rs`（`add_catalog_entries`・`assign_asset_file`・`CatalogEdit`・`AssetKey`）、`crates/scn-cli`（`export orders`）、`app/src-tauri`（`asset_list`・`add_catalog_entries`・`assign_asset_file`・`export_orders`、`read_bible` の `placeholders`）、`app/src/assets/`（新規）、`LeftBar.tsx`・`App.tsx`・`BibleScreen.tsx`・`api.ts`・`types.ts`・`app.css`、`docs/spec/project-files.md` の1節・4節・10節、`CLAUDE.md` のコマンド。

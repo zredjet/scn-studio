@@ -7,13 +7,12 @@
 //! カタログの誤りの診断は読み込み（E802）で出しているので、ここでは黙って読み飛ばす。
 
 use std::collections::BTreeMap;
-use std::fs;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 use serde_json::Value;
-use yaml_serde::Value as Yaml;
 
+use crate::assets::{asset_file, catalog_files};
 use crate::ir::Ir;
 use crate::project::{Project, VarType};
 
@@ -137,36 +136,6 @@ fn initial_value(ty: &VarType, default: Option<&str>) -> (Value, bool) {
     }
 }
 
-/// `assets/` から数えたパスを、作品フォルダの中の実在するファイルの絶対パスにする。外を指すパスと
-/// 無いファイルは `None`。
-fn asset_file(assets: &Path, relative: &str) -> Option<String> {
-    let rel = Path::new(relative);
-    if relative.is_empty()
-        || rel
-            .components()
-            .any(|c| !matches!(c, Component::Normal(_) | Component::CurDir))
-    {
-        return None;
-    }
-    let path = assets.join(rel);
-    let canonical = fs::canonicalize(&path).ok()?;
-    let base = fs::canonicalize(assets).ok()?;
-    (canonical.starts_with(&base) && canonical.is_file()).then(|| canonical.display().to_string())
-}
-
-fn yaml_str<'v>(value: &'v Yaml, key: &str) -> Option<&'v str> {
-    value.get(key).and_then(Yaml::as_str)
-}
-
-fn yaml_key(key: &Yaml) -> Option<String> {
-    match key {
-        Yaml::String(s) => Some(s.clone()),
-        Yaml::Number(n) => Some(n.to_string()),
-        Yaml::Bool(b) => Some(b.to_string()),
-        _ => None,
-    }
-}
-
 /// 素材カタログを、ファイルのパスつきで読む（読めなければ、登録されている意味名だけ）。
 fn assets(project: &Project, root: &Path) -> PreviewAssets {
     let catalog = &project.catalog;
@@ -214,66 +183,36 @@ fn assets(project: &Project, root: &Path) -> PreviewAssets {
             .collect(),
     };
     let dir = root.join("assets");
-    let Ok(text) = fs::read_to_string(dir.join("catalog.yaml")) else {
-        return out;
-    };
-    let Ok(yaml) = yaml_serde::from_str::<Yaml>(&text) else {
-        return out;
-    };
-    let section = |name: &str| match yaml.get(name) {
-        Some(Yaml::Mapping(map)) => map.iter().collect::<Vec<_>>(),
-        _ => Vec::new(),
-    };
-    for (key, entry) in section("backgrounds") {
-        if let (Some(name), Some(file)) = (yaml_key(key), yaml_str(entry, "file"))
-            && let Some(slot) = out.backgrounds.get_mut(&name)
-        {
+    let files = catalog_files(root);
+    for (name, file) in &files.backgrounds {
+        if let Some(slot) = out.backgrounds.get_mut(name) {
             *slot = asset_file(&dir, file);
         }
     }
-    for (kind, target) in [("bgm", &mut out.bgm), ("se", &mut out.se)] {
-        for (key, entry) in section(kind) {
-            let Some(sound) = yaml_key(key).and_then(|name| target.get_mut(&name)) else {
+    for (target, written) in [(&mut out.bgm, &files.bgm), (&mut out.se, &files.se)] {
+        for (name, (file, repeat)) in written {
+            let Some(sound) = target.get_mut(name) else {
                 continue;
             };
-            if let Some(file) = yaml_str(entry, "file") {
+            if let Some(file) = file {
                 sound.file = asset_file(&dir, file);
             }
-            if let Some(repeat) = entry.get("loop").and_then(Yaml::as_bool) {
-                sound.repeat = repeat;
+            if let Some(repeat) = repeat {
+                sound.repeat = *repeat;
             }
         }
     }
-    for (key, entry) in section("characters") {
-        let Some(id) = yaml_key(key) else { continue };
-        let Some(slots) = out.expressions.get_mut(&id) else {
+    for (id, names) in &files.expressions {
+        let Some(slots) = out.expressions.get_mut(id) else {
             continue;
         };
-        let folder = yaml_str(entry, "dir").unwrap_or_default();
-        let Some(Yaml::Mapping(map)) = entry.get("expressions") else {
-            continue;
-        };
-        for (name, value) in map {
-            let Some(name) = yaml_key(name) else { continue };
-            // 差分は `笑顔: smile.png` か `笑顔: { file: smile.png }`。`dir` とつなぐ。
-            let file = value
-                .as_str()
-                .or_else(|| yaml_str(value, "file"))
-                .map(|f| format!("{}{f}", with_slash(folder)));
-            if let (Some(file), Some(slot)) = (file, slots.get_mut(&name)) {
-                *slot = asset_file(&dir, &file);
+        for (name, file) in names {
+            if let Some(slot) = slots.get_mut(name) {
+                *slot = asset_file(&dir, file);
             }
         }
     }
     out
-}
-
-fn with_slash(dir: &str) -> String {
-    if dir.is_empty() || dir.ends_with('/') {
-        dir.to_owned()
-    } else {
-        format!("{dir}/")
-    }
 }
 
 /// プレビューのデータを作る。`root` は作品フォルダ（素材のファイルを探す）。

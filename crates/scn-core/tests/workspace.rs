@@ -768,3 +768,85 @@ fn entry_files_include_unreadable_entries() {
     );
     let _ = fs::remove_dir_all(&dir);
 }
+
+/// 素材カタログ（T2-3、D054）：意味名を足し、ファイルを割り当てる。書いた中身の監視の知らせは無視し、
+/// 設定を読み直す（I403 が消える）。`assets/` の外のファイルは割り当てない。
+#[test]
+fn catalog_edits() {
+    use scn_core::workspace::{AssetKey, CatalogEdit};
+    let dir = temp_project(
+        "catalog",
+        &[
+            ("project.toml", TOML),
+            ("story/a.scn", "## a #s1\n@背景 屋上\n@SE ドア\n".as_bytes()),
+            ("assets/files/bg/rooftop.png", b"png"),
+            ("outside.png", b"png"),
+        ],
+    );
+    let mut ws = Workspace::open(&dir).unwrap();
+    assert_eq!(ws.catalog_text().unwrap(), None);
+    let key = |kind: &str, name: &str| AssetKey {
+        kind: kind.to_owned(),
+        character: None,
+        name: name.to_owned(),
+    };
+    let edit = ws
+        .add_catalog_entries(&[key("background", "屋上"), key("se", "ドア")])
+        .unwrap();
+    assert_eq!(
+        edit,
+        CatalogEdit::Saved {
+            text: "backgrounds:\n  屋上: {}\nse:\n  ドア: {}\n".to_owned()
+        }
+    );
+    assert!(ws.project().catalog.backgrounds.contains("屋上"));
+    let catalog = dir.join("assets/catalog.yaml");
+    assert_eq!(ws.external_change(&catalog), Change::None);
+    assert_eq!(
+        ws.add_catalog_entries(&[key("se", "ドア")]).unwrap(),
+        CatalogEdit::Unchanged
+    );
+
+    let edit = ws
+        .assign_asset_file(
+            &key("background", "屋上"),
+            &dir.join("assets/files/bg/rooftop.png"),
+        )
+        .unwrap();
+    assert!(matches!(edit, CatalogEdit::Saved { .. }), "{edit:?}");
+    assert_eq!(
+        fs::read_to_string(&catalog).unwrap(),
+        "backgrounds:\n  屋上: { file: files/bg/rooftop.png }\nse:\n  ドア: {}\n"
+    );
+    assert_eq!(ws.external_change(&catalog), Change::None);
+    assert!(matches!(
+        ws.assign_asset_file(&key("background", "屋上"), &dir.join("outside.png"))
+            .unwrap(),
+        CatalogEdit::Unsupported { .. }
+    ));
+    // 設定DBに無いキャラクターの差分は足さない。
+    let sprite = AssetKey {
+        kind: "expression".to_owned(),
+        character: Some("nobody".to_owned()),
+        name: "笑顔".to_owned(),
+    };
+    assert!(matches!(
+        ws.add_catalog_entries(&[sprite]).unwrap(),
+        CatalogEdit::Unsupported { .. }
+    ));
+    // 外で変わった中身にも、足すだけなので重ねて書く。
+    write(
+        &dir,
+        "assets/catalog.yaml",
+        "# 人が書いた\nbackgrounds:\n  屋上: {}\n",
+    );
+    assert_eq!(ws.external_change(&catalog), Change::Settings);
+    let edit = ws.add_catalog_entries(&[key("se", "ドア")]).unwrap();
+    assert_eq!(
+        edit,
+        CatalogEdit::Saved {
+            text: "# 人が書いた\nbackgrounds:\n  屋上: {}\nse:\n  ドア: {}\n".to_owned()
+        }
+    );
+    let _ = fs::remove_dir_all(&dir);
+}

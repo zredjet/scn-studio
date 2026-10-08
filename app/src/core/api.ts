@@ -8,8 +8,12 @@ import { ask, open, save } from "@tauri-apps/plugin-dialog";
 import type { PreviewData } from "./ir.ts";
 import type {
   AddedChapter,
+  AssetKey,
+  AssetKind,
+  AssetList,
   BibleData,
   BibleWritten,
+  CatalogWritten,
   DevSettings,
   EntryUsage,
   GraphLevel,
@@ -281,6 +285,56 @@ export function scriptSheet(): Promise<ScriptSheet> {
 /** 台本を作品フォルダの `export/script.csv` に書き出す。 */
 export function exportScript(): Promise<{ path: string; rows: number }> {
   return invoke<{ path: string; rows: number }>("export_script");
+}
+
+/** 素材の一覧（素材カタログの画面）。 */
+export function assetList(): Promise<AssetList> {
+  return invoke<AssetList>("asset_list");
+}
+
+/** カタログに意味名を足す（仮素材）。 */
+export function addCatalogEntries(
+  items: readonly AssetKey[],
+): Promise<CatalogWritten> {
+  return invoke<CatalogWritten>("add_catalog_entries", { items });
+}
+
+/** カタログの意味名に、選んだファイルを割り当てる（`assets/` の中だけ。コアで確かめる）。 */
+export function assignAssetFile(
+  item: AssetKey,
+  path: string,
+): Promise<CatalogWritten> {
+  return invoke<CatalogWritten>("assign_asset_file", { item, path });
+}
+
+/** 発注リストを `export/orders.csv` に書き出す。 */
+export function exportOrders(): Promise<{ path: string; rows: number }> {
+  return invoke<{ path: string; rows: number }>("export_orders");
+}
+
+/** 素材のファイルを選ぶ（作品フォルダの `assets/` から始める）。選ばなければ null。 */
+export async function pickAssetFile(
+  root: string,
+  kind: AssetKind,
+): Promise<string | null> {
+  const separator = root.includes("\\") ? "\\" : "/";
+  const image = kind === "background" || kind === "expression";
+  const picked = await open({
+    directory: false,
+    multiple: false,
+    title: "素材のファイルを選ぶ（assets/ の中）",
+    defaultPath: `${root}${separator}assets`,
+    filters: [
+      image
+        ? { name: "画像", extensions: ["png", "jpg", "jpeg", "webp", "gif"] }
+        : {
+            name: "音",
+            extensions: ["ogg", "opus", "mp3", "wav", "m4a", "flac"],
+          },
+      { name: "すべてのファイル", extensions: ["*"] },
+    ],
+  });
+  return typeof picked === "string" ? picked : null;
 }
 
 /** Ren'Py の書き出しの結果（`export_renpy`）。 */

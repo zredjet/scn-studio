@@ -64,6 +64,7 @@ app/                    Tauri＋React（src-tauri/ と src/）
   - `cargo run -p scn-cli -- new <dir> [--title 作品名]`：新しい作品フォルダを作る（無いフォルダか空のフォルダに。`project.toml`、スタブの章、`CLAUDE.md`、`FORMAT.md` など）。ひな形は `crates/scn-core/templates/`
   - `cargo run -p scn-cli -- format-doc [project-dir]`：作品フォルダの `FORMAT.md`（仕様書の1〜16節と作品フォルダの規約）を、今のツールの版で書き直す。`--check` は書き直さずに、古ければ終了コード1
   - `cargo run -p scn-cli -- export script [project-dir] [-o 書き出し先]`：台本（行ID、シーン、キャラ、台詞、直前の地の文、ボイスファイル名、備考）を CSV（UTF-8 の BOM 付き、CRLF）で書き出す。既定の書き出し先は作品フォルダの `export/script.csv`、`-o -` で標準出力。行IDの無い台詞の数は標準エラーに出す。終了コードは `ir` と同じ（エラーの診断があれば1）
+  - `cargo run -p scn-cli -- export orders [project-dir] [-o 書き出し先]`：発注リスト（まだファイルの無い素材の表。種別、名前、キャラ、差分、使用回数、初出、使用シーン、備考）を CSV（UTF-8 の BOM 付き、CRLF）で書き出す。既定の書き出し先は作品フォルダの `export/orders.csv`、`-o -` で標準出力。終了コードは `export script` と同じ
   - `cargo run -p scn-cli -- export renpy [project-dir] [-o 書き出し先]`：出力プロファイル（`export/renpy.yaml`）に従って Ren'Py のスクリプトを書き出す。既定の書き出し先はプロファイルの `output`（既定は作品フォルダの `export/renpy`）で、その `game/scn/` だけを作り直す。知らせとプロファイルの誤りは標準エラーに出す。終了コードは `export script` と同じ（`game/scn/` が書き出したものでなければ消さずに2）
   - CLIのテストだけ：`cargo test -p scn-cli`
   - `scn` をパスの通った場所（`~/.cargo/bin`）に入れる：`cargo install --locked --path crates/scn-cli`（作品フォルダで `scn` として使うとき）
@@ -73,7 +74,7 @@ app/                    Tauri＋React（src-tauri/ と src/）
 - Lezer文法（`packages/lezer-scn`）：`pnpm -C packages/lezer-scn test`（文法から構文解析器を作り直してから、`node --test` でテスト）／`pnpm -C packages/lezer-scn build`（構文解析器を作るだけ）
   - 作った `src/parser.ts`・`src/parser.terms.ts` はコミットしない（`typecheck` と `test` が先に作る）
   - サンプルの行の種類の期待値（`test/expected/*.txt`）を作り直す：`UPDATE_EXPECTED=1 pnpm -C packages/lezer-scn test`。差分を読んで確かめてから受け入れる
-- アプリ（`app/`、Tauri＋React）：`pnpm -C app tauri dev`（開発用に起動する。デバッグビルドでは起動時に `samples/houkago` を開く）／`pnpm -C app test`（位置の変換、グラフの配置、エディタ、置き換え、執筆表示、行IDを守る扱い、入力補助、検証の画面、設定DBの画面、プレビューのランタイムのテスト。プレビューのテストはコアのスナップショット `crates/scn-core/tests/snapshots/preview__houkago.snap` を読むので、`cargo test -p scn-core` の後に走らせる）／`pnpm -C app build`（フロントのビルド）
+- アプリ（`app/`、Tauri＋React）：`pnpm -C app tauri dev`（開発用に起動する。デバッグビルドでは起動時に `samples/houkago` を開く）／`pnpm -C app test`（位置の変換、グラフの配置、エディタ、置き換え、執筆表示、行IDを守る扱い、入力補助、検証の画面、設定DBの画面、素材カタログの画面、プレビューのランタイムのテスト。プレビューのテストはコアのスナップショット `crates/scn-core/tests/snapshots/preview__houkago.snap` を読むので、`cargo test -p scn-core` の後に走らせる）／`pnpm -C app build`（フロントのビルド）
   - 開発用の環境変数：`SCN_DEV_PROJECT=<作品フォルダ>`（起動時に開く）、`SCN_MEASURE_IPC=1`（開いた後に、入力が止まったときの受け渡しの時間を10回測ってターミナルに書く）。解析の速さを見るときは、Rustをリリースビルドにする `pnpm -C app tauri dev --release` で測る
   - Rust側（`app/src-tauri`、パッケージ名 `scn-app`）はCargoのワークスペースに入っているので、`cargo test --workspace`・`cargo clippy --workspace` の対象になる
   - フロントの `dev`・`build`・`typecheck` は、先に `packages/lezer-scn` の文法から構文解析器を作る

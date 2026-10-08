@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
+use crate::assets::{CATALOG_FILE, CatalogEditError, add_entry, assets_relative, set_file};
 use crate::bible::{body_of, front_fields, set_body, set_field, yaml_scalar};
 use crate::layout::{LAYOUT_FILE, LayoutError, Point, update_layout};
 use crate::line_id::{AssignedLineId, LineIdGenerator, assign_line_ids};
@@ -90,6 +91,27 @@ pub enum EntryEdit {
     Conflict { text: String },
     /// フォームでは書き換えられない書き方なので、書かなかった（ソース表示で直す）。
     Unsupported { message: String },
+}
+
+/// 素材カタログを書いた結果（T2-3、D054）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum CatalogEdit {
+    /// 書いた。`text` は書いた中身。
+    Saved { text: String },
+    /// 変わらない（もうある、同じファイル）ので、書かなかった。
+    Unchanged,
+    /// 画面からは書き換えられない書き方なので、書かなかった（テキストで直す）。
+    Unsupported { message: String },
+}
+
+/// 素材を指すもの（種類、立ち絵のキャラクターID、意味名）。
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+pub struct AssetKey {
+    /// `background`・`expression`・`bgm`・`se`。
+    pub kind: String,
+    pub character: Option<String>,
+    pub name: String,
 }
 
 /// 変数の宣言のファイル。
@@ -705,6 +727,99 @@ impl Workspace {
         let text = same_newlines(&current, text);
         self.write_settings_file(VARIABLES_FILE, &text)?;
         Ok(EntryEdit::Saved { text })
+    }
+
+    // ---- 素材カタログ（T2-3、D054） ----
+
+    /// 素材カタログのテキスト（無ければ `None`）。
+    pub fn catalog_text(&self) -> Result<Option<String>, ProjectError> {
+        let path = self.root.join(CATALOG_FILE);
+        match read_disk(&path) {
+            Disk::Text(text) => Ok(Some(text)),
+            Disk::Missing => Ok(None),
+            Disk::Unreadable => Err(error(
+                &path,
+                io::ErrorKind::InvalidData,
+                "UTF-8で読めません",
+            )),
+        }
+    }
+
+    /// 今のカタログに `edit` を当てて書く（無ければ作る）。変わらなければ書かない。外の変更とぶつからないよう、
+    /// いつも今のディスクの中身に当てる（足すか1行を差し替えるだけで、ほかの行は変えないため）。
+    fn edit_catalog(
+        &mut self,
+        edit: impl FnOnce(&str) -> Result<String, CatalogEditError>,
+    ) -> Result<CatalogEdit, ProjectError> {
+        let current = self.catalog_text()?.unwrap_or_default();
+        let text = match edit(&current) {
+            Ok(text) => text,
+            Err(e) => {
+                return Ok(CatalogEdit::Unsupported {
+                    message: e.message(),
+                });
+            }
+        };
+        if text == current {
+            return Ok(CatalogEdit::Unchanged);
+        }
+        let dir = self.root.join("assets");
+        fs::create_dir_all(&dir).map_err(|source| ProjectError::Write {
+            path: dir.clone(),
+            source,
+        })?;
+        self.write_settings_file(CATALOG_FILE, &text)?;
+        Ok(CatalogEdit::Saved { text })
+    }
+
+    /// カタログに意味名を足す（仮素材。[`add_entry`]）。まとめて足し、1回だけ書く。立ち絵の差分は、
+    /// キャラクターが設定DBにあるときだけ足す。
+    pub fn add_catalog_entries(&mut self, items: &[AssetKey]) -> Result<CatalogEdit, ProjectError> {
+        let unknown = items.iter().find(|item| {
+            item.kind == "expression"
+                && !item
+                    .character
+                    .as_deref()
+                    .is_some_and(|id| self.project.characters.iter().any(|c| c.id == id))
+        });
+        if let Some(item) = unknown {
+            return Ok(CatalogEdit::Unsupported {
+                message: format!(
+                    "{} は設定DBに無いキャラクターなので、差分をカタログに足せません。先にキャラクターを登録してください",
+                    item.character.as_deref().unwrap_or("（キャラクターなし）")
+                ),
+            });
+        }
+        self.edit_catalog(|text| {
+            let mut text = text.to_owned();
+            for item in items {
+                text = add_entry(&text, &item.kind, item.character.as_deref(), &item.name)?;
+            }
+            Ok(text)
+        })
+    }
+
+    /// カタログの意味名に、`assets/` の中のファイルを割り当てる（[`set_file`]）。`file` は選んだファイルの
+    /// パス。`assets/` の外のファイルは割り当てない。
+    pub fn assign_asset_file(
+        &mut self,
+        item: &AssetKey,
+        file: &Path,
+    ) -> Result<CatalogEdit, ProjectError> {
+        let Some(relative) = assets_relative(file, &self.root) else {
+            return Ok(CatalogEdit::Unsupported {
+                message: "作品フォルダの assets/ の中のファイルを選んでください".to_owned(),
+            });
+        };
+        self.edit_catalog(|text| {
+            set_file(
+                text,
+                &item.kind,
+                item.character.as_deref(),
+                &item.name,
+                &relative,
+            )
+        })
     }
 
     /// フロー図の配置を保存する（[`update_layout`]）。書いた中身を覚え、その監視の知らせを無視する

@@ -13,6 +13,7 @@
 //! - `scn format-doc [project-dir] [--check]`：`FORMAT.md` を、今のツールの版で書き直す（D044）。
 //! - `scn export script [project-dir] [-o file]`：台本を CSV で書き出す（D051）。
 //! - `scn export renpy [project-dir] [-o dir]`：Ren'Py のスクリプトを書き出す（D053）。
+//! - `scn export orders [project-dir] [-o file]`：発注リストを CSV で書き出す（D054）。
 //! - `scn fmt <project-dir> [--check] [--json]`：行IDの無い行に行IDを付ける（仕様書9節、D041）。
 //!   付けた行IDを `ファイル:行:列 ^ID` の形で出す。`--check` では書き換えず、付ける行があれば1で終わる。
 //!   `project.toml` の `format_version` か `[dialogue]` を読めなければ、台詞の括弧を書かれたとおりに読めないので、
@@ -134,6 +135,15 @@ enum ExportCommand {
         #[arg(long, short)]
         output: Option<PathBuf>,
     },
+    /// 発注リスト（まだファイルの無い素材の表）を CSV（UTF-8 の BOM 付き、CRLF）で書き出す
+    Orders {
+        /// プロジェクトのフォルダ（project.toml のあるところ）。省くと今のフォルダ
+        #[arg(default_value = ".")]
+        project: PathBuf,
+        /// 書き出す先。省くと作品フォルダの export/orders.csv。`-` なら標準出力
+        #[arg(long, short)]
+        output: Option<PathBuf>,
+    },
     /// Ren'Py のスクリプトを、出力プロファイル（export/renpy.yaml）に従って書き出す。書き出し先の
     /// game/scn/ を作り直す
     Renpy {
@@ -223,6 +233,9 @@ fn run(command: Command) -> Result<u8, CliError> {
         Command::Export {
             what: ExportCommand::Renpy { project, output },
         } => run_export_renpy(&project, output.as_deref()),
+        Command::Export {
+            what: ExportCommand::Orders { project, output },
+        } => run_export_orders(&project, output.as_deref()),
     }
 }
 
@@ -505,6 +518,53 @@ fn run_export_script(dir: &Path, output: Option<&Path>) -> Result<u8, CliError> 
             "{}（{}行）",
             path.display(),
             sheet.rows.len()
+        ),
+        code,
+    )
+}
+
+fn run_export_orders(dir: &Path, output: Option<&Path>) -> Result<u8, CliError> {
+    use scn_core::assets::{asset_list, orders, orders_csv, write_orders};
+    let project = load_project(dir).map_err(CliError::Project)?;
+    let ir = analyze(&project);
+    let index = scn_core::index::build_index(&project, &ir);
+    let rows = orders(&asset_list(&project, dir, &index));
+    let code = exit_code(&ir.diagnostics);
+    let errors = ir
+        .diagnostics
+        .iter()
+        .filter(|d| d.severity == Severity::Error.as_str())
+        .count();
+    if errors > 0 {
+        eprintln!("scn: エラーの診断が {errors} 件あります（scn check で確かめられます）");
+    }
+    let path = match output {
+        Some(path) if path == Path::new("-") => {
+            return finish(
+                io::stdout().lock().write_all(orders_csv(&rows).as_bytes()),
+                code,
+            );
+        }
+        Some(path) => {
+            if let Some(parent) = path.parent()
+                && !parent.as_os_str().is_empty()
+            {
+                fs::create_dir_all(parent).map_err(|e| {
+                    CliError::Refused(format!("{} を作れません：{e}", parent.display()))
+                })?;
+            }
+            fs::write(path, orders_csv(&rows))
+                .map_err(|e| CliError::Refused(format!("{} に書けません：{e}", path.display())))?;
+            path.to_owned()
+        }
+        None => write_orders(dir, &rows).map_err(CliError::Project)?,
+    };
+    finish(
+        writeln!(
+            io::stdout().lock(),
+            "{}（{}行）",
+            path.display(),
+            rows.len()
         ),
         code,
     )

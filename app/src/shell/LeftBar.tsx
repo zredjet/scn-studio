@@ -5,6 +5,7 @@ export type Screen =
   | "text"
   | "flow"
   | "bible"
+  | "assets"
   | "variables"
   | "check"
   | "export"
@@ -15,6 +16,7 @@ const ITEMS: readonly { screen: Screen; label: string; later?: string }[] = [
   { screen: "text", label: "本文" },
   { screen: "flow", label: "フロー" },
   { screen: "bible", label: "設定" },
+  { screen: "assets", label: "素材" },
   { screen: "variables", label: "変数" },
   { screen: "check", label: "検証" },
   { screen: "export", label: "出力" },

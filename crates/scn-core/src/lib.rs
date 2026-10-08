@@ -28,6 +28,7 @@
     )
 )]
 
+pub mod assets;
 pub mod assist;
 pub mod ast;
 pub mod bible;

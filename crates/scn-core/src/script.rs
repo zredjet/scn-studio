@@ -267,37 +267,42 @@ fn field(value: &str) -> String {
     }
 }
 
-/// 台本の CSV（UTF-8 の BOM 付き、CRLF）。
-pub fn script_csv(sheet: &ScriptSheet) -> String {
+/// 見出しと行から、CSV（UTF-8 の BOM 付き、CRLF）を作る（台本と発注リスト）。
+pub(crate) fn csv_table(header: &[&str], rows: &[Vec<String>]) -> String {
     let mut out = String::from("\u{feff}");
     out.push_str(
-        &SCRIPT_COLUMNS
+        &header
             .iter()
             .map(|c| field(c))
             .collect::<Vec<_>>()
             .join(","),
     );
     out.push_str("\r\n");
-    for row in &sheet.rows {
-        let fields = [
-            &row.line_id,
-            &row.scene,
-            &row.character,
-            &row.text,
-            &row.narration,
-            &row.voice,
-            &row.note,
-        ];
-        out.push_str(
-            &fields
-                .iter()
-                .map(|f| field(f))
-                .collect::<Vec<_>>()
-                .join(","),
-        );
+    for row in rows {
+        out.push_str(&row.iter().map(|f| field(f)).collect::<Vec<_>>().join(","));
         out.push_str("\r\n");
     }
     out
+}
+
+/// 台本の CSV（UTF-8 の BOM 付き、CRLF）。
+pub fn script_csv(sheet: &ScriptSheet) -> String {
+    let rows: Vec<Vec<String>> = sheet
+        .rows
+        .iter()
+        .map(|row| {
+            vec![
+                row.line_id.clone(),
+                row.scene.clone(),
+                row.character.clone(),
+                row.text.clone(),
+                row.narration.clone(),
+                row.voice.clone(),
+                row.note.clone(),
+            ]
+        })
+        .collect();
+    csv_table(&SCRIPT_COLUMNS, &rows)
 }
 
 /// 作品フォルダの中の、台本の既定の置き場所。

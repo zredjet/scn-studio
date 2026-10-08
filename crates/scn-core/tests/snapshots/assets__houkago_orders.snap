@@ -1,0 +1,26 @@
+---
+source: crates/scn-core/tests/assets.rs
+expression: "csv.trim_start_matches('\\u{feff}').replace(\"\\r\\n\", \"\\n\")"
+---
+種別,名前,キャラ,差分,使用回数,初出,使用シーン,備考
+背景,屋上/夕方,,,1,s012,s012,ファイルが見つからない（files/bg/rooftop_evening.png）
+背景,屋上/夜,,,1,s021,s021,
+背景,帰り道/夕方,,,1,s013b,s013b,
+背景,教室/昼,,,1,s011,s011,ファイルが見つからない（files/bg/classroom_day.png）
+背景,灯の家/朝,,,1,s020,s020,
+背景,通学路/朝,,,1,s010,s010,ファイルが見つからない（files/bg/street_morning.png）
+背景,駅/夕方,,,1,s040,s040,カタログに無い
+立ち絵,灯/泣き,灯,泣き,0,,,本文で未使用
+立ち絵,灯/照れ,灯,照れ,1,s021,s021,
+立ち絵,灯/真顔,灯,真顔,2,s012,s012 s013a,ファイルが見つからない（files/chara/akari/neutral.png）
+立ち絵,灯/笑顔,灯,笑顔,2,s010,s010 s012,ファイルが見つからない（files/chara/akari/smile.png）
+立ち絵,三浦先生/真顔,三浦先生,真顔,0,,,ファイルが見つからない（files/chara/miura/neutral.png）、本文で未使用
+立ち絵,三浦先生/笑顔,三浦先生,笑顔,0,,,ファイルが見つからない（files/chara/miura/smile.png）、本文で未使用
+立ち絵,紬/怒り,紬,怒り,0,,,本文で未使用
+立ち絵,紬/真顔,紬,真顔,1,s011,s011,
+立ち絵,紬/笑顔,紬,笑顔,1,s013b,s013b,ファイルが見つからない（files/chara/tsumugi/smile.png）
+BGM,切ない,,,3,s012,s012 s013b s040,ファイルが見つからない（files/bgm/setsunai.ogg）
+BGM,日常,,,1,s010,s010,ファイルが見つからない（files/bgm/nichijo.ogg）
+SE,チャイム,,,1,s011,s011,カタログに無い
+SE,ドア,,,0,,,本文で未使用
+SE,風,,,1,s012,s012,
