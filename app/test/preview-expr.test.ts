@@ -107,8 +107,8 @@ test("文中の記法を部品にする：ルビ、傍点、待ち、埋め込�
     { kind: "ruby", base: "乱", reading: "みだ" },
     { kind: "text", text: "強い", emphasis: true },
     { kind: "wait", seconds: 0.5 },
-    { kind: "text", text: "2", emphasis: false },
-    { kind: "text", text: "{=無い}", emphasis: false },
+    { kind: "text", text: "2", emphasis: false, uncounted: true },
+    { kind: "text", text: "{=無い}", emphasis: false, uncounted: true },
   ]);
   assert.equal(warnings.length, 1);
 });
@@ -207,4 +207,26 @@ test("プレビュー中の行を本文の中で探す：行IDで、無ければ
   assert.equal(locateLine(text, null, 10_000), null);
   // 行の途中の ^ は行IDではない。
   assert.equal(locateLine("a ^k3f9 b\n", "k3f9", 0), 0);
+});
+
+test("ページに分ける：W203（check::max_page_lines）と同じ数え方", () => {
+  const nl = { kind: "newline" } as const;
+  const t = (text: string) =>
+    ({ kind: "text", text, emphasis: false }) as const;
+  // 灯「あ\nい\n{se 足音}\n」（2行×2字）：最初と最後の空の行を1つずつ除くので、効果音だけの行は数え、3行ではみ出す。
+  const se = paginate(
+    [t("あ"), nl, t("い"), nl, { kind: "se", name: "足音" }, nl],
+    { lines: 2, chars_per_line: 2 },
+  );
+  assert.equal(se.overflowed, true);
+  // 半角と全角が混ざる行は、行の幅の合計で数える（aああaあ は 2行×2字 に収まる）。
+  const mixed = paginate([t("aああaあ")], { lines: 2, chars_per_line: 2 });
+  assert.equal(mixed.overflowed, false);
+  assert.equal(mixed.pages.length, 1);
+  // 変数の埋め込みは数えない。
+  const value = paginate(
+    [{ kind: "text", text: "とても長い値", emphasis: false, uncounted: true }],
+    { lines: 1, chars_per_line: 2 },
+  );
+  assert.equal(value.overflowed, false);
 });

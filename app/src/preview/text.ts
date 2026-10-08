@@ -2,13 +2,19 @@
 // `{se}`、変数の埋め込み、複数行の台詞の改行）を、ページごとの部品にする。
 //
 // ページは `{p}` で改め、ウィンドウ（`lines` 行×`chars_per_line` 字）に収まらなければ、はみ出し（W203）と
-// 同じ数え方（全角1、半角0.5。ルビは親文字、傍点は中身。話者名と括弧は数えない）で折り返して分ける。
+// 同じ数え方（全角1、半角0.5。ルビは親文字、傍点は中身、変数の埋め込みは0。話者名と括弧は数えない）で分ける。
 
 import type { IrInline } from "../core/ir.ts";
 import { evaluate, show, type Variables } from "./expr.ts";
 
 export type Piece =
-  | { readonly kind: "text"; readonly text: string; readonly emphasis: boolean }
+  | {
+      readonly kind: "text";
+      readonly text: string;
+      readonly emphasis: boolean;
+      /** 変数の埋め込みの値（はみ出しの数え方では0。W203 と同じ）。 */
+      readonly uncounted?: true;
+    }
   | { readonly kind: "ruby"; readonly base: string; readonly reading: string }
   | { readonly kind: "newline" }
   | { readonly kind: "wait"; readonly seconds: number }
@@ -66,12 +72,18 @@ export function piecesOf(
       case "interpolation": {
         const v = inline.expr === null ? null : evaluate(inline.expr, vars);
         if (v?.ok === true) {
-          pieces.push({ kind: "text", text: show(v.value), emphasis: false });
+          pieces.push({
+            kind: "text",
+            text: show(v.value),
+            emphasis: false,
+            uncounted: true,
+          });
         } else {
           pieces.push({
             kind: "text",
             text: `{=${inline.expr_text}}`,
             emphasis: false,
+            uncounted: true,
           });
           warnings.push(
             `変数の埋め込み {=${inline.expr_text}} を読めません${v === null ? "" : `：${v.error}`}`,
@@ -94,70 +106,78 @@ function visible(piece: Piece): string {
 /** 1行の部品（表示する文字と、文字の出方の部品）。 */
 type Line = Piece[];
 
+/** 数える幅（半角を1、全角を2）。変数の埋め込みは数えない（W203 と同じ）。 */
+function countedWidth(piece: Piece): number {
+  if (piece.kind === "text" && piece.uncounted === true) return 0;
+  return [...visible(piece)].reduce((n, c) => n + charWidth(c) * 2, 0);
+}
+
+function lineWidth(line: Line): number {
+  return line.reduce((n, p) => n + countedWidth(p), 0);
+}
+
 function hasText(line: Line): boolean {
   return line.some((p) => visible(p) !== "");
 }
 
-/**
- * 部品を行に分ける。改行の部品で行を改め、`chars_per_line` 字を超えるところで折り返す（ルビは分けない）。
- */
-function linesOf(pieces: readonly Piece[], limit: number): Line[] {
+/** 複数行の台詞の改行で、行に分ける（折り返しは数えるだけで、描くときはブラウザに任せる）。 */
+function linesOf(pieces: readonly Piece[]): Line[] {
   const lines: Line[] = [[]];
-  let width = 0;
-  const current = () => lines[lines.length - 1] as Line;
   for (const piece of pieces) {
-    if (piece.kind === "newline") {
-      lines.push([]);
-      width = 0;
-      continue;
-    }
-    const text = visible(piece);
-    if (text === "") {
-      current().push(piece);
-      continue;
-    }
-    const chars = piece.kind === "ruby" ? [text] : [...text];
-    let buffer = "";
-    const flush = () => {
-      if (buffer === "") return;
-      current().push(
-        piece.kind === "ruby"
-          ? piece
-          : {
-              kind: "text",
-              text: buffer,
-              emphasis: piece.kind === "text" && piece.emphasis,
-            },
-      );
-      buffer = "";
-    };
-    for (const c of chars) {
-      const w = [...c].reduce((n, x) => n + charWidth(x), 0);
-      if (width + w > limit && width > 0) {
-        flush();
-        lines.push([]);
-        width = 0;
-      }
-      buffer += c;
-      width += w;
-    }
-    flush();
+    if (piece.kind === "newline") lines.push([]);
+    else (lines[lines.length - 1] as Line).push(piece);
   }
   return lines;
 }
 
+/** 1行を、幅が `max` 以下の切れ端に分ける（文字の単位で。ルビは分けない）。 */
+function splitLine(line: Line, max: number): Line[] {
+  const parts: Line[] = [[]];
+  let width = 0;
+  for (const piece of line) {
+    const w = countedWidth(piece);
+    if (w === 0 || piece.kind !== "text") {
+      if (width + w > max && width > 0) {
+        parts.push([]);
+        width = 0;
+      }
+      (parts[parts.length - 1] as Line).push(piece);
+      width += w;
+      continue;
+    }
+    let buffer = "";
+    for (const c of piece.text) {
+      const cw = charWidth(c) * 2;
+      if (width + cw > max && width > 0) {
+        if (buffer !== "")
+          (parts[parts.length - 1] as Line).push({ ...piece, text: buffer });
+        buffer = "";
+        parts.push([]);
+        width = 0;
+      }
+      buffer += c;
+      width += cw;
+    }
+    if (buffer !== "")
+      (parts[parts.length - 1] as Line).push({ ...piece, text: buffer });
+  }
+  return parts;
+}
+
 /**
- * 部品をページに分ける。`{p}`（`wait` の -1 秒の印）で改め、`chars_per_line` 字で折り返して `lines` 行を超えれば
- * 次のページにする（はみ出し。W203 と同じ数え方）。各ページの最初と最後の空の行は数えず、描かない（台詞の
- * 括弧だけの行や、`{p}` の前後の改行は何も見せないため）。空の行にあった待ちや効果音は、隣の行へ移す。
- * 行の間には改行の部品を置く（折り返しも、ここで決めたところで改める）。
+ * 部品をページに分ける。数え方は W203 と同じ（`check::max_page_lines`）：`{p}`（`wait` の -1 秒の印）でページを
+ * 改め、複数行の台詞の改行で行を改め、1行は幅（全角2・半角1）を `chars_per_line` の2倍で割って切り上げた
+ * 行数と数える（空の行も1行）。各ページの最初と最後の空の行を1つずつ数えない（描かない。中の待ちや効果音は
+ * 隣の行へ移す）。`lines` 行を超えるページは、行の単位で次のページへ送り（1行だけで超えれば、その行を文字で
+ * 分け）、はみ出しとして知らせる。行の中の折り返しは、描くときにブラウザに任せる。
  */
 export function paginate(
   pieces: readonly Piece[],
   window: { readonly lines: number; readonly chars_per_line: number },
 ): { pages: Page[]; overflowed: boolean } {
-  const limit = Math.max(1, window.chars_per_line);
+  const limit = Math.max(1, window.chars_per_line) * 2;
   const maxLines = Math.max(1, window.lines);
+  const rows = (line: Line) => Math.max(1, Math.ceil(lineWidth(line) / limit));
   // `{p}` で分ける。
   const chunks: Piece[][] = [[]];
   for (const piece of pieces) {
@@ -167,29 +187,57 @@ export function paginate(
   const pages: Page[] = [];
   let overflowed = false;
   for (const chunk of chunks) {
-    const lines = linesOf(chunk, limit);
-    // 最初と最後の空の行を除く（中の部品は隣の行へ移す）。
-    const first = lines.findIndex(hasText);
-    if (first === -1) {
-      const rest = lines.flat();
-      if (rest.length > 0) pages.push(rest);
+    const lines = linesOf(chunk).map((l) => [...l]);
+    // 最初と最後の空の行を1つずつ除く（中の部品は隣の行へ）。
+    if (
+      lines.length > 1 &&
+      lineWidth(lines[0] as Line) === 0 &&
+      !hasText(lines[0] as Line)
+    ) {
+      const first = lines.shift() as Line;
+      (lines[0] as Line).unshift(...first);
+    }
+    if (
+      lines.length > 1 &&
+      lineWidth(lines[lines.length - 1] as Line) === 0 &&
+      !hasText(lines[lines.length - 1] as Line)
+    ) {
+      const last = lines.pop() as Line;
+      (lines[lines.length - 1] as Line).push(...last);
+    }
+    if (lines.length === 1 && !hasText(lines[0] as Line)) {
+      if ((lines[0] as Line).length > 0) pages.push(lines[0] as Line);
       continue;
     }
-    let last = lines.length - 1;
-    while (last > first && !hasText(lines[last] as Line)) last -= 1;
-    const kept = lines.slice(first, last + 1).map((l) => [...l]);
-    (kept[0] as Line).unshift(...lines.slice(0, first).flat());
-    (kept[kept.length - 1] as Line).push(...lines.slice(last + 1).flat());
-    for (let i = 0; i < kept.length; i += maxLines) {
-      const group = kept.slice(i, i + maxLines);
-      if (i > 0) overflowed = true;
-      const page: Piece[] = [];
-      group.forEach((line, j) => {
-        if (j > 0) page.push({ kind: "newline" });
-        page.push(...line);
+    // 行の単位でページに詰める。1行で超える行は、文字で分ける。
+    let page: Line[] = [];
+    let used = 0;
+    const flush = () => {
+      if (page.length === 0) return;
+      const out: Piece[] = [];
+      page.forEach((line, j) => {
+        if (j > 0) out.push({ kind: "newline" });
+        out.push(...line);
       });
-      pages.push(page);
+      pages.push(out);
+      page = [];
+      used = 0;
+    };
+    for (const line of lines) {
+      const parts =
+        rows(line) > maxLines ? splitLine(line, limit * maxLines) : [line];
+      if (parts.length > 1) overflowed = true;
+      for (const part of parts) {
+        const r = rows(part);
+        if (used + r > maxLines && page.length > 0) {
+          overflowed = true;
+          flush();
+        }
+        page.push(part);
+        used += r;
+      }
     }
+    flush();
   }
   if (pages.length === 0) pages.push([]);
   return { pages, overflowed };

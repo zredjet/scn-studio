@@ -197,6 +197,7 @@ export function App() {
     assist,
     settingsDrafts,
     screen,
+    previewMarker,
   });
   latest.current = {
     project,
@@ -208,6 +209,7 @@ export function App() {
     assist,
     settingsDrafts,
     screen,
+    previewMarker,
   };
 
   const replaceText = useCallback(
@@ -779,6 +781,23 @@ export function App() {
     if (offset !== null) setFocus((f) => ({ offset, seq: (f?.seq ?? 0) + 1 }));
   }, []);
 
+  /**
+   * 「エディタへ戻る」：本文の画面へ戻る。プレビュー中の行の印があれば、その行のファイルを開く（カーソルは
+   * 動かさない。印の行へはエディタがスクロールする）。
+   */
+  const closePreview = useCallback(() => {
+    const marker = latest.current.previewMarker;
+    if (marker !== null && marker.file !== latest.current.currentFile) {
+      const text = buffers.current.get(marker.file);
+      const p = latest.current.project;
+      if (text !== undefined && p !== null) {
+        setCurrentFile(marker.file);
+        setAnalysis(analysisFor(p.summary, marker.file, text));
+      }
+    }
+    setScreen("text");
+  }, []);
+
   /** エディタに、プレビュー中の行の印を付ける（null で消す）。 */
   const onPreviewLine = useCallback((line: PreviewLine | null) => {
     if (line === null) {
@@ -851,15 +870,23 @@ export function App() {
   const previewSummary = screen === "preview" ? project?.summary : undefined;
   useEffect(() => {
     if (previewSummary === undefined) return;
+    // 返事が来る前に画面を離れたり、取り直したりしたら、その返事は使わない。
+    let cancelled = false;
     const timer = setTimeout(() => {
       previewData()
         .then((d) => {
+          if (cancelled) return;
           setPreview(d);
           setPreviewError(null);
         })
-        .catch((e: unknown) => setPreviewError(String(e)));
+        .catch((e: unknown) => {
+          if (!cancelled) setPreviewError(String(e));
+        });
     }, 300);
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [previewSummary]);
 
   // クイックオープン（Mod-P）。エディタの外にフォーカスがあるときも開く。
@@ -1068,7 +1095,7 @@ export function App() {
                     assetUrl={assetUrl}
                     onShowInEditor={showPreviewLine}
                     onLine={onPreviewLine}
-                    onClose={() => setScreen("text")}
+                    onClose={closePreview}
                   />
                 </section>
               )}
