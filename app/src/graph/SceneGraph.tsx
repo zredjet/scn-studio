@@ -40,6 +40,7 @@ import type {
   StoryWrittenResult,
   Summary,
 } from "../core/types.ts";
+import { LabeledEdge } from "./edges.tsx";
 import { EdgeDialog, StubDialog } from "./FlowEditDialogs.tsx";
 import { FlowPanel } from "./FlowPanel.tsx";
 import {
@@ -51,6 +52,9 @@ import {
   proposalOverlay,
 } from "./model.ts";
 import { nodeTypes } from "./nodes.tsx";
+
+/** 辺の種類（札を行き先の手前に置く辺。T3-1、H3）。 */
+const edgeTypes = { labeled: LabeledEdge };
 
 interface Props {
   readonly summary: Summary;
@@ -268,8 +272,8 @@ export function SceneGraph({
         id: e.id,
         source: e.source,
         target: e.target,
-        type: "smoothstep",
-        label: e.label ?? undefined,
+        type: "labeled",
+        data: { label: e.label, slot: e.labelSlot, out: e.out },
         className: `flow-edge${e.out ? " out" : ""}${e.call ? " call" : ""}`,
         markerEnd: {
           type: MarkerType.ArrowClosed,
@@ -427,6 +431,7 @@ export function SceneGraph({
             nodes={nodes}
             edges={edges}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
             onNodesChange={onNodesChange}
             fitView
             minZoom={0.2}

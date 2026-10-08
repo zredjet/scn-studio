@@ -15,12 +15,14 @@ import {
   buildFlow,
   edgeLabel,
   entriesOf,
+  labelPlacement,
   legendCounts,
   NO_ROUTE,
   newStubPosition,
   proposalOverlay,
   rankOrder,
   startSceneOf,
+  withLabelSlots,
 } from "../src/graph/model.ts";
 
 function scene(
@@ -420,4 +422,83 @@ test("提案ノードの行き先の文と、ルートの名前の候補（T3-10
     routeNames([...scenes, scene("s021", "灯"), scene("s001", null)]),
     ["灯", "紬"],
   );
+});
+
+test("辺の札（T3-1、H3）：札を出すときは段の間を広げ、同じ行き先に入る札は上下に振り分ける", () => {
+  const withLabels = buildFlow(GRAPH, SUMMARY, {}, OPTIONS);
+  const without = buildFlow(
+    GRAPH,
+    SUMMARY,
+    {},
+    {
+      ...OPTIONS,
+      showConditions: false,
+    },
+  );
+  const x = (flow: typeof withLabels, id: string) =>
+    flow.nodes.find((n) => n.id === id)?.x ?? Number.NaN;
+  // a（段0）と b（段1）の間：札を出すときは札が入るだけ空ける。
+  assert.ok(
+    x(withLabels, "b") - x(withLabels, "a") > x(without, "b") - x(without, "a"),
+  );
+  assert.equal(x(without, "b") - x(without, "a"), 192);
+  assert.equal(x(withLabels, "b") - x(withLabels, "a"), 144 + 176);
+
+  const edges = withLabelSlots([
+    {
+      id: "1",
+      source: "a",
+      target: "t",
+      label: "行く",
+      labelSlot: 0,
+      out: false,
+      call: false,
+    },
+    {
+      id: "2",
+      source: "b",
+      target: "t",
+      label: null,
+      labelSlot: 0,
+      out: false,
+      call: false,
+    },
+    {
+      id: "3",
+      source: "c",
+      target: "t",
+      label: "x ≥ 2",
+      labelSlot: 0,
+      out: false,
+      call: false,
+    },
+    {
+      id: "4",
+      source: "a",
+      target: "u",
+      label: "それ以外",
+      labelSlot: 0,
+      out: false,
+      call: false,
+    },
+    {
+      id: "5",
+      source: "d",
+      target: "t",
+      label: "戻る",
+      labelSlot: 0,
+      out: false,
+      call: false,
+    },
+  ]);
+  assert.deepEqual(
+    edges.map((e) => e.labelSlot),
+    [0, 0, 1, 0, 2],
+  );
+  // 順 0 は線の上、1 は線の下、2 はさらに上。
+  assert.deepEqual(labelPlacement(0), { above: true, shift: -3 });
+  assert.deepEqual(labelPlacement(1), { above: false, shift: 3 });
+  assert.deepEqual(labelPlacement(2), { above: true, shift: -23 });
+  // 組み立てた辺にも振ってある。
+  assert.ok(withLabels.edges.every((e) => e.labelSlot === 0));
 });

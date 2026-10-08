@@ -21,9 +21,19 @@ import type {
 export const NODE_WIDTH = 144;
 export const NODE_HEIGHT = 64;
 const GROUP_WIDTH = 200;
-/** 自動の配置の、段の間と行の間。 */
-const COLUMN = 192;
+/** 自動の配置の、段の間（ノードの間の空き）と行の間。 */
+const COLUMN_GAP = 48;
 const ROW = 84;
+/**
+ * 条件と選択肢の札を出すときの段の間（T3-1、H3）。札は行き先のノードの手前に置くので、札（`.flow-edge-label`
+ * の最大の幅）と、出元のそばの辺の縦の線が入るだけ空ける。
+ */
+const LABEL_COLUMN_GAP = 176;
+
+/** 段の間（札を出すときは広げる）。 */
+function columnGap(options: FlowOptions): number {
+  return options.showConditions ? LABEL_COLUMN_GAP : COLUMN_GAP;
+}
 /** 帯の見出しの高さと、帯の内側の余白。 */
 const BAND_HEADER = 36;
 const BAND_PAD = 16;
@@ -71,6 +81,11 @@ export interface FlowEdge {
   readonly source: string;
   readonly target: string;
   readonly label: string | null;
+  /**
+   * 札の置き場所の順（同じ行き先に入る札の中で、0 から。札が無ければ 0）。行き先の手前で、線の上・下・上…と
+   * 振り分けて重ねない（T3-1、H3）。
+   */
+  readonly labelSlot: number;
   /** 選んだノードから出る辺。 */
   readonly out: boolean;
   readonly call: boolean;
@@ -269,7 +284,7 @@ function sceneFlow(
       rows.set(p.rank, row + 1);
       maxRows = Math.max(maxRows, row + 1);
       auto.set(g.id ?? "", {
-        x: BAND_PAD + p.rank * COLUMN,
+        x: BAND_PAD + p.rank * (NODE_WIDTH + columnGap(options)),
         y: top + BAND_HEADER + row * ROW,
       });
     }
@@ -343,7 +358,7 @@ function sceneFlow(
         missing.set(target, {
           id: target,
           type: "missing",
-          x: (from?.x ?? 0) + COLUMN,
+          x: (from?.x ?? 0) + NODE_WIDTH + columnGap(options),
           y: (from?.y ?? 0) + ROW / 2,
           width: NODE_WIDTH,
           height: NODE_HEIGHT,
@@ -366,6 +381,7 @@ function sceneFlow(
       source: e.from,
       target,
       label: options.showConditions ? edgeLabel(e) : null,
+      labelSlot: 0,
       out: e.from === options.selected,
       call: e.kind === "call",
     });
@@ -402,7 +418,7 @@ function groupFlow(
     const key = keyOf(g.id);
     const p = placed.get(key) ?? { rank: 0, order: 0 };
     const position = savedAt(saved, key) ?? {
-      x: p.rank * (GROUP_WIDTH + 48),
+      x: p.rank * (GROUP_WIDTH + columnGap(options)),
       y: p.order * ROW,
     };
     const total = g.scenes.reduce(
@@ -463,6 +479,7 @@ function groupFlow(
       source: `g:${m.from}`,
       target: `g:${m.to}`,
       label,
+      labelSlot: 0,
       out: m.from === options.selected,
       call: m.edges.every((e) => e.kind === "call"),
     };
@@ -477,10 +494,40 @@ export function buildFlow(
   saved: Readonly<Record<string, LayoutPoint>>,
   options: FlowOptions,
 ): { nodes: FlowNode[]; edges: FlowEdge[] } {
-  return graph.level === "scene"
-    ? sceneFlow(graph, summary, saved, options)
-    : groupFlow(graph, summary, saved, options);
+  const flow =
+    graph.level === "scene"
+      ? sceneFlow(graph, summary, saved, options)
+      : groupFlow(graph, summary, saved, options);
+  return { nodes: flow.nodes, edges: withLabelSlots(flow.edges) };
 }
+
+/** 同じ行き先に入る札に、置き場所の順を振る（辺の順に 0、1、2…）。 */
+export function withLabelSlots(edges: readonly FlowEdge[]): FlowEdge[] {
+  const counts = new Map<string, number>();
+  return edges.map((e) => {
+    if (e.label === null) return { ...e, labelSlot: 0 };
+    const slot = counts.get(e.target) ?? 0;
+    counts.set(e.target, slot + 1);
+    return { ...e, labelSlot: slot };
+  });
+}
+
+/**
+ * 札の置き場所（行き先のノードの手前、線からの上下）。順 0 は線の上、1 は線の下、2 はその上…。戻り値は、行き先の
+ * 点からの縦のずれ（札の下の端か上の端）と、札をどちら側に寄せるか。
+ */
+export function labelPlacement(slot: number): {
+  readonly above: boolean;
+  readonly shift: number;
+} {
+  const above = slot % 2 === 0;
+  const step = Math.floor(slot / 2) * LABEL_STEP;
+  return { above, shift: above ? -(LABEL_GAP + step) : LABEL_GAP + step };
+}
+
+/** 札と線の間、重ねた札の間。 */
+const LABEL_GAP = 3;
+const LABEL_STEP = 20;
 
 /** 凡例の数。 */
 export interface LegendCounts {

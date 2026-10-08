@@ -923,9 +923,27 @@ body {
   stroke-dasharray: 2 4;
 }
 
-.flow-edge .react-flow__edge-text {
-  fill: var(--accent-strong);
-  font-size: 12px;
+/* 辺の札（条件と選択肢）。行き先のノードの手前に置く（graph/edges.tsx。T3-1、H3） */
+.flow-edge-label {
+  position: absolute;
+  box-sizing: border-box;
+  /* 段の間（graph/model.ts の LABEL_COLUMN_GAP）から、矢印と出元のそばの縦の線の分を引いた幅 */
+  max-width: 132px;
+  padding: 0 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--accent-strong);
+  font-size: 11px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: all;
+}
+
+.flow-edge-label.out {
+  border-color: var(--accent);
 }
 
 /* 凡例 */
