@@ -969,3 +969,34 @@ fn closed_pipe_keeps_exit_code() {
     }
     let _ = fs::remove_dir_all(&dir);
 }
+
+/// `export script`：既定では作品フォルダの `export/script.csv` に書き、パスと行数を出す。`-o -` は標準出力。
+/// 行IDの無い台詞の数を標準エラーに出す（終了コードは変えない）。
+#[test]
+fn export_script() {
+    let dir = std::env::temp_dir().join(format!("scn-cli-export-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    copy_dir(&repo_root().join("samples/houkago"), &dir);
+    let _ = fs::remove_file(dir.join("export/script.csv"));
+    let out = scn(&["export", "script"], &dir);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    let csv = fs::read_to_string(dir.join("export/script.csv")).unwrap();
+    assert!(
+        csv.starts_with("\u{feff}行ID,シーン,キャラ,台詞,直前の地の文,ボイスファイル名,備考\r\n")
+    );
+    assert!(csv.contains("k3f9,s012 放課後の屋上,灯,やっと来た。遅いよ,,akari_k3f9,\r\n"));
+    assert!(out.stdout.contains("script.csv（16行）"), "{}", out.stdout);
+    assert!(out.stderr.contains("台詞が 2 行"), "{}", out.stderr);
+    let piped = scn(&["export", "script", ".", "-o", "-"], &dir);
+    assert_eq!(piped.stdout, csv);
+    // 無いフォルダへの書き出しは、フォルダを作る。作品フォルダの export/ が無くても作る。
+    let out = scn(&["export", "script", ".", "-o", "out/sub/x.csv"], &dir);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    assert_eq!(fs::read_to_string(dir.join("out/sub/x.csv")).unwrap(), csv);
+    fs::remove_dir_all(dir.join("export")).unwrap();
+    assert_eq!(scn(&["export", "script"], &dir).code, SUCCESS);
+    assert!(dir.join("export/script.csv").exists());
+    // 作品フォルダでなければ2。
+    assert_eq!(scn(&["export", "script", "story"], &dir).code, 2);
+    let _ = fs::remove_dir_all(&dir);
+}

@@ -24,6 +24,7 @@ use scn_core::layout::{Point, read_layout as read_layout_file};
 use scn_core::line_id::LineIdGenerator;
 use scn_core::preview;
 use scn_core::scaffold::create_project as scaffold_project;
+use scn_core::script;
 use scn_core::workspace::{Change, SaveOutcome, Workspace};
 use scn_core::{Project, Span, analyze};
 use serde::{Deserialize, Serialize};
@@ -552,6 +553,42 @@ fn preview_data(state: State<'_, AppState>) -> Result<Response, String> {
     Ok(Response::new(data))
 }
 
+// ---- 台本（T1-12、D051） ----
+
+/// 大きなスタックのスレッドで解析して、台本を作る。
+fn script_of(project: &Project) -> Result<script::ScriptSheet, String> {
+    thread::scope(|scope| {
+        thread::Builder::new()
+            .name("script".into())
+            .stack_size(ANALYZE_STACK_SIZE)
+            .spawn_scoped(scope, || script::script(project, &analyze(project)))
+            .map_err(|e| format!("解析のスレッドを作れません：{e}"))?
+            .join()
+            .map_err(|_| "解析が途中で止まりました".to_owned())
+    })
+}
+
+/// 台本（出力の画面で、書き出す前に中身を見る）。保存していない本文も含む。
+#[tauri::command]
+fn script_sheet(state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let project = open_workspace(&mut guard)?.project();
+    json_response(&to_json(&script_of(project)?, "台本")?)
+}
+
+/// 台本を作品フォルダの `export/script.csv` に書き出す（`scn export script` と同じ）。書いたパスと行数を返す。
+#[tauri::command]
+fn export_script(state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let sheet = script_of(workspace.project())?;
+    let path = script::write_script(workspace.root(), &sheet).map_err(|e| e.to_string())?;
+    json_response(&json!({
+        "path": path.display().to_string(),
+        "rows": sheet.rows.len(),
+    }))
+}
+
 /// 大きなスタックのスレッドで解析して索引を作り、`f` に渡す（IRはこのスレッドの中で捨てる）。
 fn with_index<T: Send>(
     project: &Project,
@@ -899,6 +936,8 @@ pub fn run() {
             read_variables,
             write_variables,
             preview_data,
+            script_sheet,
+            export_script,
             scene_graph,
             read_layout,
             write_layout,

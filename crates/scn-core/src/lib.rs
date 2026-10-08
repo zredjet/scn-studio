@@ -12,6 +12,7 @@
 //! - 開いている作品フォルダ（アプリの保存と、外部の変更の取り込み）：[`workspace::Workspace`]
 //! - 設定DBと変数の画面（項目の型と値の検査、フロントマターの書き換え、逆引き）：[`bible`]
 //! - 簡易ADVプレビューのデータ（IR全体と、画面・変数・素材）：[`preview::preview_data`]
+//! - 台本の出力（`scn export script`）：[`script::script`]
 //! - 行IDの付与（`scn fmt`）：[`line_id::assign_line_ids`]
 
 // ライブラリのコードでは、パニックしうる書き方を禁じる（`.claude/rules/rust.md`）。
@@ -43,6 +44,7 @@ pub mod line_id;
 pub mod preview;
 pub mod project;
 pub mod scaffold;
+pub mod script;
 mod sema;
 pub mod syntax;
 pub mod workspace;

@@ -17,7 +17,7 @@ const ITEMS: readonly { screen: Screen; label: string; later?: string }[] = [
   { screen: "bible", label: "設定" },
   { screen: "variables", label: "変数" },
   { screen: "check", label: "検証" },
-  { screen: "export", label: "出力", later: "T1-12で作ります" },
+  { screen: "export", label: "出力" },
 ];
 
 interface Props {

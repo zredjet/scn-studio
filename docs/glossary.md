@@ -136,7 +136,9 @@
 | トランジション | transition | 背景や立ち絵の切り替え方（プレビューはフェードだけ再現） |
 | エクスポート | export | エンジン用ファイルなどへの書き出し |
 | 出力プロファイル | export profile | `export/*.yaml` |
-| 台本 | script sheet | 収録・校正用の表 |
+| 台本 | script sheet | 収録・校正用の表（`export/script.csv`。`scn export script`） |
+| ボイスファイル名 | voice file name | `キャラID_行ID`（拡張子なし） |
+| 直前の地の文 | preceding narration | 台本の列。同じシーンで、その台詞より前のいちばん近い地の文 |
 
 ## AI
 

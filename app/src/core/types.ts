@@ -429,3 +429,23 @@ export interface DevSettings {
   readonly project: string | null;
   readonly measure_ipc: boolean;
 }
+
+// ---- 台本（T1-12、D051） ----
+
+/** 台本の1行（コアの `script::ScriptRow`）。 */
+export interface ScriptRow {
+  readonly line_id: string;
+  readonly scene: string;
+  readonly character: string;
+  readonly text: string;
+  readonly narration: string;
+  readonly voice: string;
+  readonly note: string;
+}
+
+/** 台本（コアの `script::ScriptSheet`）。 */
+export interface ScriptSheet {
+  readonly rows: readonly ScriptRow[];
+  /** 行IDの無い台詞の数。 */
+  readonly missing_line_ids: number;
+}

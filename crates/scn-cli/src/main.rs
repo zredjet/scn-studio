@@ -103,6 +103,11 @@ enum Command {
         #[arg(long)]
         check: bool,
     },
+    /// 書き出す（台本など）
+    Export {
+        #[command(subcommand)]
+        what: ExportCommand,
+    },
     /// 行IDの無い行に行IDを付け、付けた行IDを `ファイル:行:列 ^ID` の形で出す。整形はしない
     Fmt {
         /// プロジェクトのフォルダ（project.toml のあるところ）
@@ -113,6 +118,19 @@ enum Command {
         /// JSONで出す
         #[arg(long)]
         json: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum ExportCommand {
+    /// 台本（収録と校正の表）を CSV（UTF-8 の BOM 付き、CRLF）で書き出す
+    Script {
+        /// プロジェクトのフォルダ（project.toml のあるところ）。省くと今のフォルダ
+        #[arg(default_value = ".")]
+        project: PathBuf,
+        /// 書き出す先。省くと作品フォルダの export/script.csv。`-` なら標準出力
+        #[arg(long, short)]
+        output: Option<PathBuf>,
     },
 }
 
@@ -187,6 +205,9 @@ fn run(command: Command) -> Result<u8, CliError> {
             check,
             json,
         } => run_fmt(&project, check, json),
+        Command::Export {
+            what: ExportCommand::Script { project, output },
+        } => run_export_script(&project, output.as_deref()),
     }
 }
 
@@ -417,6 +438,60 @@ fn run_ir(dir: &Path) -> Result<u8, CliError> {
     finish(
         writeln!(io::stdout().lock(), "{body}"),
         exit_code(&ir.diagnostics),
+    )
+}
+
+// ---- scn export script ----
+
+/// 台本を書き出す（T1-12、D051）。既定の書き出し先は作品フォルダの `export/script.csv`（コアの `write_script`）。
+/// 行IDの無い台詞とエラーの診断があれば、数を標準エラーに出す。終了コードは `ir` と同じ（エラーの診断が
+/// あれば1）。
+fn run_export_script(dir: &Path, output: Option<&Path>) -> Result<u8, CliError> {
+    let project = load_project(dir).map_err(CliError::Project)?;
+    let ir = analyze(&project);
+    let sheet = scn_core::script::script(&project, &ir);
+    let code = exit_code(&ir.diagnostics);
+    if sheet.missing_line_ids > 0 {
+        eprintln!(
+            "scn: 行IDの無い（または形の合わない）台詞が {} 行あります。ボイスファイル名を空にしました（scn check で確かめ、scn fmt で行IDを付けられます）",
+            sheet.missing_line_ids
+        );
+    }
+    let errors = ir
+        .diagnostics
+        .iter()
+        .filter(|d| d.severity == Severity::Error.as_str())
+        .count();
+    if errors > 0 {
+        eprintln!("scn: エラーの診断が {errors} 件あります（scn check で確かめられます）");
+    }
+    let path = match output {
+        Some(path) if path == Path::new("-") => {
+            let csv = scn_core::script::script_csv(&sheet);
+            return finish(io::stdout().lock().write_all(csv.as_bytes()), code);
+        }
+        Some(path) => {
+            if let Some(parent) = path.parent()
+                && !parent.as_os_str().is_empty()
+            {
+                fs::create_dir_all(parent).map_err(|e| {
+                    CliError::Refused(format!("{} を作れません：{e}", parent.display()))
+                })?;
+            }
+            fs::write(path, scn_core::script::script_csv(&sheet))
+                .map_err(|e| CliError::Refused(format!("{} に書けません：{e}", path.display())))?;
+            path.to_owned()
+        }
+        None => scn_core::script::write_script(dir, &sheet).map_err(CliError::Project)?,
+    };
+    finish(
+        writeln!(
+            io::stdout().lock(),
+            "{}（{}行）",
+            path.display(),
+            sheet.rows.len()
+        ),
+        code,
     )
 }
 

@@ -22,6 +22,7 @@ import type {
   SavedFile,
   SceneGraphData,
   SceneInfo,
+  ScriptSheet,
   Summary,
   VariablesData,
   VariablesWritten,
@@ -268,4 +269,16 @@ export function previewData(): Promise<PreviewData> {
 /** 素材のファイル（絶対パス）を、アセットプロトコルのURLにする（作品の `assets/` の中だけ見せる）。 */
 export function assetUrl(path: string): string {
   return convertFileSrc(path);
+}
+
+// ---- 台本（T1-12、D051） ----
+
+/** 台本（書き出す前に中身を見る）。 */
+export function scriptSheet(): Promise<ScriptSheet> {
+  return invoke<ScriptSheet>("script_sheet");
+}
+
+/** 台本を作品フォルダの `export/script.csv` に書き出す。 */
+export function exportScript(): Promise<{ path: string; rows: number }> {
+  return invoke<{ path: string; rows: number }>("export_script");
 }

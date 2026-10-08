@@ -15,6 +15,7 @@ import {
   createProject,
   devReport,
   devSettings,
+  exportScript,
   guardClose,
   keepMine,
   onWorkspaceChanged,
@@ -28,6 +29,7 @@ import {
   reloadFile,
   saveFile,
   sceneInfo,
+  scriptSheet,
   setViewMode,
   viewModes,
 } from "./core/api.ts";
@@ -58,6 +60,7 @@ import { LineBreakBar } from "./editor/LineBreakBar.tsx";
 import { ModeBar } from "./editor/ModeBar.tsx";
 import type { Definition } from "./editor/navigate.ts";
 import { hasMixedLineBreaks, lineBreakOf } from "./editor/state.ts";
+import { ExportScreen } from "./export/ExportScreen.tsx";
 import { SceneGraph } from "./graph/SceneGraph.tsx";
 import { locateLine } from "./preview/locate.ts";
 import { type PreviewLine, PreviewScreen } from "./preview/PreviewScreen.tsx";
@@ -1066,6 +1069,16 @@ export function App() {
                     onShowInEditor={showPreviewLine}
                     onLine={onPreviewLine}
                     onClose={() => setScreen("text")}
+                  />
+                </section>
+              )}
+              {screen === "export" && (
+                <section className="screen export-screen" aria-label="出力">
+                  <ExportScreen
+                    summary={project.summary}
+                    unsaved={dirty.size}
+                    load={scriptSheet}
+                    write={exportScript}
                   />
                 </section>
               )}
