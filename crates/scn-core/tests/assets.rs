@@ -7,7 +7,8 @@ use std::path::{Path, PathBuf};
 
 use proptest::prelude::*;
 use scn_core::assets::{
-    AssetList, AssetState, CatalogEditError, add_entry, asset_list, orders, orders_csv, set_file,
+    AssetList, AssetState, CatalogEditError, add_entry, asset_list, asset_location, orders,
+    orders_csv, set_file,
 };
 use scn_core::index::build_index;
 use scn_core::{analyze, load_project};
@@ -390,4 +391,42 @@ proptest! {
             Err(e) => prop_assert!(false, "{name:?}: {e:?}"),
         }
     }
+}
+
+/// 素材の場所（T3-1、R191）：中のファイル、無いファイルは近いフォルダ、外を指すパスとリンクは断る。
+#[test]
+fn asset_locations_stay_inside() {
+    let dir = std::env::temp_dir().join(format!("scn-assets-location-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    let assets = dir.join("assets");
+    fs::create_dir_all(assets.join("bg")).unwrap();
+    fs::write(assets.join("bg").join("a.png"), b"x").unwrap();
+    assert_eq!(asset_location(&assets, None).unwrap(), assets);
+    // カタログの `/` 区切りは、OS の区切りにする。
+    assert_eq!(
+        asset_location(&assets, Some("bg/a.png")).unwrap(),
+        assets.join("bg").join("a.png")
+    );
+    // まだ無いファイルは、いちばん近いある親のフォルダ。
+    assert_eq!(
+        asset_location(&assets, Some("bg/new/b.png")).unwrap(),
+        assets.join("bg")
+    );
+    assert_eq!(asset_location(&assets, Some("se/x.ogg")).unwrap(), assets);
+    assert!(asset_location(&assets, Some("../project.toml")).is_err());
+    assert!(asset_location(&assets, Some("/etc/hosts")).is_err());
+    assert!(asset_location(&assets, Some("")).is_err());
+    #[cfg(unix)]
+    {
+        // 外を指すリンクは断る（たどった先が素材のフォルダの中に戻るものはよい）。
+        fs::create_dir_all(dir.join("outside")).unwrap();
+        fs::write(dir.join("outside").join("x.png"), b"x").unwrap();
+        std::os::unix::fs::symlink(dir.join("outside"), assets.join("out")).unwrap();
+        assert!(asset_location(&assets, Some("out")).is_err());
+        assert!(asset_location(&assets, Some("out/x.png")).is_err());
+        assert!(asset_location(&assets, Some("out/missing.png")).is_err());
+        std::os::unix::fs::symlink(&dir, assets.join("up")).unwrap();
+        assert!(asset_location(&assets, Some("up/assets/bg/a.png")).is_ok());
+    }
+    let _ = fs::remove_dir_all(&dir);
 }

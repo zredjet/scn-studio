@@ -63,6 +63,25 @@
   accent-color: var(--preview-sync-check);
 }
 
+/* 音量（T3-1、H5） */
+.preview-volume {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.preview-volume-range {
+  width: 88px;
+  accent-color: var(--accent);
+}
+
+.preview-volume-value {
+  min-width: 3.2em;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 .preview-button {
   min-height: 30px;
   padding: 0 12px;

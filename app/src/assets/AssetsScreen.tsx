@@ -7,8 +7,10 @@ import { useEffect, useMemo, useState } from "react";
 import {
   addCatalogEntries,
   assetList,
+  assetLocation,
   assetUrl,
   assignAssetFile,
+  copyText,
   exportOrders,
   pickAssetFile,
 } from "../core/api.ts";
@@ -87,6 +89,42 @@ export function AssetsScreen({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** 素材のフォルダ（`assets/`）の絶対のパス（T3-1、H5。Finder で探さずに済むように見せる）。 */
+  const [folder, setFolder] = useState<string | null>(null);
+  useEffect(() => {
+    void root;
+    let live = true;
+    assetLocation(null, false)
+      .then((path) => {
+        if (live) setFolder(path);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [root]);
+
+  /** 素材の場所を OS のファイルの画面で開く（`file` が null なら素材のフォルダ）。 */
+  const reveal = (file: string | null) => {
+    assetLocation(file, true)
+      .then(() => setError(null))
+      .catch((e: unknown) => setError(String(e)));
+  };
+
+  /** パスをコピーする（押したその場で写す。待ってからだと、クリップボードに書かせてもらえないことがある）。 */
+  const copyPath = (path: string | null) => {
+    if (path === null) return;
+    void copyText(path).then((ok) => {
+      if (ok) {
+        setNotice(`パスをコピーしました：${path}`);
+        setError(null);
+      } else {
+        setError(
+          `コピーできませんでした。パスを選んでコピーしてください：${path}`,
+        );
+      }
+    });
+  };
   const [tab, setTab] = useState<AssetTab>("all");
   const [missingOnly, setMissingOnly] = useState(false);
   const [query, setQuery] = useState("");
@@ -119,6 +157,25 @@ export function AssetsScreen({
   );
   const addable = useMemo(() => addableKeys(list?.rows ?? []), [list]);
   const row = list?.rows.find((r) => rowId(r) === selected) ?? null;
+  /** 選んだ素材の場所（ファイルか、置く場所のフォルダ。先に求めて見せておき、コピーはその場で写す）。 */
+  const rowFile = row?.file ?? null;
+  const rowPath = row?.path ?? null;
+  const [rowLocation, setRowLocation] = useState<string | null>(null);
+  useEffect(() => {
+    void root;
+    void rowPath; // ファイルが置かれたら（一覧の読み直し）、求め直す。
+    setRowLocation(null);
+    if (rowFile === null) return;
+    let live = true;
+    assetLocation(rowFile, false)
+      .then((path) => {
+        if (live) setRowLocation(path);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [rowFile, rowPath, root]);
   const titles = useMemo(
     () => new Map(scenes.map((s) => [s.id, s.title])),
     [scenes],
@@ -225,6 +282,29 @@ export function AssetsScreen({
             発注リストをCSV出力
           </button>
         </header>
+        <div className="assets-folder">
+          <span className="assets-folder-label">素材のフォルダ</span>
+          <code className="assets-folder-path" title={folder ?? undefined}>
+            {folder ?? "assets/"}
+          </code>
+          <button
+            type="button"
+            className="secondary-small"
+            title="素材のフォルダを Finder（Windows はエクスプローラー）で開く。無ければ作る"
+            onClick={() => reveal(null)}
+          >
+            フォルダを開く
+          </button>
+          <button
+            type="button"
+            className="secondary-small"
+            title="素材のフォルダのパスをクリップボードにコピーする"
+            disabled={folder === null}
+            onClick={() => copyPath(folder)}
+          >
+            パスをコピー
+          </button>
+        </div>
         <div className="assets-toolbar">
           <fieldset className="mode-switch" aria-label="種別">
             {TABS.map((t) => (
@@ -450,6 +530,12 @@ export function AssetsScreen({
                   : `${row.file} が見つかりません`)}
               {row.state === "unregistered" && "カタログに無い意味名です"}
             </p>
+            {rowLocation !== null && (
+              <p className="assets-location" title={rowLocation}>
+                {row.path !== null ? "場所" : "置く場所"}：
+                <code>{rowLocation}</code>
+              </p>
+            )}
             {row.path !== null &&
               (row.kind === "background" || row.kind === "expression") && (
                 <img
@@ -499,6 +585,27 @@ export function AssetsScreen({
                   ファイルを割り当てる
                 </button>
               )}
+              <button
+                type="button"
+                className="secondary-small"
+                title={
+                  row.path !== null
+                    ? "このファイルを Finder（Windows はエクスプローラー）で選んだ状態で開く"
+                    : "このファイルを置く場所（無ければ、いちばん近いフォルダ）を開く"
+                }
+                onClick={() => reveal(row.file)}
+              >
+                {row.path !== null ? "場所を開く" : "置く場所を開く"}
+              </button>
+              <button
+                type="button"
+                className="secondary-small"
+                title="このファイル（無ければ、置く場所のフォルダ）のパスをコピーする"
+                disabled={rowLocation === null}
+                onClick={() => copyPath(rowLocation)}
+              >
+                パスをコピー
+              </button>
             </div>
             {row.state === "unregistered" && !row.addable && (
               <p className="assets-muted">

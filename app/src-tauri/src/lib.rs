@@ -1475,6 +1475,86 @@ fn after_catalog_write(workspace: &Workspace, edit: Value) -> Result<Response, S
     }))
 }
 
+/// 素材の場所（T3-1、R191）：作品フォルダの `assets/`（`file` が無いとき）か、素材のファイル（`assets/` から数えた
+/// パス。カタログの書き方）。場所の決め方はコア（`assets::asset_location`。無いファイルはいちばん近いある親のフォルダ、
+/// `assets/` の外は断る）。`reveal` なら OS のファイルの画面（Finder、エクスプローラー）で見せる（`assets/` が無ければ
+/// 作る）。返すのは絶対のパス（画面に見せて、コピーできるように）。
+#[tauri::command]
+fn asset_location(
+    file: Option<String>,
+    reveal: bool,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let root = {
+        let mut guard = locked(&state.workspace)?;
+        open_workspace(&mut guard)?.root().to_owned()
+    };
+    let assets = plain_path(&std::path::absolute(root.join("assets")).map_err(|e| e.to_string())?);
+    if reveal {
+        std::fs::create_dir_all(&assets)
+            .map_err(|e| format!("{} を作れません：{e}", assets.display()))?;
+    }
+    let target = plain_path(&assets::asset_location(&assets, file.as_deref())?);
+    if reveal {
+        // 素材のフォルダそのものはそのまま開く（リンクなら、起動しないよう選んだ状態で見せる）。
+        let linked = std::fs::symlink_metadata(&assets).is_ok_and(|m| m.file_type().is_symlink());
+        reveal_in_file_manager(&target, target == assets && !linked)?;
+    }
+    Ok(target.display().to_string())
+}
+
+/// Windows の長いパスの印（`\\?\`）を外す（エクスプローラーと、人が写して使うパスのため）。ほかの OS ではそのまま。
+fn plain_path(path: &Path) -> PathBuf {
+    let text = path.to_string_lossy();
+    if let Some(rest) = text.strip_prefix(r"\\?\UNC\") {
+        return PathBuf::from(format!(r"\\{rest}"));
+    }
+    match text.strip_prefix(r"\\?\") {
+        Some(rest) if rest.as_bytes().get(1) == Some(&b':') => PathBuf::from(rest),
+        _ => path.to_owned(),
+    }
+}
+
+/// OS のファイルの画面で見せる。素材のフォルダ（`folder`）はそのまま開き、ほかは親の中で選んだ状態で見せる
+/// （macOS の `open` にフォルダを渡すと、`.app` のような束はアプリとして起動してしまうため）。
+fn reveal_in_file_manager(path: &Path, folder: bool) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    let spawned = {
+        let mut command = std::process::Command::new("open");
+        if !folder {
+            command.arg("-R");
+        }
+        command.arg(path).spawn()
+    };
+    #[cfg(target_os = "windows")]
+    let spawned = {
+        use std::os::windows::process::CommandExt;
+        let mut command = std::process::Command::new("explorer");
+        if folder {
+            command.arg(path);
+        } else {
+            // `/select,"パス"` は1つの引数として、引用符ごとそのまま渡す。
+            command.raw_arg(format!("/select,\"{}\"", path.display()));
+        }
+        command.spawn()
+    };
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    let spawned = {
+        let dir = if folder {
+            path
+        } else {
+            path.parent().unwrap_or(path)
+        };
+        std::process::Command::new("xdg-open").arg(dir).spawn()
+    };
+    let mut child = spawned.map_err(|e| format!("ファイルの画面を開けません：{e}"))?;
+    // すぐ終わるコマンドを待って片づける（画面は止めない）。
+    thread::spawn(move || {
+        let _ = child.wait();
+    });
+    Ok(())
+}
+
 /// 素材の一覧（素材カタログの画面を開いたとき、本文や設定が変わったとき）。
 #[tauri::command]
 fn asset_list(state: State<'_, AppState>) -> Result<Response, String> {
@@ -3420,6 +3500,7 @@ pub fn run() {
             export_plugins,
             export_plugin,
             asset_list,
+            asset_location,
             route_at,
             route_to_scene,
             reading_choices,
@@ -3445,6 +3526,23 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
+    /// Windows の長いパスの印を外す（T3-1、R191）。
+    #[test]
+    fn plain_paths() {
+        assert_eq!(
+            plain_path(Path::new(r"\\?\C:\作品\assets")),
+            PathBuf::from(r"C:\作品\assets")
+        );
+        assert_eq!(
+            plain_path(Path::new(r"\\?\UNC\server\share\a")),
+            PathBuf::from(r"\\server\share\a")
+        );
+        assert_eq!(
+            plain_path(Path::new("/Users/me/assets")),
+            PathBuf::from("/Users/me/assets")
+        );
+    }
+
     use super::*;
 
     /// 入れ子の深い本文でも、解析と直列化と破棄が落ちない。Windowsのメインスレッド（1MB）を模して、

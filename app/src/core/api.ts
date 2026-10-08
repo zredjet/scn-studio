@@ -844,6 +844,48 @@ export function exportScript(
   });
 }
 
+/**
+ * 素材の場所（T3-1、H5）：`file`（`assets/` から数えたパス）が null なら素材のフォルダ（`assets/`）。ファイルが無ければ
+ * いちばん近いある親のフォルダ。`reveal` なら OS のファイルの画面（Finder、エクスプローラー）で開く。絶対のパスを返す。
+ */
+export function assetLocation(
+  file: string | null,
+  reveal: boolean,
+): Promise<string> {
+  return invoke<string>("asset_location", { file, reveal });
+}
+
+/**
+ * 文字をクリップボードに写す（ボタンを押したその場で呼ぶ）。まず見えない入力欄で選んで写し（WebView でも、押した
+ * その場なら写せる）、だめならクリップボードの API で。どちらもできなければ false（画面にパスを見せているので、手で
+ * 写せる）。
+ */
+export async function copyText(text: string): Promise<boolean> {
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.setAttribute("readonly", "");
+  area.style.position = "fixed";
+  area.style.opacity = "0";
+  document.body.appendChild(area);
+  area.select();
+  let copied = false;
+  try {
+    // 古い書き方だが、押したその場で同期に写せる。
+    copied = document.execCommand("copy");
+  } catch {
+    copied = false;
+  } finally {
+    area.remove();
+  }
+  if (copied) return true;
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** 素材の一覧（素材カタログの画面）。 */
 export function assetList(): Promise<AssetList> {
   return invoke<AssetList>("asset_list");

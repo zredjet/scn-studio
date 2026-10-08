@@ -2163,6 +2163,45 @@ body {
 
 /* ---- 素材カタログの画面（T2-3、D054。docs/ui/mockups/05-assets.html） ---- */
 
+/* 素材のフォルダの場所（T3-1、H5） */
+.assets-folder {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 0 28px 10px;
+  font-size: 12.5px;
+}
+
+.assets-location {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assets-location code {
+  color: var(--ink);
+  font-family: var(--font-mono);
+  user-select: text;
+}
+
+.assets-folder-label {
+  color: var(--text-muted);
+}
+
+.assets-folder-path {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  text-overflow: ellipsis;
+  user-select: text;
+  white-space: nowrap;
+}
+
 .secondary-small {
   min-height: 32px;
   padding: 0 12px;

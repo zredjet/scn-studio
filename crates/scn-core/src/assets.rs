@@ -121,6 +121,47 @@ pub(crate) fn asset_file(assets: &Path, relative: &str) -> Option<String> {
     (canonical.starts_with(&base) && canonical.is_file()).then(|| canonical.display().to_string())
 }
 
+/// 素材の場所（素材の画面の「場所を開く」「パスをコピー」。T3-1、R191）：`assets`（作品フォルダの `assets/`）の中の
+/// `file`（`assets/` から数えたパス。カタログの書き方で `/` 区切り）。`file` が無ければ `assets` そのもの。無いファイルは、
+/// いちばん近いある親のフォルダにする（`assets` より上には行かない）。外を指すパス（`..`、絶対のパス、外へのリンク）と、
+/// 確かめられないものは断る。区切りは OS のものにする。
+pub fn asset_location(assets: &Path, file: Option<&str>) -> Result<PathBuf, String> {
+    let mut target = assets.to_owned();
+    if let Some(file) = file {
+        let rel = Path::new(file);
+        if file.is_empty()
+            || rel
+                .components()
+                .any(|c| !matches!(c, Component::Normal(_) | Component::CurDir))
+        {
+            return Err(format!(
+                "{file} は素材のフォルダ（assets/）の中を指していません"
+            ));
+        }
+        for part in rel.components() {
+            if let Component::Normal(part) = part {
+                target.push(part);
+            }
+        }
+    }
+    while !target.exists() && target != assets {
+        match target.parent() {
+            Some(parent) => target = parent.to_owned(),
+            None => break,
+        }
+    }
+    if target.exists() {
+        let base = fs::canonicalize(assets)
+            .map_err(|e| format!("素材のフォルダを確かめられません：{e}"))?;
+        let real = fs::canonicalize(&target)
+            .map_err(|e| format!("{} を確かめられません：{e}", target.display()))?;
+        if !real.starts_with(&base) {
+            return Err("素材のフォルダ（assets/）の外は開きません".to_owned());
+        }
+    }
+    Ok(target)
+}
+
 /// 作品フォルダの `assets/` の中の実在するファイルを、`assets/` から数えたパス（`/` 区切り）にする。
 /// 外を指すパスと、無いファイルは `None`。
 pub fn assets_relative(file: &Path, root: &Path) -> Option<String> {

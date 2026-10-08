@@ -36,6 +36,14 @@ import {
   stopLocation,
 } from "./runtime.ts";
 import { type PlayMode, PreviewStage } from "./Stage.tsx";
+import {
+  effectiveVolume,
+  loadSoundPrefs,
+  type SoundPrefs,
+  saveSoundPrefs,
+  volumePercent,
+  withPercent,
+} from "./sound.ts";
 import { paginate, piecesOf } from "./text.ts";
 import { VerticalView } from "./VerticalView.tsx";
 
@@ -102,6 +110,31 @@ function declared(data: PreviewData) {
   }));
 }
 
+/** 音量とミュートを当てる。 */
+function applySound(audio: HTMLAudioElement, prefs: SoundPrefs): void {
+  audio.volume = effectiveVolume(prefs);
+  audio.muted = prefs.muted;
+}
+
+/**
+ * 効果音を1回鳴らす（ミュートなら鳴らさない）。鳴っている間は `playing` に入れておき、音量とミュートを変えたら
+ * 当てる（長めの効果音も、ミュートで止める）。
+ */
+function playOnce(
+  url: string,
+  prefs: SoundPrefs,
+  playing: Set<HTMLAudioElement>,
+): void {
+  if (prefs.muted) return;
+  const audio = new Audio(url);
+  applySound(audio, prefs);
+  playing.add(audio);
+  const done = () => playing.delete(audio);
+  audio.addEventListener("ended", done);
+  audio.addEventListener("error", done);
+  void audio.play().catch(done);
+}
+
 export function PreviewScreen({
   data,
   error,
@@ -137,6 +170,17 @@ export function PreviewScreen({
   /** 再生の頼みの最短経路を待っている。 */
   const waiting = useRef(false);
   const bgm = useRef<HTMLAudioElement | null>(null);
+  // 音量とミュート（BGM と効果音に共通。T3-1、H5）。鳴らしている BGM には、変えたときに当てる（鳴らし直さない）。
+  const [sound, setSound] = useState<SoundPrefs>(loadSoundPrefs);
+  const soundRef = useRef(sound);
+  soundRef.current = sound;
+  /** 鳴っている効果音。 */
+  const effects = useRef(new Set<HTMLAudioElement>());
+  /** 音量とミュートを変える（人が操作したときだけ、この端末に覚える）。 */
+  const changeSound = useCallback((next: SoundPrefs) => {
+    setSound(next);
+    saveSoundPrefs(next);
+  }, []);
   const logRef = useRef<HTMLDivElement>(null);
   const state = history[history.length - 1] ?? null;
   const prog = running?.prog ?? null;
@@ -322,7 +366,7 @@ export function PreviewScreen({
       if (e.kind === "se") {
         const sound = running.data.assets.se[e.name];
         if (sound?.file !== null && sound?.file !== undefined) {
-          void new Audio(assetUrl(sound.file)).play().catch(() => {});
+          playOnce(assetUrl(sound.file), soundRef.current, effects.current);
         } else {
           setSeLabel(
             `SE ${e.name} · ${sound === undefined ? "カタログに無い" : "仮素材"}（無音）`,
@@ -357,10 +401,34 @@ export function PreviewScreen({
     if (sound?.file === null || sound?.file === undefined) return;
     const audio = new Audio(assetUrl(sound.file));
     audio.loop = sound.loop;
+    applySound(audio, soundRef.current);
     void audio.play().catch(() => {});
     bgm.current = audio;
     return () => audio.pause();
   }, [bgmName, running, assetUrl]);
+
+  // 音量とミュートを変えたら、鳴らしている BGM と効果音に当てる（鳴らし直さない）。別ウィンドウのプレビューとは
+  // 合わせない（ウィンドウどうしは Tauri のイベントでだけつなぐ。D055）。開いたときに、覚えた値を読む。
+  useEffect(() => {
+    if (bgm.current !== null) applySound(bgm.current, sound);
+    for (const audio of effects.current) {
+      if (sound.muted) {
+        audio.pause();
+        effects.current.delete(audio);
+      } else {
+        applySound(audio, sound);
+      }
+    }
+  }, [sound]);
+
+  // 閉じたら、鳴っている効果音を止める。
+  useEffect(() => {
+    const playing = effects.current;
+    return () => {
+      for (const audio of playing) audio.pause();
+      playing.clear();
+    };
+  }, []);
 
   // エディタと同期：今の行を知らせる。
   const scene =
@@ -470,7 +538,7 @@ export function PreviewScreen({
     (name: string) => {
       const sound = running?.data.assets.se[name];
       if (sound?.file !== null && sound?.file !== undefined) {
-        void new Audio(assetUrl(sound.file)).play().catch(() => {});
+        playOnce(assetUrl(sound.file), soundRef.current, effects.current);
       } else {
         setSeLabel(`SE ${name} · 仮素材（無音）`);
       }
@@ -618,6 +686,35 @@ export function PreviewScreen({
               onChange={(event) => setSync(event.target.checked)}
             />
             エディタと同期
+          </label>
+          <button
+            type="button"
+            className="preview-button"
+            aria-pressed={sound.muted}
+            title="BGM と効果音を消す（全体。この端末に覚える）"
+            onClick={() => changeSound({ ...sound, muted: !sound.muted })}
+          >
+            {sound.muted ? "ミュート中" : "ミュート"}
+          </button>
+          <label
+            className="preview-volume"
+            title="BGM と効果音の音量（全体。素材ごとの大きさは変えない）"
+          >
+            音量
+            <input
+              className="preview-volume-range"
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={volumePercent(sound)}
+              onChange={(event) =>
+                changeSound(withPercent(sound, Number(event.target.value)))
+              }
+            />
+            <span className="preview-volume-value">
+              {sound.muted ? "—" : `${volumePercent(sound)}%`}
+            </span>
           </label>
           <button
             type="button"

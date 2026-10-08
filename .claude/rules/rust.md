@@ -89,4 +89,5 @@ paths:
 - AI のキーはフロントに返さない（`ai_connections` はあるかどうかだけ）。キーとクラウドの許可は、今の作品フォルダの接続先の行き先にだけ書く（T3-5）。
 - 自律の実行中（`AppState.auto`。T3-9）は、本文を書き換えるコマンドの初めで `refuse_during_auto` を呼んで断る（ブランチならどの章も、直接なら書く章だけ）。本文を書き換えるコマンドを足したら、ここにも足す。
 - 言語サーバー（`crates/scn-lsp`。T3-15）も Tauri と同じく薄く保つ：LSP の形との受け渡しと、位置の変換（`position`。UTF-8 のバイト位置と LSP の UTF-16 の位置の変換はここだけ）。処理は `scn-core` に置く。
+- OS のファイルの画面で開く（素材の画面の `asset_location`。T3-1、R191）のは、作品フォルダの `assets/` の中だけ（場所の決め方と外の判断はコアの `assets::asset_location`）。開くのは OS のコマンド（macOS は `open`、Windows は `explorer`）で、プラグインを足さない。素材のフォルダそのもの以外は選んだ状態で見せる（macOS で `.app` のような束を起動しない）。
 - 作品フォルダのコマンド（書き出しのプラグインの `command`、`export/book.yaml` の `pdf_command`。T3-14）は、`command_approved` でこの端末で確かめたかを見て、確かめていなければ実行せずに `needs_approval` を返す（画面が人に確かめて `approve` で呼び直す）。確かめた記録はアプリの設定のフォルダの `export-commands.json` だけに書く。実行は `spawn_blocking` で、ワークスペースのロックを持ったまま待たない。
