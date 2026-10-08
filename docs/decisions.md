@@ -843,3 +843,12 @@
   - Excel 形式の書き手（`xlsx`）に、複数のシートのブック（`xlsx_book`）を足した。依存は足さない。
 - 理由：計画 T3-12 の手順と、Ren'Py・ティラノスクリプトと同じ考え（D053・D072）。宴の公式の説明（コマンド一覧、Selection、Character・Texture・Sound・Param のシート、テキストタグ）に沿う。宴の設定のシートは作品ごとに既にあるので、上書きしない形（別のブック）で渡す。シーンごとのシートは計画のとおり（ラベルは作品全体で通じるので、シートをまたいで飛べる）。
 - 影響：`crates/scn-core/src/utage.rs`（新規）、`xlsx.rs`（`xlsx_book`、`crc32` をクレートの中で使う）、`renpy.rs`（`identifier` を `pub(crate)`）、`tyrano.rs`（`ascii_name`・`unique` を `pub(crate)`）、`scn export utage`、`app/src-tauri`（`export_utage`）、`app/src/export/ExportScreen.tsx`、`docs/spec/project-files.md` の13節。
+
+## D074 EPUBと縦書きPDF（2026-10-09）
+
+- 決定：
+  - EPUB 3 は道（共通・ルート・エンディング）ごとに1冊（`export/epub/<道の名前>.epub`）。道の選び方と本文の形はプレーンテキスト（D056）と同じ。縦書き（既定。`writing-mode: vertical-rl`、`page-progression-direction="rtl"`）と横書きを選べる。ルビは `<ruby>`、傍点は `text-emphasis`、縦書きでは半角の数字の3文字までと `!!`・`!?`・`?!`・`??` を縦中横。ZIP は台本の書き手（`mimetype` を先頭に、圧縮しない）。
+  - 縦書きPDFはコアで組まない。CSS の印刷の決まり（`@page`）を書いた印刷用の HTML（`export/pdf/<道の名前>.html`）を書き出し、Vivliostyle などの CSS 組版の道具で PDF にする（外部コマンドで呼ぶのは T3-14）。
+  - 出力プロファイルは `export/book.yaml`（`writing`・`author`・`font`・`font_size`・`page_size`・`page_margin`・`notes`）を EPUB と印刷用で共通にする。
+- 理由：計画 T3-13 の手順（道ごとか1冊かは推奨案で決める、縦書きと横書き、ルビ・傍点・縦中横、ZIP は台本の書き手）と、D005・設計検討書（WebView の組版は確認用に限り、厳密な組版は書き出しで行う）。道ごとに1冊にするのは、プレーンテキストと同じ単位で、通読の道（選んだ選択肢）がそのまま本の筋になるため。コアで PDF を組むには、書体のファイルの読み込みと部分の埋め込み、縦組みの字形と約物の扱いが要り、依存も大きいので、CSS 組版の道具に任せる（CLI からも使える。原則2）。
+- 影響：`crates/scn-core/src/book.rs`（新規）、`xlsx.rs`（`Zip` をクレートの中で使う）、`scn export epub`・`scn export pdf`、`app/src-tauri`（`export_book`）、`app/src/export/ExportScreen.tsx`（EPUB・縦書きPDF のカード）、`docs/spec/project-files.md` の14節。

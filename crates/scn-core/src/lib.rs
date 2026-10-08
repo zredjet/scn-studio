@@ -34,6 +34,7 @@ pub mod assets;
 pub mod assist;
 pub mod ast;
 pub mod bible;
+pub mod book;
 pub mod check;
 pub mod concept;
 pub mod diag;

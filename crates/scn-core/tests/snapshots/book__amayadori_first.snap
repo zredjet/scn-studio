@@ -1,0 +1,113 @@
+---
+source: crates/scn-core/tests/book.rs
+expression: "files_of(&project, &target, &BookProfile::default())"
+---
+==== mimetype
+application/epub+zip
+==== META-INF/container.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/package.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>
+==== OEBPS/package.opf
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id" xml:lang="ja">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="book-id">urn:scn-studio:b4cc250ee2efd4f1</dc:identifier>
+    <dc:title>雨宿りの駅（共通のみ）</dc:title>
+    <dc:language>ja</dc:language>
+    <meta property="dcterms:modified">2026-10-09T00:00:00Z</meta>
+    <meta name="primary-writing-mode" content="vertical-rl"/>
+  </metadata>
+  <manifest>
+    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+    <item id="style" href="style.css" media-type="text/css"/>
+    <item id="text" href="text.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine page-progression-direction="rtl">
+    <itemref idref="text"/>
+  </spine>
+</package>
+==== OEBPS/nav.xhtml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="ja" lang="ja">
+<head>
+  <meta charset="UTF-8"/>
+  <title>雨宿りの駅（共通のみ）</title>
+  <link rel="stylesheet" type="text/css" href="style.css"/>
+</head>
+<body>
+  <nav epub:type="toc" id="toc">
+    <h1>目次</h1>
+    <ol>
+      <li><a href="text.xhtml#sec1">改札前</a></li>
+      <li><a href="text.xhtml#sec2">待合室</a></li>
+    </ol>
+  </nav>
+</body>
+</html>
+==== OEBPS/style.css
+@charset "UTF-8";
+html {
+  writing-mode: vertical-rl;
+  -epub-writing-mode: vertical-rl;
+  -webkit-writing-mode: vertical-rl;
+}
+body {
+  font-family: serif;
+  line-height: 1.75;
+}
+h2 {
+  font-size: 1.2em;
+  margin-block-end: 1em;
+  break-before: page;
+  page-break-before: always;
+}
+p {
+  margin: 0;
+}
+p.gap {
+  margin-block-start: 1em;
+}
+p.note {
+  font-size: 0.9em;
+}
+em.sesame {
+  font-style: normal;
+  text-emphasis-style: sesame;
+  -epub-text-emphasis-style: sesame;
+  -webkit-text-emphasis-style: sesame;
+}
+span.tcy {
+  text-combine-upright: all;
+  -epub-text-combine: horizontal;
+  -webkit-text-combine: horizontal;
+}
+==== OEBPS/text.xhtml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="ja" lang="ja">
+<head>
+  <meta charset="UTF-8"/>
+  <title>雨宿りの駅（共通のみ）</title>
+  <link rel="stylesheet" type="text/css" href="style.css"/>
+</head>
+<body>
+<h1>雨宿りの駅（共通のみ）</h1>
+<h2 id="sec1">改札前</h2>
+<p>　雨は、駅舎のトタン屋根を休みなく叩いていた。</p>
+<p>　改札の上の電光板から、最終列車の文字が消える。</p>
+<p>　スピーカーが、ざらついた声で告げた。</p>
+<p>　――大雨のため、本日の列車はすべて運転を見合わせます。始発バスは、五時四十分の予定です。</p>
+<p>『……歩いて帰れる距離じゃないな』</p>
+<p>　ポケットの中の小銭を数えてから、遥人は待合室のドアを押した。</p>
+<h2 id="sec2">待合室</h2>
+<p>　ストーブの消えた待合室に、先客が一人いた。</p>
+<p>　同じくらいの年の少女が、膝の上に大きな旅行鞄を抱えている。</p>
+<p>　鞄には、隣の県の住所が書かれた札が下がっていた。</p>
+<p class="note">〔選択：話しかける〕</p>
+</body>
+</html>

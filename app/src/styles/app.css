@@ -4249,3 +4249,11 @@ body {
 .concept-ai-link {
   align-self: flex-start;
 }
+
+/* EPUB・縦書きPDF のカードのボタン（T3-13） */
+.export-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}

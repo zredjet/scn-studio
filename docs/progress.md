@@ -6,7 +6,7 @@ Claude Codeは、作業を始めるときにこのファイルを読み、タス
 
 - フェーズ：3（支援と拡張）。計画は `docs/plan/phase3.md`（草案）。設計検討書の範囲の最後のフェーズ。フェーズ2のゲートは、条件1（書き出したRen'Pyを最後まで遊べる）を自動の範囲で満たし、人の確認（H9、2OSのIMEテスト、H1〜H17）は待ちのまま、人の指示に沿って先へ進めた（T2-11、D062）。フェーズ1のゲートも人の確認待ち（T1-13、D052）。フェーズ0のゲートは条件付きで通過した（T0-9、D040）
 - 作業中のタスク：なし
-- 次のタスク：T3-13 EPUBと縦書きPDF（T3-1 は人の確認が届いたときに行う。T2-1 の人の確認 H1〜H8 も T3-1 で取り込む）
+- 次のタスク：T3-14 書き出しのプラグイン（テンプレートと外部コマンド）（T3-1 は人の確認が届いたときに行う。T2-1 の人の確認 H1〜H8 も T3-1 で取り込む）
 - 2026-10-08 から、人の指示で、人に聞かずに設計検討書の範囲（フェーズ1の残り、フェーズ2、フェーズ3）を進めている。人に確認する判断は推奨案で決め、人の環境でしか確かめられないことと一緒に `docs/review-for-human.md` にまとめている
 - T1-1（Windowsでの確認）は、Windowsの環境を用意できたときに行う（`docs/review-for-human.md` の H1。フェーズ3の T3-1 で取り込む）。中身は、フェーズ0で別途対応にした3件（`scripts/check-all.ps1`、アプリの起動、IMEテストのW1）
 
@@ -42,6 +42,26 @@ Claude Codeは、作業を始めるときにこのファイルを読み、タス
 - エディタのテーマの `&.cm-focused .cm-selectionBackground` は、CodeMirrorの基本テーマより詳細度が低く、フォーカス中の選択は基本テーマの色（`#d7d4f0`）になっている。`--accent-tint` を効かせるように直すときは、今の行の上で選択が見えにくくならないか確かめる（今の行の背景は60%に薄めている）。T0-8のレビューで気づいた（T1-7で直した。D046）
 
 ## 記録
+
+### 2026-10-09 T3-13 完了（人の確認を除く。EPUBと縦書きPDF）
+
+- やったこと
+  - コアに `book.rs`（新規）：出力プロファイル（`export/book.yaml`）、通読の本文から EPUB 3（`mimetype` を先頭に圧縮しない ZIP。package.opf・nav.xhtml・style.css・text.xhtml）と、縦書きPDFを組むための印刷用の HTML（CSS の `@page`）。ルビ、傍点、縦中横、注記、縦書きと横書き。ZIP は `xlsx::Zip` を使う
+  - CLI の `scn export epub|pdf [project-dir] [--route | --ending] [--horizontal] [--no-notes] [--no-ai-drafts] [-o]`。アプリの「出力」の画面に「EPUB・縦書きPDF」のカード。Tauri の `export_book`
+  - `docs/spec/project-files.md` の14節
+- 決めたこと（D074。推奨案で決めたことは `docs/review-for-human.md` の R170〜R173）
+  - EPUB の単位（道ごと）、縦書きPDFの作り方（印刷用の HTML を CSS 組版の道具で）、プロファイル、縦中横と傍点の決まり
+- レビュー（`plan-reviewer`）で直したこと
+  - アプリが `book.yaml` の `notes`・`writing` を使わず、チェックの見た目と結果が食い違った（Tauri の `book_settings` を足し、チェックの初めの値をプロファイルから決める）
+  - 傍点の中の数字が縦中横にならなかった。`-o -` で「-」という名前のファイルができた（標準出力に書く）
+  - 確認の項目から：最初のシーンの見出しでも改ページして扉を独立させ、`page-break-before: always` を併記した。単位の無い `font_size` と注釈の `/*` を読み飛ばして知らせる。書き込みを本文と同じ一時ファイルからの置き換えにした。印刷用の HTML の `<style>` の途中に入っていた `@charset` を EPUB の CSS だけにした。H28 の Vivliostyle のパスを直し、改ページを特に見るよう書いた
+- 確かめたこと
+  - `scripts/check-all`：成功（Rust のテスト 379件、フロント 43件と186件。警告なし）
+  - `cargo test -p scn-core --test book`：4件成功（houkago の灯ルートと amayadori の初めの道の EPUB の中のファイルのスナップショット、ZIP の形、縦書きと横書き・縦中横・ルビと傍点・注記・XML の文字・印刷用の HTML・プロファイル）
+  - `cargo test -p scn-cli`：`export_epub_and_pdf`
+  - 書き出した EPUB を Python で開き、`mimetype` が先頭で圧縮していないこと、XML のファイルが整形式であることを確かめた。epubcheck と Java はこの環境に無いので、H28 で人が行う
+- 残った課題
+  - 人が epubcheck、電子書籍の閲覧ソフト、Vivliostyle で組んだ PDF で確かめる（H28。完了条件）
 
 ### 2026-10-09 T3-12 完了（人の確認を除く。宴への書き出し）
 

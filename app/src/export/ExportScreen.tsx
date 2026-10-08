@@ -4,12 +4,13 @@
 // Ren'Py への書き出し（T2-2、D053）は、出力プロファイル（export/renpy.yaml）に従って、書き出し先の
 // game/scn/ を作り直す（CLI の `scn export renpy` と同じ）。ティラノスクリプト（T3-11、D072）も同じく、
 // export/tyrano.yaml に従って data/scenario/scn/ と素材の data/*/scn/ を作り直す。宴（T3-12、D073）は
-// export/utage.yaml に従って、シナリオと設定のシートの Excel 形式と素材を export/utage/ に書く。プレーンテキスト（T2-5、D056）は、道（共通、ルート、
+// export/utage.yaml に従って、シナリオと設定のシートの Excel 形式と素材を export/utage/ に書く。EPUB と縦書きPDF
+// （T3-13、D074）は、道を選んで export/epub/・export/pdf/（PDF を組むための印刷用の HTML）に書く。プレーンテキスト（T2-5、D056）は、道（共通、ルート、
 // エンディング）を選んで export/text/ に書く（CLI の `scn export text` と同じ）。
 
 import { useEffect, useState } from "react";
 import { keyed } from "../bible/fields.ts";
-import type { RenpyResult } from "../core/api.ts";
+import type { BookSettings, RenpyResult } from "../core/api.ts";
 import type {
   AiLines,
   ReadingChoice,
@@ -41,6 +42,16 @@ interface Props {
   readonly writeTyrano: (aiDrafts: boolean) => Promise<RenpyResult>;
   /** 宴へ書き出す（T3-12）。 */
   readonly writeUtage: (aiDrafts: boolean) => Promise<RenpyResult>;
+  /** EPUB か印刷用の HTML を書き出す（T3-13）。 */
+  readonly writeBook: (
+    target: ReadingTarget,
+    print: boolean,
+    horizontal: boolean,
+    notes: boolean,
+    aiDrafts: boolean,
+  ) => Promise<{ readonly path: string; readonly problems: readonly string[] }>;
+  /** EPUB と縦書きPDFの出力プロファイルの書き方と注記（チェックの初めの値）。 */
+  readonly loadBookSettings: () => Promise<BookSettings>;
   /** 通読の道の候補。 */
   readonly loadChoices: () => Promise<ReadingChoice[]>;
   /** プレーンテキストを書き出す。 */
@@ -253,6 +264,166 @@ function TextCard({
   );
 }
 
+/** EPUB と縦書きPDF（T3-13、D074）：道を選んで、EPUB か、PDF を組むための印刷用の HTML を書き出す。 */
+function BookCard({
+  summary,
+  loadChoices,
+  loadSettings,
+  writeBook,
+}: {
+  readonly summary: Summary;
+  readonly loadChoices: () => Promise<ReadingChoice[]>;
+  readonly loadSettings: () => Promise<BookSettings>;
+  readonly writeBook: (
+    target: ReadingTarget,
+    print: boolean,
+    horizontal: boolean,
+    notes: boolean,
+  ) => Promise<{ readonly path: string; readonly problems: readonly string[] }>;
+}) {
+  const [choices, setChoices] = useState<readonly ReadingChoice[]>([]);
+  const [selected, setSelected] = useState(0);
+  const [notes, setNotes] = useState(true);
+  const [horizontal, setHorizontal] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [problems, setProblems] = useState<readonly string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  // チェックの初めの値は、出力プロファイル（export/book.yaml）の writing と notes。
+  useEffect(() => {
+    let live = true;
+    loadSettings()
+      .then((s) => {
+        if (!live) return;
+        setHorizontal(!s.vertical);
+        setNotes(s.notes);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [loadSettings]);
+  useEffect(() => {
+    void summary;
+    let live = true;
+    loadChoices()
+      .then((c) => {
+        if (live) setChoices(c);
+      })
+      .catch((e: unknown) => {
+        if (live) setError(String(e));
+      });
+    return () => {
+      live = false;
+    };
+  }, [summary, loadChoices]);
+  const index = Math.max(0, Math.min(selected, choices.length - 1));
+  const choice = choices[index];
+  const write = (print: boolean) => {
+    if (choice === undefined) return;
+    setBusy(true);
+    writeBook(choice.target, print, horizontal, notes)
+      .then((r) => {
+        setNotice(
+          print
+            ? `${r.path} に書き出しました。PDF は CSS 組版の道具（Vivliostyle など）で組みます`
+            : `${r.path} に書き出しました`,
+        );
+        setProblems(r.problems);
+        setError(null);
+      })
+      .catch((e: unknown) => setError(String(e)))
+      .finally(() => setBusy(false));
+  };
+  return (
+    <section className="export-card" aria-label="EPUB と縦書きPDF">
+      <div className="export-card-head">
+        <div>
+          <h2>EPUB・縦書きPDF</h2>
+          <p className="export-note">
+            道を一本道にした小説の形（話者名なし、台詞は括弧）で、EPUB 3
+            と、縦書きPDFを組むための印刷用の HTML
+            を書き出します。ルビ・傍点・縦中横を付けます。紙の大きさや書体は
+            export/book.yaml
+            で決めます。書き出し先：export/epub/・export/pdf/（道の名前）
+          </p>
+        </div>
+        <div className="export-buttons">
+          <button
+            type="button"
+            className="primary-small"
+            disabled={busy || choice === undefined}
+            onClick={() => write(false)}
+          >
+            EPUB
+          </button>
+          <button
+            type="button"
+            className="small-button"
+            disabled={busy || choice === undefined}
+            onClick={() => write(true)}
+          >
+            印刷用 HTML
+          </button>
+        </div>
+      </div>
+      <div className="export-options">
+        <label>
+          道
+          <select
+            value={index}
+            onChange={(event) => setSelected(Number(event.target.value))}
+          >
+            {choices.map((c, i) => (
+              <option key={c.label} value={i}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={horizontal}
+            onChange={(event) => setHorizontal(event.target.checked)}
+          />
+          横書き
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={notes}
+            onChange={(event) => setNotes(event.target.checked)}
+          />
+          選んだ選択肢とエンディングを注記する
+        </label>
+      </div>
+      {notice !== null && (
+        <p className="export-notice" role="status">
+          {notice}
+        </p>
+      )}
+      {problems.length > 0 && (
+        <div className="export-warning">
+          <p className="export-list-head">
+            出力プロファイルの誤り（読み飛ばして書き出しました）
+          </p>
+          <ul className="export-list">
+            {keyed(problems, (p) => p).map(([key, p]) => (
+              <li key={key}>{p}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {error !== null && (
+        <p className="export-error" role="alert">
+          {error}
+        </p>
+      )}
+    </section>
+  );
+}
+
 const COLUMNS = [
   "行ID",
   "シーン",
@@ -353,6 +524,8 @@ export function ExportScreen({
   writeRenpy,
   writeTyrano,
   writeUtage,
+  writeBook,
+  loadBookSettings,
   loadChoices,
   writeText,
   loadProvenance,
@@ -426,6 +599,14 @@ export function ExportScreen({
         summary={summary}
         loadChoices={loadChoices}
         writeText={(target, notes) => writeText(target, notes, aiDrafts)}
+      />
+      <BookCard
+        summary={summary}
+        loadChoices={loadChoices}
+        loadSettings={loadBookSettings}
+        writeBook={(target, print, horizontal, notes) =>
+          writeBook(target, print, horizontal, notes, aiDrafts)
+        }
       />
       <ProvenanceCard
         summary={summary}

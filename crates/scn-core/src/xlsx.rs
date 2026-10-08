@@ -17,8 +17,8 @@ pub(crate) fn crc32(bytes: &[u8]) -> u32 {
     !crc
 }
 
-/// ZIP の書き手（stored だけ）。
-struct Zip {
+/// ZIP の書き手（stored だけ。EPUB も使う。T3-13）。
+pub(crate) struct Zip {
     out: Vec<u8>,
     central: Vec<u8>,
     count: u16,
@@ -30,7 +30,7 @@ struct Zip {
 pub struct TooLarge;
 
 impl Zip {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Zip {
             out: Vec::new(),
             central: Vec::new(),
@@ -38,7 +38,7 @@ impl Zip {
         }
     }
 
-    fn add(&mut self, name: &str, data: &[u8]) -> Result<(), TooLarge> {
+    pub(crate) fn add(&mut self, name: &str, data: &[u8]) -> Result<(), TooLarge> {
         let crc = crc32(data);
         let size = u32::try_from(data.len()).map_err(|_| TooLarge)?;
         let offset = u32::try_from(self.out.len()).map_err(|_| TooLarge)?;
@@ -76,7 +76,7 @@ impl Zip {
         Ok(())
     }
 
-    fn finish(mut self) -> Result<Vec<u8>, TooLarge> {
+    pub(crate) fn finish(mut self) -> Result<Vec<u8>, TooLarge> {
         let offset = u32::try_from(self.out.len()).map_err(|_| TooLarge)?;
         let size = u32::try_from(self.central.len()).map_err(|_| TooLarge)?;
         self.out.extend_from_slice(&self.central);

@@ -1385,6 +1385,50 @@ fn export_utage() {
     let _ = fs::remove_dir_all(&dir);
 }
 
+/// `scn export epub`・`scn export pdf`：道ごとに export/epub/<道>.epub と export/pdf/<道>.html を書く。
+/// `-o` は1つの道のときだけ。着けない道を指定したら2。
+#[test]
+fn export_epub_and_pdf() {
+    let dir = std::env::temp_dir().join(format!("scn-cli-book-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    copy_dir(&repo_root().join("samples/houkago"), &dir);
+    let out = scn(&["export", "epub"], &dir);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    assert!(
+        dir.join("export/epub/灯ルート.epub").is_file(),
+        "{}",
+        out.stdout
+    );
+    let out = scn(
+        &[
+            "export",
+            "pdf",
+            ".",
+            "--route",
+            "灯",
+            "--horizontal",
+            "-o",
+            "out/a.html",
+        ],
+        &dir,
+    );
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    let html = fs::read_to_string(dir.join("out/a.html")).unwrap();
+    assert!(html.contains("writing-mode: horizontal-tb;"), "{html}");
+    assert!(out.stderr.contains("vivliostyle"), "{}", out.stderr);
+    // `-o -` は標準出力（「-」という名前のファイルを作らない）。
+    let out = scn(&["export", "pdf", ".", "--route", "灯", "-o", "-"], &dir);
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    assert!(out.stdout.starts_with("<!DOCTYPE html>"), "{}", out.stdout);
+    assert!(!dir.join("-").exists());
+    assert_eq!(scn(&["export", "epub", ".", "-o", "x.epub"], &dir).code, 2);
+    assert_eq!(
+        scn(&["export", "epub", ".", "--route", "無い"], &dir).code,
+        2
+    );
+    let _ = fs::remove_dir_all(&dir);
+}
+
 /// `scn ai context`：タスクの文脈を組み立てて出す（LLM は呼ばない）。実行できなければ1、無いタスクは2。
 #[test]
 fn ai_context() {

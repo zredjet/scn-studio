@@ -1,0 +1,140 @@
+---
+source: crates/scn-core/tests/book.rs
+expression: "files_of(&project, &target, &BookProfile::default())"
+---
+==== mimetype
+application/epub+zip
+==== META-INF/container.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/package.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>
+==== OEBPS/package.opf
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id" xml:lang="ja">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="book-id">urn:scn-studio:75c91cf72d9513ec</dc:identifier>
+    <dc:title>放課後の灯（灯ルート）</dc:title>
+    <dc:language>ja</dc:language>
+    <meta property="dcterms:modified">2026-10-09T00:00:00Z</meta>
+    <meta name="primary-writing-mode" content="vertical-rl"/>
+  </metadata>
+  <manifest>
+    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+    <item id="style" href="style.css" media-type="text/css"/>
+    <item id="text" href="text.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine page-progression-direction="rtl">
+    <itemref idref="text"/>
+  </spine>
+</package>
+==== OEBPS/nav.xhtml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="ja" lang="ja">
+<head>
+  <meta charset="UTF-8"/>
+  <title>放課後の灯（灯ルート）</title>
+  <link rel="stylesheet" type="text/css" href="style.css"/>
+</head>
+<body>
+  <nav epub:type="toc" id="toc">
+    <h1>目次</h1>
+    <ol>
+      <li><a href="text.xhtml#sec1">登校</a></li>
+      <li><a href="text.xhtml#sec2">昼休みの教室</a></li>
+      <li><a href="text.xhtml#sec3">放課後の屋上</a></li>
+      <li><a href="text.xhtml#sec4">打ち明ける</a></li>
+      <li><a href="text.xhtml#sec5">灯の家の前</a></li>
+      <li><a href="text.xhtml#sec6">屋上の約束</a></li>
+      <li><a href="text.xhtml#sec7">雨の図書室</a></li>
+      <li><a href="text.xhtml#sec8">見送り</a></li>
+    </ol>
+  </nav>
+</body>
+</html>
+==== OEBPS/style.css
+@charset "UTF-8";
+html {
+  writing-mode: vertical-rl;
+  -epub-writing-mode: vertical-rl;
+  -webkit-writing-mode: vertical-rl;
+}
+body {
+  font-family: serif;
+  line-height: 1.75;
+}
+h2 {
+  font-size: 1.2em;
+  margin-block-end: 1em;
+  break-before: page;
+  page-break-before: always;
+}
+p {
+  margin: 0;
+}
+p.gap {
+  margin-block-start: 1em;
+}
+p.note {
+  font-size: 0.9em;
+}
+em.sesame {
+  font-style: normal;
+  text-emphasis-style: sesame;
+  -epub-text-emphasis-style: sesame;
+  -webkit-text-emphasis-style: sesame;
+}
+span.tcy {
+  text-combine-upright: all;
+  -epub-text-combine: horizontal;
+  -webkit-text-combine: horizontal;
+}
+==== OEBPS/text.xhtml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="ja" lang="ja">
+<head>
+  <meta charset="UTF-8"/>
+  <title>放課後の灯（灯ルート）</title>
+  <link rel="stylesheet" type="text/css" href="style.css"/>
+</head>
+<body>
+<h1>放課後の灯（灯ルート）</h1>
+<h2 id="sec1">登校</h2>
+<p>　坂道の途中で、後ろから鞄がぶつかってきた。</p>
+<p>「おはよ、湊。今日も眠そうだね」</p>
+<p>「灯が元気すぎるんだよ」</p>
+<p>「ひどいなあ。元気なのは、わたしの数少ない取り柄なのに」</p>
+<p>　そう言って笑う顔に、昨日までと違うところは見つからなかった。</p>
+<h2 id="sec2">昼休みの教室</h2>
+<p>「湊くん。灯ちゃん、最近なにか言ってた？」</p>
+<p>「なにかって？」</p>
+<p>「……ううん、なんでもない」</p>
+<p>　五限の予鈴が鳴った。机の中に、二つ折りのメモが入っていた。</p>
+<p>　<em class="sesame">放課後、屋上で</em>。丸い字は、灯のものだった。</p>
+<p class="note">〔選択：すぐに行く〕</p>
+<h2 id="sec3">放課後の屋上</h2>
+<p>「やっと来た。遅いよ」</p>
+<p>　風が強くて、灯の髪が<ruby>乱<rt>みだ</rt></ruby>れていた。</p>
+<p>「あのね、話があるんだ」</p>
+<p>『……やっぱり、言えないかも』</p>
+<p class="note">〔選択：「ごめん、遅くなって」〕</p>
+<p>「やっぱり、君には言っておく」</p>
+<h2 id="sec4">打ち明ける</h2>
+<p>「わたし、夏休みが終わったら、転校するんだ」</p>
+<p>　風の音だけが、しばらく続いた。</p>
+<h2 id="sec5">灯の家の前</h2>
+<p>　灯の家の前に、段ボールが積まれていた。</p>
+<p>「見られちゃったか」</p>
+<h2 id="sec6">屋上の約束</h2>
+<p>「じゃあ約束。夏休みまで、毎日ここで」</p>
+<p>　灯は髪留めに触れながら、小さく笑った。</p>
+<h2 id="sec7">雨の図書室</h2>
+<h2 id="sec8">見送り</h2>
+<p>「またね、湊。……またね」</p>
+<p class="note gap">〔エンディング：akari_end〕</p>
+</body>
+</html>

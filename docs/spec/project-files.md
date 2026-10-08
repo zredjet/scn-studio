@@ -23,7 +23,7 @@
 │  └─ files/          素材のファイル
 ├─ ideas/             アイデアメモ（1枚1ファイル）
 ├─ ai/                AIタスクの定義、出自の記録、変更の提案
-├─ export/            書き出したもの（台本 `script.csv`・`script.xlsx`、発注リスト `orders.csv`、プレーンテキスト `text/`、Ren'Py の `renpy/`、ティラノスクリプトの `tyrano/`、宴の `utage/`）、収録の基準（`script-baseline.json`）と、出力プロファイル（`renpy.yaml`。11節、`tyrano.yaml`。12節、`utage.yaml`。13節）
+├─ export/            書き出したもの（台本 `script.csv`・`script.xlsx`、発注リスト `orders.csv`、プレーンテキスト `text/`、Ren'Py の `renpy/`、ティラノスクリプトの `tyrano/`、宴の `utage/`、EPUB の `epub/`、縦書きPDFを組む印刷用の HTML の `pdf/`）、収録の基準（`script-baseline.json`）と、出力プロファイル（`renpy.yaml`。11節、`tyrano.yaml`。12節、`utage.yaml`。13節、`book.yaml`。14節）
 ├─ layout.json        フロー図のノードの位置（T1-9）
 └─ .cache/            ツールのキャッシュ（Gitに入れない）
 ```
@@ -425,6 +425,7 @@ prompt: |
 - `export/renpy/`（出力プロファイルの `output`）：Ren'Py への書き出し（T2-2、D053）。11節。
 - `export/tyrano/`（出力プロファイルの `output`）：ティラノスクリプトへの書き出し（T3-11、D072）。12節。
 - `export/utage/`（出力プロファイルの `output`）：宴への書き出し（T3-12、D073）。13節。
+- `export/epub/<道の名前>.epub`・`export/pdf/<道の名前>.html`：EPUB と、縦書きPDFを組むための印刷用の HTML（T3-13、D074）。14節。
 - `.cache/`：索引などのキャッシュ。Gitに入れない（`scn new` が `.gitignore` に書く）。
 
 ## 11. 出力プロファイル（`export/renpy.yaml`）と Ren'Py への書き出し
@@ -680,3 +681,47 @@ ending:      EndScenario
 
 - 選択肢の文の式の埋め込みの `Param` の行は、問いかけ文の行の前に書く（問いかけ文と `Selection` の行の並びを切らない）。
 - 実行時の誤り（0での割り算、型の違う比べ方など）と、宴の `/` の切り捨ての向きは、宴の式の処理に任せる（人が確かめる。H27）。型の誤りは、書き出す前に `scn check`（E603・E604）で分かる。
+
+## 14. 出力プロファイル（`export/book.yaml`）と EPUB・縦書きPDF
+
+T3-13、D074。`scn export epub`・`scn export pdf` とアプリの「出力」の画面が、通読（プレーンテキストと同じ道。10節の `export/text/`）の本文を、小説としての配布用の EPUB 3 と、縦書きPDFを組むための印刷用の HTML にする。縦書きPDFはコアで組まない（D005：厳密な組版は書き出しで行う。WebView の縦書きビューを印刷する案は採らない）。印刷用の HTML を CSS 組版の道具（Vivliostyle など。`vivliostyle build export/pdf/灯ルート.html -o 灯ルート.pdf`）で PDF にする。
+
+```yaml
+# export/book.yaml
+writing: vertical        # vertical（縦書き）か horizontal（横書き）
+author: 作者の名前
+font: "Noto Serif JP"    # 本文の書体（CSS の font-family）
+font_size: 9pt           # 印刷用
+page_size: A5            # 印刷用（CSS の @page の size）
+page_margin: 15mm        # 印刷用
+notes: true              # 選んだ選択肢とエンディングの注記
+```
+
+| キー | 値 | 既定 | 意味 |
+| --- | --- | --- | --- |
+| `writing` | `vertical`・`horizontal`（`縦書き`・`横書き`） | `vertical` | 書字の向き。CLI の `--horizontal` とアプリの「横書き」で上書きできる（アプリのチェックの初めの値はこの値） |
+| `author` | 文字列 | なし | EPUB の `dc:creator`、印刷用の HTML の題名の下 |
+| `font` | CSS の `font-family` の値 | なし（明朝の総称 `serif`） | 本文の書体 |
+| `font_size` | CSS の長さ（単位を付ける） | `9pt` | 印刷用の本文の文字の大きさ |
+| `page_size` | CSS の `@page` の `size` の値 | `A5` | 印刷用の紙の大きさ |
+| `page_margin` | CSS の長さ（単位を付ける） | `15mm` | 印刷用の紙の余白 |
+| `notes` | 真偽 | `true` | 注記（〔選択：…〕・〔エンディング：…〕）を書くか。CLI の `--no-notes` とアプリで上書きできる（アプリのチェックの初めの値はこの値） |
+
+- CSS の値は `;`・`{`・`}`・`<`・`>`・`"`・`\`・注釈の `/*` と改行を含まないもの（含めば読み飛ばして知らせる）。`font_size`・`page_margin` に単位の無い数（`0` を除く）を書いたときも、読み飛ばして知らせる。ほかの値の誤りも、読み飛ばして既定で書き出し、知らせる。決まっていないキーは黙って読み飛ばす。
+
+### 道と本文
+
+- 道は `scn export text` と同じ（`--route`・`--ending` が無ければ、共通とすべてのルート。着けない道は知らせて書かない。指定した道に着けなければ終了コード2）。道ごとに1冊（1つのファイル）。`-o` は1つの道を選んだときだけ使え、`-o -` は標準出力に書く。
+- 本文はプレーンテキストと同じ小説の形：話者名は書かず、台詞は表示スタイルの括弧で囲む。地の文は書かれたとおり（段落頭の全角空白を含む）。シーンの見出し（`<h2>`。`@呼出` で呼ばれたシーンには見出しを書かない）、段落の区切り（次の段落の前を空ける）、注記。
+- ルビは `<ruby>親文字<rt>読み</rt></ruby>`、傍点は `<em class="sesame">`（CSS の `text-emphasis-style: sesame`）。縦書きでは、本文と傍点の中の半角の数字の3文字までの並び（前後が半角の英字のときを除く。ルビの親文字と読みは除く）と `!!`・`!?`・`?!`・`??` を縦中横（`text-combine-upright`）にする。変数の埋め込みは、道を実行した値（決まらなければ `{=式}`）。`{w}`・`{p}`・`{speed}`・文中の効果音は書かない。
+
+### EPUB（`export/epub/<道の名前>.epub`）
+
+- EPUB 3。ZIP は台本と同じ書き手で、`mimetype`（`application/epub+zip`）を先頭に圧縮しないで置く（どのファイルも圧縮しない）。
+- 中身：`META-INF/container.xml`、`OEBPS/package.opf`（題名 `作品名（道の名前）`、言語 `ja`、識別子（作品名と道の名前から決まる `urn:scn-studio:…`）、更新日時、縦書きなら `page-progression-direction="rtl"` と `primary-writing-mode`）、`OEBPS/nav.xhtml`（目次：シーンの見出し）、`OEBPS/style.css`、`OEBPS/text.xhtml`（本文）。
+- epubcheck があれば、書き出した EPUB を検査する（人の確認）。
+
+### 印刷用の HTML（`export/pdf/<道の名前>.html`）
+
+- 1つの HTML（CSS を中に書く）。`@page` に紙の大きさと余白、本文の文字の大きさ、書字の向き。題名（`<h1>`）と著者、本文（EPUB と同じ）。シーンの見出しの前で改ページする（最初のシーンも。題名と著者だけのページが扉になる。EPUB も同じで、`break-before: page` と `page-break-before: always` を書く）。
+- PDF は CSS 組版の道具で組む（コアは PDF を書かない）。書体のファイルを埋め込むのも組版の道具（`font` の書体を入れた環境で組む）。

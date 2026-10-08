@@ -1176,6 +1176,59 @@ fn export_text(
     json_response(&json!({ "path": path.display().to_string() }))
 }
 
+/// 出力プロファイル（`export/book.yaml`）の書き方と注記（「出力」の画面のチェックの初めの値。T3-13）。
+#[tauri::command]
+fn book_settings(state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let (profile, _) = scn_core::book::read_profile(workspace.root());
+    json_response(&json!({ "vertical": profile.vertical, "notes": profile.notes }))
+}
+
+/// 通読の道を、EPUB（`export/epub/<道の名前>.epub`）か、縦書きPDFを組むための印刷用の HTML
+/// （`export/pdf/<道の名前>.html`）に書き出す（`scn export epub`・`scn export pdf` と同じ。T3-13、D074）。
+/// `horizontal`・`notes` はプロファイル（`export/book.yaml`）を上書きする。書いたパスとプロファイルの誤りを返す。
+#[tauri::command]
+fn export_book(
+    target: route::ReadingTarget,
+    print: bool,
+    horizontal: bool,
+    notes: bool,
+    ai_drafts: Option<bool>,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    use scn_core::book;
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let (project, root) = (workspace.project(), workspace.root());
+    let (mut profile, problems) = book::read_profile(root);
+    if horizontal {
+        profile.vertical = false;
+    }
+    profile.notes = notes;
+    let modified = scn_core::provenance::now();
+    let (label, bytes, message) = with_export_ir(project, ai_drafts.unwrap_or(true), |ir| {
+        let reading = route::read(project, ir, &target, &route::Variables::new());
+        let label = route::target_label(ir, &target);
+        let bytes = if print {
+            book::print_html(project, &reading, &label, &profile).into_bytes()
+        } else {
+            book::epub(project, &reading, &label, &profile, &modified).map_err(|e| e.to_string())?
+        };
+        Ok((label, bytes, reading.message))
+    })?;
+    if let Some(message) = message {
+        return Err(format!("{label}：{message}"));
+    }
+    let path = if print {
+        book::book_path(root, book::PRINT_DIR, &label, "html")
+    } else {
+        book::book_path(root, book::EPUB_DIR, &label, "epub")
+    };
+    book::write_book(&path, &bytes).map_err(|e| e.to_string())?;
+    json_response(&json!({ "path": path.display().to_string(), "problems": problems }))
+}
+
 // ---- 素材カタログ（T2-3、D054） ----
 
 /// 素材の一覧（保存していない本文も含めて数える）。
@@ -3140,6 +3193,8 @@ pub fn run() {
             export_renpy,
             export_tyrano,
             export_utage,
+            book_settings,
+            export_book,
             asset_list,
             route_at,
             route_to_scene,

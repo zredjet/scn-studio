@@ -1055,6 +1055,33 @@ export function readRoute(
   });
 }
 
+/** 通読の道を EPUB（`print` なら縦書きPDFを組む印刷用の HTML）に書き出す（T3-13）。 */
+/** EPUB と縦書きPDFの出力プロファイル（export/book.yaml）の書き方と注記（チェックの初めの値。T3-13）。 */
+export function bookSettings(): Promise<BookSettings> {
+  return invoke<BookSettings>("book_settings");
+}
+
+export interface BookSettings {
+  readonly vertical: boolean;
+  readonly notes: boolean;
+}
+
+export function exportBook(
+  target: ReadingTarget,
+  print: boolean,
+  horizontal: boolean,
+  notes: boolean,
+  aiDrafts = true,
+): Promise<{ path: string; problems: readonly string[] }> {
+  return invoke<{ path: string; problems: readonly string[] }>("export_book", {
+    target,
+    print,
+    horizontal,
+    notes,
+    aiDrafts,
+  });
+}
+
 /** 通読の道を `export/text/<道の名前>.txt` に書き出す。 */
 export function exportText(
   target: ReadingTarget,

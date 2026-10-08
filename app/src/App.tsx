@@ -49,6 +49,7 @@ import {
   applyMerge,
   applyRename,
   assetUrl,
+  bookSettings,
   cancelAi,
   confirm,
   createProject,
@@ -56,6 +57,7 @@ import {
   deleteChapter,
   devReport,
   devSettings,
+  exportBook,
   exportProvenance,
   exportRenpy,
   exportScript,
@@ -3042,6 +3044,8 @@ export function App() {
                     writeRenpy={exportRenpy}
                     writeTyrano={exportTyrano}
                     writeUtage={exportUtage}
+                    writeBook={exportBook}
+                    loadBookSettings={bookSettings}
                     loadChoices={readingChoices}
                     writeText={exportText}
                     loadProvenance={aiLines}

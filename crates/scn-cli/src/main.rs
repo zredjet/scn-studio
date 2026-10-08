@@ -16,6 +16,8 @@
 //! - `scn export renpy [project-dir] [-o dir]`：Ren'Py のスクリプトを書き出す（D053）。
 //! - `scn export tyrano [project-dir] [-o dir]`：ティラノスクリプトのシナリオを書き出す（D072）。
 //! - `scn export utage [project-dir] [-o dir]`：宴のシナリオと設定のシート（Excel 形式）を書き出す（D073）。
+//! - `scn export epub|pdf [project-dir] [--route 名前 | --ending ID] [--horizontal] [--no-notes] [-o file]`：
+//!   道ごとの EPUB と、縦書きPDFを組むための印刷用の HTML を書き出す（D074）。
 //! - `scn export orders [project-dir] [-o file]`：発注リストを CSV で書き出す（D054）。
 //! - `scn export text [project-dir] [--route 名前 | --ending ID] [--no-notes] [-o file]`：ルート単位の通読用の
 //!   テキストを書き出す（D056）。
@@ -237,6 +239,10 @@ enum ExportCommand {
         #[arg(long, short)]
         output: Option<PathBuf>,
     },
+    /// 道（共通・ルート・エンディング）ごとの EPUB 3 を、出力プロファイル（export/book.yaml）に従って書き出す
+    Epub(BookArgs),
+    /// 縦書きPDFを組むための印刷用の HTML（CSS の @page）を書き出す。PDF は Vivliostyle などで組む
+    Pdf(BookArgs),
     /// Ren'Py のスクリプトを、出力プロファイル（export/renpy.yaml）に従って書き出す。書き出し先の
     /// game/scn/ を作り直す
     Renpy {
@@ -277,6 +283,33 @@ enum ExportCommand {
         #[arg(long)]
         no_ai_drafts: bool,
     },
+}
+
+/// `scn export epub`・`scn export pdf` の引数。
+#[derive(clap::Args)]
+struct BookArgs {
+    /// プロジェクトのフォルダ（project.toml のあるところ）。省くと今のフォルダ
+    #[arg(default_value = ".")]
+    project: PathBuf,
+    /// ルートの名前（シーンのメタ情報の route）
+    #[arg(long, conflicts_with = "ending")]
+    route: Option<String>,
+    /// エンディングのID（そこまでの最短経路で読む）
+    #[arg(long)]
+    ending: Option<String>,
+    /// 横書きにする（既定はプロファイルの writing、無ければ縦書き）
+    #[arg(long)]
+    horizontal: bool,
+    /// 選んだ選択肢とエンディングの注記（〔選択：…〕）を書かない
+    #[arg(long)]
+    no_notes: bool,
+    /// AI下書き（status: ai-draft）のシーンの台詞と地の文を省く（流れは残し、省いたことを地の文で示す）
+    #[arg(long)]
+    no_ai_drafts: bool,
+    /// 書き出すファイル（`--route` か `--ending` で1つの道を選んだときだけ使える）。省くと
+    /// export/epub/<道の名前>.epub（PDF は export/pdf/<道の名前>.html）。`-` なら標準出力
+    #[arg(long, short)]
+    output: Option<PathBuf>,
 }
 
 /// 使い方や入出力の誤り（終了コード2）。
@@ -408,6 +441,12 @@ fn run(command: Command) -> Result<u8, CliError> {
                     no_ai_drafts,
                 },
         } => run_export_renpy(&project, output.as_deref(), no_ai_drafts),
+        Command::Export {
+            what: ExportCommand::Epub(args),
+        } => run_export_book(&args, false),
+        Command::Export {
+            what: ExportCommand::Pdf(args),
+        } => run_export_book(&args, true),
         Command::Export {
             what:
                 ExportCommand::Tyrano {
@@ -913,6 +952,84 @@ fn run_export_text(
                 }
             }
         }
+    }
+    Ok(code)
+}
+
+/// `scn export epub`・`scn export pdf`：道ごとに EPUB か印刷用の HTML を書き出す（道の選び方は `export text` と
+/// 同じ）。
+fn run_export_book(args: &BookArgs, print: bool) -> Result<u8, CliError> {
+    use scn_core::book::{
+        BOOK_PROFILE, EPUB_DIR, PRINT_DIR, book_path, epub, print_html, read_profile, write_book,
+    };
+    use scn_core::route::{ReadingTarget, Variables, read, reading_choices, target_label};
+    let dir = args.project.as_path();
+    let project = load_project(dir).map_err(CliError::Project)?;
+    let ir = analyze_for_export(&project, args.no_ai_drafts);
+    let code = exit_code(&ir.diagnostics);
+    let (mut profile, problems) = read_profile(dir);
+    for problem in &problems {
+        eprintln!("scn: {BOOK_PROFILE}：{problem}");
+    }
+    if args.horizontal {
+        profile.vertical = false;
+    }
+    if args.no_notes {
+        profile.notes = false;
+    }
+    let targets: Vec<ReadingTarget> = match (&args.route, &args.ending) {
+        (Some(name), _) => vec![ReadingTarget::Route { name: name.clone() }],
+        (None, Some(id)) => vec![ReadingTarget::Ending { id: id.clone() }],
+        (None, None) => reading_choices(&ir)
+            .into_iter()
+            .map(|c| c.target)
+            .filter(|t| !matches!(t, ReadingTarget::Ending { .. }))
+            .collect(),
+    };
+    if targets.is_empty() {
+        return Err(CliError::Refused("シーンがありません".to_owned()));
+    }
+    let single = args.route.is_some() || args.ending.is_some();
+    if args.output.is_some() && !single {
+        return Err(CliError::Refused(
+            "-o は --route か --ending と一緒に使います（1つの道だけを書き出すとき）".to_owned(),
+        ));
+    }
+    let modified = scn_core::provenance::now();
+    let mut out = io::stdout().lock();
+    for target in &targets {
+        let reading = read(&project, &ir, target, &Variables::new());
+        let label = target_label(&ir, target);
+        if let Some(message) = &reading.message {
+            if single {
+                return Err(CliError::Refused(format!("{label}：{message}")));
+            }
+            eprintln!("scn: {label}：{message}");
+            continue;
+        }
+        let (bytes, default) = if print {
+            (
+                print_html(&project, &reading, &label, &profile).into_bytes(),
+                book_path(dir, PRINT_DIR, &label, "html"),
+            )
+        } else {
+            (
+                epub(&project, &reading, &label, &profile, &modified)
+                    .map_err(|e| CliError::Refused(e.to_string()))?,
+                book_path(dir, EPUB_DIR, &label, "epub"),
+            )
+        };
+        if args.output.as_deref() == Some(Path::new("-")) {
+            return finish(out.write_all(&bytes), code);
+        }
+        let path = args.output.clone().unwrap_or(default);
+        write_book(&path, &bytes).map_err(CliError::Project)?;
+        if let Err(e) = writeln!(out, "{}（{}）", path.display(), reading.stop) {
+            return finish(Err(e), code);
+        }
+    }
+    if print {
+        eprintln!("scn: PDF は CSS 組版の道具で組みます（例：vivliostyle build <HTML> -o <PDF>）");
     }
     Ok(code)
 }
