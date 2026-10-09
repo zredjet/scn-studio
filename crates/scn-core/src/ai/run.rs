@@ -16,7 +16,10 @@ use super::client::{
 };
 use super::connection::Connection;
 use super::context::{Assembled, ContextSources, assemble};
-use super::fielddraft::{ConceptDraft, concept_schema, parse_concept_draft};
+use super::fielddraft::{
+    ConceptDraft, EntriesDraft, concept_schema, entries_schema, parse_concept_draft,
+    parse_entries_draft,
+};
 use super::generate::generated_body;
 use super::plot::{
     BranchProposal, IdeaSuggestion, SkeletonScene, parse_branch_proposals, parse_idea_suggestions,
@@ -278,6 +281,8 @@ pub struct RunOutcome {
     pub ideas: Vec<IdeaSuggestion>,
     /// 企画書の下書き（`output: concept`。T4-4）。書くのは別（`Workspace::write_concept_draft`）。
     pub concept: Option<ConceptDraft>,
+    /// 設定の下書き（`output: entries`。T4-5）。書くのは別（`Workspace::write_entries_draft`）。
+    pub entries: Option<EntriesDraft>,
     /// 応答のうち、読めなかった行。
     pub unread: Vec<String>,
     /// 応答の文（そのまま）。
@@ -374,6 +379,7 @@ pub fn output_schema(output: TaskOutput) -> Option<OutputSchema> {
             }),
         ),
         TaskOutput::Concept => return Some(concept_schema()),
+        TaskOutput::Entries => return Some(entries_schema()),
         TaskOutput::Summary | TaskOutput::Proposals | TaskOutput::Draft => return None,
     };
     Some(OutputSchema {
@@ -459,6 +465,7 @@ pub fn run_task(
     let mut skeleton = Vec::new();
     let mut ideas = Vec::new();
     let mut concept = None;
+    let mut entries = None;
     let unread_if = |empty: bool| {
         if empty && !text.trim().is_empty() {
             vec![text.trim().to_owned()]
@@ -507,6 +514,11 @@ pub fn run_task(
             concept = draft;
             (Vec::new(), None, unread)
         }
+        TaskOutput::Entries => {
+            let (draft, unread) = parse_entries_draft(&text, project);
+            entries = draft;
+            (Vec::new(), None, unread)
+        }
         _ => {
             let (raw, unread) = parse_findings(&text);
             (resolve_findings(project, ir, raw, scene), None, unread)
@@ -525,6 +537,7 @@ pub fn run_task(
         skeleton,
         ideas,
         concept,
+        entries,
         unread,
         text,
         completion,

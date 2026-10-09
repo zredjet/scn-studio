@@ -1,0 +1,9 @@
+name: 設定の下書き
+level: generate
+model: cloud
+context: [concept, ideas, characters, terms, types, missing_entries]
+output: entries
+prompt: |
+  企画書とアイデアメモ、今の設定から、足りない設定（本文の未登録の話者、企画書の主要キャラ、参照先の無い参照）の
+  エントリと、今あるエントリの空いている項目の下書きを作ってください。項目は設定DBの型に合わせ、メモや本文から
+  読み取れることを基に、決めすぎないでください。未登録の話者のエントリは、本文での書き方を名前にしてください。

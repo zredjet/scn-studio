@@ -33,6 +33,8 @@ import type {
   ConceptDraft,
   DevSettings,
   DraftWriteResult,
+  EntriesDraft,
+  EntriesWrittenResult,
   EntryUsage,
   FieldProposal,
   FieldsWrittenResult,
@@ -552,6 +554,21 @@ export function writeConceptDraft(
     draft,
     task,
     model,
+  });
+}
+
+/** 設定の下書きを書く（T4-5）。`only` があれば、そのエントリにだけ書く。 */
+export function writeEntriesDraft(
+  draft: EntriesDraft,
+  task: string,
+  model: string,
+  only: string | null,
+): Promise<EntriesWrittenResult> {
+  return invoke<EntriesWrittenResult>("write_entries_draft", {
+    draft,
+    task,
+    model,
+    only,
   });
 }
 

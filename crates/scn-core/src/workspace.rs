@@ -208,6 +208,19 @@ pub struct FieldsWritten {
     pub provenance_problem: Option<String>,
 }
 
+/// 設定の下書き（T4-5）を書いた結果。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+pub struct EntriesWritten {
+    /// 作ったエントリのパス。
+    pub created: Vec<String>,
+    /// 書いた（か案のある）エントリごとの結果。
+    pub files: Vec<FieldsWritten>,
+    /// 書かなかったエントリのわけ。
+    pub notes: Vec<String>,
+    /// 出自を書けなかったわけ。
+    pub provenance_problem: Option<String>,
+}
+
 /// アイデアメモを昇格した結果（T2-6、D057）。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -1463,6 +1476,122 @@ impl Workspace {
             notes: plan.notes,
             provenance_problem,
         })
+    }
+
+    /// 設定の下書き（T4-5）を書く：足りないエントリを `status: ai-draft` で作り、今あるエントリは空いている項目と
+    /// 空の本文にだけ書き、値のある項目は案にする。書いた項目の出自を `ai` と記録する。`only` があれば、その
+    /// エントリにだけ書く（新しいエントリは作らない）。
+    pub fn write_entries_draft(
+        &mut self,
+        draft: &crate::ai::EntriesDraft,
+        task: &str,
+        model: &str,
+        only: Option<&str>,
+    ) -> Result<EntriesWritten, ProjectError> {
+        let mut out = EntriesWritten::default();
+        let mut problems: Vec<String> = Vec::new();
+        for entry in &draft.entries {
+            let label = format!("{}（{}）", entry.id, entry.type_id);
+            let existing = self
+                .project
+                .bible
+                .entries
+                .iter()
+                .find(|e| e.type_id == entry.type_id && e.id == entry.id)
+                .map(|e| e.path.clone());
+            let target = existing
+                .clone()
+                .unwrap_or_else(|| format!("bible/entries/{}/{}.md", entry.type_id, entry.id));
+            if only.is_some_and(|only| only != target) {
+                out.notes.push(format!(
+                    "{label} は対象のエントリではないので、書きませんでした"
+                ));
+                continue;
+            }
+            if let Some(path) = existing {
+                let current = match self
+                    .entry_path(&path)
+                    .and_then(|abs| self.read_settings_file(&abs))
+                {
+                    Ok(text) => text,
+                    Err(e) => {
+                        out.notes.push(format!("{label} を読めません：{e}"));
+                        continue;
+                    }
+                };
+                let plan = match crate::ai::plan_entry_write(&self.project, &path, &current, entry)
+                {
+                    Ok(plan) => plan,
+                    Err(message) => {
+                        out.notes.push(message);
+                        continue;
+                    }
+                };
+                let text = if plan.written.is_empty() {
+                    current
+                } else {
+                    self.write_settings_file(&path, &plan.text)?;
+                    if let Err(e) = self.record_ai_fields(&path, &plan.written, task, model) {
+                        problems.push(e);
+                    }
+                    plan.text
+                };
+                out.files.push(FieldsWritten {
+                    file: path,
+                    text,
+                    written: plan.written,
+                    proposals: plan.proposals,
+                    notes: plan.notes,
+                    provenance_problem: None,
+                });
+                continue;
+            }
+            if let Some(name) = crate::ai::character_overlap(&self.project, entry) {
+                out.notes.push(format!(
+                    "{label}「{}」は、今あるキャラクターと「{name}」が重なるので作りませんでした（人が書いた台詞の話者が決まらなくなるため）",
+                    entry.name
+                ));
+                continue;
+            }
+            let file = match self.check_new_entry(&entry.type_id, &entry.id, &entry.name, false) {
+                Ok(file) => file,
+                Err(e) => {
+                    out.notes.push(format!("{label} を作れません：{e}"));
+                    continue;
+                }
+            };
+            let (text, written) = match crate::ai::new_entry_text(&self.project, entry) {
+                Ok(made) => made,
+                Err(message) => {
+                    out.notes.push(format!("{label} を作れません：{message}"));
+                    continue;
+                }
+            };
+            let folder = self.root.join(format!("bible/entries/{}", entry.type_id));
+            fs::create_dir_all(&folder).map_err(|source| ProjectError::Write {
+                path: folder,
+                source,
+            })?;
+            self.write_settings_file(&file, &text)?;
+            self.reset_stale_fields(&file);
+            if let Some(problem) = self.field_provenance_problem.take() {
+                problems.push(problem);
+            }
+            if let Err(e) = self.record_ai_fields(&file, &written, task, model) {
+                problems.push(e);
+            }
+            out.created.push(file.clone());
+            out.files.push(FieldsWritten {
+                file,
+                text,
+                written,
+                proposals: Vec::new(),
+                notes: Vec::new(),
+                provenance_problem: None,
+            });
+        }
+        out.provenance_problem = problems.first().cloned();
+        Ok(out)
     }
 
     /// AI の下書きの項目の案を採用する（人の操作。T4-4）：企画書かエントリの、その項目の値を案で置き換え（本文は

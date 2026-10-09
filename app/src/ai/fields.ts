@@ -1,7 +1,12 @@
 // 企画書と設定DBの AI の下書き（T4-4・T4-5、D080）の見せ方：項目の名前、案の値の文、書いた結果の文。
 // 書くのはコア（`write_concept_draft`・`adopt_field_proposal`）で、画面は案を並べて採用・却下させるだけ。
 
-import type { FieldProposal, FieldsWritten, JsonValue } from "../core/types.ts";
+import type {
+  EntriesWritten,
+  FieldProposal,
+  FieldsWritten,
+  JsonValue,
+} from "../core/types.ts";
 
 /** 本文の項目（コアの `provenance::BODY_KEY`）。 */
 const BODY_KEY = "#body";
@@ -22,7 +27,9 @@ export function fieldLabel(
   key: string,
   labels: Readonly<Record<string, string>> = CONCEPT_FIELD_LABELS,
 ): string {
-  return labels[key] ?? (key === BODY_KEY ? "本文" : key);
+  return (
+    labels[key] ?? (key === BODY_KEY ? "本文" : key === "name" ? "名前" : key)
+  );
 }
 
 /** 案や今の値を、読める1つの文にする。 */
@@ -80,6 +87,42 @@ export function fieldsWrittenText(
   if (written.provenance_problem !== null)
     parts.push(`出自を記録できませんでした：${written.provenance_problem}`);
   return parts.join("。");
+}
+
+/** 設定の下書きを書いた結果の文（T4-5）：作ったエントリ、空欄に書いたエントリ、案の数、書かなかったものの数。 */
+export function entriesWrittenText(written: EntriesWritten): string {
+  const parts: string[] = [];
+  if (written.created.length > 0)
+    parts.push(
+      `設定DBにエントリを作りました（status: ai-draft）：${written.created
+        .map(entryName)
+        .join("、")}`,
+    );
+  const filled = written.files.filter(
+    (f) => !written.created.includes(f.file) && f.written.length > 0,
+  );
+  if (filled.length > 0)
+    parts.push(
+      `空いている項目に書きました：${filled
+        .map(
+          (f) =>
+            `${entryName(f.file)}（${f.written.map((k) => fieldLabel(k, {})).join("、")}）`,
+        )
+        .join("、")}`,
+    );
+  const proposals = written.files.reduce((n, f) => n + f.proposals.length, 0);
+  if (proposals > 0)
+    parts.push(`値のある項目への案 ${proposals} 件（採用を選べます）`);
+  if (written.notes.length > 0)
+    parts.push(`書かなかったもの ${written.notes.length} 件（わけは下に）`);
+  if (written.provenance_problem !== null)
+    parts.push(`出自を記録できませんでした：${written.provenance_problem}`);
+  return parts.length === 0 ? "書くものはありませんでした" : parts.join("。");
+}
+
+/** エントリのパスから、型とIDの見せ方（`character/sora`）。 */
+export function entryName(path: string): string {
+  return path.replace(/^bible\/entries\//, "").replace(/\.md$/, "");
 }
 
 /** 案を画面の中で見分けるキー（採用・却下を覚える）。 */

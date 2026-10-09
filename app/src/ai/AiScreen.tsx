@@ -661,25 +661,29 @@ export function AiScreen({
                             {result.written}
                           </p>
                         )}
-                        {result.fields !== null && (
+                        {result.notes.map((n) => (
+                          <p key={n} className="context-faint ai-prepared-note">
+                            {n}
+                          </p>
+                        ))}
+                        {result.fields.map((written) => (
                           <FieldProposals
-                            written={result.fields}
+                            key={written.file}
+                            written={written}
                             run={result.run}
                             decisions={fieldDecisions}
                             onAdopt={(p) =>
-                              result.fields === null
-                                ? Promise.resolve(null)
-                                : onAdoptField(
-                                    result.run,
-                                    p,
-                                    result.fields,
-                                    task.id,
-                                    result.model,
-                                  )
+                              onAdoptField(
+                                result.run,
+                                p,
+                                written,
+                                task.id,
+                                result.model,
+                              )
                             }
                             onReject={(p) => onRejectField(result.run, p)}
                           />
-                        )}
+                        ))}
                         {skeleton &&
                           !result.wroteOk &&
                           result.skeleton.length > 0 &&

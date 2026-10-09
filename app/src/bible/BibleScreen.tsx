@@ -35,6 +35,7 @@ import type {
   SettingsWrittenExtra,
   Summary,
 } from "../core/types.ts";
+import { AiDraftResult, AiDraftRun, type BibleAi } from "./AiDraftPanel.tsx";
 import {
   FieldInput,
   fieldClass,
@@ -101,6 +102,8 @@ interface Props {
   readonly onRenameEntry?: (typeId: string, id: string, name: string) => void;
   /** AI が書いた項目（ファイルとキー → 出自。T4-3）。 */
   readonly aiFields: ReadonlyMap<string, FieldOrigin>;
+  /** 設定の下書き（T4-5）。 */
+  readonly ai: BibleAi;
 }
 
 type Status =
@@ -126,6 +129,7 @@ export function BibleScreen({
   onRequestHandled,
   onRenameEntry,
   aiFields,
+  ai,
 }: Props) {
   const [data, setData] = useState<BibleData | null>(null);
   const [typeId, setTypeId] = useState<string | null>(null);
@@ -218,6 +222,13 @@ export function BibleScreen({
     () => new Map(types.map((t) => [t.id, t.name])),
     [types],
   );
+  /** 型の項目の名前（キー → 名前。AI の下書きの案に出す。T4-5）。 */
+  const fieldLabels = useMemo(() => {
+    const labels: Record<string, string> = { name: "名前" };
+    for (const t of data?.types ?? [])
+      for (const f of t.fields) labels[f.key] ??= f.label;
+    return labels;
+  }, [data]);
 
   // 選んでいる型が無ければ、キャラクターの型（無ければ最初の型）を選ぶ。
   const currentType =
@@ -620,6 +631,13 @@ export function BibleScreen({
         <p className="bible-types-foot">
           {data.types.length}型 · {entryCount}エントリ · 参照切れ {brokenRefs}
         </p>
+        <section className="bible-ai" aria-label="AIで下書き">
+          <h2 className="bible-small-heading">AIで下書き</h2>
+          <span className="context-faint">
+            未登録の話者、企画書の主要キャラ、参照先の無い参照のエントリを作り、空いている項目を書きます
+          </span>
+          <AiDraftRun ai={ai} target={null} />
+        </section>
       </aside>
 
       <aside className="bible-entries" aria-label="エントリ">
@@ -753,7 +771,10 @@ export function BibleScreen({
             onClose={() => setEditingType(false)}
           />
         ) : file === null ? (
-          <p className="placeholder">エントリを選んでください。</p>
+          <>
+            <p className="placeholder">エントリを選んでください。</p>
+            <AiDraftResult ai={ai} labels={fieldLabels} />
+          </>
         ) : (
           <>
             <header className="bible-head">
@@ -815,6 +836,12 @@ export function BibleScreen({
                 </button>
               </fieldset>
             </header>
+            {entry !== null && (
+              <div className="bible-ai-bar">
+                <AiDraftRun ai={ai} target={entry.path} />
+              </div>
+            )}
+            <AiDraftResult ai={ai} labels={fieldLabels} />
             {(byKey.get("") ?? []).length > 0 && (
               <ul className="bible-file-problems">
                 {(byKey.get("") ?? []).map((d) => (

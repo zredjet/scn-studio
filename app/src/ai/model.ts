@@ -237,8 +237,13 @@ export type RunResult =
       readonly branches: readonly BranchProposal[];
       /** アイデアメモの分類案（`output: ideas`。T3-10）。 */
       readonly ideas: readonly IdeaSuggestion[];
-      /** 企画書の下書きを書いた結果（`output: concept`。T4-4。案と、案を見せたときの中身）。 */
-      readonly fields: FieldsWritten | null;
+      /** 企画書・設定の下書きを書いた結果（`output: concept`・`entries`。T4-4・T4-5。ファイルごとの書いた項目と
+       * 案、案を見せたときの中身）。 */
+      readonly fields: readonly FieldsWritten[];
+      /** 設定の下書きで作ったエントリ（T4-5）。 */
+      readonly created: readonly string[];
+      /** 書かなかったもののわけ（設定の下書き。T4-5）。 */
+      readonly notes: readonly string[];
       readonly unread: readonly string[];
       readonly tokens: string;
     }
@@ -287,14 +292,17 @@ export function historyStatus(
         return result.ideas.length === 0
           ? "分類案なし"
           : `分類案 ${result.ideas.length}件`;
-      if (output === "concept") {
-        // 企画書の下書き（T4-4）：書いた項目と案の数。
-        if (result.fields === null) return "書き込めませんでした";
-        const w = result.fields.written.length;
-        const p = result.fields.proposals.length;
+      if (output === "concept" || output === "entries") {
+        // 企画書・設定の下書き（T4-4・T4-5）：作ったエントリ、書いた項目、案の数。
+        if (result.fields.length === 0 && result.created.length === 0)
+          return result.wroteOk ? "書く項目なし" : "書き込めませんでした";
+        const w = result.fields.reduce((n, f) => n + f.written.length, 0);
+        const p = result.fields.reduce((n, f) => n + f.proposals.length, 0);
+        const made =
+          result.created.length > 0 ? `${result.created.length}件作り、` : "";
         return w === 0 && p === 0
           ? "書く項目なし"
-          : `${w}項目を書き、案 ${p}件`;
+          : `${made}${w}項目を書き、案 ${p}件`;
       }
       if (output === "draft")
         return result.written === null

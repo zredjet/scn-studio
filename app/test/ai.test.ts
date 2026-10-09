@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  entriesWrittenText,
   fieldLabel,
   fieldProposalKey,
   fieldsWrittenText,
@@ -225,7 +226,9 @@ test("履歴と数の文", () => {
     branches: [],
     skeleton: [],
     ideas: [],
-    fields: null,
+    fields: [],
+    created: [],
+    notes: [],
     unread: [],
     tokens: "",
   };
@@ -392,7 +395,9 @@ test("提案：ファイルのまとまり、様子の文、採用できるも�
     branches: [],
     skeleton: [],
     ideas: [],
-    fields: null,
+    fields: [],
+    created: [],
+    notes: [],
     unread: [],
     tokens: "",
   };
@@ -414,7 +419,9 @@ test("プロットとフローへの支援の文と判断（T3-10）", () => {
     branches: [],
     skeleton: [],
     ideas: [],
-    fields: null,
+    fields: [],
+    created: [],
+    notes: [],
     unread: [],
     tokens: "",
   };
@@ -438,14 +445,38 @@ test("プロットとフローへの支援の文と判断（T3-10）", () => {
     historyStatus(
       {
         ...ok,
-        fields: {
-          file: "concept.md",
-          text: "",
-          written: ["theme"],
-          proposals: [],
-          notes: [],
-          provenance_problem: null,
-        },
+        wroteOk: true,
+        created: ["bible/entries/character/sora.md"],
+        fields: [
+          {
+            file: "bible/entries/character/sora.md",
+            text: "",
+            written: ["name", "#body"],
+            proposals: [],
+            notes: [],
+            provenance_problem: null,
+          },
+        ],
+      },
+      0,
+      "entries",
+    ),
+    "1件作り、2項目を書き、案 0件",
+  );
+  assert.equal(
+    historyStatus(
+      {
+        ...ok,
+        fields: [
+          {
+            file: "concept.md",
+            text: "",
+            written: ["theme"],
+            proposals: [],
+            notes: [],
+            provenance_problem: null,
+          },
+        ],
       },
       0,
       "concept",
@@ -767,4 +798,42 @@ test("企画書の下書きの見せ方（T4-4）：項目の名前、案の値�
   const p = written.proposals[0];
   assert.ok(p !== undefined);
   assert.notEqual(fieldProposalKey(1, p), fieldProposalKey(2, p));
+});
+
+test("設定の下書きの結果の文（T4-5）：作ったエントリ、空欄に書いたエントリ、案、書かなかったもの", () => {
+  const file = (path: string, written: string[], proposals = 0) => ({
+    file: path,
+    text: "",
+    written,
+    proposals: Array.from({ length: proposals }, () => ({
+      file: path,
+      key: "first_person",
+      current: "わたし",
+      proposed: "あたし",
+    })),
+    notes: [],
+    provenance_problem: null,
+  });
+  assert.equal(
+    entriesWrittenText({
+      created: ["bible/entries/character/tenin.md"],
+      files: [
+        file("bible/entries/character/tenin.md", ["name", "#body"]),
+        file("bible/entries/character/akari.md", ["age", "#body"], 1),
+      ],
+      notes: ["x"],
+      provenance_problem: null,
+    }),
+    "設定DBにエントリを作りました（status: ai-draft）：character/tenin。空いている項目に書きました：character/akari（age、本文）。値のある項目への案 1 件（採用を選べます）。書かなかったもの 1 件（わけは下に）",
+  );
+  assert.equal(
+    entriesWrittenText({
+      created: [],
+      files: [],
+      notes: [],
+      provenance_problem: null,
+    }),
+    "書くものはありませんでした",
+  );
+  assert.equal(fieldLabel("name", {}), "名前");
 });

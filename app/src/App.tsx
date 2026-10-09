@@ -7,7 +7,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AiScreen } from "./ai/AiScreen.tsx";
 import type { FieldDecision } from "./ai/FieldProposals.tsx";
-import { fieldProposalKey, fieldsWrittenText } from "./ai/fields.ts";
+import {
+  entriesWrittenText,
+  fieldProposalKey,
+  fieldsWrittenText,
+} from "./ai/fields.ts";
 import {
   type AutoRun,
   applyAutoEvent,
@@ -118,6 +122,7 @@ import {
   writeAiDraft,
   writeAiSkeleton,
   writeConceptDraft,
+  writeEntriesDraft,
 } from "./core/api.ts";
 import type { PreviewData } from "./core/ir.ts";
 import { PositionMap } from "./core/position.ts";
@@ -134,6 +139,7 @@ import type {
   BranchProposal,
   ConceptDraft,
   EditorSettings,
+  EntriesDraft,
   FieldProposal,
   FieldsWritten,
   GraphLevel,
@@ -162,8 +168,11 @@ import type {
 interface Written {
   readonly text: string;
   readonly ok: boolean;
-  /** 企画書の下書きを書いた結果（T4-4）。 */
-  readonly fields?: FieldsWritten;
+  /** 企画書・設定の下書きを書いた結果（T4-4・T4-5）。 */
+  readonly fields?: readonly FieldsWritten[];
+  readonly created?: readonly string[];
+  /** 書かなかったもののわけ（T4-5）。 */
+  readonly notes?: readonly string[];
 }
 
 import { ConflictBar } from "./editor/ConflictBar.tsx";
@@ -1908,7 +1917,34 @@ export function App() {
         return {
           text: fieldsWrittenText(result.edit),
           ok: result.edit.provenance_problem === null,
-          fields: result.edit,
+          fields: [result.edit],
+        };
+      } catch (e) {
+        return { text: String(e), ok: false };
+      }
+    },
+    [onSettingsWritten],
+  );
+  /** 設定の下書きを書く（T4-5）。`only` があれば、そのエントリにだけ書く。 */
+  const writeEntries = useCallback(
+    async (
+      draft: EntriesDraft | null,
+      task: string,
+      model: string,
+      only: string | null,
+    ): Promise<Written> => {
+      if (draft === null)
+        return { text: "応答から設定の下書きを読めませんでした", ok: false };
+      try {
+        const result = await writeEntriesDraft(draft, task, model, only);
+        onSettingsWritten(result);
+        setSettingsVersion((n) => n + 1);
+        return {
+          text: entriesWrittenText(result.edit),
+          ok: result.edit.provenance_problem === null,
+          fields: result.edit.files,
+          created: result.edit.created,
+          notes: result.edit.notes,
         };
       } catch (e) {
         return { text: String(e), ok: false };
@@ -2168,26 +2204,33 @@ export function App() {
       runAiTask(task.id, scene, run, digest, target?.route ?? null)
         .then(async (outcome) => {
           if (taskRun.current !== run) return;
-          // 生成は、下書きをスタブに書き込む・ルートの骨格のスタブを足す（人が書いた行は変えない）。企画書の下書きは
-          // 空いている項目にだけ書き、値のある項目は案にする（T4-4）。
+          // 生成は、下書きをスタブに書き込む・ルートの骨格のスタブを足す（人が書いた行は変えない）。企画書と設定の
+          // 下書きは空いている項目にだけ書き、値のある項目は案にする（T4-4・T4-5）。
           const written =
             task.output === "concept"
               ? await writeConcept(outcome.concept, task.id, outcome.model)
-              : isSkeleton(task)
-                ? await writeSkeleton(
-                    outcome.skeleton,
-                    outcome.model,
+              : task.output === "entries"
+                ? await writeEntries(
+                    outcome.entries,
                     task.id,
-                    target,
+                    outcome.model,
+                    target?.route ?? null,
                   )
-                : task.level === "generate" && scene !== null
-                  ? await writeDraft(
-                      scene,
-                      outcome.draft,
-                      task.id,
+                : isSkeleton(task)
+                  ? await writeSkeleton(
+                      outcome.skeleton,
                       outcome.model,
+                      task.id,
+                      target,
                     )
-                  : null;
+                  : task.level === "generate" && scene !== null
+                    ? await writeDraft(
+                        scene,
+                        outcome.draft,
+                        task.id,
+                        outcome.model,
+                      )
+                    : null;
           if (taskRun.current !== run) return;
           taskRun.current = null;
           setAiRunState(null);
@@ -2221,7 +2264,9 @@ export function App() {
               branches: outcome.branches,
               skeleton: outcome.skeleton,
               ideas: outcome.ideas,
-              fields: written?.fields ?? null,
+              fields: written?.fields ?? [],
+              created: written?.created ?? [],
+              notes: written?.notes ?? [],
               unread: outcome.unread,
               tokens: tokensText(outcome.completion.usage),
             },
@@ -2235,7 +2280,14 @@ export function App() {
           finish({ kind: "failed", run, scene, message: String(e) }, 0);
         });
     },
-    [whenIdle, writeDraft, writeSkeleton, writeConcept, skeletonProblem],
+    [
+      whenIdle,
+      writeDraft,
+      writeSkeleton,
+      writeConcept,
+      writeEntries,
+      skeletonProblem,
+    ],
   );
   /** 骨格を書き直している（二度押しで同じ骨格を2回書かない）。 */
   const rewriting = useRef(false);
@@ -2853,6 +2905,29 @@ export function App() {
     conceptDraftTask === null
       ? undefined
       : aiResults.get(conceptDraftTask.task.id);
+  const entriesTask = findTask(
+    aiTasks,
+    "draft_entries",
+    (t) => t.output === "entries",
+  );
+  const entriesResult =
+    entriesTask === null ? undefined : aiResults.get(entriesTask.task.id);
+  /** 設定の下書き（T4-5）：対象のエントリ（null ならまとめて）で実行する。 */
+  const entriesRunner = (target: string | null): TaskRunner => ({
+    info: entriesTask,
+    running: aiRunState,
+    onPrepare: (task, scene) => prepareAiTask(task, scene, target),
+    onRun: (info, scene, digest) =>
+      runTask(
+        info,
+        scene,
+        digest,
+        target === null
+          ? undefined
+          : { route: target, file: null, newChapter: null },
+      ),
+    onCancel: cancelTaskRun,
+  });
   /** ほかの画面から1つのタスクを実行する（実行はAI実行の画面と同じ）。 */
   const runnerOf = (info: AiTaskInfo | null): TaskRunner => ({
     info,
@@ -3112,7 +3187,7 @@ export function App() {
                                 run: conceptDraftResult.run,
                                 text: conceptDraftResult.written ?? "",
                                 ok: conceptDraftResult.wroteOk,
-                                fields: conceptDraftResult.fields,
+                                fields: conceptDraftResult.fields[0] ?? null,
                               }
                             : conceptDraftResult?.kind === "failed"
                               ? {
@@ -3147,6 +3222,42 @@ export function App() {
                     diagnostics={allDiagnostics}
                     settingsVersion={settingsVersion}
                     request={bibleRequest}
+                    ai={{
+                      runner: entriesRunner,
+                      result:
+                        entriesResult?.kind === "ok"
+                          ? {
+                              run: entriesResult.run,
+                              text: entriesResult.written ?? "",
+                              ok: entriesResult.wroteOk,
+                              fields: entriesResult.fields,
+                              notes: [
+                                ...entriesResult.notes,
+                                ...entriesResult.unread,
+                              ],
+                            }
+                          : entriesResult?.kind === "failed"
+                            ? {
+                                run: entriesResult.run,
+                                text: entriesResult.message,
+                                ok: false,
+                                fields: [],
+                                notes: [],
+                              }
+                            : null,
+                      decisions: fieldDecisions,
+                      onAdopt: (run, proposal, written) =>
+                        entriesTask === null || entriesResult?.kind !== "ok"
+                          ? Promise.resolve(null)
+                          : adoptField(
+                              run,
+                              proposal,
+                              written,
+                              entriesTask.task.id,
+                              entriesResult.model,
+                            ),
+                      onReject: rejectField,
+                    }}
                     aiFields={aiFieldMap}
                     onWritten={onSettingsWritten}
                     onOpenLocation={openFromSettings}

@@ -58,6 +58,8 @@ pub enum TaskOutput {
     Ideas,
     /// 企画書の下書き（生成の段階。空いている項目にだけ書き、値のある項目は提案。T4-4）。
     Concept,
+    /// 設定の下書き（生成の段階。足りないエントリを作り、空いている項目に書く。T4-5）。
+    Entries,
 }
 
 impl TaskOutput {
@@ -70,6 +72,7 @@ impl TaskOutput {
             "draft" => Some(Self::Draft),
             "ideas" => Some(Self::Ideas),
             "concept" => Some(Self::Concept),
+            "entries" => Some(Self::Entries),
             _ => None,
         }
     }
@@ -78,7 +81,7 @@ impl TaskOutput {
         match level {
             TaskLevel::Review => matches!(self, Self::Findings | Self::Summary | Self::Ideas),
             TaskLevel::Propose => matches!(self, Self::Diff | Self::Proposals),
-            TaskLevel::Generate => matches!(self, Self::Draft | Self::Concept),
+            TaskLevel::Generate => matches!(self, Self::Draft | Self::Concept | Self::Entries),
             TaskLevel::Auto => self == Self::Draft,
         }
     }
@@ -113,6 +116,10 @@ pub enum ContextItem {
     Structure,
     /// アイデアメモ（`ideas/*.md`）の一覧（T3-10）。
     Ideas,
+    /// 設定DBの型と項目（T4-5）。
+    Types,
+    /// 足りない設定と、空いている項目のあるエントリ（T4-5。コアが求める）。
+    MissingEntries,
 }
 
 impl ContextItem {
@@ -131,6 +138,8 @@ impl ContextItem {
             Self::SceneSummaries => "scene_summaries",
             Self::Structure => "structure",
             Self::Ideas => "ideas",
+            Self::Types => "types",
+            Self::MissingEntries => "missing_entries",
         }
     }
 
@@ -148,6 +157,8 @@ impl ContextItem {
             "scene_summaries" => Self::SceneSummaries,
             "structure" => Self::Structure,
             "ideas" => Self::Ideas,
+            "types" => Self::Types,
+            "missing_entries" => Self::MissingEntries,
             _ => return None,
         })
     }

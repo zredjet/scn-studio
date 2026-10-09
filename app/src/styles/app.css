@@ -3510,6 +3510,27 @@ body {
   border-style: dotted;
 }
 
+/* 設定DBの画面の「AIで下書き」（T4-5） */
+.bible-ai {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border-soft);
+  font-size: 12px;
+}
+
+.bible-ai-bar {
+  padding: 0 24px;
+}
+
+.bible-ai-result {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 24px;
+}
+
 /* 企画書・設定DBの AI の下書きの、値のある項目への案（T4-4） */
 .ai-field-proposals {
   display: flex;

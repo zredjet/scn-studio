@@ -276,7 +276,7 @@ pub fn context_limit(context_tokens: u64) -> u64 {
 }
 
 /// 削る順番。`characters` は1度目で一人称と口調メモだけにし、2度目で節ごと削る。`style` は指摘と提案のタスクだけ。
-pub const TRIM_ORDER: [&str; 13] = [
+pub const TRIM_ORDER: [&str; 15] = [
     "previous_summaries",
     "scene_summaries",
     "chapter_summaries",
@@ -287,14 +287,16 @@ pub const TRIM_ORDER: [&str; 13] = [
     "characters",
     "variables",
     "structure",
+    "types",
     "concept",
+    "missing_entries",
     "style",
     // 今のシーンは削らない（印として置く）。
     "scene",
 ];
 
 /// 節を並べる順（上から下へ）。
-const SECTION_ORDER: [&str; 12] = [
+const SECTION_ORDER: [&str; 14] = [
     "concept",
     "ideas",
     "style",
@@ -305,9 +307,17 @@ const SECTION_ORDER: [&str; 12] = [
     "previous_summaries",
     "characters",
     "terms",
+    "types",
+    "missing_entries",
     "variables",
     "scene",
 ];
+
+/// 本文を書くタスク（生成と自律で、出力が `draft`）か。文体（文体見本）を必ず入れ、削らない（T4-5：企画書と設定の
+/// 下書きは本文を書かないので、文体は書いたときだけ）。
+fn writes_body(task: &AiTask) -> bool {
+    task.level.writes() && task.output == TaskOutput::Draft
+}
 
 const PREAMBLE: &str = "あなたは、分岐する物語（ADV・ビジュアルノベル）の執筆を手伝う共作者です。
 文脈に書かれた設定と本文だけを根拠にし、書かれていないことを事実として扱わないでください。
@@ -349,6 +359,10 @@ before と after は、行頭の字下げと行末の ^行ID を除いた行の�
         TaskOutput::Concept => {
             "企画書の下書きを、1つの JSON の対応表で返してください：{\"logline\": \"作品を一文で\", \"theme\": \"主題\", \"tone\": \"雰囲気\", \"volume\": {\"chars\": 字数, \"routes\": ルート数}, \"main_characters\": [\"キャラクターID\"], \"endings\": [{\"id\": \"英数字と_のID\", \"name\": \"エンディングの名前\", \"intent\": \"どう終わらせたいか\"}], \"body\": \"企画書の本文（Markdown。やりたいこと・やらないこと・参考にしたい感触）\"}。
 決めていないことは書かないでください（キーを省きます）。main_characters は、設定DBにあるキャラクターのIDか、新しく作るキャラクターの英数字のIDにしてください。人が書いた項目は書き換えられず、案として人に見せます。"
+        }
+        TaskOutput::Entries => {
+            "設定DBのエントリの下書きを、1つの JSON で返してください：{\"entries\": [{\"type\": \"型ID\", \"id\": \"英数字と_のID\", \"name\": \"名前\", \"fields\": {\"項目のキー\": 値}, \"body\": \"本文（Markdown。人物像や説明）\"}]}。
+項目は「設定DBの型」に書かれたキーと型に合わせてください（参照は相手のIDを書きます）。足りない設定のエントリを作り、今あるエントリは空いている項目だけを書きます。決めていない項目は書かないでください。人が書いた項目は書き換えられず、案として人に見せます。"
         }
         TaskOutput::Ideas => {
             "メモごとの分類案を、1行に1つの JSON で返してください：{\"file\": \"ideas/…（メモのファイル）\", \"status\": \"未整理か採用か保留か没\", \"tags\": [\"タグ\"], \"reason\": \"理由\"}。
@@ -600,7 +614,7 @@ impl Builder<'_> {
     /// 文脈に入れる項目か。生成と自律では、`context` に書いていなくても文体を入れる（文体見本は必ず入れる）。
     fn has(&self, name: &str) -> bool {
         self.task.context.iter().any(|i| i.name() == name)
-            || (name == "style" && self.task.level.writes())
+            || (name == "style" && writes_body(self.task))
     }
 
     /// 登場キャラ（シーンがあれば登場順、無ければ全員）。話者も `@立ち絵` も無いシーン（スタブなど）では、
@@ -739,6 +753,23 @@ impl Builder<'_> {
                 "構造の検証の結果",
                 super::plot::structure_text(self.project, self.ir),
             )),
+            "types" => Some(section(
+                "types",
+                "設定DBの型",
+                super::fielddraft::types_text(self.project)?,
+            )),
+            "missing_entries" => {
+                let text = super::fielddraft::missing_text(
+                    self.project,
+                    self.ir,
+                    self.sources.concept.as_deref(),
+                );
+                if text.is_none() {
+                    self.notes
+                        .push("足りない設定も、空いている項目もありません".to_owned());
+                }
+                Some(section("missing_entries", "足りない設定", text?))
+            }
             "ideas" => {
                 let text = super::plot::ideas_text(&self.sources.ideas);
                 if text.is_none() {
@@ -993,7 +1024,7 @@ pub fn assemble(
         if measure(&sections) <= limit {
             break;
         }
-        if step == "scene" || (step == "style" && task.level.writes()) {
+        if step == "scene" || (step == "style" && writes_body(task)) {
             continue;
         }
         let Some(at) = sections.iter().position(|s| s.item == step) else {
@@ -1026,13 +1057,13 @@ pub fn assemble(
         });
     }
     out.tokens = measure(&sections);
-    if task.level.writes() && !sections.iter().any(|s| s.item == "style") {
+    if writes_body(task) && !sections.iter().any(|s| s.item == "style") {
         out.problem = Some(
             "文体（style.md）がありません。生成と自律のタスクには、文体の方針と文体見本が要ります"
                 .to_owned(),
         );
     } else if out.tokens > limit {
-        let style_kept = task.level.writes() && sections.iter().any(|s| s.item == "style");
+        let style_kept = writes_body(task) && sections.iter().any(|s| s.item == "style");
         out.problem = Some(if style_kept {
             format!(
                 "文脈が上限（{limit}）に入りきりません（見積もり {}）。生成のタスクでは文体（文体見本）を削りません。接続先の context_tokens を増やすか、style.md を短くします",

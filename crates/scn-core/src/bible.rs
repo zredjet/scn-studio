@@ -21,7 +21,7 @@ use crate::project::{Bible, Entry, FieldDef, Project};
 pub const FORESHADOW_TYPE: &str = "foreshadow";
 
 /// 伏線の回収の項目。W703 で調べるので、W805・W806 では調べない（同じ誤りを2回出さない）。
-const FORESHADOW_PAYOFF: &str = "payoff";
+pub(crate) const FORESHADOW_PAYOFF: &str = "payoff";
 
 /// フォームで直せない共通の項目（`id` を変えるとファイル名や参照と食い違う。リネームはフェーズ2）。
 pub const READ_ONLY_KEYS: [&str; 1] = ["id"];
@@ -241,11 +241,20 @@ fn ref_values(ty: &FieldType, value: &Value) -> Vec<String> {
     }
 }
 
-/// 参照先の無い参照（W806、検証の段階1）。ファイル、位置（キー）、文。
-pub(crate) fn broken_references(project: &Project, ir: &Ir) -> Vec<(String, Span, String)> {
+/// 参照先の無い参照の1つ（W806 と、設定の下書きの足りない設定。T4-5）。
+pub(crate) struct MissingRef<'a> {
+    pub entry: &'a Entry,
+    pub field: &'a FieldDef,
+    /// 参照先の型（`scene` か型ID）。
+    pub target: &'a str,
+    pub id: String,
+}
+
+/// 参照先の無い参照（エントリと項目の順）。
+pub(crate) fn missing_refs<'a>(project: &'a Project, ir: &Ir) -> Vec<MissingRef<'a>> {
     let scenes: BTreeSet<&str> = ir.scenes.iter().map(|s| s.id.as_str()).collect();
     let bible = &project.bible;
-    let mut problems = Vec::new();
+    let mut out = Vec::new();
     for entry in &bible.entries {
         let Some(entry_type) = bible.types.iter().find(|t| t.id == entry.type_id) else {
             continue;
@@ -269,33 +278,48 @@ pub(crate) fn broken_references(project: &Project, ir: &Ir) -> Vec<(String, Span
                         .iter()
                         .any(|e| e.type_id == target && e.id == id)
                 };
-                if exists {
-                    continue;
+                if !exists {
+                    out.push(MissingRef {
+                        entry,
+                        field,
+                        target,
+                        id,
+                    });
                 }
-                let what = if target == "scene" {
-                    "シーン".to_owned()
-                } else {
-                    bible.types.iter().find(|t| t.id == target).map_or_else(
-                        || format!("型 {target} の定義もありません"),
-                        |t| t.name.clone(),
-                    )
-                };
-                problems.push((
-                    entry.path.clone(),
-                    entry
-                        .key_spans
-                        .get(&field.key)
-                        .copied()
-                        .unwrap_or(Span::new(0, 0)),
-                    format!(
-                        "{} の{}（{}）の参照先 {id} がありません（{what}）",
-                        entry.id, field.label, field.key
-                    ),
-                ));
             }
         }
     }
-    problems
+    out
+}
+
+/// 参照先の無い参照（W806、検証の段階1）。ファイル、位置（キー）、文。
+pub(crate) fn broken_references(project: &Project, ir: &Ir) -> Vec<(String, Span, String)> {
+    let bible = &project.bible;
+    missing_refs(project, ir)
+        .into_iter()
+        .map(|m| {
+            let what = if m.target == "scene" {
+                "シーン".to_owned()
+            } else {
+                bible.types.iter().find(|t| t.id == m.target).map_or_else(
+                    || format!("型 {} の定義もありません", m.target),
+                    |t| t.name.clone(),
+                )
+            };
+            (
+                m.entry.path.clone(),
+                m.entry
+                    .key_spans
+                    .get(&m.field.key)
+                    .copied()
+                    .unwrap_or(Span::new(0, 0)),
+                format!(
+                    "{} の{}（{}）の参照先 {} がありません（{what}）",
+                    m.entry.id, m.field.label, m.field.key, m.id
+                ),
+            )
+        })
+        .collect()
 }
 
 // ---- フロントマターの書き換え ----

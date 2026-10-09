@@ -206,6 +206,8 @@
 | 端末の設定 | machine settings | アプリの設定のフォルダの `ai.toml`（`ai::MachineSettings`）。接続先ごとの URL・モデル・文脈の長さの上書き（`ai::Override`）、クラウドの許可、タスクの接続先の上書き（`ai::TaskOverride`。T4-1） |
 | タスクの接続先 | task connection | タスクに使う接続先（`ai::task_connection`）。端末の上書き、定義の `model`、既定の接続先の順に決める。どこで決めたか（`ai::TaskConnectionSource`：`machine`・`task`・`default`） |
 | 企画書の下書き | concept draft | AI が企画書の空いている項目に書く下書き（出力の形 `concept`、`ai::ConceptDraft`、`Workspace::write_concept_draft`。T4-4） |
+| 設定の下書き | entries draft | AI が足りない設定のエントリを作り、今あるエントリの空いている項目に書く下書き（出力の形 `entries`、`ai::EntriesDraft`、`Workspace::write_entries_draft`。T4-5） |
+| 足りない設定 | missing entries | 本文の未登録の話者、企画書の主要キャラにあってエントリの無いキャラ、参照先の無い参照（`ai::missing_entries`。文脈の `missing_entries`。T4-5） |
 | 項目の案 | field proposal | 値のある項目への AI の案（`ai::FieldProposal`）。人が採用すると、その項目を案で置き換える（`Workspace::adopt_field_proposal`。T4-4） |
 | 項目の出自 | field provenance | 企画書と設定DBのエントリの項目（フロントマターのキー、本文は `#body`）ごとの出自の記録（`provenance::Record` の `file`・`key`、`latest_fields`、`edited_ai_fields`、`provenance_field_rows`。T4-3） |
 | 考えた中身 | thinking | 考えるモデルが答えの前に書く中身（`<think>…</think>`、`reasoning_content`）。本文から除き、字数だけを数える（`Completion::thinking_chars`、`ai::strip_thinking`。進み具合は `ai::Received::Thinking`。T4-2） |

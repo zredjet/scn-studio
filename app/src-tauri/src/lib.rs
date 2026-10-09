@@ -588,6 +588,24 @@ fn write_concept_draft(
     after_settings_write(workspace, to_json(&written, "書いた結果")?)
 }
 
+/// 設定の下書き（T4-5）を書く：足りないエントリを作り、今あるエントリの空いている項目に書き、値のある項目は
+/// 案にして返す（書くのはコア）。`only` があれば、そのエントリにだけ書く。
+#[tauri::command]
+fn write_entries_draft(
+    draft: ai::EntriesDraft,
+    task: String,
+    model: String,
+    only: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let written = workspace
+        .write_entries_draft(&draft, &task, &model, only.as_deref())
+        .map_err(|e| e.to_string())?;
+    after_settings_write(workspace, to_json(&written, "書いた結果")?)
+}
+
 /// AI の下書きの項目の案を採用する（人の操作。T4-4）。`seen` は案を見せたときの中身。
 #[tauri::command]
 fn adopt_field_proposal(
@@ -2362,6 +2380,10 @@ fn task_for(project: &Project, task: &str, route: Option<&str>) -> Result<ai::Ai
         .ok_or_else(|| format!("ai/{task}.yaml がありません"))?;
     Ok(match route.map(str::trim).filter(|r| !r.is_empty()) {
         Some(route) if ai::is_skeleton(definition) => ai::with_route(definition, route),
+        // 設定の下書きでは、対象のエントリのパス（T4-5）。
+        Some(path) if definition.output == ai::TaskOutput::Entries => {
+            ai::with_entry_target(definition, project, path)?
+        }
         _ => definition.clone(),
     })
 }
@@ -3602,6 +3624,7 @@ pub fn run() {
             set_ai_override,
             set_ai_task_connection,
             write_concept_draft,
+            write_entries_draft,
             adopt_field_proposal,
             set_ai_cloud_allowed,
             set_ai_key,
