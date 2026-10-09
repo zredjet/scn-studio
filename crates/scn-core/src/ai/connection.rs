@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use super::client::{missing_path_hint, request_preview, test_request};
 use super::keys::KeyStore;
+use super::task::AiTask;
 use crate::project::AiConnectionDecl;
 
 /// OpenAI 互換の API（チャットの補完）。Ollama、LM Studio、llama.cpp のサーバー、互換のクラウドをまとめて扱う。
@@ -60,21 +61,47 @@ pub struct MachineSettings {
     pub connections: BTreeMap<String, Override>,
     #[serde(default)]
     pub cloud: CloudSettings,
+    /// タスクの名前ごとの接続先の上書き（すべての作品フォルダに効く。T4-1）。
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub tasks: BTreeMap<String, TaskOverride>,
 }
 
-/// この端末での、接続先の URL とモデルの上書き。
+/// この端末での、接続先の URL・モデル・文脈の長さの上書き。
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Override {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub base_url: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
+    /// 文脈の長さ（正の整数。T4-1）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_tokens: Option<u64>,
 }
 
 impl Override {
     fn is_empty(&self) -> bool {
-        self.base_url.is_none() && self.model.is_none()
+        self.base_url.is_none() && self.model.is_none() && self.context_tokens.is_none()
     }
+}
+
+/// この端末での、タスクの接続先の上書き（T4-1）。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TaskOverride {
+    /// 接続先の名前（`[ai.<名前>]`）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+}
+
+/// タスクの接続先をどこで決めたか（T4-1）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TaskConnectionSource {
+    /// この端末の上書き。
+    Machine,
+    /// タスクの定義の `model`。
+    Task,
+    /// 既定の接続先。
+    Default,
 }
 
 /// クラウドへの送信の許可。
@@ -86,21 +113,36 @@ pub struct CloudSettings {
 }
 
 impl MachineSettings {
-    /// 接続先の上書きを置き換える。空の値は上書きしない（両方空なら上書きをやめる）。
-    pub fn set_override(&mut self, name: &str, base_url: Option<&str>, model: Option<&str>) {
-        let value = |v: Option<&str>| {
-            v.map(str::trim)
-                .filter(|v| !v.is_empty())
-                .map(str::to_owned)
-        };
+    /// 接続先の上書きを置き換える。空の値と0の文脈の長さは上書きしない（すべて無ければ上書きをやめる）。
+    pub fn set_override(
+        &mut self,
+        name: &str,
+        base_url: Option<&str>,
+        model: Option<&str>,
+        context_tokens: Option<u64>,
+    ) {
         let item = Override {
-            base_url: value(base_url),
-            model: value(model),
+            base_url: non_empty(base_url),
+            model: non_empty(model),
+            context_tokens: context_tokens.filter(|&n| n > 0),
         };
         if item.is_empty() {
             self.connections.remove(name);
         } else {
             self.connections.insert(name.to_owned(), item);
+        }
+    }
+
+    /// タスクの接続先の上書きを置き換える。空なら上書きをやめる（T4-1）。
+    pub fn set_task_connection(&mut self, task: &str, connection: Option<&str>) {
+        match non_empty(connection) {
+            Some(model) => {
+                self.tasks
+                    .insert(task.to_owned(), TaskOverride { model: Some(model) });
+            }
+            None => {
+                self.tasks.remove(task);
+            }
         }
     }
 
@@ -112,6 +154,13 @@ impl MachineSettings {
             self.cloud.allowed.remove(endpoint);
         }
     }
+}
+
+fn non_empty(value: Option<&str>) -> Option<String> {
+    value
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .map(str::to_owned)
 }
 
 /// 端末の設定を読む。無ければ既定。読めなければ既定と、知らせる文。
@@ -174,6 +223,13 @@ pub struct Connection {
     pub context_tokens: u64,
 }
 
+impl Connection {
+    /// 送り先（行き先とモデル）。人がクラウドへ送ることを確かめた単位（自律と同期。T4-1）。
+    pub fn destination(&self) -> String {
+        format!("{}\n{}", self.endpoint, self.model)
+    }
+}
+
 /// 接続先の宣言に端末の上書きを重ね、呼び出せる形にする。足りない・誤った値は、知らせる文で返す。
 pub fn resolve(decl: &AiConnectionDecl, machine: &MachineSettings) -> Result<Connection, String> {
     let name = &decl.name;
@@ -208,10 +264,14 @@ pub fn resolve(decl: &AiConnectionDecl, machine: &MachineSettings) -> Result<Con
     let cloud = provider == Provider::Anthropic || !url.host().is_some_and(|h| is_local_host(&h));
     let endpoint = format!("{} {base_url}", provider.name());
     let allowed = !cloud || machine.cloud.allowed.contains(&endpoint);
-    let context_tokens = decl.context_tokens.unwrap_or(match provider {
-        Provider::OpenaiCompatible => DEFAULT_CONTEXT_TOKENS,
-        Provider::Anthropic => ANTHROPIC_CONTEXT_TOKENS,
-    });
+    let context_tokens = over
+        .and_then(|o| o.context_tokens)
+        .filter(|&n| n > 0)
+        .or(decl.context_tokens)
+        .unwrap_or(match provider {
+            Provider::OpenaiCompatible => DEFAULT_CONTEXT_TOKENS,
+            Provider::Anthropic => ANTHROPIC_CONTEXT_TOKENS,
+        });
     Ok(Connection {
         name: name.clone(),
         provider,
@@ -253,6 +313,39 @@ fn is_local_v6(ip: Ipv6Addr) -> bool {
         || (first & 0xffc0) == 0xfe80
 }
 
+/// タスクに使う接続先の名前と、どこで決めたか（T4-1）：この端末の上書き、タスクの定義の `model`、既定の接続先の順。
+pub fn task_connection_name(
+    decls: &[AiConnectionDecl],
+    machine: &MachineSettings,
+    task: &AiTask,
+) -> Option<(String, TaskConnectionSource)> {
+    if let Some(name) = machine.tasks.get(&task.id).and_then(|t| t.model.clone()) {
+        return Some((name, TaskConnectionSource::Machine));
+    }
+    if let Some(name) = &task.model {
+        return Some((name.clone(), TaskConnectionSource::Task));
+    }
+    default_connection(decls, machine).map(|name| (name.to_owned(), TaskConnectionSource::Default))
+}
+
+/// タスクに使う接続先（T4-1）。上書きの接続先が作品に無ければ、定義の接続先へ戻さずに知らせる。
+pub fn task_connection(
+    decls: &[AiConnectionDecl],
+    machine: &MachineSettings,
+    task: &AiTask,
+) -> Result<Connection, String> {
+    let (name, source) = task_connection_name(decls, machine, task)
+        .ok_or_else(|| "project.toml に AI の接続先（[ai.local] など）がありません".to_owned())?;
+    let decl = decls.iter().find(|d| d.name == name).ok_or_else(|| match source {
+        TaskConnectionSource::Machine => format!(
+            "この端末でタスク「{}」に選んだ接続先「{name}」が project.toml にありません（AI実行の画面で選び直します）",
+            task.name
+        ),
+        _ => format!("{} の接続先「{name}」が project.toml にありません", task.path),
+    })?;
+    resolve(decl, machine)
+}
+
 /// 既定の接続先：`[ai.local]` があればそれ、無ければ最初のローカルの接続先、無ければ最初の接続先。
 pub fn default_connection<'a>(
     decls: &'a [AiConnectionDecl],
@@ -291,6 +384,10 @@ pub struct ConnectionStatus {
     pub has_key: bool,
     /// キーが要る（Messages API。OpenAI 互換は、キーがあれば送る）。
     pub needs_key: bool,
+    /// 文脈の長さ（解決できたときだけ）、`project.toml` の値、この端末の上書き（T4-1）。
+    pub context_tokens: Option<u64>,
+    pub project_context_tokens: Option<u64>,
+    pub override_context_tokens: Option<u64>,
     /// 解決できない理由。
     pub problem: Option<String>,
     /// URL の書き方の知らせ（パスが無い。[`missing_path_hint`]）。
@@ -362,6 +459,9 @@ pub fn connection_statuses(
                 allowed,
                 has_key,
                 needs_key,
+                context_tokens: resolved.as_ref().ok().map(|c| c.context_tokens),
+                project_context_tokens: decl.context_tokens,
+                override_context_tokens: over.and_then(|o| o.context_tokens),
                 test_preview: resolved
                     .as_ref()
                     .ok()

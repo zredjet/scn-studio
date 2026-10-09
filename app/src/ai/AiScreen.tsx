@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import type {
   AiBranches,
+  AiConnectionChoice,
   AiPrepared,
   AiProposalFile,
   AiProposalView,
@@ -18,6 +19,7 @@ import { BranchProposals } from "./BranchProposals.tsx";
 import {
   type AutoRun,
   blocker,
+  connectionOptions,
   estimateText,
   type FindingRecord,
   fileProposalSet,
@@ -28,6 +30,7 @@ import {
   needsScene,
   type PlotAi,
   type ProposalSet,
+  placeText,
   preparedFor,
   type RunResult,
   type RunState,
@@ -48,6 +51,13 @@ const NO_REJECTED: ReadonlySet<number> = new Set();
 interface Props {
   readonly tasks: readonly AiTaskInfo[] | null;
   readonly tasksError: string | null;
+  /** タスクに選べる接続先（T4-1）。 */
+  readonly connections: readonly AiConnectionChoice[];
+  /** この端末で、タスクに使う接続先を選ぶ（null なら定義のまま。T4-1）。 */
+  readonly onChooseConnection: (
+    task: string,
+    connection: string | null,
+  ) => Promise<void>;
   readonly scenes: readonly SceneSummary[];
   /** エディタの今のシーン（対象のシーンの初めの値）。 */
   readonly currentScene: string | null;
@@ -96,7 +106,7 @@ interface Props {
     info: AiTaskInfo,
     file: string,
     branch: boolean,
-    confirmedCloud: boolean,
+    confirmedCloud: readonly string[],
   ) => void;
   readonly onCancelAuto: () => void;
   /** AI のブランチ（Git）と、差分・取り込み・破棄。 */
@@ -121,6 +131,8 @@ interface Props {
 export function AiScreen({
   tasks,
   tasksError,
+  connections,
+  onChooseConnection,
   scenes,
   currentScene,
   running,
@@ -160,6 +172,9 @@ export function AiScreen({
   const [preparing, setPreparing] = useState(false);
   const [prepareError, setPrepareError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  /** タスクの接続先を書いている間（T4-1）と、書けなかったわけ。 */
+  const [choosing, setChoosing] = useState(false);
+  const [chooseError, setChooseError] = useState<string | null>(null);
   /** ルートの骨格（T3-10）：対象のルート、書く章（`NEW_CHAPTER` なら新しい章）、新しい章の名前。 */
   const [route, setRoute] = useState("");
   const [chapter, setChapter] = useState(plot.chapters[0] ?? "");
@@ -269,13 +284,7 @@ export function AiScreen({
                 }}
               >
                 <span className="ai-task-name">{t.task.name}</span>
-                <span className="ai-task-place">
-                  {t.connection === null
-                    ? "接続先なし"
-                    : t.connection.cloud
-                      ? "クラウド"
-                      : "ローカル"}
-                </span>
+                <span className="ai-task-place">{placeText(t)}</span>
               </button>
             ))}
           </div>
@@ -358,7 +367,39 @@ export function AiScreen({
                   ? "接続先なし"
                   : `${info.connection.name} · ${info.connection.model}（${cloud ? "クラウド" : "ローカル"}）`}
               </span>
+              <label className="ai-connection-choice">
+                <span>この端末の接続先</span>
+                <select
+                  value={info.override ?? ""}
+                  disabled={
+                    choosing ||
+                    preparing ||
+                    running !== null ||
+                    autoRun !== null
+                  }
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setChoosing(true);
+                    setChooseError(null);
+                    // 送る中身の確かめは、接続先ごと（選び直したら見直す）。
+                    setPrepared(null);
+                    setConfirming(false);
+                    onChooseConnection(task.id, value === "" ? null : value)
+                      .catch((err: unknown) => setChooseError(String(err)))
+                      .finally(() => setChoosing(false));
+                  }}
+                >
+                  {connectionOptions(info, connections).map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </header>
+            {chooseError !== null && (
+              <p className="export-warning">{chooseError}</p>
+            )}
             {blocked !== null && (
               <p className="export-warning">
                 {blocked}
@@ -379,13 +420,14 @@ export function AiScreen({
             )}
             {task.level === "auto" ? (
               <AutoPanel
+                key={task.id}
                 info={info}
                 checks={tasks.filter((t) => task.checks.includes(t.task.id))}
                 scenes={scenes}
                 run={autoRun}
                 result={autoResult}
                 error={autoError}
-                busy={isRunning || autoRun !== null}
+                busy={isRunning || autoRun !== null || choosing}
                 blocked={blocked}
                 branches={branches}
                 onRun={onRunAuto}
@@ -754,6 +796,7 @@ export function AiScreen({
                 )}
                 {task.output === "summary" && (
                   <SyncPanel
+                    key={task.id}
                     info={info}
                     chapters={plot.chapters}
                     drift={plot.drift}
@@ -761,7 +804,7 @@ export function AiScreen({
                     driftError={plot.driftError}
                     hidden={plot.driftHidden}
                     running={plot.summarizeRun}
-                    busy={isRunning}
+                    busy={isRunning || choosing}
                     result={plot.summarizeResult}
                     error={plot.summarizeError}
                     onSummarize={(file, confirmed) =>

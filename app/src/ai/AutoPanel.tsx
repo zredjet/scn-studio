@@ -9,7 +9,12 @@ import type {
   AutoResult,
   SceneSummary,
 } from "../core/types.ts";
-import { type AutoRun, autoBranchText, autoSceneText } from "./model.ts";
+import {
+  type AutoRun,
+  autoBranchText,
+  autoSceneText,
+  cloudDestinations,
+} from "./model.ts";
 
 interface Props {
   readonly info: AiTaskInfo;
@@ -28,7 +33,7 @@ interface Props {
     info: AiTaskInfo,
     file: string,
     branch: boolean,
-    confirmedCloud: boolean,
+    confirmedCloud: readonly string[],
   ) => void;
   readonly onCancel: () => void;
   readonly onDiff: (
@@ -65,12 +70,16 @@ export function AutoPanel({
   );
   const repo = branches?.repo === true;
   const [branch, setBranch] = useState(true);
-  const [confirmed, setConfirmed] = useState(false);
   // クラウドへ送るタスク（自律と、点検のタスク）。
   const cloudTasks = [info, ...checks].filter(
     (t) => t.connection?.cloud === true,
   );
   const cloud = cloudTasks.length > 0;
+  // 確かめた送り先。接続先を選び直して送り先が変われば、確かめは外れる（T4-1）。
+  const destinations = cloudDestinations(cloudTasks);
+  const signature = destinations.join("\u0000");
+  const [confirmedFor, setConfirmedFor] = useState<string | null>(null);
+  const confirmed = cloud && confirmedFor === signature;
   const stubs = chapters.find((c) => c.file === file)?.stubs ?? 0;
   const titles = new Map(scenes.map((s) => [s.id, s.title]));
   const running = run !== null && run.task === info.task.id;
@@ -110,7 +119,9 @@ export function AutoPanel({
               type="checkbox"
               checked={confirmed}
               disabled={running}
-              onChange={(e) => setConfirmed(e.target.checked)}
+              onChange={(e) =>
+                setConfirmedFor(e.target.checked ? signature : null)
+              }
             />
             <span>
               クラウドへ、スタブのシーンごとに次の文脈を、展開メモ・本文・点検・直しのたびに送ることを確かめました：
@@ -145,9 +156,14 @@ export function AutoPanel({
                 busy || blocked !== null || stubs === 0 || (cloud && !confirmed)
               }
               onClick={() => {
-                onRun(info, file, repo && branch, cloud && confirmed);
+                onRun(
+                  info,
+                  file,
+                  repo && branch,
+                  confirmed ? destinations : [],
+                );
                 // 確かめたのはこの回だけ。
-                setConfirmed(false);
+                setConfirmedFor(null);
               }}
             >
               自律で実行

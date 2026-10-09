@@ -6,6 +6,7 @@ import type { AiConnection } from "../src/core/types.ts";
 import {
   currentTest,
   indicator,
+  parseContextTokens,
   readiness,
   replyText,
   type TestRecord,
@@ -29,6 +30,9 @@ function connection(over: Partial<AiConnection>): AiConnection {
     allowed: true,
     has_key: false,
     needs_key: false,
+    context_tokens: 8192,
+    project_context_tokens: null,
+    override_context_tokens: null,
     problem: null,
     url_hint: null,
     is_default: true,
@@ -157,4 +161,16 @@ test("応答の文：空なら終わった理由を添える", () => {
     replyText({ ...result, text: "", stop_reason: null }),
     "応答（空）",
   );
+});
+
+test("文脈の長さの上書きの欄（T4-1）：空は上書きなし、正の整数、桁区切りと全角", () => {
+  assert.equal(parseContextTokens(""), null);
+  assert.equal(parseContextTokens("  "), null);
+  assert.equal(parseContextTokens("32768"), 32768);
+  assert.equal(parseContextTokens("32,768"), 32768);
+  assert.equal(parseContextTokens("３２７６８"), 32768);
+  assert.equal(parseContextTokens("0"), "invalid");
+  assert.equal(parseContextTokens("-1"), "invalid");
+  assert.equal(parseContextTokens("8k"), "invalid");
+  assert.equal(parseContextTokens("1.5"), "invalid");
 });

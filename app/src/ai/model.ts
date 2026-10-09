@@ -2,6 +2,7 @@
 
 import type {
   AiAssembled,
+  AiConnectionChoice,
   AiFinding,
   AiPrepared,
   AiProposal,
@@ -70,6 +71,62 @@ export function blocker(info: AiTaskInfo): string | null {
   if (info.connection?.cloud === true && !info.connection.allowed)
     return "この端末からクラウドへ送ることを許可していません（環境設定）";
   return null;
+}
+
+/** タスクの一覧に見せる行き先（T4-1：この端末で選んだ接続先には「端末」を添える）。 */
+export function placeText(info: AiTaskInfo): string {
+  if (info.connection === null) return "接続先なし";
+  const place = info.connection.cloud ? "クラウド" : "ローカル";
+  return info.source === "machine" ? `${place} · 端末` : place;
+}
+
+/**
+ * クラウドへ送るタスクの送り先（行き先とモデル。重ねずに並べる）。人が確かめた送り先として、自律と同期の実行に
+ * 渡す（コアが、実行のときの接続先の送り先と照らす。T4-1）。
+ */
+export function cloudDestinations(infos: readonly AiTaskInfo[]): string[] {
+  return [
+    ...new Set(
+      infos
+        .filter((t) => t.connection?.cloud === true)
+        .map((t) => t.connection?.destination ?? ""),
+    ),
+  ].sort();
+}
+
+/** タスクの接続先の選択肢（T4-1）。`value` は接続先の名前で、定義のままは ""。 */
+export interface ConnectionOption {
+  readonly value: string;
+  readonly label: string;
+}
+
+/** 「定義のまま」と作品の接続先。この端末で選んだ接続先が作品に無ければ、それも並べる（選び直せるように）。 */
+export function connectionOptions(
+  info: AiTaskInfo,
+  connections: readonly AiConnectionChoice[],
+): ConnectionOption[] {
+  const place = (cloud: boolean | null) =>
+    cloud === null ? "設定に誤り" : cloud ? "クラウド" : "ローカル";
+  const options: ConnectionOption[] = [
+    {
+      value: "",
+      label: `定義のまま（${info.task.model ?? "既定の接続先"}）`,
+    },
+    ...connections.map((c) => ({
+      value: c.name,
+      label: `${c.name}（${place(c.cloud)}）`,
+    })),
+  ];
+  if (
+    info.override !== null &&
+    !connections.some((c) => c.name === info.override)
+  ) {
+    options.push({
+      value: info.override,
+      label: `${info.override}（作品に無い）`,
+    });
+  }
+  return options;
 }
 
 /** 画面が持つ指摘（実行ごと）。 */
@@ -573,7 +630,7 @@ export interface PlotAi {
   readonly onSummarize: (
     task: string,
     file: string,
-    confirmedCloud: boolean,
+    confirmedCloud: readonly string[],
   ) => void;
   readonly onCancelSummarize: () => void;
 }

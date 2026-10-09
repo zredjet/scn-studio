@@ -203,7 +203,9 @@
 | 接続先 | connection | `project.toml` の `[ai.<名前>]`（`project::AiConnectionDecl`）と、端末の上書きを重ねて呼び出せる形にしたもの（`ai::Connection`） |
 | 接続の種類 | provider | `openai-compatible`（OpenAI 互換）/ `anthropic`（Messages API） |
 | 行き先 | endpoint | `<provider> <base_url>`。キーとクラウドへの送信の許可の単位 |
-| 端末の設定 | machine settings | アプリの設定のフォルダの `ai.toml`（`ai::MachineSettings`）。URL とモデルの上書き、クラウドの許可 |
+| 端末の設定 | machine settings | アプリの設定のフォルダの `ai.toml`（`ai::MachineSettings`）。接続先ごとの URL・モデル・文脈の長さの上書き（`ai::Override`）、クラウドの許可、タスクの接続先の上書き（`ai::TaskOverride`。T4-1） |
+| タスクの接続先 | task connection | タスクに使う接続先（`ai::task_connection`）。端末の上書き、定義の `model`、既定の接続先の順に決める。どこで決めたか（`ai::TaskConnectionSource`：`machine`・`task`・`default`） |
+| 送り先 | destination | 行き先とモデル（`Connection::destination`）。自律と同期で、人がクラウドへ送ることを確かめる単位（T4-1） |
 | 既定の接続先 | default connection | `[ai.local]`。無ければ最初のローカルの接続先 |
 | キー | api key | OS のキーチェーンに置く（`ai::KeyStore`） |
 | タスクの定義 | task definition | `ai/*.yaml` の1つ（`ai::AiTask`）。名前はファイル名 |

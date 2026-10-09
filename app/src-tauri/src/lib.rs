@@ -2064,12 +2064,13 @@ fn ai_connections(state: State<'_, AppState>, app: AppHandle) -> Result<Response
     }))
 }
 
-/// この端末での、接続先の URL とモデルの上書き。空なら上書きをやめる。
+/// この端末での、接続先の URL・モデル・文脈の長さ（T4-1）の上書き。空なら上書きをやめる。
 #[tauri::command]
 fn set_ai_override(
     name: String,
     base_url: Option<String>,
     model: Option<String>,
+    context_tokens: Option<u64>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
@@ -2077,7 +2078,7 @@ fn set_ai_override(
         return Err(format!("接続先「{name}」が project.toml にありません"));
     }
     update_ai_settings(&app, |m| {
-        m.set_override(&name, base_url.as_deref(), model.as_deref());
+        m.set_override(&name, base_url.as_deref(), model.as_deref(), context_tokens);
     })
 }
 
@@ -2189,23 +2190,7 @@ fn task_connection(
     machine: &MachineSettings,
     task: &ai::AiTask,
 ) -> Result<ai::Connection, String> {
-    let name = task
-        .model
-        .clone()
-        .or_else(|| ai::default_connection(&project.settings.ai, machine).map(str::to_owned))
-        .ok_or_else(|| "project.toml に AI の接続先（[ai.local] など）がありません".to_owned())?;
-    let decl = project
-        .settings
-        .ai
-        .iter()
-        .find(|d| d.name == name)
-        .ok_or_else(|| {
-            format!(
-                "{} の接続先「{name}」が project.toml にありません",
-                task.path
-            )
-        })?;
-    ai::resolve(decl, machine)
+    ai::task_connection(&project.settings.ai, machine, task)
 }
 
 /// AI実行の画面のタスクの一覧（T3-7）：定義と、接続先の様子、実行できるか。
@@ -2221,11 +2206,18 @@ fn ai_tasks(state: State<'_, AppState>, app: AppHandle) -> Result<Response, Stri
         .iter()
         .map(|task| {
             let conn = task_connection(&project, &machine, task);
+            let source = ai::task_connection_name(&project.settings.ai, &machine, task)
+                .map(|(_, source)| source);
             json!({
                 "task": task,
+                // どこで決めた接続先か（この端末の上書き・定義・既定。T4-1）。
+                "source": source,
+                "override": machine.tasks.get(&task.id).and_then(|t| t.model.clone()),
                 "connection": conn.as_ref().ok().map(|c| json!({
                     "name": c.name,
                     "model": c.model,
+                    // 人がクラウドへ送ることを確かめる単位（行き先とモデル。T4-1）。
+                    "destination": c.destination(),
                     "cloud": c.cloud,
                     "allowed": c.allowed,
                     "context_tokens": c.context_tokens,
@@ -2240,7 +2232,48 @@ fn ai_tasks(state: State<'_, AppState>, app: AppHandle) -> Result<Response, Stri
             })
         })
         .collect();
-    json_response(&json!({ "tasks": tasks }))
+    // タスクに選べる接続先（T4-1）。
+    let connections: Vec<Value> = project
+        .settings
+        .ai
+        .iter()
+        .map(|decl| {
+            let conn = ai::resolve(decl, &machine);
+            json!({
+                "name": decl.name,
+                "cloud": conn.as_ref().ok().map(|c| c.cloud),
+            })
+        })
+        .collect();
+    json_response(&json!({ "tasks": tasks, "connections": connections }))
+}
+
+/// この端末で、タスクに使う接続先を選ぶ（T4-1）。`connection` が無ければ定義のまま。
+#[tauri::command]
+fn set_ai_task_connection(
+    task: String,
+    connection: Option<String>,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    let project = {
+        let mut guard = locked(&state.workspace)?;
+        open_workspace(&mut guard)?.project().clone()
+    };
+    if !project.ai_tasks.iter().any(|t| t.id == task) {
+        return Err(format!("ai/{task}.yaml がありません"));
+    }
+    if let Some(name) = connection
+        .as_deref()
+        .map(str::trim)
+        .filter(|n| !n.is_empty())
+        && !project.settings.ai.iter().any(|d| d.name == name)
+    {
+        return Err(format!("接続先「{name}」が project.toml にありません"));
+    }
+    update_ai_settings(&app, |m| {
+        m.set_task_connection(&task, connection.as_deref())
+    })
 }
 
 /// タスクの定義（ルートの骨格を作るタスクでは、対象のルートを依頼に書き足したもの。T3-10）。
@@ -2719,13 +2752,14 @@ fn set_scene_summary(
 
 /// 章のシーンの要約をまとめて作り直す（同期。T3-10）：要約のキャッシュが無いか、本文が変わったシーンを本文の順に、
 /// シーン要約のタスク（`task`）で要約してキャッシュに入れる。シーンごとに `ai-summarize-progress` で知らせる。
-/// クラウドの接続先では `confirmed_cloud`（人が送る中身を確かめた）が要る。取り消しはシーンの合間で効く。
+/// クラウドの接続先では、`confirmed_cloud`（人が送る中身を確かめた送り先。`Connection::destination`）に、その
+/// 送り先が要る（確かめた後に接続先を選び直していれば断る。T4-1）。取り消しはシーンの合間で効く。
 #[tauri::command]
 async fn ai_summarize(
     task: String,
     file: String,
     run: u64,
-    confirmed_cloud: bool,
+    confirmed_cloud: Vec<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Response, String> {
@@ -2744,7 +2778,7 @@ async fn ai_summarize(
         ));
     }
     let conn = task_connection(&project, &machine, &definition)?;
-    if conn.cloud && !confirmed_cloud {
+    if conn.cloud && !confirmed_cloud.contains(&conn.destination()) {
         return Err(format!(
             "{} はクラウド（{}）へ送ります。送る中身を確かめてから実行します",
             definition.name, conn.name
@@ -2850,6 +2884,8 @@ struct AppAutoHost<'a> {
     branch: bool,
     /// 書き込んだファイル（作品フォルダからの相対パス。ブランチのコミットに入れる）。
     written: BTreeSet<String>,
+    /// 人がクラウドへ送ることを確かめた送り先（実行の途中で接続先が変わっても、ほかへは送らない。T4-1）。
+    confirmed_cloud: Vec<String>,
 }
 
 impl AppAutoHost<'_> {
@@ -2882,6 +2918,12 @@ impl ai::AutoHost for AppAutoHost<'_> {
     ) -> Result<(ai::Connection, Option<String>), String> {
         let project = self.project()?;
         let conn = task_connection(&project, &self.machine, task)?;
+        if conn.cloud && !self.confirmed_cloud.contains(&conn.destination()) {
+            return Err(format!(
+                "{} の接続先（{} · {}）は、実行の前に確かめたクラウドの送り先ではありません（実行の途中で project.toml が変わったかもしれません）。送りません",
+                task.name, conn.name, conn.model
+            ));
+        }
         let key = key_for(&conn)?;
         Ok((conn, key))
     }
@@ -2973,14 +3015,14 @@ impl ai::AutoHost for AppAutoHost<'_> {
 
 /// 自律で章のスタブを下書きにする（T3-9）。`branch` なら、Git のブランチ（`ai/<タスク>-<日時>`）を作って書き、
 /// コミットして基のブランチへ戻る（人が差分を見て取り込む）。保存していない変更、コミットしていない変更があれば
-/// 始めない。クラウドの接続先を使うときは `confirmed_cloud`（人が送る中身を確かめた）が要る。
+/// 始めない。クラウドの接続先を使うときは、`confirmed_cloud`（人が送る中身を確かめた送り先）に、その送り先が要る。
 #[tauri::command]
 async fn ai_auto(
     task: String,
     file: String,
     run: u64,
     branch: bool,
-    confirmed_cloud: bool,
+    confirmed_cloud: Vec<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Response, String> {
@@ -3031,7 +3073,7 @@ async fn ai_auto(
     );
     for t in involved {
         let c = task_connection(&project, &machine, t)?;
-        if c.cloud && !confirmed_cloud {
+        if c.cloud && !confirmed_cloud.contains(&c.destination()) {
             return Err(format!(
                 "{} はクラウド（{}）へ送ります。送る中身を確かめてから実行します",
                 t.name, c.name
@@ -3107,6 +3149,7 @@ async fn ai_auto(
             model,
             branch: in_branch,
             written: BTreeSet::new(),
+            confirmed_cloud,
         };
         let outcome = ai::run_auto(&mut host, &definition, &file, &all);
         (outcome, host.written)
@@ -3469,6 +3512,7 @@ pub fn run() {
             export_provenance,
             ai_connections,
             set_ai_override,
+            set_ai_task_connection,
             set_ai_cloud_allowed,
             set_ai_key,
             delete_ai_key,

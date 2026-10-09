@@ -104,6 +104,7 @@ import {
   setAiCloudAllowed,
   setAiKey,
   setAiOverride,
+  setAiTaskConnection,
   setSceneSummary,
   setViewMode,
   summaryDrift,
@@ -117,6 +118,7 @@ import type { PreviewData } from "./core/ir.ts";
 import { PositionMap } from "./core/position.ts";
 import type {
   AiBranches,
+  AiConnectionChoice,
   AiConnections,
   AiProposalFile,
   AiProposalView,
@@ -394,6 +396,10 @@ export function App() {
   const aiRunning = useRef<number | null>(null);
   /** AI実行の画面のタスク（T3-7）。 */
   const [aiTasks, setAiTasks] = useState<readonly AiTaskInfo[] | null>(null);
+  /** タスクに選べる接続先（T4-1）。 */
+  const [aiTaskConnections, setAiTaskConnections] = useState<
+    readonly AiConnectionChoice[]
+  >([]);
   const [aiTasksError, setAiTasksError] = useState<string | null>(null);
   /** 走っている AI タスクの実行と、その回の番号（結果を受け取る回）。 */
   const [aiRunState, setAiRunState] = useState<RunState | null>(null);
@@ -1779,6 +1785,7 @@ export function App() {
       .then((result) => {
         if (!live) return;
         setAiTasks(result.tasks);
+        setAiTaskConnections(result.connections);
         setAiTasksError(null);
       })
       .catch((e: unknown) => {
@@ -2243,7 +2250,7 @@ export function App() {
   );
   /** 章のシーンの要約をまとめて作り直す（T3-10）。 */
   const runSummarize = useCallback(
-    (task: string, file: string, confirmed: boolean) => {
+    (task: string, file: string, confirmed: readonly string[]) => {
       if (summarizing.current !== null) return;
       aiRun.current += 1;
       const run = aiRun.current;
@@ -2317,7 +2324,12 @@ export function App() {
   }, [applyWrittenText, whenIdle]);
   /** 自律で章のスタブを下書きにする。 */
   const runAuto = useCallback(
-    (info: AiTaskInfo, file: string, branch: boolean, confirmed: boolean) => {
+    (
+      info: AiTaskInfo,
+      file: string,
+      branch: boolean,
+      confirmed: readonly string[],
+    ) => {
       if (latest.current.dirty.size > 0) {
         setAiAutoError(
           "保存していない変更があります。保存してから自律で実行します",
@@ -3063,6 +3075,12 @@ export function App() {
                   <AiScreen
                     tasks={aiTasks}
                     tasksError={aiTasksError}
+                    connections={aiTaskConnections}
+                    onChooseConnection={(task, connection) =>
+                      setAiTaskConnection(task, connection).then(() =>
+                        setAiVersion((n) => n + 1),
+                      )
+                    }
                     scenes={project.summary.scenes}
                     currentScene={currentScene}
                     running={aiRunState}
@@ -3141,10 +3159,13 @@ export function App() {
                     data={aiState}
                     error={aiError}
                     tests={aiTests}
-                    onOverride={(name, baseUrl, model) =>
-                      setAiOverride(name, baseUrl, model).finally(() =>
-                        aiChanged([name]),
-                      )
+                    onOverride={(name, baseUrl, model, contextTokens) =>
+                      setAiOverride(
+                        name,
+                        baseUrl,
+                        model,
+                        contextTokens,
+                      ).finally(() => aiChanged([name]))
                     }
                     onAllow={(endpoint, allowed) =>
                       setAiCloudAllowed(endpoint, allowed).finally(() =>

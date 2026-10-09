@@ -9,6 +9,8 @@ import {
   autoBranchText,
   autoSceneText,
   blocker,
+  cloudDestinations,
+  connectionOptions,
   driftKey,
   estimateText,
   type FindingRecord,
@@ -23,6 +25,7 @@ import {
   mergedTags,
   mergeFindings,
   needsScene,
+  placeText,
   plotWrittenText,
   preparedFor,
   proposalLetter,
@@ -70,8 +73,11 @@ function info(
       cloud: false,
       allowed: true,
       context_tokens: 8192,
+      destination: "openai-compatible http://localhost:11434/v1\nqwen3",
     },
     connection_problem: null,
+    source: "task",
+    override: null,
     unsupported: null,
     ...more,
   };
@@ -149,6 +155,7 @@ test("シーンを選ぶタスクと、実行できない理由", () => {
           connection: {
             name: "cloud",
             model: "c",
+            destination: "anthropic https://api.anthropic.com/v1\nc",
             cloud: true,
             allowed: false,
             context_tokens: 200000,
@@ -574,4 +581,66 @@ test("自律をブランチで実行した後の文", () => {
     autoBranchText({ ...branch, problem: "main に戻れませんでした（e）" }),
     "ブランチ ai/draft_chapter-20261008-1200 にコミットしました。main に戻れませんでした（e）",
   );
+});
+
+test("タスクの接続先の選択肢（T4-1）：定義のまま、作品の接続先、作品に無い選んだ接続先", () => {
+  const connections = [
+    { name: "local", cloud: false },
+    { name: "cloud", cloud: true },
+    { name: "broken", cloud: null },
+  ];
+  const cloudTask = info({ id: "concept_questions", model: "cloud" });
+  assert.deepEqual(connectionOptions(cloudTask, connections), [
+    { value: "", label: "定義のまま（cloud）" },
+    { value: "local", label: "local（ローカル）" },
+    { value: "cloud", label: "cloud（クラウド）" },
+    { value: "broken", label: "broken（設定に誤り）" },
+  ]);
+  assert.equal(
+    connectionOptions(info({ model: null }), [])[0]?.label,
+    "定義のまま（既定の接続先）",
+  );
+  const gone = info({}, { source: "machine", override: "gone" });
+  assert.deepEqual(connectionOptions(gone, connections).at(-1), {
+    value: "gone",
+    label: "gone（作品に無い）",
+  });
+  // 一覧の行き先：この端末で選んだものには「端末」を添える。
+  assert.equal(placeText(info({})), "ローカル");
+  assert.equal(
+    placeText(info({}, { source: "machine", override: "local" })),
+    "ローカル · 端末",
+  );
+  assert.equal(placeText(info({}, { connection: null })), "接続先なし");
+});
+
+test("クラウドへ送ることを確かめる送り先（T4-1）：クラウドのタスクの行き先とモデルを、重ねずに並べる", () => {
+  const cloud = (name: string, destination: string) =>
+    info(
+      { id: name },
+      {
+        connection: {
+          name: "cloud",
+          model: "m",
+          destination,
+          cloud: true,
+          allowed: true,
+          context_tokens: 200000,
+        },
+      },
+    );
+  assert.deepEqual(
+    cloudDestinations([
+      info({}),
+      cloud("a", "anthropic https://api.anthropic.com/v1\nb"),
+      cloud("b", "anthropic https://api.anthropic.com/v1\na"),
+      cloud("c", "anthropic https://api.anthropic.com/v1\nb"),
+      info({}, { connection: null }),
+    ]),
+    [
+      "anthropic https://api.anthropic.com/v1\na",
+      "anthropic https://api.anthropic.com/v1\nb",
+    ],
+  );
+  assert.deepEqual(cloudDestinations([info({})]), []);
 });

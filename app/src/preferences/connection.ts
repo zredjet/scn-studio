@@ -111,3 +111,18 @@ export function usageText(result: AiTestResult): string {
   const seconds = (result.elapsed_ms / 1000).toFixed(1);
   return `入力 ${input_tokens}・出力 ${output_tokens} トークン${estimated ? "（文字数からの見積もり）" : ""} · ${seconds}秒`;
 }
+
+/**
+ * 文脈の長さの上書きの欄（T4-1）を読む。空なら上書きなし（null）、正の整数でなければ `invalid`。
+ * 「32,768」のような桁区切りと全角の数字も読む。
+ */
+export function parseContextTokens(text: string): number | null | "invalid" {
+  const plain = text
+    .trim()
+    .replace(/[０-９]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 0xfee0))
+    .replace(/[,，]/g, "");
+  if (plain === "") return null;
+  if (!/^\d+$/.test(plain)) return "invalid";
+  const n = Number(plain);
+  return Number.isSafeInteger(n) && n > 0 ? n : "invalid";
+}

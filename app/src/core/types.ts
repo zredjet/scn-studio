@@ -518,6 +518,10 @@ export interface AiConnection {
   readonly allowed: boolean;
   readonly has_key: boolean;
   readonly needs_key: boolean;
+  /** 文脈の長さ（解決できたときだけ）、project.toml の値、この端末の上書き（T4-1）。 */
+  readonly context_tokens: number | null;
+  readonly project_context_tokens: number | null;
+  readonly override_context_tokens: number | null;
   /** 解決できない理由。 */
   readonly problem: string | null;
   /** URL の書き方の知らせ（パスが無い。コアの `missing_path_hint`、T3-1）。 */
@@ -581,13 +585,25 @@ export interface AiTaskInfo {
   readonly connection: {
     readonly name: string;
     readonly model: string;
+    /** 送り先（行き先とモデル）。人がクラウドへ送ることを確かめる単位（T4-1）。 */
+    readonly destination: string;
     readonly cloud: boolean;
     readonly allowed: boolean;
     readonly context_tokens: number;
   } | null;
   readonly connection_problem: string | null;
+  /** 接続先をどこで決めたか（この端末の上書き・定義の model・既定。T4-1）。接続先が無ければ null。 */
+  readonly source: "machine" | "task" | "default" | null;
+  /** この端末で選んだ接続先の名前（選んでいなければ null。作品に無い名前のこともある）。 */
+  readonly override: string | null;
   /** まだ実行できない段階の理由（提案・生成・自律）。 */
   readonly unsupported: string | null;
+}
+
+/** タスクに選べる接続先（`ai_tasks` の `connections`。T4-1）。`cloud` は解決できなければ null。 */
+export interface AiConnectionChoice {
+  readonly name: string;
+  readonly cloud: boolean | null;
 }
 
 /** 組み立てた文脈（コアの `ai::Assembled`）。 */

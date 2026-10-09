@@ -10,6 +10,7 @@ import type {
   AddedChapter,
   AdoptResult,
   AiBranches,
+  AiConnectionChoice,
   AiConnections,
   AiLines,
   AiPrepared,
@@ -521,13 +522,27 @@ export function aiConnections(): Promise<AiConnections> {
   return invoke<AiConnections>("ai_connections");
 }
 
-/** この端末での、接続先の URL とモデルの上書き（空ならやめる）。 */
+/** この端末での、接続先の URL・モデル・文脈の長さの上書き（空ならやめる。T4-1）。 */
 export function setAiOverride(
   name: string,
   baseUrl: string | null,
   model: string | null,
+  contextTokens: number | null,
 ): Promise<void> {
-  return invoke<void>("set_ai_override", { name, baseUrl, model });
+  return invoke<void>("set_ai_override", {
+    name,
+    baseUrl,
+    model,
+    contextTokens,
+  });
+}
+
+/** この端末で、タスクに使う接続先を選ぶ（null なら定義のまま。T4-1）。 */
+export function setAiTaskConnection(
+  task: string,
+  connection: string | null,
+): Promise<void> {
+  return invoke<void>("set_ai_task_connection", { task, connection });
 }
 
 /** この端末から、クラウドの行き先へ送ることを許可する・やめる。 */
@@ -560,11 +575,15 @@ export function cancelAi(run: number): Promise<void> {
   return invoke<void>("cancel_ai", { run });
 }
 
-/** AI実行の画面のタスクの一覧（T3-7）。 */
+/** AI実行の画面のタスクの一覧（T3-7）と、タスクに選べる接続先（T4-1）。 */
 export function aiTaskList(): Promise<{
   readonly tasks: readonly AiTaskInfo[];
+  readonly connections: readonly AiConnectionChoice[];
 }> {
-  return invoke<{ readonly tasks: readonly AiTaskInfo[] }>("ai_tasks");
+  return invoke<{
+    readonly tasks: readonly AiTaskInfo[];
+    readonly connections: readonly AiConnectionChoice[];
+  }>("ai_tasks");
 }
 
 /** 実行する前に、組み立てた文脈（送る中身と見積もり）を見る。 */
@@ -647,12 +666,12 @@ export function setSceneSummary(
   });
 }
 
-/** 章のシーンの要約をまとめて作り直す（T3-10）。 */
+/** 章のシーンの要約をまとめて作り直す（T3-10）。`confirmedCloud` は人が確かめたクラウドの送り先（T4-1）。 */
 export function runAiSummarize(
   task: string,
   file: string,
   run: number,
-  confirmedCloud: boolean,
+  confirmedCloud: readonly string[],
 ): Promise<SummarizeResult> {
   return invoke<SummarizeResult>("ai_summarize", {
     task,
@@ -735,13 +754,16 @@ export function writeAiDraft(
   });
 }
 
-/** 自律で章のスタブを下書きにする（T3-9）。`branch` なら Git のブランチで行う。 */
+/**
+ * 自律で章のスタブを下書きにする（T3-9）。`branch` なら Git のブランチで行う。`confirmedCloud` は人が確かめた
+ * クラウドの送り先（T4-1）。
+ */
 export function runAiAuto(
   task: string,
   file: string,
   run: number,
   branch: boolean,
-  confirmedCloud: boolean,
+  confirmedCloud: readonly string[],
 ): Promise<AutoResult> {
   return invoke<AutoResult>("ai_auto", {
     task,

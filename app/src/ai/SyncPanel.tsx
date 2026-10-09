@@ -8,7 +8,12 @@ import type {
   SummarizeResult,
   SummaryDrift,
 } from "../core/types.ts";
-import { blocker, driftKey, type SummarizeRun } from "./model.ts";
+import {
+  blocker,
+  cloudDestinations,
+  driftKey,
+  type SummarizeRun,
+} from "./model.ts";
 
 interface Props {
   readonly info: AiTaskInfo;
@@ -24,7 +29,10 @@ interface Props {
   readonly busy: boolean;
   readonly result: SummarizeResult | null;
   readonly error: string | null;
-  readonly onSummarize: (file: string, confirmedCloud: boolean) => void;
+  readonly onSummarize: (
+    file: string,
+    confirmedCloud: readonly string[],
+  ) => void;
   readonly onCancel: () => void;
   /** summary に書く。誤りの文を返す（書けたら null）。 */
   readonly onAdopt: (drift: SummaryDrift) => Promise<string | null>;
@@ -48,12 +56,16 @@ export function SyncPanel({
   onReject,
 }: Props) {
   const [file, setFile] = useState(chapters[0] ?? "");
-  const [confirmed, setConfirmed] = useState(false);
+  // 確かめたのは、選んでいた章と送り先（接続先を選び直したら外れる。T4-1）。
+  const [confirmedFor, setConfirmedFor] = useState<string | null>(null);
   const [problems, setProblems] = useState<ReadonlyMap<string, string>>(
     new Map(),
   );
   const [writing, setWriting] = useState(false);
   const cloud = info.connection?.cloud === true;
+  const destinations = cloudDestinations([info]);
+  const signature = `${file}\u0000${destinations.join("\u0000")}`;
+  const confirmed = cloud && confirmedFor === signature;
   const blocked = blocker(info);
   const items = (drift ?? []).filter((d) => !hidden.has(driftKey(d)));
   /** 選んだ章の、要約を作り直すシーンの数（送る回数）。 */
@@ -72,11 +84,7 @@ export function SyncPanel({
           <select
             value={file}
             disabled={running !== null}
-            onChange={(e) => {
-              setFile(e.target.value);
-              // 確かめたのは、選んでいた章の送る回数。
-              setConfirmed(false);
-            }}
+            onChange={(e) => setFile(e.target.value)}
           >
             {chapters.map((c) => (
               <option key={c} value={c}>
@@ -91,7 +99,9 @@ export function SyncPanel({
               type="checkbox"
               checked={confirmed}
               disabled={running !== null}
-              onChange={(e) => setConfirmed(e.target.checked)}
+              onChange={(e) =>
+                setConfirmedFor(e.target.checked ? signature : null)
+              }
             />
             <span>
               クラウド（{info.connection?.name} · {info.connection?.model}
@@ -125,8 +135,8 @@ export function SyncPanel({
                 (cloud && !confirmed)
               }
               onClick={() => {
-                onSummarize(file, cloud && confirmed);
-                setConfirmed(false);
+                onSummarize(file, confirmed ? destinations : []);
+                setConfirmedFor(null);
               }}
             >
               {count === 0

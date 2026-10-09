@@ -588,7 +588,12 @@ fn resolve_connections() {
 
     // 端末の上書き（名前ごと）と、クラウドの許可（行き先ごと）。
     let mut machine = MachineSettings::default();
-    machine.set_override("local", Some(" http://localhost:1234/v1 "), Some("gemma"));
+    machine.set_override(
+        "local",
+        Some(" http://localhost:1234/v1 "),
+        Some("gemma"),
+        None,
+    );
     machine.set_cloud_allowed("anthropic https://api.anthropic.com/v1", true);
     let conn = ai::resolve(
         &decl(
@@ -610,7 +615,7 @@ fn resolve_connections() {
     )
     .unwrap();
     assert!(conn.allowed);
-    machine.set_override("local", Some(""), None);
+    machine.set_override("local", Some(""), None, None);
     assert!(machine.connections.is_empty());
 }
 
@@ -780,7 +785,7 @@ fn keys_stay_in_keystore() {
     keys.set(&endpoint, &format!("  {key}\n")).unwrap();
     assert_eq!(keys.get(&endpoint).unwrap().as_deref(), Some(key));
     machine.set_cloud_allowed(&endpoint, true);
-    machine.set_override("local", None, Some("gemma"));
+    machine.set_override("local", None, Some("gemma"), None);
 
     let (statuses, problem) = ai::connection_statuses(decls, &machine, &keys);
     assert_eq!(problem, None);
@@ -794,7 +799,7 @@ fn keys_stay_in_keystore() {
     assert_eq!(local.url_hint, None);
     // 端末の上書きで、パスの無い URL（LM Studio の「Reachable at」）にすると知らせる（T3-1）。
     let mut root_url = machine.clone();
-    root_url.set_override("local", Some("http://127.0.0.1:1234/"), None);
+    root_url.set_override("local", Some("http://127.0.0.1:1234/"), None, None);
     let (statuses, _) = ai::connection_statuses(decls, &root_url, &keys);
     let local = statuses.iter().find(|s| s.name == "local").unwrap();
     assert!(local.url_hint.as_deref().unwrap().contains("/v1 まで"));
@@ -867,4 +872,130 @@ fn sample_connections() {
         ai::default_connection(&project.settings.ai, &machine),
         Some("local")
     );
+}
+
+/// タスクの接続先の決め方（T4-1）：この端末の上書き、タスクの定義の `model`、既定の接続先の順。上書きの接続先が
+/// 無ければ、定義へ戻さずに知らせる。文脈の長さも端末で上書きできる。
+#[test]
+fn task_connection_order() {
+    let project = temp_dir("task-connection");
+    fs::write(
+        project.join("project.toml"),
+        "format_version = 0\n\n[ai.local]\nbase_url = \"http://localhost:11434/v1\"\nmodel = \"qwen3\"\n\n[ai.lan]\nbase_url = \"http://192.168.1.5:1234/v1\"\nmodel = \"gemma\"\ncontext_tokens = 4096\n\n[ai.cloud]\nprovider = \"anthropic\"\nmodel = \"claude\"\n",
+    )
+    .unwrap();
+    fs::create_dir_all(project.join("ai")).unwrap();
+    fs::write(
+        project.join("ai/concept_questions.yaml"),
+        "name: 問い返し\nmodel: cloud\ncontext: [concept]\nprompt: 問う\n",
+    )
+    .unwrap();
+    fs::write(
+        project.join("ai/tone_check.yaml"),
+        "name: 口調\ncontext: [scene]\nprompt: 見る\n",
+    )
+    .unwrap();
+    let loaded = load_project(&project).unwrap();
+    let decls = &loaded.settings.ai;
+    let task = |id: &str| loaded.ai_tasks.iter().find(|t| t.id == id).unwrap();
+    let questions = task("concept_questions");
+    let tone = task("tone_check");
+
+    let mut machine = MachineSettings::default();
+    let conn = ai::task_connection(decls, &machine, questions).unwrap();
+    assert_eq!(conn.name, "cloud");
+    assert_eq!(
+        ai::task_connection_name(decls, &machine, questions),
+        Some(("cloud".to_owned(), ai::TaskConnectionSource::Task))
+    );
+    assert_eq!(
+        ai::task_connection(decls, &machine, tone).unwrap().name,
+        "local"
+    );
+    assert_eq!(
+        ai::task_connection_name(decls, &machine, tone),
+        Some(("local".to_owned(), ai::TaskConnectionSource::Default))
+    );
+
+    // この端末で、定義が cloud のタスクを local に切り替える。
+    machine.set_task_connection("concept_questions", Some("local"));
+    let conn = ai::task_connection(decls, &machine, questions).unwrap();
+    assert_eq!((conn.name.as_str(), conn.cloud), ("local", false));
+    assert_eq!(
+        ai::task_connection_name(decls, &machine, questions),
+        Some(("local".to_owned(), ai::TaskConnectionSource::Machine))
+    );
+    // 空の名前は上書きをやめる。
+    machine.set_task_connection("tone_check", Some("  "));
+    assert!(!machine.tasks.contains_key("tone_check"));
+
+    // 作品に無い接続先を選んでいれば、定義の接続先（クラウド）へ戻さずに知らせる。
+    machine.set_task_connection("concept_questions", Some("gone"));
+    let error = ai::task_connection(decls, &machine, questions).unwrap_err();
+    assert!(error.contains("gone"), "{error}");
+    assert!(error.contains("この端末"), "{error}");
+
+    // 文脈の長さ：宣言、端末の上書き、既定。
+    machine.set_task_connection("concept_questions", None);
+    assert!(machine.tasks.is_empty());
+    let lan = decls.iter().find(|d| d.name == "lan").unwrap();
+    let local = decls.iter().find(|d| d.name == "local").unwrap();
+    assert_eq!(ai::resolve(lan, &machine).unwrap().context_tokens, 4096);
+    assert_eq!(
+        ai::resolve(local, &machine).unwrap().context_tokens,
+        ai::DEFAULT_CONTEXT_TOKENS
+    );
+    machine.set_override("local", None, None, Some(32768));
+    machine.set_override("lan", None, Some("gemma3"), Some(16384));
+    assert_eq!(ai::resolve(local, &machine).unwrap().context_tokens, 32768);
+    let lan_conn = ai::resolve(lan, &machine).unwrap();
+    assert_eq!(
+        (lan_conn.context_tokens, lan_conn.model.as_str()),
+        (16384, "gemma3")
+    );
+    // 上書きした文脈の長さで文脈を組む（入りきらなければ断る）。
+    machine.set_task_connection("concept_questions", Some("local"));
+    let ir = scn_core::analyze(&loaded);
+    let sources = ai::read_sources(&project);
+    let conn = ai::task_connection(decls, &machine, questions).unwrap();
+    let assembled = ai::assemble(&loaded, &ir, &sources, questions, None, conn.context_tokens);
+    assert_eq!(assembled.context_tokens, 32768);
+    assert_eq!(assembled.limit, ai::context_limit(32768));
+    assert_eq!(assembled.problem, None);
+    machine.set_override("local", None, None, Some(8));
+    let conn = ai::task_connection(decls, &machine, questions).unwrap();
+    let assembled = ai::assemble(&loaded, &ir, &sources, questions, None, conn.context_tokens);
+    assert_eq!(assembled.context_tokens, 8);
+    assert!(
+        assembled
+            .problem
+            .as_deref()
+            .unwrap()
+            .contains("入りきりません"),
+        "{:?}",
+        assembled.problem
+    );
+    machine.set_task_connection("concept_questions", None);
+    // 0 は上書きにしない。
+    machine.set_override("local", None, None, Some(0));
+    assert!(!machine.connections.contains_key("local"));
+
+    let keys = MemoryKeys::default();
+    let (statuses, _) = ai::connection_statuses(decls, &machine, &keys);
+    let lan_status = statuses.iter().find(|s| s.name == "lan").unwrap();
+    assert_eq!(lan_status.context_tokens, Some(16384));
+    assert_eq!(lan_status.project_context_tokens, Some(4096));
+    assert_eq!(lan_status.override_context_tokens, Some(16384));
+
+    // 端末の設定のファイルに書いて読み直す。
+    machine.set_task_connection("concept_questions", Some("lan"));
+    let settings_dir = temp_dir("task-connection-machine");
+    let path = settings_dir.join(ai::MACHINE_SETTINGS_FILE);
+    ai::write_machine_settings(&path, &machine).unwrap();
+    let written = fs::read_to_string(&path).unwrap();
+    assert!(written.contains("[tasks.concept_questions]"), "{written}");
+    assert!(written.contains("context_tokens = 16384"), "{written}");
+    assert_eq!(ai::read_machine_settings(&path), (machine, None));
+    let _ = fs::remove_dir_all(&project);
+    let _ = fs::remove_dir_all(&settings_dir);
 }

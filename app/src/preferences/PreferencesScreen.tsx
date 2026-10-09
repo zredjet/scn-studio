@@ -1,11 +1,13 @@
 // 環境設定（左端のバーの「環境設定」。T3-5、D066）：AIの接続先。接続先は作品フォルダの project.toml の
-// [ai.<名前>] に書き、URL とモデルの上書き・クラウドへの送信の許可・キーは、この端末だけの設定にする。
+// [ai.<名前>] に書き、URL・モデル・文脈の長さ（T4-1）の上書き・クラウドへの送信の許可・キーは、この端末だけの
+// 設定にする。
 // キーは入力をコアへ渡すだけで、画面には戻ってこない。
 
 import { useState } from "react";
 import type { AiConnection, AiConnections } from "../core/types.ts";
 import {
   currentTest,
+  parseContextTokens,
   placeLabel,
   readiness,
   replyText,
@@ -22,6 +24,7 @@ interface Props {
     name: string,
     baseUrl: string | null,
     model: string | null,
+    contextTokens: number | null,
   ) => Promise<void>;
   readonly onAllow: (endpoint: string, allowed: boolean) => Promise<void>;
   readonly onSaveKey: (endpoint: string, key: string) => Promise<void>;
@@ -57,9 +60,10 @@ export function PreferencesScreen({
             接続先は、作品フォルダの project.toml の [ai.&lt;名前&gt;]
             に書きます（チームで共有します。AIタスクの model
             はこの名前を指します）。URL
-            とモデルの上書き、クラウドへ送ることの許可は、この端末だけの設定です。キーは
+            とモデルと文脈の長さの上書き、クラウドへ送ることの許可は、この端末だけの設定です。キーは
             OS のキーチェーンに置き、作品フォルダには書きません。既定の接続先は
-            [ai.local] です。
+            [ai.local]
+            です。タスクごとの接続先は、この端末で、AI実行の画面で選べます。
           </p>
         </div>
         {error !== null && <p className="export-warning">{error}</p>}
@@ -127,6 +131,10 @@ function ConnectionCard({
 }) {
   const [url, setUrl] = useState(c.override_base_url ?? "");
   const [model, setModel] = useState(c.override_model ?? "");
+  const [tokens, setTokens] = useState(
+    c.override_context_tokens === null ? "" : String(c.override_context_tokens),
+  );
+  const parsedTokens = parseContextTokens(tokens);
   const [key, setKey] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -139,10 +147,14 @@ function ConnectionCard({
       .catch((e: unknown) => setMessage(String(e)))
       .finally(() => setBusy(false));
   };
-  const overridden = c.override_base_url !== null || c.override_model !== null;
+  const overridden =
+    c.override_base_url !== null ||
+    c.override_model !== null ||
+    c.override_context_tokens !== null;
   const changed =
     url.trim() !== (c.override_base_url ?? "") ||
-    model.trim() !== (c.override_model ?? "");
+    model.trim() !== (c.override_model ?? "") ||
+    parsedTokens !== c.override_context_tokens;
   const startTest = () => {
     setConfirming(false);
     setMessage(null);
@@ -183,6 +195,20 @@ function ConnectionCard({
             </span>
           )}
         </dd>
+        <dt>文脈の長さ</dt>
+        <dd>
+          <code>
+            {c.context_tokens === null
+              ? "（なし）"
+              : `${c.context_tokens.toLocaleString("ja-JP")} トークン`}
+          </code>
+          {c.override_context_tokens !== null && (
+            <span className="ai-note">
+              この端末で上書き（project.toml：
+              {c.project_context_tokens?.toLocaleString("ja-JP") ?? "なし"}）
+            </span>
+          )}
+        </dd>
       </dl>
       {missing !== null && <p className="export-warning">{missing}</p>}
       <fieldset className="ai-override">
@@ -207,11 +233,33 @@ function ConnectionCard({
             onChange={(e) => setModel(e.target.value)}
           />
         </label>
+        <label>
+          <span>文脈の長さ（トークン）</span>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={tokens}
+            placeholder={
+              c.project_context_tokens === null
+                ? "既定"
+                : String(c.project_context_tokens)
+            }
+            spellCheck={false}
+            aria-invalid={parsedTokens === "invalid"}
+            onChange={(e) => setTokens(e.target.value)}
+          />
+        </label>
+        {parsedTokens === "invalid" && (
+          <span className="ai-field-problem">
+            文脈の長さは正の整数で書きます（LM Studio
+            などで読み込んだときの長さ）
+          </span>
+        )}
         <div className="ai-actions">
           <button
             type="button"
             className="small-button"
-            disabled={busy || !changed}
+            disabled={busy || !changed || parsedTokens === "invalid"}
             onClick={() =>
               act(
                 () =>
@@ -219,6 +267,7 @@ function ConnectionCard({
                     c.name,
                     url.trim() === "" ? null : url.trim(),
                     model.trim() === "" ? null : model.trim(),
+                    parsedTokens === "invalid" ? null : parsedTokens,
                   ),
                 "上書きを保存しました",
               )
@@ -234,7 +283,11 @@ function ConnectionCard({
               onClick={() => {
                 setUrl("");
                 setModel("");
-                act(() => onOverride(c.name, null, null), "上書きをやめました");
+                setTokens("");
+                act(
+                  () => onOverride(c.name, null, null, null),
+                  "上書きをやめました",
+                );
               }}
             >
               上書きをやめる
