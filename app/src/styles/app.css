@@ -928,83 +928,107 @@ body {
   color: var(--danger);
 }
 
-/* クイックオープン（Mod-P） */
-.quick-open-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-}
-
-.quick-open-backdrop {
-  position: absolute;
-  inset: 0;
-  border: 0;
-  background: var(--scrim);
-}
-
-.quick-open {
-  position: absolute;
-  top: 72px;
-  left: 50%;
+/* 本文の検索と置換の欄（見本 02b の findbar。CodeMirror の上の欄。T4-20） */
+.findbar {
   display: flex;
   flex-direction: column;
-  width: min(560px, 100% - 32px);
-  max-height: 60vh;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  background: var(--paper);
-  transform: translateX(-50%);
+  gap: 6px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-bg-2);
+  font-family: var(--font-ui);
 }
 
-.quick-open input {
-  margin: 10px;
-  padding: 6px 10px;
-  border: 1px solid var(--border-control);
-  border-radius: var(--r);
-  font: inherit;
-}
-
-.quick-open ul {
-  margin: 0;
-  padding: 0 6px 6px;
-  overflow: auto;
-  list-style: none;
-}
-
-.quick-open-item {
+.findbar-row {
   display: flex;
-  gap: 10px;
-  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.findbar-field {
+  width: 300px;
+}
+
+.findbar-count:empty {
+  display: none;
+}
+
+.findbar-sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 2px;
+  background: var(--border);
+}
+
+.findbar-hint {
+  margin-left: 8px;
+}
+
+/* 探す窓（⌘K・⌘P。見本 12-overlays.html の 2。T4-20） */
+.finder-search {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.finder-search .search {
   width: 100%;
-  padding: 6px 8px;
-  border: 0;
-  border-radius: var(--r-lg);
-  background: transparent;
-  color: var(--ink);
-  font: inherit;
-  text-align: left;
+}
+
+.finder-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.finder-group + .finder-group {
+  margin-top: 2px;
+}
+
+.finder-more {
+  margin-left: 8px;
+  font-weight: 400;
+}
+
+.finder-row {
   cursor: pointer;
 }
 
-.quick-open-item.selected,
-.quick-open-item:hover {
-  background: var(--accent-tint);
+.finder-lead {
+  flex: none;
+  width: 44px;
+  overflow: hidden;
+  color: var(--text-3);
+  text-overflow: ellipsis;
+}
+
+.finder-row.is-active .finder-lead {
   color: var(--accent-strong);
 }
 
-.quick-open-id {
-  width: 56px;
-  flex: none;
-  color: var(--text-3);
-  font-family: var(--font-mono);
-  font-size: var(--fs-small);
+.finder-label {
+  min-width: 0;
 }
 
-.quick-open-file {
+.finder-trail {
+  flex: none;
+  max-width: 45%;
   margin-left: auto;
-  color: var(--text-3);
-  font-size: var(--fs-small);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.finder-empty {
+  padding: 8px 10px;
+}
+
+.finder-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border-soft);
+  background: var(--panel-bg-2);
 }
 
 .welcome {
@@ -3956,55 +3980,17 @@ button.sb-btn:hover {
   font-size: var(--fs-small);
 }
 
-/* ---- マージの画面（T2-7、D058） ---- */
+/* ---- マージ（T2-7、D058。見本 12-overlays.html の 4、幅 960。T4-20） ---- */
 
-.merge-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 20;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 24px;
-  background: var(--scrim);
+.merge-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  font-weight: 600;
 }
 
-.merge-panel {
-  display: flex;
-  flex-direction: column;
-  width: min(960px, 100%);
-  max-height: 100%;
-  min-height: 0;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-lg);
-  background: var(--paper);
-}
-
-.merge-head {
-  padding: 16px 20px 10px;
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.merge-head h2 {
-  margin: 0;
-  font-size: var(--fs-h2);
-}
-
-.merge-note {
-  margin: 6px 0 0;
-  color: var(--text-2);
-  font-size: var(--fs-base);
-  line-height: 1.6;
-}
-
-.merge-body {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 10px;
-  min-height: 0;
-  overflow: auto;
-  padding: 14px 20px;
+.merge-columns > span {
+  padding-left: 12px;
 }
 
 .merge-context {
@@ -4015,25 +4001,15 @@ button.sb-btn:hover {
 
 .merge-lines {
   margin: 0;
-  padding: 6px 10px;
-  border-radius: var(--r);
-  background: var(--panel-bg);
-  color: var(--text-2);
-  font-family: var(--font-mono);
-  font-size: var(--fs-base);
-  line-height: 1.6;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  padding: 6px 12px;
+  overflow-x: auto;
+  border-radius: var(--r-sm);
+  font: 400 var(--fs-small) / 20px var(--font-mono);
+  white-space: pre;
 }
 
-.merge-lines.mine {
-  background: var(--accent-weak);
-  color: var(--ink);
-}
-
-.merge-lines.theirs {
-  background: var(--warn-tint);
-  color: var(--ink);
+.merge-context .merge-lines {
+  color: var(--text-3);
 }
 
 .merge-empty {
@@ -4041,60 +4017,47 @@ button.sb-btn:hover {
 }
 
 .merge-omitted {
-  color: var(--text-3);
-  font-size: var(--fs-small);
+  padding-left: 12px;
 }
 
-.merge-conflict {
+.merge-hunk {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  min-width: 0;
   margin: 0;
-  padding: 10px 12px;
-  border: 1px solid var(--warn-border);
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
   border-radius: var(--r-lg);
-}
-
-.merge-conflict legend {
-  padding: 0 4px;
-  color: var(--warn-strong);
-  font-size: var(--fs-small);
-  font-weight: 600;
 }
 
 .merge-sides {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: 1fr 1fr;
 }
 
-.merge-side-label {
-  display: block;
-  margin-bottom: 4px;
-  color: var(--text-2);
-  font-size: var(--fs-small);
-  font-weight: 600;
+.merge-sides > .merge-lines {
+  min-width: 0;
+  border-radius: 0;
 }
 
-.merge-choices {
+.merge-sides > .merge-lines + .merge-lines {
+  border-left: 1px solid var(--border-soft);
+}
+
+.merge-sides > .merge-lines.is-picked {
+  background: var(--accent-weak);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.merge-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
-  font-size: var(--fs-base);
-}
-
-.merge-choices label {
-  display: inline-flex;
+  gap: 12px;
   align-items: center;
-  gap: 4px;
-}
-
-.merge-foot {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 20px;
+  padding: 6px 12px;
   border-top: 1px solid var(--border-soft);
+  background: var(--panel-bg-2);
 }
 
 .source-note {
@@ -4106,69 +4069,63 @@ button.sb-btn:hover {
   font-size: var(--fs-base);
 }
 
-/* ---- 名前の変更（T2-8、D059） ---- */
+/* ---- 保存していない変更の確認（見本 12-overlays.html の 3。T4-20） ---- */
 
-.rename-dialog {
-  position: relative;
+.dialog-foot > .unsaved-discard {
+  margin-right: auto;
+}
+
+.unsaved-message {
+  margin: 0;
+}
+
+.unsaved-files {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  width: min(520px, calc(100% - 32px));
-  margin: 12vh auto 0;
-  padding: 18px 20px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-lg);
-  background: var(--paper);
-}
-
-.rename-dialog h2 {
+  gap: 2px;
   margin: 0;
-  font-size: var(--fs-h2);
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-small);
 }
 
-.rename-current {
-  margin: 0;
-  color: var(--text-2);
-  font-size: var(--fs-base);
+.unsaved-files > li {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
-.rename-dialog input {
-  min-height: 36px;
-  padding: 0 10px;
-  border: 1px solid var(--border-control);
-  border-radius: var(--r-lg);
-  color: var(--ink);
-  font: inherit;
-  font-size: var(--fs-base);
+/* ---- 書き込む行・変わる場所（名前の変更・スタブ・辺。見本 12-overlays.html の 3。T4-20） ---- */
+
+.write-places {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.rename-preview,
-.rename-problem {
-  margin: 0;
-  font-size: var(--fs-base);
-  line-height: 1.6;
+.write-places > .lbl .hint {
+  margin-left: 8px;
 }
 
-.rename-preview {
-  color: var(--text-2);
-}
-
-.rename-problem {
+.write-problem {
   color: var(--danger);
 }
 
-.rename-notes {
-  margin: 0;
-  padding-left: 18px;
-  color: var(--warn-strong);
-  font-size: var(--fs-small);
-  line-height: 1.6;
+.edge-ends {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
 }
 
-.rename-buttons {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
+.edge-ends > .field {
+  flex: 1;
+  min-width: 0;
+}
+
+.dialog .edge-ends > svg {
+  flex: none;
+  margin-bottom: 8px;
+  color: var(--text-3);
 }
 
 /* 集中モード：ほかのペインを隠す。 */
@@ -4182,24 +4139,6 @@ button.sb-btn:hover {
 /* 明朝とゴシックの切り替え：執筆表示の本文の書体。 */
 .editor-pane.font-gothic {
   --font-text: var(--font-ui);
-}
-
-/* ---- フロー図からの編集（T2-9、D060） ---- */
-
-.flow-edge-kinds {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  font-size: var(--fs-base);
-}
-
-.flow-edge-kinds label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
 /* ---- 変数のフォームと型の編集（T2-10、D061） ---- */

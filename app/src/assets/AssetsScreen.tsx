@@ -56,6 +56,8 @@ interface Props {
   readonly onWritten: (result: CatalogWritten) => void;
   /** 使用箇所へ移る。 */
   readonly onOpenLocation: (file: string, offset: number) => void;
+  /** 選ぶ素材（パレットから。`seq` が変わったら、絞り込みを外して選ぶ。T4-20）。 */
+  readonly request?: { readonly id: string; readonly seq: number } | null;
 }
 
 /** キャラ×差分の表のマスのクラス（見本 v1 の .mx：あり・仮素材は琥珀の点線・未登録は琥珀の実線）。 */
@@ -100,6 +102,7 @@ export function AssetsScreen({
   shown,
   onWritten,
   onOpenLocation,
+  request = null,
 }: Props) {
   const [list, setList] = useState<AssetList | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -145,6 +148,15 @@ export function AssetsScreen({
   const [missingOnly, setMissingOnly] = useState(false);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
+  const requestSeq = request?.seq ?? 0;
+  const requestId = request?.id ?? null;
+  useEffect(() => {
+    if (requestSeq === 0 || requestId === null) return;
+    setTab("all");
+    setMissingOnly(false);
+    setQuery("");
+    setSelected(requestId);
+  }, [requestSeq, requestId]);
 
   useEffect(() => {
     void summary;

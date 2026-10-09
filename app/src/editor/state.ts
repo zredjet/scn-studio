@@ -31,6 +31,7 @@ import {
 import { scn, scnSyntaxHighlighting } from "@scn-studio/lezer-scn";
 import { PositionMap } from "../core/position.ts";
 import type { Bracket, IrDiagnostic, ViewMode } from "../core/types.ts";
+import { createFindPanel } from "./findPanel.ts";
 import { programmatic } from "./flags.ts";
 import { lineIdGuard } from "./lineid.ts";
 import { halfwidthOf } from "./quickfix.ts";
@@ -162,29 +163,12 @@ export const editorThemeSpec = {
     backgroundColor: "var(--accent-tint)",
     color: "var(--accent-strong)",
   },
-  // 検索と置換の欄（T4-14、U9）。基本テーマより詳細度を上げる。
+  // 検索と置換の欄（T4-14、U9。中身は `findPanel.ts` の自前の欄で、見た目は app.css の .findbar。T4-20）。
   "&.cm-editor .cm-panels": {
-    backgroundColor: "var(--panel-bg)",
+    backgroundColor: "var(--panel-bg-2)",
     color: "var(--ink)",
     borderColor: "var(--border)",
     fontFamily: "var(--font-ui)",
-    fontSize: "var(--fs-small)",
-  },
-  "&.cm-editor .cm-panel.cm-search": { padding: "6px 10px" },
-  "&.cm-editor .cm-panel.cm-search label": { fontSize: "var(--fs-small)" },
-  "&.cm-editor .cm-textfield": {
-    border: "1px solid var(--border-control)",
-    borderRadius: "var(--r)",
-    backgroundColor: "var(--paper)",
-    padding: "2px 6px",
-    fontSize: "var(--fs-base)",
-  },
-  "&.cm-editor .cm-button": {
-    border: "1px solid var(--border-control)",
-    borderRadius: "var(--r)",
-    backgroundColor: "var(--paper)",
-    backgroundImage: "none",
-    color: "var(--ink)",
     fontSize: "var(--fs-small)",
   },
   "&.cm-editor .cm-searchMatch": {
@@ -313,7 +297,7 @@ export function createState(
         : view.titlesCompartment.of(sceneTitles.of(view.titles)),
       view?.extra ?? [],
       history(),
-      search({ top: true }),
+      search({ top: true, createPanel: createFindPanel }),
       EditorState.phrases.of(SEARCH_PHRASES),
       drawSelection(),
       highlightActiveLine(),

@@ -275,6 +275,42 @@ pub struct StoryWritten {
     pub text: String,
 }
 
+/// 書き足す前に見せる、書き込む行（スタブを足す・辺を足す。T4-20）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct WritePreview {
+    pub file: String,
+    /// 書き込む最初の行の番号（書き足した後の章で、1から）。
+    pub line: usize,
+    /// 書き込む行（区切りの空行を除く。改行は含めない）。
+    pub lines: Vec<String>,
+}
+
+/// `text` の `start`（バイト位置）に `added` を入れたときの、書き込む行。前後の空行（区切り）は除く。
+pub fn write_preview(file: &str, text: &str, start: usize, added: &str) -> WritePreview {
+    let before = text.get(..start).unwrap_or(text);
+    let mut line = before.bytes().filter(|&b| b == b'\n').count() + 1;
+    let mut lines: Vec<String> = added
+        .split('\n')
+        .map(|l| l.strip_suffix('\r').unwrap_or(l).to_owned())
+        .collect();
+    // 書き足した中身は改行で終わるので、最後の空の要素を除く。
+    if lines.last().is_some_and(String::is_empty) {
+        lines.pop();
+    }
+    while lines.first().is_some_and(|l| l.trim().is_empty()) {
+        lines.remove(0);
+        line += 1;
+    }
+    while lines.last().is_some_and(|l| l.trim().is_empty()) {
+        lines.pop();
+    }
+    WritePreview {
+        file: file.to_owned(),
+        line,
+        lines,
+    }
+}
+
 /// 素材カタログを書いた結果（T2-3、D054）。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -2258,9 +2294,31 @@ impl Workspace {
         })
     }
 
-    /// フロー図で引いた辺を、本文に書き足す（ジャンプか選択肢。[`crate::flowedit`]）。書き足す章に保存していない
-    /// 変更か、まだ取り込んでいない外部の変更があれば断る。
-    pub fn add_edge(&mut self, edge: &FlowEdge) -> Result<StoryWritten, ProjectError> {
+    /// スタブを足すときに書き込む行（書かない。足せなければ、足すときと同じ誤り。T4-20）。
+    pub fn stub_preview(
+        &self,
+        file: &str,
+        id: &str,
+        title: &str,
+        summary: Option<&str>,
+    ) -> Result<WritePreview, ProjectError> {
+        let title = self.check_new_scene(file, id, title)?;
+        let summary = summary.and_then(summary_line);
+        let current = self.text(file).unwrap_or_default();
+        let added = stub_scene(current, &title, id, summary.as_deref());
+        Ok(write_preview(file, current, current.len(), &added))
+    }
+
+    /// 辺を足すときに書き込む行（書かない。足せなければ、足すときと同じ誤り。T4-20）。
+    pub fn edge_preview(&self, edge: &FlowEdge) -> Result<WritePreview, ProjectError> {
+        let insert = self.checked_edge(edge)?;
+        let (start, end) = insert.inserted;
+        let added = insert.text.get(start..end).unwrap_or_default();
+        Ok(write_preview(&insert.file, &insert.text, start, added))
+    }
+
+    /// 辺を書き足した後の章。書き足す章に保存していない変更か、まだ取り込んでいない外部の変更があれば断る。
+    fn checked_edge(&self, edge: &FlowEdge) -> Result<crate::flowedit::FlowInsert, ProjectError> {
         let insert = insert_edge(&self.project, edge).map_err(ProjectError::Refused)?;
         let path = self.root.join(&insert.file);
         if self.is_dirty(&insert.file) || self.pending.contains_key(&insert.file) {
@@ -2270,6 +2328,14 @@ impl Workspace {
                 "この章には保存していない変更があります。保存してから書き足してください",
             ));
         }
+        Ok(insert)
+    }
+
+    /// フロー図で引いた辺を、本文に書き足す（ジャンプか選択肢。[`crate::flowedit`]）。書き足す章に保存していない
+    /// 変更か、まだ取り込んでいない外部の変更があれば断る。
+    pub fn add_edge(&mut self, edge: &FlowEdge) -> Result<StoryWritten, ProjectError> {
+        let insert = self.checked_edge(edge)?;
+        let path = self.root.join(&insert.file);
         match read_disk(&path) {
             Disk::Text(on_disk) if self.disk_text(&insert.file) == Some(on_disk.as_str()) => {}
             _ => {

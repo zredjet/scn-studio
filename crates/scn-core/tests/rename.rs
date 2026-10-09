@@ -219,6 +219,40 @@ fn rename_variable() {
     let _ = fs::remove_dir_all(&root);
 }
 
+/// 変わる場所（T4-20）：置き換えのある行は、置き換える前の本文でその名前を含む行で、重ねずに小さい順。
+#[test]
+fn rename_plan_lines() {
+    let root = copy_sample("houkago", "lines");
+    let ws = Workspace::open(&root).unwrap();
+    let plan = plan_rename(
+        ws.project(),
+        ws.root(),
+        &RenameTarget::Variable {
+            key: "akari.好感度".to_owned(),
+        },
+        "akari.信頼",
+    )
+    .unwrap();
+    assert!(!plan.story.is_empty());
+    for change in &plan.story {
+        let original = &ws
+            .project()
+            .files
+            .iter()
+            .find(|f| f.path == change.file)
+            .unwrap()
+            .text;
+        let rows: Vec<&str> = original.split('\n').collect();
+        assert!(!change.lines.is_empty());
+        assert!(change.lines.windows(2).all(|w| w[0] < w[1]));
+        assert!(change.lines.len() <= change.edits.len());
+        for &line in &change.lines {
+            assert!(rows[line - 1].contains("好感度"), "{}:{line}", change.file);
+        }
+    }
+    let _ = fs::remove_dir_all(&root);
+}
+
 /// エントリのID（キャラクター）：ファイル名、`id`、変数の名前空間、素材カタログ、企画書の主要キャラ。
 #[test]
 fn rename_character_id() {

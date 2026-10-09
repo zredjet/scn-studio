@@ -160,6 +160,8 @@ interface Props {
   } | null;
   /** 検索と置換の欄を開く頼み（見出しの帯の検索のボタン。増えたら開く。T4-18）。 */
   readonly openSearch?: number;
+  /** 保存を頼む（変わったら今のファイルを保存する。保存の確認の「保存する」。T4-20）。 */
+  readonly saveRequest?: number;
 }
 
 /** AIが書いた行が無いとき（毎回新しい Map を作らないため）。 */
@@ -193,6 +195,7 @@ export function Editor({
   aiFindings: aiFindingMap = NO_AI_LINES,
   previewLine: preview = null,
   openSearch = 0,
+  saveRequest = 0,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
@@ -781,6 +784,14 @@ export function Editor({
   }, [focus]);
 
   // 検索と置換の欄を開く（⌘F と同じ）。作り直したとき（作品を開き直したときなど）は、前の頼みでは開かない。
+  // 保存を頼まれた（変換中なら変換が終わってから。`startSave` が待つ）。
+  const saveSeen = useRef(saveRequest);
+  useEffect(() => {
+    if (saveRequest === saveSeen.current) return;
+    saveSeen.current = saveRequest;
+    hooks.current.save();
+  }, [saveRequest]);
+
   const searchSeen = useRef(openSearch);
   useEffect(() => {
     const v = view.current;

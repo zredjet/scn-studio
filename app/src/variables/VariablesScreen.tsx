@@ -124,6 +124,7 @@ export function VariablesScreen({
   const { onSourceUnsaved, guard } = useSourceGuard(
     onUnsaved,
     `${FILE} に保存していない変更があります。捨てて移りますか？`,
+    "variables",
   );
 
   // 読む（開いたとき、設定が外で変わったとき、本文が変わったとき）。

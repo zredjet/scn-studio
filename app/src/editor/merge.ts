@@ -12,6 +12,11 @@ export function defaultChoices(view: MergeView): MergeChoice[] {
   return Array.from({ length: view.conflicts }, () => "both" as const);
 }
 
+/** その側を取るか（両方を残すときは、どちらも取る。選んだ側を藍の薄い面で示すため。T4-20）。 */
+export function picked(choice: MergeChoice, side: "mine" | "theirs"): boolean {
+  return choice === "both" || choice === side;
+}
+
 /** テキストを行に分ける（終わりの改行は行を作らない）。 */
 export function linesOf(text: string): string[] {
   if (text === "") return [];

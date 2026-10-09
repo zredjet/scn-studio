@@ -185,6 +185,7 @@ export function BibleScreen({
   const { onSourceUnsaved, guard } = useSourceGuard(
     onUnsaved,
     "ソース表示に保存していない変更があります。捨てて移りますか？",
+    "bible",
   );
 
   useEffect(() => {

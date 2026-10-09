@@ -1,11 +1,13 @@
-// 名前の変更（F2。T2-8、D059）：シーンID、キャラクターの名前、変数、エントリのID。新しい名前を打つと、変わる
-// ところの数を見積もって見せ、「変える」で作品の全体を置き換える。置き換えはコアが行う（行IDは変えない）。
-// 変換を確定する Enter では変えない。
+// 名前の変更（F2。T2-8、D059。見本 12-overlays.html の 3、T4-20）：シーンID、キャラクターの名前、変数、エントリのID。
+// 新しい名前を打つと、変わる場所（章ごとの行・設定・ファイル名。コアの `rename_preview`）をダイアログの中で見せ、
+// 「Nか所を変える」で作品の全体を置き換える。置き換えはコアが行う（行IDは変えない）。変換を確定する Enter では
+// 変えない。
 
 import { useEffect, useRef, useState } from "react";
 import { renamePreview } from "../core/api.ts";
 import type { RenamePreview, RenameSymbol } from "../core/types.ts";
-import { useOverlay } from "./useOverlay.ts";
+import { Dialog } from "./Overlay.tsx";
+import { renameCount, renamePlaces } from "./writes.ts";
 
 interface Props {
   readonly symbol: RenameSymbol;
@@ -14,25 +16,12 @@ interface Props {
   readonly onClose: () => void;
 }
 
-/** 見積もりの見せ方。 */
-function previewText(preview: RenamePreview): string {
-  const parts = [
-    `本文 ${preview.story_edits}か所（${preview.story.length}ファイル）`,
-  ];
-  if (preview.settings.length > 0)
-    parts.push(`設定 ${preview.settings.length}ファイル`);
-  if (preview.moves.length > 0)
-    parts.push(`ファイル名の変更 ${preview.moves.length}`);
-  return parts.join("・");
-}
-
 export function RenameDialog({ symbol, onApply, onClose }: Props) {
   const [next, setNext] = useState(symbol.current);
   const [preview, setPreview] = useState<RenamePreview | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const input = useRef<HTMLInputElement>(null);
-  const overlay = useOverlay<HTMLDivElement>(onClose);
   useEffect(() => {
     input.current?.focus();
     input.current?.select();
@@ -66,6 +55,7 @@ export function RenameDialog({ symbol, onApply, onClose }: Props) {
   }, [next, symbol]);
 
   const ready = !busy && preview !== null && problem === null;
+  const count = preview === null ? 0 : renameCount(preview);
   const apply = () => {
     if (!ready) return;
     setBusy(true);
@@ -77,30 +67,42 @@ export function RenameDialog({ symbol, onApply, onClose }: Props) {
   };
 
   return (
-    <div className="quick-open-layer">
-      <button
-        type="button"
-        className="quick-open-backdrop"
-        aria-label="閉じる"
-        tabIndex={-1}
-        onClick={onClose}
-      />
-      <div
-        className="rename-dialog"
-        role="dialog"
-        aria-label="名前を変える"
-        ref={overlay.ref}
-        tabIndex={-1}
-        onKeyDown={overlay.onKeyDown}
-      >
-        <h2>{symbol.label}を変える</h2>
-        <p className="rename-current">
-          今の名前：<code>{symbol.current}</code>
-        </p>
+    <Dialog
+      title="名前の変更"
+      onClose={onClose}
+      foot={
+        <>
+          <button type="button" className="btn" onClick={onClose}>
+            キャンセル
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={!ready}
+            onClick={apply}
+          >
+            {preview === null ? "変える" : `${count}か所を変える`}
+          </button>
+        </>
+      }
+    >
+      <div className="field">
+        <span className="lbl">今の名前（{symbol.label}）</span>
+        <input
+          className="input is-readonly mono"
+          value={symbol.current}
+          readOnly
+          aria-label="今の名前"
+        />
+      </div>
+      <div className="field">
+        <span className="lbl">新しい名前</span>
         <input
           ref={input}
+          className="input mono"
           value={next}
           aria-label="新しい名前"
+          aria-invalid={problem !== null}
           spellCheck={false}
           onChange={(event) => setNext(event.target.value)}
           onKeyDown={(event) => {
@@ -112,33 +114,41 @@ export function RenameDialog({ symbol, onApply, onClose }: Props) {
             }
           }}
         />
-        <p className={problem === null ? "rename-preview" : "rename-problem"}>
-          {problem ??
-            (preview === null
-              ? "新しい名前を打ってください。"
-              : `${previewText(preview)}を変えます。行IDは変えません。本文は保存していない変更ごと保存します。`)}
-        </p>
-        {preview !== null && preview.notes.length > 0 && (
-          <ul className="rename-notes">
-            {preview.notes.map((note) => (
-              <li key={note}>{note}</li>
-            ))}
-          </ul>
+        {problem !== null ? (
+          <span className="hint write-problem" role="alert">
+            {problem}
+          </span>
+        ) : preview === null ? (
+          <span className="hint">新しい名前を打ってください。</span>
+        ) : (
+          preview.notes.map((note) => (
+            <span key={note} className="hint">
+              {note}
+            </span>
+          ))
         )}
-        <div className="rename-buttons">
-          <button type="button" className="btn btn-sm" onClick={onClose}>
-            やめる
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={!ready}
-            onClick={apply}
-          >
-            変える
-          </button>
-        </div>
       </div>
-    </div>
+      {preview !== null && (
+        <div className="write-places">
+          <span className="lbl">変わる場所　{count}</span>
+          <div className="table-wrap">
+            <table className="table">
+              <tbody>
+                {renamePlaces(preview).map((row) => (
+                  <tr key={`${row.file}\u0000${row.what}`}>
+                    <td className="mono t-small">{row.file}</td>
+                    <td className="t-small t-2">{row.what}</td>
+                    <td className="num">{row.count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <span className="hint">
+            行IDは変えません。本文は保存していない変更ごと保存します。
+          </span>
+        </div>
+      )}
+    </Dialog>
   );
 }

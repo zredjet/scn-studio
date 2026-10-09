@@ -1973,6 +1973,32 @@ fn add_stub(
     story_written(workspace, &written)
 }
 
+/// スタブを足すときに書き込む行（書かない。足せなければ誤りの文。T4-20）。
+#[tauri::command]
+fn stub_preview(
+    file: String,
+    id: String,
+    title: String,
+    summary: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let preview = workspace
+        .stub_preview(&file, &id, &title, summary.as_deref())
+        .map_err(|e| e.to_string())?;
+    json_response(&to_json(&preview, "書き込む行")?)
+}
+
+/// 辺を足すときに書き込む行（書かない。足せなければ誤りの文。T4-20）。
+#[tauri::command]
+fn flow_edge_preview(edge: FlowEdge, state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let preview = workspace.edge_preview(&edge).map_err(|e| e.to_string())?;
+    json_response(&to_json(&preview, "書き込む行")?)
+}
+
 /// フロー図で引いた辺を、本文に書き足す（ジャンプか選択肢）。
 #[tauri::command]
 fn add_flow_edge(edge: FlowEdge, state: State<'_, AppState>) -> Result<Response, String> {
@@ -2007,10 +2033,17 @@ fn rename_preview(
     let workspace = open_workspace(&mut guard)?;
     let plan = rename::plan_rename(workspace.project(), workspace.root(), &target, &new)?;
     let story: Vec<&str> = plan.story.iter().map(|c| c.file.as_str()).collect();
+    // 変わる場所（ファイルごとの行と数。T4-20）。
+    let places: Vec<_> = plan
+        .story
+        .iter()
+        .map(|c| json!({ "file": c.file, "lines": c.lines, "edits": c.edits.len() }))
+        .collect();
     let settings: Vec<&str> = plan.settings.iter().map(|c| c.file.as_str()).collect();
     json_response(&json!({
         "story_edits": plan.story_edits,
         "story": story,
+        "places": places,
         "settings": settings,
         "moves": plan.moves,
         "notes": plan.notes,
@@ -3718,6 +3751,8 @@ pub fn run() {
             add_flow_edge,
             symbol_at,
             rename_preview,
+            stub_preview,
+            flow_edge_preview,
             apply_rename,
             rename_chapter,
             delete_chapter,

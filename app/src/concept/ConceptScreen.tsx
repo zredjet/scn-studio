@@ -218,6 +218,7 @@ export function ConceptScreen({
   const { onSourceUnsaved, guard } = useSourceGuard(
     onUnsaved,
     `${CONCEPT_FILE} に保存していない変更があります。捨てて移りますか？`,
+    "concept",
   );
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [draft, setDraft] = useState("");

@@ -86,6 +86,7 @@ import type {
   VariablesWritten,
   ViewMode,
   WorkspaceChanged,
+  WritePreview,
 } from "./types.ts";
 
 /** 作品フォルダを開く。ファイルの監視も始まる。 */
@@ -182,6 +183,21 @@ export function addStub(
   summary: string | null,
 ): Promise<StoryWrittenResult> {
   return invoke<StoryWrittenResult>("add_stub", { file, id, title, summary });
+}
+
+/** スタブを足すときに書き込む行（書かない。足せなければ誤りの文で失敗する。T4-20）。 */
+export function stubPreview(
+  file: string,
+  id: string,
+  title: string,
+  summary: string | null,
+): Promise<WritePreview> {
+  return invoke<WritePreview>("stub_preview", { file, id, title, summary });
+}
+
+/** 辺を足すときに書き込む行（書かない。足せなければ誤りの文で失敗する。T4-20）。 */
+export function flowEdgePreview(edge: FlowEdge): Promise<WritePreview> {
+  return invoke<WritePreview>("flow_edge_preview", { edge });
 }
 
 /** フロー図で引いた辺を、本文に書き足す（ジャンプか選択肢）。 */

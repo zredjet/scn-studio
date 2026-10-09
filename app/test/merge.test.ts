@@ -9,6 +9,7 @@ import {
   defaultChoices,
   hasMergeMarkers,
   linesOf,
+  picked,
   rememberBase,
 } from "../src/editor/merge.ts";
 
@@ -80,4 +81,12 @@ test("マージの元は、最初に覚えたものを残す（読み込み直�
   bases.delete("a.scn");
   rememberBase(bases, "a.scn", "C");
   assert.equal(bases.get("a.scn"), "C");
+});
+
+test("選んだ側（両方を残すときは両側）", () => {
+  assert.equal(picked("mine", "mine"), true);
+  assert.equal(picked("mine", "theirs"), false);
+  assert.equal(picked("theirs", "theirs"), true);
+  assert.equal(picked("both", "mine"), true);
+  assert.equal(picked("both", "theirs"), true);
 });

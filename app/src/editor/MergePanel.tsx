@@ -1,20 +1,22 @@
-// マージの画面（T2-7、D058）：保存していない変更があるのに外で変わったファイルを、元・自分・外の3方向で
-// マージする。ぶつかりごとに「自分」「外」「両方（外の行はコメントにして残す）」を選ぶ。まとまった部分は、
-// ぶつかりの前後の数行だけを見せる。マージそのものと選んだ結果の組み立てはコアが行う。結果は保存していない
+// マージの画面（T2-7、D058。見本 12-overlays.html の 4、T4-20）：保存していない変更があるのに外で変わったファイルを、
+// 元・自分・外の3方向でマージする。重なった所ごとに、左（このアプリ）と右（外）を並べ、「このアプリ」「外」
+// 「両方（外の行はコメントにして残す）」を選ぶ。選んだ側は藍の薄い面と言葉で示す（赤と緑は使わない）。重ならない
+// 部分は、重なりの前後の数行だけを見せる。マージそのものと選んだ結果の組み立てはコアが行う。結果は保存していない
 // 変更として開く（保存すると行IDを付けて書く）。
 
 import { useState } from "react";
 import type { MergeChoice, MergeView } from "../core/types.ts";
-import { useOverlay } from "../shell/useOverlay.ts";
-import { contextOf, defaultChoices, linesOf } from "./merge.ts";
+import { Icon } from "../shell/icons.tsx";
+import { Dialog } from "../shell/Overlay.tsx";
+import { contextOf, defaultChoices, linesOf, picked } from "./merge.ts";
 
 /** ぶつかりの前後に見せる行の数。 */
 const CONTEXT_LINES = 2;
 
 const CHOICES: readonly { value: MergeChoice; label: string }[] = [
-  { value: "mine", label: "自分の変更" },
-  { value: "theirs", label: "外の変更" },
-  { value: "both", label: "両方（外の行はコメントにして残す）" },
+  { value: "mine", label: "このアプリ" },
+  { value: "theirs", label: "外" },
+  { value: "both", label: "両方を残す（外の行はコメントに）" },
 ];
 
 interface Props {
@@ -48,105 +50,29 @@ export function MergePanel({ file, view, onApply, onCancel }: Props) {
     defaultChoices(view),
   );
   const [busy, setBusy] = useState(false);
-  // Esc は「やめる」と同じ（T4-14、U12）。開いたら枠にフォーカスを入れる（Esc が届くように）。
-  const overlay = useOverlay<HTMLElement>(onCancel);
   let conflictIndex = -1;
   return (
-    <div className="merge-overlay">
-      <section
-        ref={overlay.ref}
-        className="merge-panel"
-        aria-label={`${file} のマージ`}
-        tabIndex={-1}
-        onKeyDown={overlay.onKeyDown}
-      >
-        <header className="merge-head">
-          <div>
-            <h2>マージ：{file}</h2>
-            <p className="merge-note">
-              {view.conflicts === 0
-                ? "ぶつかりはありません。自分の変更と外の変更を両方取り込みます。"
-                : `ぶつかり ${view.conflicts} か所。それぞれ、どちらを取るかを選んでください。`}
-              マージした結果は、保存していない変更として開きます（保存すると書きます）。行IDは変えません。
-              @raw
-              のブロックの中のぶつかりは、両方を選ぶと印のコメントが生コードになるので、自分か外を選んでください。
-            </p>
-          </div>
-        </header>
-        <div className="merge-body">
-          {view.hunks.map((hunk, index) => {
-            if (hunk.kind === "merged") {
-              const before = index > 0;
-              const after = index < view.hunks.length - 1;
-              const context = contextOf(
-                hunk.text,
-                before,
-                after,
-                CONTEXT_LINES,
-              );
-              return (
-                // まとまった部分は並びが変わらないので、位置で見分けてよい。
-                // biome-ignore lint/suspicious/noArrayIndexKey: マージの結果は並べ替えない
-                <div key={index} className="merge-context">
-                  {context.head.length > 0 && (
-                    <pre className="merge-lines">{context.head.join("\n")}</pre>
-                  )}
-                  {context.omitted > 0 && (
-                    <span className="merge-omitted">
-                      … {context.omitted}行（変わらないか、片方だけの変更）…
-                    </span>
-                  )}
-                  {context.tail.length > 0 && (
-                    <pre className="merge-lines">{context.tail.join("\n")}</pre>
-                  )}
-                </div>
-              );
-            }
-            conflictIndex += 1;
-            const at = conflictIndex;
-            return (
-              <fieldset
-                // biome-ignore lint/suspicious/noArrayIndexKey: マージの結果は並べ替えない
-                key={index}
-                className="merge-conflict"
-                aria-label={`ぶつかり ${at + 1}`}
-              >
-                <legend>ぶつかり {at + 1}</legend>
-                <div className="merge-sides">
-                  <div>
-                    <span className="merge-side-label">自分の変更</span>
-                    <Lines text={hunk.mine} className="merge-lines mine" />
-                  </div>
-                  <div>
-                    <span className="merge-side-label">外の変更</span>
-                    <Lines text={hunk.theirs} className="merge-lines theirs" />
-                  </div>
-                </div>
-                <div className="merge-choices">
-                  {CHOICES.map((choice) => (
-                    <label key={choice.value}>
-                      <input
-                        type="radio"
-                        name={`merge-${at}`}
-                        value={choice.value}
-                        checked={choices[at] === choice.value}
-                        onChange={() =>
-                          setChoices((list) =>
-                            list.map((c, i) => (i === at ? choice.value : c)),
-                          )
-                        }
-                      />
-                      {choice.label}
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-            );
-          })}
-        </div>
-        <footer className="merge-foot">
-          <button type="button" className="btn btn-sm" onClick={onCancel}>
-            やめる
+    <Dialog
+      width={960}
+      label={`${file} のマージ`}
+      title={`${file.replace(/^story\//, "")} が外で変わりました`}
+      // Esc は「あとで決める」と同じ（T4-14、U12）。
+      onClose={onCancel}
+      closable={false}
+      head={
+        view.conflicts > 0 ? (
+          <span className="tag tag-warn">
+            <Icon name="warning" size={11} stroke={2} />
+            重なり {view.conflicts}か所
+          </span>
+        ) : (
+          <span className="tag">重なりなし</span>
+        )
+      }
+      foot={
+        <>
+          <button type="button" className="btn" onClick={onCancel}>
+            あとで決める
           </button>
           <button
             type="button"
@@ -157,10 +83,93 @@ export function MergePanel({ file, view, onApply, onCancel }: Props) {
               void onApply(choices).finally(() => setBusy(false));
             }}
           >
-            マージする
+            選んだ内容で取り込む
           </button>
-        </footer>
-      </section>
-    </div>
+        </>
+      }
+    >
+      <div className="merge-columns t-small t-2">
+        <span>このアプリの変更</span>
+        <span>外の変更</span>
+      </div>
+      {view.hunks.map((hunk, index) => {
+        if (hunk.kind === "merged") {
+          const before = index > 0;
+          const after = index < view.hunks.length - 1;
+          const context = contextOf(hunk.text, before, after, CONTEXT_LINES);
+          return (
+            // まとまった部分は並びが変わらないので、位置で見分けてよい。
+            // biome-ignore lint/suspicious/noArrayIndexKey: マージの結果は並べ替えない
+            <div key={index} className="merge-context">
+              {context.head.length > 0 && (
+                <pre className="merge-lines">{context.head.join("\n")}</pre>
+              )}
+              {context.omitted > 0 && (
+                <span className="merge-omitted t-caption t-3">
+                  … {context.omitted}行（変わらないか、片方だけの変更）…
+                </span>
+              )}
+              {context.tail.length > 0 && (
+                <pre className="merge-lines">{context.tail.join("\n")}</pre>
+              )}
+            </div>
+          );
+        }
+        conflictIndex += 1;
+        const at = conflictIndex;
+        const choice = choices[at] ?? "both";
+        return (
+          <fieldset
+            // biome-ignore lint/suspicious/noArrayIndexKey: マージの結果は並べ替えない
+            key={index}
+            className="merge-hunk"
+            aria-label={`重なり ${at + 1}`}
+          >
+            <div className="merge-sides">
+              <Lines
+                text={hunk.mine}
+                className={
+                  picked(choice, "mine")
+                    ? "merge-lines is-picked"
+                    : "merge-lines"
+                }
+              />
+              <Lines
+                text={hunk.theirs}
+                className={
+                  picked(choice, "theirs")
+                    ? "merge-lines is-picked"
+                    : "merge-lines"
+                }
+              />
+            </div>
+            <div className="merge-bar">
+              <span className="t-caption t-3">重なり {at + 1}</span>
+              <span className="grow" />
+              {CHOICES.map((c) => (
+                <label key={c.value} className="check">
+                  <input
+                    type="radio"
+                    name={`merge-${at}`}
+                    value={c.value}
+                    checked={choice === c.value}
+                    onChange={() =>
+                      setChoices((list) =>
+                        list.map((x, i) => (i === at ? c.value : x)),
+                      )
+                    }
+                  />
+                  {c.label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        );
+      })}
+      <span className="hint">
+        重ならない変更は、そのまま取り込みます。取り込んだ結果は保存していない変更として開き、保存すると書きます。行IDは変えません。@raw
+        のブロックの中の重なりは、両方を残すと印のコメントが生コードになるので、どちらかを選んでください。
+      </span>
+    </Dialog>
   );
 }

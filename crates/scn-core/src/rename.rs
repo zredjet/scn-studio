@@ -74,6 +74,8 @@ pub struct StoryChange {
     pub file: String,
     pub edits: Vec<TextEdit>,
     pub text: String,
+    /// 置き換える前の本文で、置き換えのある行（1から、重ねずに小さい順。変わる場所を見せるため。T4-20）。
+    pub lines: Vec<usize>,
 }
 
 /// 設定ファイルの書き換え。`text` は書き換えた後の中身。
@@ -110,6 +112,23 @@ pub struct RenamePlan {
     pub story_edits: usize,
     /// 知らせ（変えないもの、変わってしまうもの）。
     pub notes: Vec<String>,
+}
+
+/// 置き換えのある行（1から、重ねずに小さい順）。位置はバイトで、改行（`\n`）を数える。
+fn edit_lines(text: &str, edits: &[TextEdit]) -> Vec<usize> {
+    let mut lines: Vec<usize> = edits
+        .iter()
+        .map(|e| {
+            let before = text
+                .as_bytes()
+                .get(..e.span.start)
+                .unwrap_or(text.as_bytes());
+            before.iter().filter(|&&b| b == b'\n').count() + 1
+        })
+        .collect();
+    lines.sort_unstable();
+    lines.dedup();
+    lines
 }
 
 /// 本文の名前の現れから、置き換えを作る。
@@ -1058,6 +1077,7 @@ pub fn plan_rename(
         story.push(StoryChange {
             file: file.clone(),
             text: apply_edits(text, &edits),
+            lines: edit_lines(text, &edits),
             edits,
         });
     }

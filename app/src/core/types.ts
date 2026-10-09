@@ -1442,10 +1442,19 @@ export interface RenameSymbol {
 export interface RenamePreview {
   readonly story_edits: number;
   readonly story: readonly string[];
+  /** 変わる場所（章ごとの行と、置き換えの数。T4-20）。 */
+  readonly places: readonly RenamePlace[];
   readonly settings: readonly string[];
   readonly moves: readonly { readonly from: string; readonly to: string }[];
   /** 知らせ（変えないもの、変わってしまうもの）。 */
   readonly notes: readonly string[];
+}
+
+/** 名前の変更で変わる本文の場所（コアの `rename::StoryChange` の `lines`）。 */
+export interface RenamePlace {
+  readonly file: string;
+  readonly lines: readonly number[];
+  readonly edits: number;
 }
 
 /** 名前を変えた後に受け取るもの（設定DBを書いた後と同じ形）。 */
@@ -1478,6 +1487,14 @@ export type FlowEdge =
       readonly to: string;
       readonly label: string;
     };
+
+/** 書き足す前に見せる、書き込む行（コアの `workspace::WritePreview`。T4-20）。 */
+export interface WritePreview {
+  readonly file: string;
+  /** 書き込む最初の行の番号（書き足した後の章で、1から）。 */
+  readonly line: number;
+  readonly lines: readonly string[];
+}
 
 /** 本文に書き足した結果（章と、表示に要る分）。 */
 export interface StoryWrittenResult {

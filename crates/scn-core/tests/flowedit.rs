@@ -203,6 +203,43 @@ fn add_stub_and_dirty() {
     let _ = fs::remove_dir_all(&root);
 }
 
+/// 書き込む行の見せ方（T4-20）：足す前に、足すときと同じ中身と行番号を返し、書かない。足せないときは同じ誤り。
+#[test]
+fn write_previews() {
+    let story = "## a #s1\n　a。 ^aaaa\n## b #s2\n　b。 ^bbbb\n";
+    let root = temp_project("preview", story);
+    let mut ws = Workspace::open(&root).unwrap();
+    let stub = ws
+        .stub_preview("story/a.scn", "s3", "雨の日", Some("二人が会う"))
+        .unwrap();
+    assert_eq!(stub.file, "story/a.scn");
+    // 区切りの空行（5行目）を除き、6行目から。
+    assert_eq!(stub.line, 6);
+    assert_eq!(
+        stub.lines,
+        ["## 雨の日 #s3", "---", "summary: 二人が会う", "---"]
+    );
+    let edge = FlowEdge::Jump {
+        from: "s1".to_owned(),
+        to: "s2".to_owned(),
+    };
+    let jump = ws.edge_preview(&edge).unwrap();
+    assert_eq!(
+        (jump.line, jump.lines.clone()),
+        (3, vec!["-> s2".to_owned()])
+    );
+    // 見せただけでは書かない。足すと、見せた行が見せた場所に入る。
+    assert_eq!(ws.project().files[0].text, story);
+    let written = ws.add_edge(&edge).unwrap();
+    assert_eq!(written.text.lines().nth(jump.line - 1), Some("-> s2"));
+    // 足せないもの（使われているID、保存していない変更のある章）は、足すときと同じに断る。
+    assert!(ws.stub_preview("story/a.scn", "s1", "題", None).is_err());
+    assert!(ws.set_buffer("story/a.scn", &format!("{}x", written.text)));
+    assert!(ws.stub_preview("story/a.scn", "s9", "題", None).is_err());
+    assert!(ws.edge_preview(&edge).is_err());
+    let _ = fs::remove_dir_all(&root);
+}
+
 /// 終わりの改行の無い章のシーンにジャンプを足す。
 #[test]
 fn add_jump_without_final_newline() {
