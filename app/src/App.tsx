@@ -3173,6 +3173,7 @@ export function App() {
       label: `画面：${label}`,
       keywords,
       keys: keyForScreen(target) ?? undefined,
+      target,
       run: () => selectScreen(target),
     });
     const toggle = (
@@ -3186,6 +3187,7 @@ export function App() {
       label: `${label}（${viewPrefs[key] ? "やめる" : "始める"}）`,
       keywords,
       keys,
+      screens: ["text"],
       run: () => updateViewPrefs((p) => ({ ...p, [key]: !p[key] })),
     });
     const list: Command[] = [
@@ -3212,6 +3214,9 @@ export function App() {
         keywords: "play preview",
         run: () => sendPreview((seq) => ({ seq, kind: "start" })),
       },
+    ];
+    // 表示の切り替え（本文の画面で、書く操作の後に並べる）。
+    const view: Command[] = [
       toggle("focus", "集中モード", "focus", "focus zen", "Mod-Shift-F"),
       toggle(
         "typewriter",
@@ -3225,50 +3230,55 @@ export function App() {
           ? "本文の書体：明朝にする"
           : "本文の書体：ゴシックにする",
         keywords: "font mincho gothic 明朝 ゴシック",
+        screens: ["text"],
         run: () => updateViewPrefs((p) => ({ ...p, gothic: !p.gothic })),
       },
     ];
     const file = currentFile;
-    if (file !== null) {
-      list.push(
-        {
-          id: "play-here",
-          label: "ここから再生",
-          keywords: "play here",
-          keys: "F5",
-          run: () => playAtCursor(),
+    if (file === null) return [...list, ...view];
+    return [
+      ...list,
+      {
+        id: "play-here",
+        label: "ここから再生",
+        keywords: "play here",
+        keys: "F5",
+        screens: ["text"],
+        run: () => playAtCursor(),
+      },
+      {
+        id: "rename",
+        label: "名前を変える（カーソルのところ）",
+        keywords: "rename F2",
+        keys: "F2",
+        screens: ["text"],
+        run: () => {
+          const cursor = lastCursor.current;
+          const text = buffers.current.get(file);
+          if (text === undefined) return;
+          void onRename(
+            file,
+            cursor !== null && cursor.file === file ? cursor.offset : 0,
+            text,
+          );
         },
-        {
-          id: "rename",
-          label: "名前を変える（カーソルのところ）",
-          keywords: "rename F2",
-          keys: "F2",
-          run: () => {
-            const cursor = lastCursor.current;
-            const text = buffers.current.get(file);
-            if (text === undefined) return;
-            void onRename(
-              file,
-              cursor !== null && cursor.file === file ? cursor.offset : 0,
-              text,
-            );
-          },
-        },
-        {
-          id: "toggle-view",
-          label: "執筆表示とソース表示を切り替える",
-          keywords: "view writing source",
-          run: () => toggleMode(file),
-        },
-        {
-          id: "delete-chapter",
-          label: `章を削除（${file}）`,
-          keywords: "delete chapter",
-          run: () => void onDeleteChapter(file),
-        },
-      );
-    }
-    return list;
+      },
+      {
+        id: "toggle-view",
+        label: "執筆表示とソース表示を切り替える",
+        keywords: "view writing source",
+        screens: ["text"],
+        run: () => toggleMode(file),
+      },
+      ...view,
+      {
+        id: "delete-chapter",
+        label: `章を削除（${file}）`,
+        keywords: "delete chapter",
+        screens: ["text"],
+        run: () => void onDeleteChapter(file),
+      },
+    ];
   }, [
     viewPrefs,
     currentFile,
@@ -4143,6 +4153,7 @@ export function App() {
           {palette && project !== null && (
             <CommandPalette
               commands={commands}
+              screen={screen}
               scenes={project.summary.scenes}
               onOpen={openFound}
               onClose={() => setPalette(false)}

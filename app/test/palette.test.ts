@@ -11,6 +11,7 @@ import {
   entryItems,
   FIND_LIMIT,
   findGroups,
+  paletteCommands,
   sceneItems,
 } from "../src/shell/palette.ts";
 
@@ -141,4 +142,39 @@ test("`>` で始めるとコマンドだけ。何も打っていなければコ�
     [["コマンド", 2]],
   );
   assert.equal(findGroups(items, "> ")[0]?.items.length, 2);
+});
+
+test("何も打っていないときは、今の画面のコマンドを先に、今いる画面への移動は出さない（T4-21）", () => {
+  const run = () => {};
+  const list: Command[] = [
+    { id: "screen-concept", label: "画面：企画", target: "concept", run },
+    { id: "screen-text", label: "画面：本文", target: "text", run },
+    { id: "screen-flow", label: "画面：フロー", target: "flow", run },
+    { id: "play", label: "再生", run },
+    { id: "play-here", label: "ここから再生", screens: ["text"], run },
+    { id: "rename", label: "名前を変える", screens: ["text"], run },
+  ];
+  const ids = (screen: string, query: string) =>
+    paletteCommands(list, screen, query).map((c) => c.id);
+  assert.deepEqual(ids("text", ""), [
+    "play-here",
+    "rename",
+    "screen-concept",
+    "screen-flow",
+    "play",
+  ]);
+  assert.deepEqual(ids("text", ">"), ids("text", ""));
+  // ほかの画面では、その画面への移動だけを除く。
+  assert.deepEqual(ids("flow", "  "), [
+    "screen-concept",
+    "screen-text",
+    "play",
+    "play-here",
+    "rename",
+  ]);
+  // 打ったら、すべてを決まった並びで（今いる画面への移動も探せる）。
+  assert.deepEqual(
+    ids("text", "本文"),
+    list.map((c) => c.id),
+  );
 });

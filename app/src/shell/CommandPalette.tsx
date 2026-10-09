@@ -18,11 +18,14 @@ import {
   findGroups,
   IS_MAC,
   keyLabel,
+  paletteCommands,
   sceneItems,
 } from "./palette.ts";
 
 interface Props {
   readonly commands: readonly Command[];
+  /** 今の画面（何も打っていないとき、その画面のコマンドを先に並べる。T4-21）。 */
+  readonly screen: string;
   readonly scenes: readonly SceneSummary[];
   /** 選んだものを開く（コマンドは実行する）。 */
   readonly onOpen: (target: FindTarget) => void;
@@ -31,7 +34,13 @@ interface Props {
 
 const TAG_CLASS = { ai: "tag tag-ai", ph: "tag tag-ph", warn: "tag tag-warn" };
 
-export function CommandPalette({ commands, scenes, onOpen, onClose }: Props) {
+export function CommandPalette({
+  commands,
+  screen,
+  scenes,
+  onOpen,
+  onClose,
+}: Props) {
   const [query, setQuery] = useState("");
   const [index, setIndex] = useState(0);
   const [loaded, setLoaded] = useState<readonly FindItem[]>([]);
@@ -58,10 +67,14 @@ export function CommandPalette({ commands, scenes, onOpen, onClose }: Props) {
   const groups = useMemo(
     () =>
       findGroups(
-        [...sceneItems(scenes), ...loaded, ...commandItems(commands, IS_MAC)],
+        [
+          ...sceneItems(scenes),
+          ...loaded,
+          ...commandItems(paletteCommands(commands, screen, query), IS_MAC),
+        ],
         query,
       ),
-    [scenes, loaded, commands, query],
+    [scenes, loaded, commands, screen, query],
   );
   const flat = groups.flatMap((g) => g.items);
   const current = Math.min(index, Math.max(flat.length - 1, 0));
@@ -118,6 +131,7 @@ export function CommandPalette({ commands, scenes, onOpen, onClose }: Props) {
                   key={item.key}
                   item={item}
                   active={i === current}
+                  onHover={() => setIndex(i)}
                   onClick={() => open(item)}
                 />
               );
@@ -144,10 +158,13 @@ export function CommandPalette({ commands, scenes, onOpen, onClose }: Props) {
 export function FinderRow({
   item,
   active,
+  onHover,
   onClick,
 }: {
   readonly item: FindItem;
   readonly active: boolean;
+  /** マウスを載せた（選ぶ行を移す。選ぶ行とマウスの行の2つが光らないように。T4-21）。 */
+  readonly onHover: () => void;
   readonly onClick: () => void;
 }) {
   return (
@@ -157,6 +174,7 @@ export function FinderRow({
         active ? "menu-item finder-row is-active" : "menu-item finder-row"
       }
       aria-current={active ? "true" : undefined}
+      onMouseMove={active ? undefined : onHover}
       onClick={onClick}
     >
       {item.mark !== null && <SceneMarkView mark={item.mark} />}

@@ -81,6 +81,7 @@ export function QuickOpen({ scenes, onSelect, onClose }: Props) {
             key={item.key}
             item={{ ...item, tag: null }}
             active={i === current}
+            onHover={() => setIndex(i)}
             onClick={() => pick(i)}
           />
         ))}

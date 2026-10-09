@@ -19,7 +19,13 @@ function Marks({ data }: { readonly data: FlowNodeData }) {
   return (
     <span className="flow-marks">
       {data.start && <span className="flow-mark start">開始</span>}
-      {data.ending && <span className="flow-mark ending">エンディング</span>}
+      {/* 見本 03 のとおり短く（ノードの幅に収める。T4-21）。 */}
+      {data.ending && (
+        <span className="flow-mark ending" title="エンディング">
+          <span aria-hidden="true">エンド</span>
+          <span className="sr-only">エンディング</span>
+        </span>
+      )}
     </span>
   );
 }
@@ -34,7 +40,7 @@ export function SceneNode({ data }: NodeProps) {
       <Handle type="target" position={Position.Left} />
       <span className="flow-node-head">
         {d.mark !== undefined && <SceneMarkView mark={d.mark} />}
-        {d.head}
+        <span className="flow-node-id">{d.head}</span>
         <Marks data={d} />
       </span>
       <b className="flow-node-title">{d.title}</b>
@@ -50,7 +56,7 @@ export function GroupNode({ data }: NodeProps) {
     <div className={classes(d, "flow-node flow-group")}>
       <Handle type="target" position={Position.Left} />
       <span className="flow-node-head">
-        {d.head}
+        <span className="flow-node-id">{d.head}</span>
         <Marks data={d} />
       </span>
       <b className="flow-node-title">{d.title}</b>

@@ -15,6 +15,10 @@ export interface Command {
   readonly keywords?: string;
   /** キー（見せるだけ）。 */
   readonly keys?: string;
+  /** そのコマンドを主に使う画面（何も打っていないとき、その画面では先に並べる。T4-21）。 */
+  readonly screens?: readonly string[];
+  /** 移る先の画面（画面を移るコマンド。何も打っていないとき、今いる画面へは出さない。T4-21）。 */
+  readonly target?: string;
   readonly run: () => void;
 }
 
@@ -31,6 +35,24 @@ export function filterCommands(
     const hay = `${c.label} ${c.keywords ?? ""}`.toLowerCase();
     return words.every((w) => hay.includes(w));
   });
+}
+
+/**
+ * パレットに出すコマンドの並び（T4-21）。何も打っていない（`>` だけを含む）ときは、今の画面で使うコマンドを先に
+ * （それぞれの並びは変えない）、今いる画面へ移るコマンドは出さない。打ったら、すべてを決まった並びで。
+ */
+export function paletteCommands(
+  commands: readonly Command[],
+  screen: string,
+  query: string,
+): Command[] {
+  const typed = query.trim().replace(/^>/, "").trim() !== "";
+  if (typed) return [...commands];
+  const shown = commands.filter((c) => c.target !== screen);
+  return [
+    ...shown.filter((c) => c.screens?.includes(screen) === true),
+    ...shown.filter((c) => c.screens?.includes(screen) !== true),
+  ];
 }
 
 /** この端末が macOS か（キーの書き方を ⌘ にする）。 */

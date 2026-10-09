@@ -994,6 +994,12 @@ body {
   cursor: pointer;
 }
 
+/* 光らせるのは選んでいる行だけ（マウスを動かすと選ぶ行が移る。T4-21）。 */
+.finder-row:hover:not(.is-active) {
+  background: transparent;
+  color: var(--ink);
+}
+
 .finder-lead {
   flex: none;
   width: 44px;
@@ -1727,9 +1733,19 @@ body {
   display: flex;
   gap: 4px;
   align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
   color: var(--text-3);
   font-family: var(--font-mono);
   font-size: var(--fs-caption);
+}
+
+/* 長いID（仮のID `_anon_…` など）は「…」で縮め、印は縮めない（T4-21）。 */
+.flow-node-id {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .flow-node-title {
@@ -1789,6 +1805,7 @@ body {
 
 .flow-marks {
   display: inline-flex;
+  flex: none;
   gap: 4px;
   margin-left: auto;
 }

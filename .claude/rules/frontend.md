@@ -106,7 +106,7 @@ paths:
 - 集中モードで左端のバーを隠すのは本文の画面だけ。プレビュー中は左端のバーで本文を選んだ形にする（T4-13、U16）。
 - 集中モード・タイプライタースクロール・書体は、この端末の localStorage に覚える（読めなくても表示は動く）。タイプライタースクロールは `editor/typewriter.ts`（変換中は動かさない）。
 - パレットの絞り込み、W406 の直し方、ルートの文字数の見せ方は `shell/palette.ts`・`editor/quickfix.ts`・`shell/scene.ts` に置き、テストを付ける（`app/test/editor-tools.test.ts`）。
-- コマンドパレット（⌘K）はコマンドに加えて、シーン・設定DBのエントリ（`readBible`）・素材（`assetList`）を種類ごとに探す（各5件まで、`>` で始めるとコマンドだけ、何も打っていなければコマンドだけ）。探し方は `palette.ts` の `findGroups`・`sceneItems` など（テストは `app/test/palette.test.ts`）。開くのは App の `openFound`（画面を移るものは `leaveSettings` を通す。素材は素材の画面の `request`）。T4-20。
+- コマンドパレット（⌘K）はコマンドに加えて、シーン・設定DBのエントリ（`readBible`）・素材（`assetList`）を種類ごとに探す（各5件まで、`>` で始めるとコマンドだけ、何も打っていなければコマンドだけ）。探し方は `palette.ts` の `findGroups`・`sceneItems` など（テストは `app/test/palette.test.ts`）。何も打っていないときは、今の画面で使うコマンド（`Command` の `screens`）を先に並べ、今いる画面へ移るコマンド（`target`）は出さない（`paletteCommands`。T4-21）。探す窓は選んでいる行だけを光らせ、マウスを動かすと選ぶ行が移る。開くのは App の `openFound`（画面を移るものは `leaveSettings` を通す。素材は素材の画面の `request`）。T4-20。
 - 名前の変更・スタブを足す・辺を足すは、書き込む行（変わる場所）をコアに聞いて（`rename_preview` の `places`、`stub_preview`・`flow_edge_preview`。足すときと同じ中身）ダイアログの中で見せてから行う。文にするのは `shell/writes.ts`（テストは `app/test/writes.test.ts`）。T4-20。
 - 保存していない変更の確認は、OS の確認でなく App の `UnsavedDialog`（保存しない・キャンセル・保存する。判断は `shell/unsaved.ts`、テストは `app/test/unsaved.test.ts`）。作品を閉じる・切り替える・アプリを終えるときは「保存する」で本文を保存してから続ける（エディタで開いている章は `saveRequest` でエディタに保存させ、ほかの章は `onSave`）。ソース表示の書きかけはその画面でしか保存できないので、あれば「保存する」を出さない。ソース表示から移るとき（`leaveSettings`・`useSourceGuard`）も同じダイアログで、保存しない・キャンセルだけ（画面からは `UnsavedContext` の `useAskUnsaved`）。T4-20。
 
