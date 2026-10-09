@@ -96,7 +96,10 @@ fn fake(dir: &Path) {
     };
     match mode.trim() {
         "stream" => {
-            line(r#"{"type":"system","subtype":"init","model":"m"}"#);
+            // 実際の CLI（--safe-mode）の始まりの行と同じく、ツールと MCP は空で、組み込みのプラグインは並ぶ。
+            line(
+                r#"{"type":"system","subtype":"init","model":"m","tools":[],"mcp_servers":[],"plugins":[{"name":"cc-plugin-telemetry","path":"builtin"},{"name":"rust-analyzer-lsp","path":"/p"}]}"#,
+            );
             line(
                 r#"{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"考え中"}}}"#,
             );
@@ -381,6 +384,16 @@ fn preview_and_machine_settings(cli: &Path) {
     assert!(preview.contains("--tools \"\""), "{preview}");
     assert!(preview.contains("指示の文。") && preview.contains("「はい」とだけ"));
     assert!(!preview.contains("x-api-key"));
+    // `/` で始まる依頼は、スラッシュコマンドとして読まれないよう見出しを前に置く。
+    let slash = ChatRequest {
+        messages: vec![ChatMessage {
+            role: Role::User,
+            content: "/login して".to_owned(),
+        }],
+        ..request()
+    };
+    assert_eq!(ai::cli_prompt(&slash), "依頼：\n/login して");
+    assert_eq!(ai::cli_prompt(&request()), "「はい」とだけ答えてください。");
 
     // 端末の設定：呼び方と CLI の場所は Messages API の接続先だけに効き、ほかの上書きを変えても残る。
     let decl = scn_core::project::AiConnectionDecl {

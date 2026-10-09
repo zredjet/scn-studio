@@ -185,7 +185,7 @@ pub fn cli_args(model: &str) -> Vec<String> {
 
 /// 標準入力で渡す依頼（発言が1つならそのまま。前の返事があれば印を付けてつなぐ）。
 pub fn cli_prompt(request: &ChatRequest) -> String {
-    match request.messages.as_slice() {
+    let prompt = match request.messages.as_slice() {
         [only] if only.role == Role::User => only.content.clone(),
         messages => messages
             .iter()
@@ -195,6 +195,12 @@ pub fn cli_prompt(request: &ChatRequest) -> String {
             })
             .collect::<Vec<_>>()
             .join("\n\n"),
+    };
+    // `/` で始まると、CLI がスラッシュコマンドとして読むことがあるので、見出しを前に置く（見せる中身にも入る）。
+    if prompt.trim_start().starts_with('/') {
+        format!("依頼：\n{prompt}")
+    } else {
+        prompt
     }
 }
 
@@ -452,10 +458,10 @@ impl Stream {
                         .and_then(Value::as_array)
                         .is_some_and(|items| !items.is_empty())
                 };
-                if let Some(key) = ["tools", "mcp_servers", "plugins"]
-                    .into_iter()
-                    .find(|k| present(k))
-                {
+                // プラグイン（`plugins`）は見ない：CLI の組み込みのもの（`builtin`）がいつも並び、入れたものも
+                // 並ぶ。ツールが無ければ、プラグインのスキル・エージェント・コマンドは動かず、MCP のサーバーは
+                // `mcp_servers` で、フックは `--safe-mode` で止まる。
+                if let Some(key) = ["tools", "mcp_servers"].into_iter().find(|k| present(k)) {
                     self.refused = Some(format!(
                         "Claude Code の CLI が {key} を使える状態で始まったので、止めました（送る中身が見せたものと違いうるため）。CLI を新しくします（claude update）"
                     ));

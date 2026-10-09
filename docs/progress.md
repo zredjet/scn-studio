@@ -44,6 +44,12 @@ T3-17 で `docs/review-for-human.md` の3節（X1〜X16）に、推奨案を付�
 
 ## 記録
 
+### 2026-10-10 T4-26 の直し：始まりの行のプラグインで止まっていた（人の確かめ H50 の報告）
+
+- 人が試すと「plugins を使える状態で始まったので、止めました」と出て、どの呼び出しも止まった。この端末の CLI（2.1.232）を `--safe-mode` で起動して始まりの行だけを見ると（LLM には頼まずに止めた）、`tools` と `mcp_servers` は空で、`plugins` には CLI の組み込みのもの（`cc-plugin-agents-md`・`cc-plugin-telemetry`・`cc-plugin-plugin-authoring`。`path` は `builtin`）と入れたもの（`rust-analyzer-lsp`）がいつも並ぶ
+- 始まりの行の確かめから、プラグインの一覧を外した（ツールか MCP があれば止めるのは今までどおり）。ツールが無ければプラグインのスキル・エージェント・コマンドは動かず、MCP は `mcp_servers` で、フックは `--safe-mode` で止まる。代わりに、依頼が `/` で始まるとスラッシュコマンドとして読まれうるので、「依頼：」の見出しを前に置く（見せる中身にも入る）
+- テスト：模擬の CLI の始まりの行を実際のものと同じ形（ツールと MCP は空、組み込みのプラグインは並ぶ）にし、`/` で始まる依頼の確かめを足した（`crates/scn-core/tests/claude_code.rs`）
+
 ### 2026-10-10 T4-26 Claude Code（CLI）で使う（N3。人の追加の頼み。D087）
 
 - 仕様：端末の設定 `ai.toml` の `[connections.<名前>]` に `via`（`api`・`claude-code`）と `cli`（CLI の場所）を足した（`docs/spec/project-files.md`）。作品の `project.toml` は変えない
