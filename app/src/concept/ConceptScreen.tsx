@@ -495,41 +495,41 @@ export function ConceptScreen({
   return (
     <div className="concept-body">
       <main className="ideas-main" aria-label="アイデアメモ">
-        <div className="ideas-head">
-          <div className="ideas-title">
-            <h1>アイデアメモ</h1>
-            <span className="ideas-count">
-              ideas/ · {ideas?.length ?? 0}枚（
-              {STATUSES.map((s) => `${s} ${counts[s] ?? 0}`).join(" · ")}）
-            </span>
-          </div>
-          <span className="flow-spacer" />
-          <fieldset className="ideas-filter" aria-label="タグで絞り込む">
+        <header className="work-head">
+          <h1 className="h1">アイデアメモ</h1>
+          <span className="t-caption t-3 mono ideas-count">
+            ideas/ · {ideas?.length ?? 0}枚（
+            {STATUSES.map((s) => `${s} ${counts[s] ?? 0}`).join(" · ")}）
+          </span>
+        </header>
+        <fieldset className="ideas-filter" aria-label="タグで絞り込む">
+          <button
+            type="button"
+            className="chip"
+            aria-pressed={tag === null}
+            onClick={() => setTag(null)}
+          >
+            すべて
+          </button>
+          {tags.map((t) => (
             <button
+              key={t}
               type="button"
-              aria-pressed={tag === null}
-              onClick={() => setTag(null)}
+              className="chip"
+              aria-pressed={tag === t}
+              onClick={() => setTag(tag === t ? null : t)}
             >
-              すべて
+              {t}
             </button>
-            {tags.map((t) => (
-              <button
-                key={t}
-                type="button"
-                aria-pressed={tag === t}
-                onClick={() => setTag(tag === t ? null : t)}
-              >
-                {t}
-              </button>
-            ))}
-          </fieldset>
-        </div>
+          ))}
+        </fieldset>
         <div className="ideas-add">
           <label htmlFor="new-idea" className="sr-only">
             メモを追加
           </label>
           <input
             id="new-idea"
+            className="input"
             value={draft}
             placeholder={
               tag === null
@@ -653,16 +653,14 @@ export function ConceptScreen({
         </div>
       </main>
       <section className="concept-panel" aria-label="企画書">
-        <div className="concept-head">
-          <div className="ideas-title">
-            <h2>企画書</h2>
-            <span className="ideas-count">
-              {CONCEPT_FILE}
-              {concept?.endings_listed &&
-                ` · エンディング ${concept.endings.length}（本文に無いもの ${missingEndings}）`}
-            </span>
-          </div>
-          <span className="flow-spacer" />
+        <header className="work-head concept-head">
+          <h2 className="h1">企画書</h2>
+          <span className="t-caption t-3 mono ideas-count">
+            {CONCEPT_FILE}
+            {concept?.endings_listed &&
+              ` · エンディング ${concept.endings.length}（本文に無いもの ${missingEndings}）`}
+          </span>
+          <span className="grow" />
           {concept?.text !== null && concept !== null && (
             <fieldset className="mode-switch" aria-label="表示モード">
               <button
@@ -681,308 +679,310 @@ export function ConceptScreen({
               </button>
             </fieldset>
           )}
-        </div>
-        {concept === null ? (
-          <p className="placeholder">読み込んでいます…</p>
-        ) : concept.text === null ? (
-          <div className="concept-missing">
-            <p>
-              企画書（concept.md）がありません。作ると、ログライン・テーマ・エンディングなどを書く欄ができます。
-            </p>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => void enqueue(() => createConcept())}
-            >
-              企画書を作る
-            </button>
-          </div>
-        ) : view === "source" ? (
-          <SourceView
-            label={CONCEPT_FILE}
-            text={concept.text}
-            onUnsaved={onSourceUnsaved}
-            onSave={(text, seen) =>
-              enqueue(() => writeEntrySource(CONCEPT_FILE, text, seen))
-            }
-          />
-        ) : (
-          <form
-            className="concept-form"
-            onSubmit={(event) => event.preventDefault()}
-          >
-            {concept.problems.map((p) => (
-              <p key={p} className="idea-problem">
-                {p}
+        </header>
+        <div className="concept-scroll">
+          {concept === null ? (
+            <p className="placeholder">読み込んでいます…</p>
+          ) : concept.text === null ? (
+            <div className="concept-missing">
+              <p>
+                企画書（concept.md）がありません。作ると、ログライン・テーマ・エンディングなどを書く欄ができます。
               </p>
-            ))}
-            {TEXT_FIELDS.map((field) => (
-              <FieldInput
-                key={field.key}
-                field={field}
-                value={concept.fields[field.key]}
-                typeNames={typeNames}
-                candidates={candidates}
-                problems={[]}
-                hint={HINTS[field.key]}
-                fileText={concept.text ?? ""}
-                onCommit={(change) =>
-                  commitField(CONCEPT_FILE, field.key, change, () => {
-                    const now = conceptNow();
-                    return now === null
-                      ? null
-                      : { text: now.text, value: now.fields[field.key] };
-                  })
-                }
-                onOpenRef={() => {}}
-                origin={aiFields.get(fieldKey(CONCEPT_FILE, field.key))}
-              />
-            ))}
-            <div className="concept-grid">
-              {VOLUME_FIELDS.map((field) => {
-                const volume = concept.fields.volume;
-                const value =
-                  volume !== null &&
-                  typeof volume === "object" &&
-                  !Array.isArray(volume)
-                    ? (volume as { readonly [key: string]: JsonValue })[
-                        field.sub
-                      ]
-                    : undefined;
-                return (
-                  <FieldInput
-                    key={field.key}
-                    field={field}
-                    value={value}
-                    typeNames={typeNames}
-                    candidates={candidates}
-                    problems={[]}
-                    hint={HINTS[field.key]}
-                    fileText={concept.text ?? ""}
-                    onCommit={(change) =>
-                      commitField(
-                        CONCEPT_FILE,
-                        "volume",
-                        {
-                          kind: "update",
-                          update: (current) => {
-                            if (change.kind === "set") {
-                              return {
-                                ok: true,
-                                value: withVolume(
-                                  current,
-                                  field.sub,
-                                  change.value,
-                                ),
-                              };
-                            }
-                            const sub =
-                              current !== null &&
-                              typeof current === "object" &&
-                              !Array.isArray(current)
-                                ? (
-                                    current as {
-                                      readonly [key: string]: JsonValue;
-                                    }
-                                  )[field.sub]
-                                : undefined;
-                            const next = change.update(sub);
-                            return next.ok
-                              ? {
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => void enqueue(() => createConcept())}
+              >
+                企画書を作る
+              </button>
+            </div>
+          ) : view === "source" ? (
+            <SourceView
+              label={CONCEPT_FILE}
+              text={concept.text}
+              onUnsaved={onSourceUnsaved}
+              onSave={(text, seen) =>
+                enqueue(() => writeEntrySource(CONCEPT_FILE, text, seen))
+              }
+            />
+          ) : (
+            <form
+              className="concept-form"
+              onSubmit={(event) => event.preventDefault()}
+            >
+              {concept.problems.map((p) => (
+                <p key={p} className="idea-problem">
+                  {p}
+                </p>
+              ))}
+              {TEXT_FIELDS.map((field) => (
+                <FieldInput
+                  key={field.key}
+                  field={field}
+                  value={concept.fields[field.key]}
+                  typeNames={typeNames}
+                  candidates={candidates}
+                  problems={[]}
+                  hint={HINTS[field.key]}
+                  fileText={concept.text ?? ""}
+                  onCommit={(change) =>
+                    commitField(CONCEPT_FILE, field.key, change, () => {
+                      const now = conceptNow();
+                      return now === null
+                        ? null
+                        : { text: now.text, value: now.fields[field.key] };
+                    })
+                  }
+                  onOpenRef={() => {}}
+                  origin={aiFields.get(fieldKey(CONCEPT_FILE, field.key))}
+                />
+              ))}
+              <div className="concept-grid">
+                {VOLUME_FIELDS.map((field) => {
+                  const volume = concept.fields.volume;
+                  const value =
+                    volume !== null &&
+                    typeof volume === "object" &&
+                    !Array.isArray(volume)
+                      ? (volume as { readonly [key: string]: JsonValue })[
+                          field.sub
+                        ]
+                      : undefined;
+                  return (
+                    <FieldInput
+                      key={field.key}
+                      field={field}
+                      value={value}
+                      typeNames={typeNames}
+                      candidates={candidates}
+                      problems={[]}
+                      hint={HINTS[field.key]}
+                      fileText={concept.text ?? ""}
+                      onCommit={(change) =>
+                        commitField(
+                          CONCEPT_FILE,
+                          "volume",
+                          {
+                            kind: "update",
+                            update: (current) => {
+                              if (change.kind === "set") {
+                                return {
                                   ok: true,
                                   value: withVolume(
                                     current,
                                     field.sub,
-                                    next.value,
+                                    change.value,
                                   ),
-                                }
-                              : next;
-                          },
-                        },
-                        () => {
-                          const now = conceptNow();
-                          return now === null
-                            ? null
-                            : { text: now.text, value: now.fields.volume };
-                        },
-                      )
-                    }
-                    onOpenRef={() => {}}
-                    origin={aiFields.get(fieldKey(CONCEPT_FILE, "volume"))}
-                  />
-                );
-              })}
-            </div>
-            <FieldInput
-              field={{
-                key: "main_characters",
-                label: "主要キャラ",
-                type: `list<ref<${characterType}>>`,
-                kind: {
-                  kind: "list",
-                  item: { kind: "ref", target: characterType },
-                },
-                options: [],
-              }}
-              value={concept.fields.main_characters}
-              typeNames={typeNames}
-              candidates={candidates}
-              problems={[]}
-              hint="設定DBのキャラクター（欲求と葛藤は設定DBに書く）"
-              fileText={concept.text ?? ""}
-              onCommit={(change) =>
-                commitField(CONCEPT_FILE, "main_characters", change, () => {
-                  const now = conceptNow();
-                  return now === null
-                    ? null
-                    : { text: now.text, value: now.fields.main_characters };
-                })
-              }
-              onOpenRef={(_, id) => {
-                const path = concept.main_characters.find(
-                  (c) => c.id === id,
-                )?.path;
-                if (path !== null && path !== undefined) onOpenEntry(path);
-              }}
-              origin={aiFields.get(fieldKey(CONCEPT_FILE, "main_characters"))}
-            />
-            {concept.main_characters.length > 0 && (
-              <div className="concept-characters">
-                {concept.main_characters.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    className="concept-character"
-                    disabled={c.path === null}
-                    onClick={() => {
-                      if (c.path !== null) onOpenEntry(c.path);
-                    }}
-                  >
-                    <span className="concept-character-name">
-                      {c.name ?? `${c.id}（設定DBに無い）`}
-                    </span>
-                    {c.traits.map((t) => (
-                      <span key={t.label}>
-                        <span className="concept-trait-label">{t.label}</span>
-                        {t.value === "" ? "（未記入）" : t.value}
-                      </span>
-                    ))}
-                  </button>
-                ))}
-              </div>
-            )}
-            <div
-              className={fieldClass(
-                aiFields.get(fieldKey(CONCEPT_FILE, "endings")),
-              )}
-            >
-              <span className="bible-label">
-                エンディング
-                <span className="bible-label-note">
-                  本文の @エンディング と照合（直すときはソースで）
-                </span>
-                <OriginBadge
-                  origin={aiFields.get(fieldKey(CONCEPT_FILE, "endings"))}
-                />
-              </span>
-              {!concept.endings_listed ? (
-                <p className="concept-note">
-                  企画書に endings
-                  が書かれていないので、本文と照らしていません。
-                </p>
-              ) : (
-                <div className="bible-table-wrap">
-                  <table className="bible-table concept-endings">
-                    <thead>
-                      <tr>
-                        <th scope="col">名前</th>
-                        <th scope="col">到達イメージ</th>
-                        <th scope="col">本文</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {concept.endings.map((e) => (
-                        <tr key={e.id}>
-                          <td className="concept-ending-name">
-                            {e.name === "" ? e.id : e.name}
-                            <span className="concept-ending-id">{e.id}</span>
-                          </td>
-                          <td className="concept-intent">{e.intent}</td>
-                          <td>
-                            {e.scenes.length === 0 ? (
-                              <span className="concept-missing-scene">
-                                未作成
-                              </span>
-                            ) : (
-                              e.scenes.map((s) => (
-                                <button
-                                  key={s.id}
-                                  type="button"
-                                  className="concept-scene"
-                                  title={s.title}
-                                  onClick={() =>
-                                    onOpenLocation(s.file, s.span[0])
+                                };
+                              }
+                              const sub =
+                                current !== null &&
+                                typeof current === "object" &&
+                                !Array.isArray(current)
+                                  ? (
+                                      current as {
+                                        readonly [key: string]: JsonValue;
+                                      }
+                                    )[field.sub]
+                                  : undefined;
+                              const next = change.update(sub);
+                              return next.ok
+                                ? {
+                                    ok: true,
+                                    value: withVolume(
+                                      current,
+                                      field.sub,
+                                      next.value,
+                                    ),
                                   }
-                                >
-                                  {s.id}
-                                </button>
-                              ))
-                            )}
-                          </td>
-                        </tr>
+                                : next;
+                            },
+                          },
+                          () => {
+                            const now = conceptNow();
+                            return now === null
+                              ? null
+                              : { text: now.text, value: now.fields.volume };
+                          },
+                        )
+                      }
+                      onOpenRef={() => {}}
+                      origin={aiFields.get(fieldKey(CONCEPT_FILE, "volume"))}
+                    />
+                  );
+                })}
+              </div>
+              <FieldInput
+                field={{
+                  key: "main_characters",
+                  label: "主要キャラ",
+                  type: `list<ref<${characterType}>>`,
+                  kind: {
+                    kind: "list",
+                    item: { kind: "ref", target: characterType },
+                  },
+                  options: [],
+                }}
+                value={concept.fields.main_characters}
+                typeNames={typeNames}
+                candidates={candidates}
+                problems={[]}
+                hint="設定DBのキャラクター（欲求と葛藤は設定DBに書く）"
+                fileText={concept.text ?? ""}
+                onCommit={(change) =>
+                  commitField(CONCEPT_FILE, "main_characters", change, () => {
+                    const now = conceptNow();
+                    return now === null
+                      ? null
+                      : { text: now.text, value: now.fields.main_characters };
+                  })
+                }
+                onOpenRef={(_, id) => {
+                  const path = concept.main_characters.find(
+                    (c) => c.id === id,
+                  )?.path;
+                  if (path !== null && path !== undefined) onOpenEntry(path);
+                }}
+                origin={aiFields.get(fieldKey(CONCEPT_FILE, "main_characters"))}
+              />
+              {concept.main_characters.length > 0 && (
+                <div className="concept-characters">
+                  {concept.main_characters.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className="concept-character"
+                      disabled={c.path === null}
+                      onClick={() => {
+                        if (c.path !== null) onOpenEntry(c.path);
+                      }}
+                    >
+                      <span className="concept-character-name">
+                        {c.name ?? `${c.id}（設定DBに無い）`}
+                      </span>
+                      {c.traits.map((t) => (
+                        <span key={t.label}>
+                          <span className="concept-trait-label">{t.label}</span>
+                          {t.value === "" ? "（未記入）" : t.value}
+                        </span>
                       ))}
-                    </tbody>
-                  </table>
+                    </button>
+                  ))}
                 </div>
               )}
-              {concept.endings_listed && concept.unplanned.length > 0 && (
-                <p className="concept-note">
-                  企画書に無いエンディング（本文だけにある）：
-                  {concept.unplanned.map((u) => (
-                    <span key={u.id} className="concept-unplanned">
-                      {u.id}
-                      {u.scenes.map((s) => (
-                        <button
-                          key={s.id}
-                          type="button"
-                          className="concept-scene"
-                          onClick={() => onOpenLocation(s.file, s.span[0])}
-                        >
-                          {s.id}
-                        </button>
-                      ))}
-                    </span>
-                  ))}
-                </p>
-              )}
-            </div>
-            <BodyField
-              key={CONCEPT_FILE}
-              id="concept-body"
-              label="本文（やりたいこと・やらないこと・参考にしたい感触）"
-              rows={10}
-              origin={aiFields.get(fieldKey(CONCEPT_FILE, BODY_KEY))}
-              body={concept.body}
-              fileText={concept.text ?? ""}
-              onCommit={(body, seen) => {
-                const now = conceptNow();
-                if (
-                  now === null ||
-                  normalizeNewlines(body) === normalizeNewlines(now.body)
-                )
-                  return Promise.resolve(null);
-                return enqueue(() => setEntryBody(CONCEPT_FILE, body, seen));
-              }}
-            />
-          </form>
-        )}
-        <p className="concept-status" aria-live="polite">
-          {status.kind === "saving"
-            ? "書いています…"
-            : status.kind === "saved"
-              ? "書きました"
-              : ""}
-        </p>
+              <div
+                className={fieldClass(
+                  aiFields.get(fieldKey(CONCEPT_FILE, "endings")),
+                )}
+              >
+                <span className="bible-label">
+                  エンディング
+                  <span className="bible-label-note">
+                    本文の @エンディング と照合（直すときはソースで）
+                  </span>
+                  <OriginBadge
+                    origin={aiFields.get(fieldKey(CONCEPT_FILE, "endings"))}
+                  />
+                </span>
+                {!concept.endings_listed ? (
+                  <p className="concept-note">
+                    企画書に endings
+                    が書かれていないので、本文と照らしていません。
+                  </p>
+                ) : (
+                  <div className="bible-table-wrap">
+                    <table className="bible-table concept-endings">
+                      <thead>
+                        <tr>
+                          <th scope="col">名前</th>
+                          <th scope="col">到達イメージ</th>
+                          <th scope="col">本文</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {concept.endings.map((e) => (
+                          <tr key={e.id}>
+                            <td className="concept-ending-name">
+                              {e.name === "" ? e.id : e.name}
+                              <span className="concept-ending-id">{e.id}</span>
+                            </td>
+                            <td className="concept-intent">{e.intent}</td>
+                            <td>
+                              {e.scenes.length === 0 ? (
+                                <span className="concept-missing-scene">
+                                  未作成
+                                </span>
+                              ) : (
+                                e.scenes.map((s) => (
+                                  <button
+                                    key={s.id}
+                                    type="button"
+                                    className="concept-scene"
+                                    title={s.title}
+                                    onClick={() =>
+                                      onOpenLocation(s.file, s.span[0])
+                                    }
+                                  >
+                                    {s.id}
+                                  </button>
+                                ))
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {concept.endings_listed && concept.unplanned.length > 0 && (
+                  <p className="concept-note">
+                    企画書に無いエンディング（本文だけにある）：
+                    {concept.unplanned.map((u) => (
+                      <span key={u.id} className="concept-unplanned">
+                        {u.id}
+                        {u.scenes.map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            className="concept-scene"
+                            onClick={() => onOpenLocation(s.file, s.span[0])}
+                          >
+                            {s.id}
+                          </button>
+                        ))}
+                      </span>
+                    ))}
+                  </p>
+                )}
+              </div>
+              <BodyField
+                key={CONCEPT_FILE}
+                id="concept-body"
+                label="本文（やりたいこと・やらないこと・参考にしたい感触）"
+                rows={10}
+                origin={aiFields.get(fieldKey(CONCEPT_FILE, BODY_KEY))}
+                body={concept.body}
+                fileText={concept.text ?? ""}
+                onCommit={(body, seen) => {
+                  const now = conceptNow();
+                  if (
+                    now === null ||
+                    normalizeNewlines(body) === normalizeNewlines(now.body)
+                  )
+                    return Promise.resolve(null);
+                  return enqueue(() => setEntryBody(CONCEPT_FILE, body, seen));
+                }}
+              />
+            </form>
+          )}
+          <p className="concept-status" aria-live="polite">
+            {status.kind === "saving"
+              ? "書いています…"
+              : status.kind === "saved"
+                ? "書きました"
+                : ""}
+          </p>
+        </div>
       </section>
       <AiAside
         questions={ai.questions}

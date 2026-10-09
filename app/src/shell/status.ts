@@ -302,6 +302,27 @@ export function previewStatus(input: {
   return items;
 }
 
+/** プレビューの縦書き表示：道・ページ・字数×行数（見本 06b。T4-19）。 */
+export function verticalStatus(input: {
+  readonly route: string | null;
+  readonly page: number;
+  readonly pages: number;
+  readonly perLine: number;
+  readonly perPage: number;
+}): StatusItems {
+  const items: StatusItem[] = [head("preview")];
+  items.push({
+    text: input.route === null ? "縦書き" : `縦書き · ${input.route}`,
+  });
+  if (input.pages > 0)
+    items.push({ text: `${input.page} / ${input.pages}ページ` });
+  items.push({
+    text: `${input.perLine}字×${input.perPage}行`,
+    hideNarrow: true,
+  });
+  return items;
+}
+
 /** 環境設定：設定の保存先（D086 の「決めた」の3）。 */
 export function preferencesStatus(): StatusItems {
   return [

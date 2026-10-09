@@ -5,7 +5,11 @@
 
 import { useState } from "react";
 import { type FieldDecision, FieldProposals } from "../ai/FieldProposals.tsx";
-import type { FindingRecord, TaskRunner } from "../ai/model.ts";
+import {
+  connectionBlocker,
+  type FindingRecord,
+  type TaskRunner,
+} from "../ai/model.ts";
 import { QuickRun } from "../ai/QuickRun.tsx";
 import type {
   FieldProposal,
@@ -84,57 +88,59 @@ export function AiAside({
   const running = questions.running ?? sort.running ?? draft.runner.running;
   const draftResult = draft.result;
   return (
-    <aside className="concept-ai ctx-column" aria-label="AIの問い返し">
-      <div className="concept-ai-head">
-        <h2>AIの問い返し</h2>
-        <span className="context-faint">
-          企画書とメモの空白・矛盾を、質問で返します
-        </span>
+    <aside className="concept-ai ctx-column" aria-label="AI">
+      <div className="panel-head">
+        <h2 className="h-label">AI</h2>
       </div>
-      <QuickRun
-        runner={questions}
-        scene={null}
-        label={findings.length === 0 ? "問い返す" : "もう一度問い返す"}
-        disabledReason={
-          running !== null && running.task !== questions.info?.task.id
-            ? "ほかのタスクを実行しています"
-            : null
-        }
-      />
-      {problem !== null && <p className="notice notice-warn">{problem}</p>}
-      {findings.map((f) => (
-        <div key={f.id} className="concept-ai-card">
-          <span>{f.finding.message}</span>
-          <div className="ai-actions">
-            <button
-              type="button"
-              className="btn btn-sm"
-              disabled={busy}
-              onClick={() =>
-                act(
-                  () => onMakeMemo(f.finding.message),
-                  () => onDismissFinding(f.id),
-                )
-              }
-            >
-              メモにする
-            </button>
-            <button
-              type="button"
-              className="btn btn-sm"
-              onClick={() => onDismissFinding(f.id)}
-            >
-              閉じる
-            </button>
+      <section className="concept-ai-task" aria-label="問い返す">
+        <h3 className="concept-ai-title">問い返す</h3>
+        <p className="t-small t-2">
+          企画書とメモの空白・矛盾を、質問で返します
+        </p>
+        <QuickRun
+          runner={questions}
+          scene={null}
+          label={findings.length === 0 ? "問い返す" : "もう一度問い返す"}
+          disabledReason={
+            running !== null && running.task !== questions.info?.task.id
+              ? "ほかのタスクを実行しています"
+              : null
+          }
+        />
+        {problem !== null && <p className="notice notice-warn">{problem}</p>}
+        {findings.map((f) => (
+          <div key={f.id} className="concept-ai-card">
+            <span>{f.finding.message}</span>
+            <div className="ai-actions">
+              <button
+                type="button"
+                className="btn btn-sm"
+                disabled={busy}
+                onClick={() =>
+                  act(
+                    () => onMakeMemo(f.finding.message),
+                    () => onDismissFinding(f.id),
+                  )
+                }
+              >
+                メモにする
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={() => onDismissFinding(f.id)}
+              >
+                閉じる
+              </button>
+            </div>
           </div>
-        </div>
-      ))}
-      <div className="concept-ai-more">
-        <span className="concept-ai-label">企画書の下書き</span>
-        <span className="context-faint">
-          メモから、企画書の空いている項目を AI
-          が書きます。書いてある項目への案は、採用を選べます
-        </span>
+        ))}
+      </section>
+      <section className="concept-ai-task" aria-label="企画書の下書き">
+        <h3 className="concept-ai-title">企画書の下書き</h3>
+        <p className="t-small t-2">
+          メモから、企画書の空いている項目を書きます。書いてある項目には案だけを出します
+        </p>
         <QuickRun
           runner={draft.runner}
           scene={null}
@@ -165,13 +171,14 @@ export function AiAside({
             )}
           </>
         )}
-      </div>
-      <div className="concept-ai-more">
-        <span className="concept-ai-label">ほかのAIタスク</span>
+      </section>
+      <section className="concept-ai-task" aria-label="メモの分類案">
+        <h3 className="concept-ai-title">メモの分類案</h3>
+        <p className="t-small t-2">未整理のメモに、状態とタグの案を付けます</p>
         <QuickRun
           runner={sort}
           scene={null}
-          label="未整理メモの分類案を出す"
+          label="分類案を出す"
           disabledReason={
             running !== null && running.task !== sort.info?.task.id
               ? "ほかのタスクを実行しています"
@@ -220,16 +227,29 @@ export function AiAside({
             </div>
           );
         })}
-        {onSkeleton !== null && (
+      </section>
+      {onSkeleton !== null && (
+        <section className="concept-ai-task" aria-label="ルートの骨格">
+          <h3 className="concept-ai-title">ルートの骨格</h3>
+          <p className="t-small t-2">
+            エンディングとキャラの葛藤から、スタブを並べます
+          </p>
           <button
             type="button"
-            className="btn btn-sm concept-ai-link"
+            className="btn btn-link btn-sm concept-ai-link"
             onClick={onSkeleton}
           >
-            エンディングからルート骨格を提案（AI実行の画面）
+            AI実行で開く
           </button>
-        )}
-      </div>
+        </section>
+      )}
+      {[questions, draft.runner, sort].some(
+        (r) => r.info !== null && connectionBlocker(r.info) !== null,
+      ) && (
+        <p className="t-caption t-3 concept-ai-foot">
+          鍵の印は、まだ使えない接続先（クラウドへ送ることを許可していない、キーが無いなど）の操作です。環境設定の「AIの接続」で変えられます。
+        </p>
+      )}
     </aside>
   );
 }

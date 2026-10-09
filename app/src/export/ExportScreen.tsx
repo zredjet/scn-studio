@@ -32,6 +32,13 @@ import {
   pluginRunText,
   runApproved,
 } from "./plugin.ts";
+import {
+  EXPORT_TILES,
+  type ExportKind,
+  GROUP_LABEL,
+  tileFoot,
+  tilesOf,
+} from "./tiles.ts";
 
 interface Props {
   /** 本文が変わったら、台本を取り直す。 */
@@ -87,6 +94,13 @@ interface Props {
   ) => Promise<{ readonly path: string }>;
   /** AIが書いた行の数（出自の記録。T3-4）。 */
   readonly loadProvenance: () => Promise<AiLines>;
+  /** 発注リストを書き出す（素材の画面と同じ。T4-19）。 */
+  readonly writeOrders: () => Promise<{
+    readonly path: string;
+    readonly rows: number;
+  }>;
+  /** 右の欄を出す（カードを選んだとき。設定と書き出すボタンが右の欄にあるため）。 */
+  readonly onShowPanel: () => void;
   /** AIが書いた行の一覧を書き出す。 */
   readonly writeProvenance: () => Promise<{
     readonly path: string;
@@ -138,7 +152,7 @@ function ProvenanceCard({
         </div>
         <button
           type="button"
-          className="btn btn-primary"
+          className="btn btn-primary export-go"
           disabled={busy}
           onClick={() => {
             setBusy(true);
@@ -231,24 +245,6 @@ function TextCard({
             で書きます。書き出し先：export/text/（道の名前）.txt
           </p>
         </div>
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={busy || choice === undefined}
-          onClick={() => {
-            if (choice === undefined) return;
-            setBusy(true);
-            writeText(choice.target, notes)
-              .then((r) => {
-                setNotice(`${r.path} に書き出しました`);
-                setError(null);
-              })
-              .catch((e: unknown) => setError(String(e)))
-              .finally(() => setBusy(false));
-          }}
-        >
-          書き出す
-        </button>
       </div>
       <div className="export-options">
         <label>
@@ -273,6 +269,24 @@ function TextCard({
           選んだ選択肢とエンディングを注記する（〔選択：…〕）
         </label>
       </div>
+      <button
+        type="button"
+        className="btn btn-primary export-go"
+        disabled={busy || choice === undefined}
+        onClick={() => {
+          if (choice === undefined) return;
+          setBusy(true);
+          writeText(choice.target, notes)
+            .then((r) => {
+              setNotice(`${r.path} に書き出しました`);
+              setError(null);
+            })
+            .catch((e: unknown) => setError(String(e)))
+            .finally(() => setBusy(false));
+        }}
+      >
+        書き出す
+      </button>
       {choices.length === 0 && (
         <p className="notice notice-warn">
           道がありません（シーンのメタ情報に route
@@ -608,7 +622,7 @@ function PluginCard({
                   <span className="flow-spacer" />
                   <button
                     type="button"
-                    className="btn btn-primary"
+                    className="btn btn-sm"
                     disabled={busy !== null || p.kind === "error"}
                     onClick={() => start(p.name)}
                   >
@@ -684,6 +698,59 @@ const COLUMNS = [
   "備考",
 ] as const;
 
+/** 発注リスト（まだファイルの無い素材の表。素材の画面と同じ書き出し。T4-19）。 */
+function OrdersCard({
+  write,
+}: {
+  readonly write: () => Promise<{
+    readonly path: string;
+    readonly rows: number;
+  }>;
+}) {
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  return (
+    <section className="export-card" aria-label="発注リスト">
+      <div className="export-card-head">
+        <div>
+          <h2>発注リスト</h2>
+          <p className="export-note">
+            まだファイルの無い素材（仮素材と未登録）を1行1件で書きます。列は種別・名前・キャラ・差分・使用回数・初出・使用シーン・備考。書き出し先：export/orders.csv
+          </p>
+        </div>
+        <button
+          type="button"
+          className="btn btn-primary export-go"
+          disabled={busy}
+          onClick={() => {
+            setBusy(true);
+            write()
+              .then((r) => {
+                setNotice(`${r.path} に書き出しました（${r.rows}行）`);
+                setError(null);
+              })
+              .catch((e: unknown) => setError(String(e)))
+              .finally(() => setBusy(false));
+          }}
+        >
+          書き出す
+        </button>
+      </div>
+      {notice !== null && (
+        <p className="notice" role="status">
+          {notice}
+        </p>
+      )}
+      {error !== null && (
+        <p className="notice notice-danger" role="alert">
+          {error}
+        </p>
+      )}
+    </section>
+  );
+}
+
 /** ゲームエンジン（Ren'Py、ティラノスクリプト）への書き出し。書き出した後に、知らせとプロファイルの誤りを並べる。 */
 function EngineCard({
   name,
@@ -708,7 +775,7 @@ function EngineCard({
         </div>
         <button
           type="button"
-          className="btn btn-primary"
+          className="btn btn-primary export-go"
           disabled={busy}
           onClick={() => {
             setBusy(true);
@@ -785,6 +852,8 @@ export function ExportScreen({
   writeText,
   loadProvenance,
   writeProvenance,
+  writeOrders,
+  onShowPanel,
 }: Props) {
   const [sheet, setSheet] = useState<ScriptSheet | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -796,17 +865,27 @@ export function ExportScreen({
   const [written, setWritten] = useState(0);
   /** AI下書き（status: ai-draft）のシーンを含めるか（T3-9）。 */
   const [aiDrafts, setAiDrafts] = useState(true);
-  /** この窓で最後に書き出したもの（ステータスバー。T4-17、U05）。 */
+  /** この窓で最後に書き出したもの（ステータスバー。T4-17、U05）と、カードごとの最後の時刻（T4-19）。 */
   const [last, setLast] = useState<string | null>(null);
+  const [lastByTile, setLastByTile] = useState<ReadonlyMap<ExportKind, string>>(
+    new Map(),
+  );
   useScreenStatus("export", exportStatus(last));
+  /** 選んだカード（設定を右の欄に出す。T4-19、U18）。 */
+  const [kind, setKind] = useState<ExportKind>("script");
   /** 書き出しを覚える。何も書かなかった回（外部コマンドの確かめ待ちなど）は覚えない。 */
   const track = <R,>(
+    tile: ExportKind,
     name: string,
     promise: Promise<R>,
     wrote: (r: R) => boolean = () => true,
   ): Promise<R> =>
     promise.then((r) => {
-      if (wrote(r)) setLast(`${clockText(new Date())} · ${name}`);
+      if (wrote(r)) {
+        const at = clockText(new Date());
+        setLast(`${at} · ${name}`);
+        setLastByTile((m) => new Map(m).set(tile, at));
+      }
       return r;
     });
   const pluginWrote = (r: PluginRun) =>
@@ -831,208 +910,322 @@ export function ExportScreen({
     };
   }, [summary, load, written, aiDrafts]);
 
+  // カードごとの設定と結果（右の欄）。選んでいないカードも隠して残す（書き出しの途中の結果と状態を、カードを
+  // 切り替えても失わないため。KeepAlive と同じ考え方）。
+  const cardOf = (k: ExportKind) => {
+    switch (k) {
+      case "script":
+        return (
+          <section className="export-card" aria-label="台本">
+            <div className="export-card-head">
+              <div>
+                <h2>収録の台本</h2>
+                <p className="export-note">
+                  収録と校正の表。1行が1つの台詞で、ボイスファイル名は「キャラID_行ID」。CSV
+                  は UTF-8（BOM付き）と CRLF で書くので、Excel
+                  でそのまま開けます。Excel
+                  形式は、欄をすべて文字列にし、見出しの行を固定します。書き出し先：export/script.csv・export/script.xlsx
+                </p>
+              </div>
+            </div>
+            <div className="export-options">
+              <label>
+                形式
+                <select
+                  value={format}
+                  onChange={(event) =>
+                    setFormat(event.target.value === "xlsx" ? "xlsx" : "csv")
+                  }
+                >
+                  <option value="csv">CSV</option>
+                  <option value="xlsx">Excel（.xlsx）</option>
+                </select>
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={baseline}
+                  onChange={(event) => setBaseline(event.target.checked)}
+                />
+                収録の基準として記録する（次から、変わった台詞を再収録候補にする）
+              </label>
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary export-go"
+              disabled={busy || sheet === null}
+              onClick={() => {
+                setBusy(true);
+                track("script", "収録の台本", write(format, baseline, aiDrafts))
+                  .then((r) => {
+                    setNotice(
+                      `${r.path} に書き出しました（${r.rows}行）${baseline ? "。収録の基準として記録しました" : ""}`,
+                    );
+                    setError(null);
+                    if (baseline) {
+                      setBaseline(false);
+                      setWritten((n) => n + 1);
+                    }
+                  })
+                  .catch((e: unknown) => setError(String(e)))
+                  .finally(() => setBusy(false));
+              }}
+            >
+              書き出す
+            </button>
+            {notice !== null && (
+              <p className="notice" role="status">
+                {notice}
+              </p>
+            )}
+            {error !== null && (
+              <p className="notice notice-danger" role="alert">
+                {error}
+              </p>
+            )}
+            {sheet !== null && sheet.retakes !== null && (
+              <p className="export-info">
+                収録の基準（export/script-baseline.json）から：変わった台詞{" "}
+                {sheet.retakes.changed} 行（備考に「再収録候補」）、足した台詞{" "}
+                {sheet.retakes.added} 行、無くなった台詞 {sheet.retakes.removed}{" "}
+                行
+                {sheet.retakes.removed_ids.length > 0 &&
+                  `（${sheet.retakes.removed_ids.join(" ")}）`}
+              </p>
+            )}
+            {sheet !== null && sheet.baseline_problem !== null && (
+              <p className="notice notice-warn">
+                {sheet.baseline_problem}（再収録候補を付けずに作りました）
+              </p>
+            )}
+            {unsaved > 0 && (
+              <p className="notice notice-warn">
+                保存していないファイルが {unsaved}{" "}
+                あります。台本は、保存していない本文も含めて作ります（保存すると、行IDの無い行に行IDが付きます）。
+              </p>
+            )}
+            {sheet !== null && sheet.missing_line_ids > 0 && (
+              <p className="notice notice-warn">
+                行IDの無い台詞が {sheet.missing_line_ids}{" "}
+                行あります。ボイスファイル名を付けられないので空にします（保存すると行IDが付きます）。
+              </p>
+            )}
+          </section>
+        );
+      case "renpy":
+        return (
+          <EngineCard
+            name="Ren'Py"
+            note="出力プロファイル（export/renpy.yaml）に従って、Ren'Py のスクリプトを書き出します。書き出し先（既定は export/renpy）の game/scn/ だけを毎回作り直し、ほかのファイルには触れません。書き出したものは手で直さず、本文を直して書き出し直してください。"
+            unsaved={unsaved}
+            write={() => track("renpy", "Ren'Py", writeRenpy(aiDrafts))}
+          />
+        );
+      case "tyrano":
+        return (
+          <EngineCard
+            name="ティラノスクリプト"
+            note={
+              '出力プロファイル（export/tyrano.yaml）に従って、ティラノスクリプトのシナリオを書き出します。書き出し先（既定は export/tyrano）の data/scenario/scn/ と素材の data/*/scn/ だけを毎回作り直し、ほかのファイルには触れません。first.ks か title.ks から [jump storage="scn/scn_start.ks"] で始めます（プロファイルの first: true なら first.ks も書きます）。'
+            }
+            unsaved={unsaved}
+            write={() =>
+              track("tyrano", "ティラノスクリプト", writeTyrano(aiDrafts))
+            }
+          />
+        );
+      case "utage":
+        return (
+          <EngineCard
+            name="宴"
+            note="出力プロファイル（export/utage.yaml）に従って、宴のシナリオ（シーンごとのシート）と設定のシート（Character・Texture・Sound・Param）を Excel 形式で書き出します。書き出し先（既定は export/utage）をまるごと作り直します。宴のプロジェクトへは、シナリオのブックを足し、設定のシートの行と Texture・Sound のファイルを取り込みます（作品の Start のシートから Jump *scn_start で始めます）。"
+            unsaved={unsaved}
+            write={() => track("utage", "宴", writeUtage(aiDrafts))}
+          />
+        );
+      case "orders":
+        return (
+          <OrdersCard
+            write={() => track("orders", "発注リスト", writeOrders())}
+          />
+        );
+      case "text":
+        return (
+          <TextCard
+            summary={summary}
+            loadChoices={loadChoices}
+            writeText={(target, notes) =>
+              track(
+                "text",
+                "通読用テキスト",
+                writeText(target, notes, aiDrafts),
+              )
+            }
+          />
+        );
+      case "book":
+        return (
+          <BookCard
+            summary={summary}
+            loadChoices={loadChoices}
+            loadSettings={loadBookSettings}
+            writeBook={(target, print, horizontal, notes, typeset, approved) =>
+              track(
+                "book",
+                print ? "縦書きPDF" : "EPUB",
+                writeBook(
+                  target,
+                  print,
+                  horizontal,
+                  notes,
+                  aiDrafts,
+                  typeset,
+                  approved,
+                ),
+                pluginWrote,
+              )
+            }
+            ask={ask}
+          />
+        );
+      case "plugin":
+        return (
+          <PluginCard
+            summary={summary}
+            load={loadPlugins}
+            run={(name, approved) =>
+              track(
+                "plugin",
+                name,
+                runPlugin(name, aiDrafts, approved),
+                pluginWrote,
+              )
+            }
+            ask={ask}
+          />
+        );
+      case "provenance":
+        return (
+          <ProvenanceCard
+            summary={summary}
+            load={loadProvenance}
+            write={() => track("provenance", "AIの出自", writeProvenance())}
+          />
+        );
+    }
+  };
+  const retakes = sheet?.retakes?.changed ?? 0;
+
   return (
     <div className="export-screen-body">
-      <header className="export-head">
-        <h1>出力</h1>
-        <span className="flow-spacer" />
-        <label className="export-ai-drafts">
-          <input
-            type="checkbox"
-            checked={aiDrafts}
-            onChange={(e) => setAiDrafts(e.target.checked)}
-          />
-          AI下書き（status: ai-draft）のシーンを含める
-        </label>
-      </header>
-      <EngineCard
-        name="Ren'Py"
-        note="出力プロファイル（export/renpy.yaml）に従って、Ren'Py のスクリプトを書き出します。書き出し先（既定は export/renpy）の game/scn/ だけを毎回作り直し、ほかのファイルには触れません。書き出したものは手で直さず、本文を直して書き出し直してください。"
-        unsaved={unsaved}
-        write={() => track("Ren'Py", writeRenpy(aiDrafts))}
-      />
-      <EngineCard
-        name="ティラノスクリプト"
-        note={
-          '出力プロファイル（export/tyrano.yaml）に従って、ティラノスクリプトのシナリオを書き出します。書き出し先（既定は export/tyrano）の data/scenario/scn/ と素材の data/*/scn/ だけを毎回作り直し、ほかのファイルには触れません。first.ks か title.ks から [jump storage="scn/scn_start.ks"] で始めます（プロファイルの first: true なら first.ks も書きます）。'
-        }
-        unsaved={unsaved}
-        write={() => track("ティラノスクリプト", writeTyrano(aiDrafts))}
-      />
-      <EngineCard
-        name="宴"
-        note="出力プロファイル（export/utage.yaml）に従って、宴のシナリオ（シーンごとのシート）と設定のシート（Character・Texture・Sound・Param）を Excel 形式で書き出します。書き出し先（既定は export/utage）をまるごと作り直します。宴のプロジェクトへは、シナリオのブックを足し、設定のシートの行と Texture・Sound のファイルを取り込みます（作品の Start のシートから Jump *scn_start で始めます）。"
-        unsaved={unsaved}
-        write={() => track("宴", writeUtage(aiDrafts))}
-      />
-      <TextCard
-        summary={summary}
-        loadChoices={loadChoices}
-        writeText={(target, notes) =>
-          track("プレーンテキスト", writeText(target, notes, aiDrafts))
-        }
-      />
-      <BookCard
-        summary={summary}
-        loadChoices={loadChoices}
-        loadSettings={loadBookSettings}
-        writeBook={(target, print, horizontal, notes, typeset, approved) =>
-          track(
-            print ? "縦書きPDF" : "EPUB",
-            writeBook(
-              target,
-              print,
-              horizontal,
-              notes,
-              aiDrafts,
-              typeset,
-              approved,
-            ),
-            pluginWrote,
-          )
-        }
-        ask={ask}
-      />
-      <PluginCard
-        summary={summary}
-        load={loadPlugins}
-        run={(name, approved) =>
-          track(name, runPlugin(name, aiDrafts, approved), pluginWrote)
-        }
-        ask={ask}
-      />
-      <ProvenanceCard
-        summary={summary}
-        load={loadProvenance}
-        write={writeProvenance}
-      />
-      <section className="export-card" aria-label="台本">
-        <div className="export-card-head">
-          <div>
-            <h2>台本</h2>
-            <p className="export-note">
-              収録と校正の表。1行が1つの台詞で、ボイスファイル名は「キャラID_行ID」。CSV
-              は UTF-8（BOM付き）と CRLF で書くので、Excel
-              でそのまま開けます。Excel
-              形式は、欄をすべて文字列にし、見出しの行を固定します。書き出し先：export/script.csv・export/script.xlsx
-            </p>
-          </div>
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={busy || sheet === null}
-            onClick={() => {
-              setBusy(true);
-              track("収録の台本", write(format, baseline, aiDrafts))
-                .then((r) => {
-                  setNotice(
-                    `${r.path} に書き出しました（${r.rows}行）${baseline ? "。収録の基準として記録しました" : ""}`,
-                  );
-                  setError(null);
-                  if (baseline) {
-                    setBaseline(false);
-                    setWritten((n) => n + 1);
-                  }
-                })
-                .catch((e: unknown) => setError(String(e)))
-                .finally(() => setBusy(false));
-            }}
-          >
-            書き出す
-          </button>
-        </div>
-        <div className="export-options">
-          <label>
-            形式
-            <select
-              value={format}
-              onChange={(event) =>
-                setFormat(event.target.value === "xlsx" ? "xlsx" : "csv")
-              }
-            >
-              <option value="csv">CSV</option>
-              <option value="xlsx">Excel（.xlsx）</option>
-            </select>
-          </label>
-          <label>
+      <main className="export-main" aria-label="書き出す形">
+        <header className="work-head export-head">
+          <h1 className="h1">出力</h1>
+          <span className="t-small t-3">
+            書き出し先 <span className="mono">export/</span>
+          </span>
+          <span className="grow" />
+          <label className="check">
             <input
               type="checkbox"
-              checked={baseline}
-              onChange={(event) => setBaseline(event.target.checked)}
+              checked={aiDrafts}
+              onChange={(e) => setAiDrafts(e.target.checked)}
             />
-            収録の基準として記録する（次から、変わった台詞を再収録候補にする）
+            AI下書き（status: ai-draft）のシーンを含める
           </label>
-        </div>
-        {notice !== null && (
-          <p className="notice" role="status">
-            {notice}
-          </p>
-        )}
-        {error !== null && (
-          <p className="notice notice-danger" role="alert">
-            {error}
-          </p>
-        )}
-        {sheet !== null && sheet.retakes !== null && (
-          <p className="export-info">
-            収録の基準（export/script-baseline.json）から：変わった台詞{" "}
-            {sheet.retakes.changed} 行（備考に「再収録候補」）、足した台詞{" "}
-            {sheet.retakes.added} 行、無くなった台詞 {sheet.retakes.removed} 行
-            {sheet.retakes.removed_ids.length > 0 &&
-              `（${sheet.retakes.removed_ids.join(" ")}）`}
-          </p>
-        )}
-        {sheet !== null && sheet.baseline_problem !== null && (
-          <p className="notice notice-warn">
-            {sheet.baseline_problem}（再収録候補を付けずに作りました）
-          </p>
-        )}
-        {unsaved > 0 && (
-          <p className="notice notice-warn">
-            保存していないファイルが {unsaved}{" "}
-            あります。台本は、保存していない本文も含めて作ります（保存すると、行IDの無い行に行IDが付きます）。
-          </p>
-        )}
-        {sheet !== null && sheet.missing_line_ids > 0 && (
-          <p className="notice notice-warn">
-            行IDの無い台詞が {sheet.missing_line_ids}{" "}
-            行あります。ボイスファイル名を付けられないので空にします（保存すると行IDが付きます）。
-          </p>
-        )}
-        {sheet === null ? (
-          <p className="placeholder">台本を作っています…</p>
-        ) : sheet.rows.length === 0 ? (
-          <p className="placeholder">台詞がありません。</p>
-        ) : (
-          <div className="bible-table-wrap export-table-wrap">
-            <table className="bible-table export-table">
-              <thead>
-                <tr>
-                  {COLUMNS.map((c) => (
-                    <th key={c}>{c}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {keyed(
-                  sheet.rows,
-                  (r) => `${r.line_id}:${r.scene}:${r.text}`,
-                ).map(([key, r]) => (
-                  <tr key={key}>
-                    <td className="mono">{r.line_id}</td>
-                    <td>{r.scene}</td>
-                    <td>{r.character}</td>
-                    <td className="export-text">{r.text}</td>
-                    <td className="export-text">{r.narration}</td>
-                    <td className="mono">{r.voice}</td>
-                    <td>{r.note}</td>
-                  </tr>
+        </header>
+        <div className="export-scroll">
+          {(["handoff", "other"] as const).map((group) => (
+            <section
+              key={group}
+              className="export-group"
+              aria-label={GROUP_LABEL[group]}
+            >
+              <h2 className="h2">{GROUP_LABEL[group]}</h2>
+              <div className="export-tiles">
+                {tilesOf(group).map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className={
+                      t.id === kind
+                        ? "card export-tile is-selected"
+                        : "card export-tile"
+                    }
+                    aria-pressed={t.id === kind}
+                    onClick={() => {
+                      setKind(t.id);
+                      onShowPanel();
+                    }}
+                  >
+                    <span className="export-tile-title">
+                      <span className="card-title">{t.title}</span>
+                      <span className="t-caption t-3">{t.format}</span>
+                    </span>
+                    <span className="t-small t-2">{t.desc}</span>
+                    <span className="export-tile-foot t-caption t-3">
+                      {tileFoot(lastByTile.get(t.id))}
+                      {t.id === "script" && retakes > 0 && (
+                        <span className="tag tag-warn">
+                          再収録の候補 {retakes}行
+                        </span>
+                      )}
+                      {t.id === kind && (
+                        <span className="export-tile-here">右で設定</span>
+                      )}
+                    </span>
+                  </button>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </section>
+          ))}
+          {kind === "script" && (
+            <section className="export-preview" aria-label="台本の中身">
+              <h2 className="h2">収録の台本の中身</h2>
+              {sheet === null ? (
+                <p className="placeholder">台本を作っています…</p>
+              ) : sheet.rows.length === 0 ? (
+                <p className="placeholder">台詞がありません。</p>
+              ) : (
+                <div className="bible-table-wrap export-table-wrap">
+                  <table className="bible-table export-table">
+                    <thead>
+                      <tr>
+                        {COLUMNS.map((c) => (
+                          <th key={c}>{c}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {keyed(
+                        sheet.rows,
+                        (r) => `${r.line_id}:${r.scene}:${r.text}`,
+                      ).map(([key, r]) => (
+                        <tr key={key}>
+                          <td className="mono">{r.line_id}</td>
+                          <td>{r.scene}</td>
+                          <td>{r.character}</td>
+                          <td className="export-text">{r.text}</td>
+                          <td className="export-text">{r.narration}</td>
+                          <td className="mono">{r.voice}</td>
+                          <td>{r.note}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          )}
+        </div>
+      </main>
+      <aside className="export-side ctx-column" aria-label="選んだ形の設定">
+        {EXPORT_TILES.map((t) => (
+          <div key={t.id} className="export-slot" hidden={t.id !== kind}>
+            {cardOf(t.id)}
           </div>
-        )}
-      </section>
+        ))}
+      </aside>
     </div>
   );
 }

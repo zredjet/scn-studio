@@ -101,7 +101,7 @@ export function IdeaCard({
   };
   return (
     <article
-      className={selected ? "idea-card selected" : "idea-card"}
+      className={selected ? "card idea-card is-selected" : "card idea-card"}
       aria-label={idea.file}
     >
       <button

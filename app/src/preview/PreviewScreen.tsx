@@ -8,10 +8,18 @@
 //   ランタイムを速送りし、その行から始める（変数と舞台がそろう。D055）。
 // - メインウィンドウの画面にも、別ウィンドウ（`PreviewWindow.tsx`）にも出す。縦書きは T2-5。
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { routeAt, routeToScene } from "../core/api.ts";
 import type { IrInline, IrSpan, PreviewData } from "../core/ir.ts";
 import type { PreviewRequest, Route } from "../core/types.ts";
+import { Icon } from "../shell/icons.tsx";
 import { ScreenStatus } from "../shell/StatusBar.tsx";
 import { previewStatus } from "../shell/status.ts";
 import { type ChoicePolicy, DebugPanel } from "./DebugPanel.tsx";
@@ -59,7 +67,6 @@ export interface PreviewLine {
 interface Props {
   readonly data: PreviewData | null;
   readonly error: string | null;
-  readonly title: string;
   readonly assetUrl: (path: string) => string;
   /** 本文の画面へ移り、その行にカーソルを置く。 */
   readonly onShowInEditor: (line: PreviewLine) => void;
@@ -140,7 +147,6 @@ function playOnce(
 export function PreviewScreen({
   data,
   error,
-  title,
   assetUrl,
   onShowInEditor,
   onLine,
@@ -393,12 +399,13 @@ export function PreviewScreen({
     return () => clearTimeout(timer);
   }, [seLabel]);
 
-  // BGM。ファイルがあれば鳴らし、無ければ無音。
+  // BGM。ファイルがあれば鳴らし、無ければ無音。縦書きで読んでいる間は止める（縦書きの帯には音の操作を置かない。
+  // 見本 06b。ADV に戻ると鳴らし直す。T4-19）。
   const bgmName = state?.stage.bgm ?? null;
   useEffect(() => {
     bgm.current?.pause();
     bgm.current = null;
-    if (bgmName === null || running === null) return;
+    if (bgmName === null || running === null || view === "vertical") return;
     const sound = running.data.assets.bgm[bgmName];
     if (sound?.file === null || sound?.file === undefined) return;
     const audio = new Audio(assetUrl(sound.file));
@@ -407,7 +414,7 @@ export function PreviewScreen({
     void audio.play().catch(() => {});
     bgm.current = audio;
     return () => audio.pause();
-  }, [bgmName, running, assetUrl]);
+  }, [bgmName, running, assetUrl, view]);
 
   // 音量とミュートを変えたら、鳴らしている BGM と効果音に当てる（鳴らし直さない）。別ウィンドウのプレビューとは
   // 合わせない（ウィンドウどうしは Tauri のイベントでだけつなぐ。D055）。開いたときに、覚えた値を読む。
@@ -640,19 +647,15 @@ export function PreviewScreen({
     .filter((x) => x !== null && x !== "")
     .join(" · ");
 
-  return (
-    <div className="preview-screen-body">
-      <ScreenStatus
-        screen="preview"
-        items={previewStatus({
-          position: position === "" ? null : position,
-          screen: `${d.screen.width}×${d.screen.height} · ウィンドウ ${d.message_window.lines}行×${d.message_window.chars_per_line}字`,
-        })}
-      />
-      <header className="preview-header">
-        <strong>プレビュー</strong>
-        <span className="preview-header-title">{title}</span>
-        <fieldset className="mode-switch preview-view-switch" aria-label="表示">
+  /**
+   * 作業領域の見出しの帯と知らせ（見本 06・06b。ADV と縦書きで、表示の切り替え・AI下書き・別ウィンドウ・閉じるを
+   * 同じ場所に置き、表示ごとの操作は `controls` に入れる。T4-19）。
+   */
+  const head = (controls: ReactNode) => (
+    <>
+      <header className="work-head preview-head">
+        <h1 className="h1">プレビュー</h1>
+        <fieldset className="mode-switch" aria-label="表示">
           <button
             type="button"
             aria-pressed={view === "adv"}
@@ -672,8 +675,7 @@ export function PreviewScreen({
             縦書き
           </button>
         </fieldset>
-        <span className="flow-spacer" />
-        <label className="preview-check ai">
+        <label className="check">
           <input
             type="checkbox"
             checked={includeAi}
@@ -684,122 +686,143 @@ export function PreviewScreen({
           />
           AI下書きを含める
         </label>
-        <label className="preview-check sync">
-          <input
-            type="checkbox"
-            checked={sync}
-            onChange={(event) => setSync(event.target.checked)}
-          />
-          エディタと同期
-        </label>
-        <button
-          type="button"
-          className="preview-button"
-          aria-pressed={sound.muted}
-          title="BGM と効果音を消す（全体。この端末に覚える）"
-          onClick={() => changeSound({ ...sound, muted: !sound.muted })}
-        >
-          {sound.muted ? "ミュート中" : "ミュート"}
-        </button>
-        <label
-          className="preview-volume"
-          title="BGM と効果音の音量（全体。素材ごとの大きさは変えない）"
-        >
-          音量
-          <input
-            className="preview-volume-range"
-            type="range"
-            min={0}
-            max={100}
-            step={5}
-            value={volumePercent(sound)}
-            onChange={(event) =>
-              changeSound(withPercent(sound, Number(event.target.value)))
-            }
-          />
-          <span className="preview-volume-value">
-            {sound.muted ? "—" : `${volumePercent(sound)}%`}
-          </span>
-        </label>
-        <button
-          type="button"
-          className="preview-button"
-          onClick={() => {
-            setNotice(null);
-            restart(data, state.vars);
-          }}
-        >
-          最初から
-        </button>
+        {controls}
+        <span className="grow" />
+        {view === "adv" && (
+          <>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                setNotice(null);
+                restart(data, state.vars);
+              }}
+            >
+              最初から
+            </button>
+            <button
+              type="button"
+              className="btn btn-icon"
+              aria-pressed={sound.muted}
+              aria-label={sound.muted ? "音を出す" : "音を消す"}
+              title="BGM と効果音を消す（全体。この端末に覚える）"
+              onClick={() => changeSound({ ...sound, muted: !sound.muted })}
+            >
+              <Icon name={sound.muted ? "muted" : "volume"} size={16} />
+            </button>
+            <input
+              className="preview-volume-range"
+              type="range"
+              aria-label="音量"
+              title={`BGM と効果音の音量（全体。素材ごとの大きさは変えない）：${sound.muted ? "消している" : `${volumePercent(sound)}%`}`}
+              min={0}
+              max={100}
+              step={5}
+              value={volumePercent(sound)}
+              onChange={(event) =>
+                changeSound(withPercent(sound, Number(event.target.value)))
+              }
+            />
+          </>
+        )}
         {onOpenWindow !== null && (
           <button
             type="button"
-            className="preview-button"
+            className="btn"
             title="プレビューを別ウィンドウに出して、本文と並べる"
             onClick={onOpenWindow}
           >
             別ウィンドウで開く
           </button>
         )}
-        <button type="button" className="preview-button" onClick={onClose}>
-          {closeLabel}
+        <button
+          type="button"
+          className="btn btn-icon"
+          aria-label={closeLabel}
+          title={closeLabel}
+          onClick={onClose}
+        >
+          <Icon name="close" size={16} />
         </button>
       </header>
-      <div className="preview-row">
-        <div className="preview-main">
-          {notice !== null && !stale && (
-            <div className="preview-notice" role="status">
-              <span>{notice}</span>
-              <button
-                type="button"
-                className="preview-button"
-                onClick={() => setNotice(null)}
-              >
-                閉じる
-              </button>
-            </div>
-          )}
-          {stale && (
-            <div className="preview-stale" role="status">
-              <span>
-                本文が変わりました。プレビューは変わる前の本文のままです。
-              </span>
-              <button
-                type="button"
-                className="preview-button"
-                onClick={() => {
-                  const p = program(data.ir, declared(data));
-                  setRunning({ data, prog: p });
-                  push(
-                    jumpTo(
-                      p,
-                      { ...state, includeAiDrafts: includeAi },
-                      state.scene,
-                    ),
-                  );
-                }}
-              >
-                このシーンの頭から続ける
-              </button>
-              <button
-                type="button"
-                className="preview-button"
-                onClick={() => restart(data, state.vars)}
-              >
-                最初から
-              </button>
-            </div>
-          )}
-          {view === "vertical" ? (
-            <VerticalView
-              data={data}
-              steps={readingSteps}
-              persistent={persistent}
-              aiDrafts={includeAi}
-              onShowInEditor={onShowInEditor}
-            />
-          ) : (
-            <>
+      {notice !== null && !stale && (
+        <div className="notice preview-band" role="status">
+          <span>{notice}</span>
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => setNotice(null)}
+          >
+            閉じる
+          </button>
+        </div>
+      )}
+      {stale && (
+        <div className="notice notice-warn preview-band" role="status">
+          <span>
+            本文が変わりました。プレビューは変わる前の本文のままです。
+          </span>
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => {
+              const p = program(data.ir, declared(data));
+              setRunning({ data, prog: p });
+              push(
+                jumpTo(
+                  p,
+                  { ...state, includeAiDrafts: includeAi },
+                  state.scene,
+                ),
+              );
+            }}
+          >
+            このシーンの頭から続ける
+          </button>
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => restart(data, state.vars)}
+          >
+            最初から
+          </button>
+        </div>
+      )}
+    </>
+  );
+
+  return (
+    <div className="preview-screen-body">
+      {view === "vertical" ? (
+        <VerticalView
+          data={data}
+          steps={readingSteps}
+          persistent={persistent}
+          aiDrafts={includeAi}
+          head={head}
+          onShowInEditor={onShowInEditor}
+        />
+      ) : (
+        <>
+          <ScreenStatus
+            screen="preview"
+            items={previewStatus({
+              position: position === "" ? null : position,
+              screen: `${d.screen.width}×${d.screen.height} · ウィンドウ ${d.message_window.lines}行×${d.message_window.chars_per_line}字`,
+            })}
+          />
+          <main className="preview-main" aria-label="ADV">
+            {head(
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={sync}
+                  onChange={(event) => setSync(event.target.checked)}
+                />
+                エディタと同期
+              </label>,
+            )}
+            <div className="preview-scroll">
               <div className="preview-stage-wrap">
                 <PreviewStage
                   data={d}
@@ -825,7 +848,7 @@ export function PreviewScreen({
               <div className="preview-controls">
                 <button
                   type="button"
-                  className="preview-button"
+                  className="btn"
                   disabled={history.length < 2}
                   onClick={() => {
                     setHistory((h) => h.slice(0, -1));
@@ -833,19 +856,21 @@ export function PreviewScreen({
                     setMode("normal");
                   }}
                 >
+                  <Icon name="back" size={14} stroke={2} />
                   戻る
                 </button>
                 <button
                   type="button"
-                  className="preview-button primary"
+                  className="btn btn-primary"
                   disabled={!canAdvance(stop)}
                   onClick={advance}
                 >
                   次へ
+                  <Icon name="forward" size={14} stroke={2} />
                 </button>
                 <button
                   type="button"
-                  className="preview-button"
+                  className="btn"
                   aria-pressed={mode === "auto"}
                   onClick={() =>
                     setMode((m) => (m === "auto" ? "normal" : "auto"))
@@ -855,7 +880,7 @@ export function PreviewScreen({
                 </button>
                 <button
                   type="button"
-                  className="preview-button"
+                  className="btn"
                   aria-pressed={mode === "skip"}
                   onClick={() => {
                     if (mode === "skip") {
@@ -871,7 +896,7 @@ export function PreviewScreen({
                 </button>
                 <button
                   type="button"
-                  className="preview-button"
+                  className="btn"
                   onClick={() =>
                     logRef.current
                       ?.querySelector(".preview-log-section")
@@ -880,18 +905,18 @@ export function PreviewScreen({
                 >
                   ログ
                 </button>
-                <span className="flow-spacer" />
-                <span className="preview-position mono">{position}</span>
+                <span className="grow" />
+                <span className="preview-position mono t-small t-2">
+                  {position}
+                </span>
               </div>
-              <p className="preview-info">
+              <p className="preview-info t-small t-3">
                 画面 {d.screen.width}×{d.screen.height} · ウィンドウ{" "}
                 {d.message_window.lines}行×{d.message_window.chars_per_line}字 ·
                 トランジション：フェードのみ再現 · 音：ファイルのある素材だけ
               </p>
-            </>
-          )}
-        </div>
-        {view === "adv" && (
+            </div>
+          </main>
           <div ref={logRef} className="preview-debug-wrap ctx-column">
             <DebugPanel
               data={d}
@@ -928,8 +953,8 @@ export function PreviewScreen({
               }}
             />
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 }

@@ -70,6 +70,7 @@ function VariableInput({
     return (
       <select
         aria-label={name}
+        className="select is-sm preview-var-enum"
         value={typeof value === "string" ? value : ""}
         onChange={(event) => onChange(event.target.value)}
       >
@@ -95,7 +96,11 @@ function VariableInput({
   return (
     <input
       aria-label={name}
-      className={type === "int" ? "preview-var-int" : "preview-var-text"}
+      className={
+        type === "int"
+          ? "input is-sm mono preview-var-int"
+          : "input is-sm preview-var-text"
+      }
       inputMode={type === "int" ? "numeric" : undefined}
       value={shown}
       onChange={(event) => setDraft(event.target.value)}
@@ -134,18 +139,25 @@ export function DebugPanel({
   ];
   return (
     <aside className="preview-debug" aria-label="デバッグ">
-      <section>
-        <h2 className="preview-debug-heading">現在位置</h2>
-        <p className="preview-debug-where">
-          <span className="mono">{scene?.id ?? "—"}</span> {scene?.title ?? ""}
-        </p>
-        <p className="preview-debug-sub mono">{position}</p>
-        <button type="button" className="btn btn-sm" onClick={onShowInEditor}>
-          エディタで表示
-        </button>
+      <div className="panel-head">
+        <h2 className="h-label">いまの位置</h2>
+      </div>
+      <section className="section preview-where">
+        <div className="preview-debug-where">
+          <span className="mono t-small t-3">{scene?.id ?? "—"}</span>
+          <span className="name">{scene?.title ?? ""}</span>
+          <button
+            type="button"
+            className="btn btn-link btn-sm"
+            onClick={onShowInEditor}
+          >
+            エディタで表示
+          </button>
+        </div>
+        <span className="mono t-caption t-3">{position}</span>
       </section>
-      <section>
-        <h2 className="preview-debug-heading">変数</h2>
+      <section className="section">
+        <h2 className="h-label">変数</h2>
         <ul className="preview-vars">
           {ordered.map((v, i) => (
             <li
@@ -160,9 +172,7 @@ export function DebugPanel({
               }
             >
               <span className="mono preview-var-name">{v.key}</span>
-              {v.scope === "persistent" && (
-                <span className="preview-badge">永続</span>
-              )}
+              {v.scope === "persistent" && <span className="tag">永続</span>}
               <VariableInput
                 name={v.key}
                 type={v.type}
@@ -175,7 +185,7 @@ export function DebugPanel({
           {undeclared.map((key) => (
             <li key={key}>
               <span className="mono preview-var-name">{key}</span>
-              <span className="preview-badge warn">宣言なし</span>
+              <span className="tag tag-warn">宣言なし</span>
               <VariableInput
                 name={key}
                 type={
@@ -193,10 +203,11 @@ export function DebugPanel({
           ))}
         </ul>
       </section>
-      <section>
-        <h2 className="preview-debug-heading">ジャンプ</h2>
+      <section className="section">
+        <h2 className="h-label">ジャンプ</h2>
         <div className="preview-jump">
           <select
+            className="select is-sm"
             aria-label="ジャンプ先のシーン"
             value={jump}
             onChange={(event) => setJump(event.target.value)}
@@ -225,19 +236,19 @@ export function DebugPanel({
             最短経路で開始
           </button>
         </div>
-        <p className="preview-note">
+        <p className="t-caption t-3 preview-note">
           「この状態で開始」は、上の今の値のままで始めます。「最短経路で開始」は、開始シーンから選択肢の数がいちばん少ない道で、変数と舞台をそろえて始めます。
         </p>
       </section>
-      <section>
-        <h2 className="preview-debug-heading">選択肢</h2>
+      <section className="section">
+        <h2 className="h-label">選択肢</h2>
         <div
           className="preview-policy"
           role="radiogroup"
           aria-label="選択肢の自動選択"
         >
           {POLICIES.map((p) => (
-            <label key={p.value}>
+            <label key={p.value} className="check">
               <input
                 type="radio"
                 name="preview-policy"
@@ -250,8 +261,8 @@ export function DebugPanel({
         </div>
       </section>
       {warnings.length > 0 && (
-        <section>
-          <h2 className="preview-debug-heading">知らせ</h2>
+        <section className="section">
+          <h2 className="h-label">知らせ</h2>
           <ul className="preview-warnings">
             {keyed(warnings.slice(-8), (w) => w).map(([key, w]) => (
               <li key={key}>{w}</li>
@@ -259,8 +270,8 @@ export function DebugPanel({
           </ul>
         </section>
       )}
-      <section className="preview-log-section">
-        <h2 className="preview-debug-heading">バックログ</h2>
+      <section className="section preview-log-section">
+        <h2 className="h-label">ログ</h2>
         <ol className="preview-log">
           {keyed(
             log.slice(-LOG_LIMIT),

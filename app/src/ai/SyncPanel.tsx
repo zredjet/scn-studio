@@ -74,7 +74,7 @@ export function SyncPanel({
   const count = pending[file] ?? 0;
   return (
     <section className="ai-sync" aria-label="同期">
-      <h2 className="context-heading">同期：要約のずれ</h2>
+      <h2 className="h2 ai-section-head">同期：要約のずれ</h2>
       <p className="context-faint ai-scope-note">
         本文から作り直したシーン要約と、メタ情報の
         summary（フロー図のカード）が違うシーンです。「summary

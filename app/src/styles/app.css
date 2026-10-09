@@ -585,11 +585,210 @@ body {
   grid-template-columns: minmax(0, 1fr) minmax(160px, 280px) minmax(0, 1fr);
 }
 
-.check-screen {
+/* 検証の画面（見本 09-check.html。T4-19） */
+.check-screen-body {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.check-main {
+  display: flex;
+  flex: 1;
   flex-direction: column;
-  overflow: auto;
-  padding: 16px 24px;
+  min-width: 0;
+  min-height: 0;
   background: var(--paper);
+}
+
+.check-head h1 {
+  margin: 0;
+}
+
+.check-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.chip-error svg {
+  color: var(--danger);
+}
+
+.chip-warning svg {
+  color: var(--warn);
+}
+
+.chip-info svg {
+  color: var(--text-3);
+}
+
+.check-grouping {
+  width: auto;
+  min-width: 120px;
+}
+
+.check-stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  padding: 10px 24px;
+  color: var(--text-2);
+  font-size: var(--fs-small);
+}
+
+.check-stages > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.check-stages svg {
+  color: var(--ai-line);
+}
+
+.check-stage-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid var(--text-3);
+  border-radius: 50%;
+}
+
+.check-band {
+  margin: 0 24px 8px;
+}
+
+.check-scroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 24px 32px;
+}
+
+.check-count {
+  margin-left: 4px;
+  color: var(--text-3);
+  font-weight: 400;
+}
+
+.check-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--h-control-sm);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.check-code.error svg {
+  color: var(--danger);
+}
+
+.check-code.warning svg {
+  color: var(--warn);
+}
+
+.check-code.info svg {
+  color: var(--text-3);
+}
+
+.check-row-message {
+  min-height: var(--h-control-sm);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.table tr.is-selected .check-row-message,
+.table tr.is-selected .check-select {
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.check-row-place {
+  color: var(--text-2);
+  font-size: var(--fs-small);
+  white-space: nowrap;
+}
+
+.check-action {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.check-side {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  border-left: 1px solid var(--border);
+  background: var(--panel-bg-2);
+}
+
+.check-side-empty {
+  padding: 0 16px;
+}
+
+.check-about,
+.check-message-full {
+  margin: 0;
+}
+
+.check-snippet {
+  margin: 0;
+  padding: 8px 0;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--paper);
+  font: 400 var(--fs-small) / 22px var(--font-mono);
+  white-space: pre;
+}
+
+.check-snippet > span {
+  display: block;
+  padding: 0 10px 0 0;
+}
+
+.check-snippet > span.at {
+  background: var(--warn-tint);
+}
+
+.check-snippet .no {
+  display: inline-block;
+  width: 36px;
+  padding-right: 10px;
+  color: var(--text-3);
+  text-align: right;
+}
+
+.check-open {
+  align-self: flex-start;
+}
+
+.check-fixes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 20px;
+  font-size: var(--fs-small);
+  line-height: 18px;
 }
 
 .context-panel {
@@ -1230,6 +1429,13 @@ body {
   background: var(--paper);
 }
 
+.work-head > h1,
+.work-head > h2 {
+  flex: none;
+  margin: 0;
+  white-space: nowrap;
+}
+
 .crumbs {
   display: flex;
   flex: 1;
@@ -1268,6 +1474,7 @@ body {
 /* 表示の切り替え（見本 v1 の .seg。fieldset なので枠と余白を消す） */
 .mode-switch {
   display: inline-flex;
+  flex: none;
   gap: 2px;
   min-width: 0;
   height: var(--h-control);
@@ -1732,7 +1939,7 @@ body {
   gap: 8px;
 }
 
-.flow-problem-row > svg {
+.flow-problem-card .flow-problem-row > svg {
   flex: none;
   margin-top: 3px;
 }
@@ -2931,47 +3138,125 @@ button.sb-btn:hover {
 
 /* ---- 出力の画面（T1-12、D051） ---- */
 
-.export-screen {
-  overflow: auto;
-  background: var(--paper);
+/* 出力の画面（見本 10-export.html。T4-19） */
+.export-screen-body {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
 }
 
-.export-screen-body {
+.export-main {
   display: flex;
   flex: 1;
   flex-direction: column;
   min-width: 0;
-}
-
-.export-head {
-  display: flex;
-  align-items: center;
-  padding: 16px 28px;
-  border-bottom: 1px solid var(--border-soft);
+  min-height: 0;
+  background: var(--paper);
 }
 
 .export-head h1 {
   margin: 0;
-  font-family: var(--font-ui);
-  font-size: var(--fs-h1);
-  font-weight: 600;
+}
+
+.export-scroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 24px;
+  min-height: 0;
+  overflow: auto;
+  padding: 20px 24px 40px;
+}
+
+.export-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.export-group > .h2,
+.export-preview > .h2 {
+  margin: 0;
+}
+
+.export-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  max-width: 860px;
+}
+
+.export-tile {
+  gap: 6px;
+  min-height: 112px;
+  padding: 14px 16px;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.export-tile:hover {
+  border-color: var(--border-control);
+}
+
+.export-tile.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-weak);
+}
+
+.export-tile-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.export-tile-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.export-tile-here {
+  margin-left: auto;
+  color: var(--accent);
+}
+
+.export-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 右の欄：選んだ形の設定。書き出すボタンは欄の下に1つ（U18） */
+.export-side {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  border-left: 1px solid var(--border);
+  background: var(--panel-bg-2);
 }
 
 .export-card {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin: 20px 28px 40px;
-  padding: 16px 20px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-lg);
+  padding: 16px;
+  /* 書き出し先の長いパスを欄の中で折り返す */
+  overflow-wrap: anywhere;
 }
 
 .export-card-head {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-  justify-content: space-between;
+  display: contents;
+}
+
+/* 主のボタン（設定の後に1つ。Tab の順も見た目と同じ） */
+.export-go {
+  width: 100%;
+  margin-top: 4px;
 }
 
 .export-card h2 {
@@ -2980,17 +3265,17 @@ button.sb-btn:hover {
 }
 
 .export-note {
-  max-width: 720px;
   margin: 0;
   color: var(--text-2);
-  font-size: var(--fs-base);
+  font-size: var(--fs-small);
+  line-height: 18px;
 }
 
 .export-options {
   display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  align-items: center;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
   font-size: var(--fs-base);
 }
 
@@ -2998,10 +3283,6 @@ button.sb-btn:hover {
   display: inline-flex;
   gap: 6px;
   align-items: center;
-}
-
-.export-card + .export-card {
-  margin-top: 0;
 }
 
 .export-info {
@@ -3338,35 +3619,11 @@ button.sb-btn:hover {
   background: var(--paper);
 }
 
-.ideas-head,
-.concept-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 20px 12px;
-}
-
-.ideas-title {
-  display: flex;
-  flex-direction: column;
-}
-
-.ideas-title h1,
-.ideas-title h2 {
-  margin: 0;
-  font-size: var(--fs-h1);
-  font-weight: 600;
-}
-
-.ideas-title h2 {
-  font-size: var(--fs-h1);
-}
-
 .ideas-count {
-  color: var(--text-2);
-  font-family: var(--font-mono);
-  font-size: var(--fs-small);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ideas-filter {
@@ -3374,48 +3631,23 @@ button.sb-btn:hover {
   flex-wrap: wrap;
   gap: 6px;
   margin: 0;
-  padding: 0;
+  padding: 12px 16px 10px;
   border: 0;
-}
-
-.ideas-filter button {
-  min-height: 28px;
-  padding: 0 10px;
-  border: 1px solid var(--border-control);
-  border-radius: 999px;
-  background: var(--paper);
-  color: var(--text-2);
-  font: inherit;
-  font-size: var(--fs-small);
-  cursor: pointer;
-}
-
-.ideas-filter button[aria-pressed="true"] {
-  border-color: var(--accent);
-  background: var(--accent-tint);
-  color: var(--accent-strong);
 }
 
 .ideas-add {
   display: flex;
   gap: 8px;
-  padding: 0 20px 14px;
+  padding: 0 16px 14px;
 }
 
-.ideas-add input {
+.ideas-add .input {
   flex: 1;
   min-width: 0;
-  min-height: 36px;
-  padding: 0 12px;
-  border: 1px solid var(--border-control);
-  border-radius: var(--r-lg);
-  color: var(--ink);
-  font: inherit;
-  font-size: var(--fs-base);
 }
 
 .ideas-error {
-  margin: 0 20px 10px;
+  margin: 0 16px 10px;
   color: var(--danger);
   font-size: var(--fs-base);
 }
@@ -3424,7 +3656,7 @@ button.sb-btn:hover {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 0 20px 16px;
+  padding: 0 16px 24px;
 }
 
 .ideas-columns {
@@ -3451,7 +3683,7 @@ button.sb-btn:hover {
 }
 
 /* 選んだメモの列は広げる（直す欄と昇格の欄を開くため）。 */
-.ideas-column:has(.idea-card.selected) {
+.ideas-column:has(.idea-card.is-selected) {
   grid-column: span 2;
 }
 
@@ -3466,19 +3698,10 @@ button.sb-btn:hover {
   cursor: pointer;
 }
 
+/* メモのカード（部品の card。見本 01-ideas.html） */
 .idea-card {
-  display: flex;
-  flex-direction: column;
   gap: 8px;
   padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  background: var(--paper);
-}
-
-.idea-card.selected {
-  border: 2px solid var(--accent);
-  padding: 9px 11px;
 }
 
 .idea-card-main {
@@ -3609,22 +3832,30 @@ button.sb-btn:hover {
   gap: 6px;
 }
 
+/* 企画書の欄（見本 01-ideas.html の右の 440。T4-19） */
 .concept-panel {
   display: flex;
-  flex: 1 1 420px;
+  flex: 0 1 440px;
   flex-direction: column;
   min-width: 320px;
   min-height: 0;
-  overflow: auto;
   border-left: 1px solid var(--border);
-  background: var(--panel-bg-2);
+  background: var(--paper);
+}
+
+.concept-scroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
 }
 
 .concept-form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 0 18px 20px;
+  gap: 16px;
+  padding: 16px 20px 32px;
 }
 
 .concept-grid {
@@ -3712,7 +3943,7 @@ button.sb-btn:hover {
   flex-direction: column;
   align-items: flex-start;
   gap: 10px;
-  padding: 0 18px;
+  padding: 16px 20px;
   color: var(--text-2);
   font-size: var(--fs-base);
 }
@@ -4128,26 +4359,10 @@ button.sb-btn:hover {
   flex: none;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border);
 }
 
-.playthrough-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.playthrough-head .btn-primary {
-  flex: none;
-}
-
-.playthrough-note {
-  margin: 4px 0 0;
-  color: var(--text-2);
-  font-size: var(--fs-small);
+.playthrough > .h2 {
+  margin: 0;
 }
 
 .playthrough-summary {
@@ -4352,29 +4567,66 @@ button.sb-btn:hover {
 }
 
 /* 環境設定（AIの接続先。T3-5、D066） */
-.preferences-screen {
-  overflow: auto;
-  background: var(--paper);
+/* 環境設定（見本 11-preferences.html。T4-19。右の欄は持たない） */
+.preferences-body {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
 }
 
-.preferences-body {
+.preferences-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  border-right: 1px solid var(--border);
+  background: var(--panel-bg);
+}
+
+.prefs-group {
+  margin-top: 8px;
+}
+
+.prefs-note {
+  padding: 0 16px;
+}
+
+.preferences-main {
   display: flex;
   flex: 1;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
+  background: var(--paper);
+}
+
+.preferences-scroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  overflow: auto;
+  padding: 20px 24px 40px;
+}
+
+.preferences-scroll > * {
+  max-width: 760px;
+}
+
+.prefs-lead {
+  margin: 0;
 }
 
 .ai-connection {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px 16px;
-  border: 1px solid var(--border-soft);
+  gap: 12px;
+  padding: 18px 24px;
+  border: 1px solid var(--border);
   border-radius: var(--r-lg);
-}
-
-.ai-connection.cloud {
-  border-color: var(--ai-border);
+  background: var(--paper);
 }
 
 .ai-connection-head {
@@ -4387,6 +4639,7 @@ button.sb-btn:hover {
   margin: 0;
   font-family: var(--font-mono);
   font-size: var(--fs-h2);
+  line-height: 22px;
 }
 
 .ai-provider {
@@ -4397,8 +4650,8 @@ button.sb-btn:hover {
 
 .ai-fields {
   display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 4px 12px;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 6px 16px;
   margin: 0;
   font-size: var(--fs-base);
 }
@@ -4430,22 +4683,30 @@ button.sb-btn:hover {
   font-size: var(--fs-small);
 }
 
+/* 接続先のカードの中の節（この端末での上書き・キー。見本 11 の pf の行に合わせ、枠は持たない。T4-19） */
 .ai-override,
 .ai-key {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 12px;
+  gap: 10px 16px;
   align-items: flex-end;
+  min-width: 0;
   margin: 0;
-  padding: 8px 12px 10px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-lg);
+  padding: 14px 0 0;
+  border: 0;
+  border-top: 1px solid var(--border-soft);
   font-size: var(--fs-base);
 }
 
 .ai-override legend,
 .ai-key legend {
-  padding: 0 4px;
+  float: left;
+  width: 100%;
+  margin-bottom: 2px;
+  padding: 0;
+  font-size: var(--fs-small);
+  line-height: 18px;
+  font-weight: 600;
   color: var(--text-2);
 }
 
@@ -4453,17 +4714,20 @@ button.sb-btn:hover {
 .ai-key label {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   color: var(--text-2);
+  font-size: var(--fs-small);
 }
 
 .ai-override input,
+.ai-override select,
 .ai-key input {
-  width: 260px;
-  height: 28px;
-  padding: 0 8px;
+  width: 280px;
+  height: var(--h-control);
+  padding: 0 10px;
   border: 1px solid var(--border-control);
   border-radius: var(--r);
+  background: var(--paper);
   color: var(--ink);
   font-family: var(--font-mono);
   font-size: var(--fs-base);
@@ -4646,6 +4910,7 @@ button.sb-btn:hover {
   background: var(--paper);
 }
 
+/* AI実行（見本 07-ai.html。T4-19）：左にタスクと履歴、真ん中に実行、右に実行の設定 */
 .ai-screen-body {
   display: flex;
   flex: 1;
@@ -4653,11 +4918,16 @@ button.sb-btn:hover {
   min-height: 0;
 }
 
+.ai-screen-body > .context-empty {
+  padding: 24px;
+}
+
 .ai-task-list {
   display: flex;
-  flex: 0 0 240px;
   flex-direction: column;
+  min-height: 0;
   overflow: auto;
+  padding-bottom: 16px;
   border-right: 1px solid var(--border);
   background: var(--panel-bg);
 }
@@ -4665,95 +4935,117 @@ button.sb-btn:hover {
 .ai-task-group {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 0 8px 8px;
 }
 
-.ai-task-level {
-  padding: 6px 8px 2px;
+.ai-task-group > .menu-label {
+  padding-left: 16px;
+}
+
+.ai-task-group > .lrow {
+  padding-left: 16px;
+}
+
+.ai-task-group > .lrow.is-locked:not(.is-selected) {
   color: var(--text-3);
-  font-size: var(--fs-caption);
 }
 
-.ai-task-item {
-  display: flex;
-  gap: 8px;
+.ai-task-group > .lrow .meta {
+  display: inline-flex;
+  gap: 3px;
   align-items: center;
-  padding: 7px 10px;
-  border: 0;
-  border-radius: var(--r-lg);
-  background: transparent;
-  color: var(--ink);
-  font: inherit;
-  font-size: var(--fs-base);
-  text-align: left;
-  cursor: pointer;
 }
 
-.ai-task-item[aria-pressed="true"] {
-  background: var(--ai-tint);
-  color: var(--ai);
-  font-weight: 600;
+.ai-list-sep {
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
 }
 
-.ai-task-name {
-  flex: 1;
-}
-
-.ai-task-place {
-  color: var(--text-2);
-  font-size: var(--fs-caption);
+.ai-task-list > .empty {
+  padding: 0 16px;
 }
 
 .ai-history {
   display: flex;
   flex-direction: column;
-  gap: 6px;
   margin: 0;
-  padding: 0 16px 16px;
+  padding: 0;
   list-style: none;
-  font-size: var(--fs-base);
 }
 
 .ai-history li {
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  min-height: 44px;
+  padding: 4px 12px 4px 16px;
+  font-size: var(--fs-base);
+}
+
+.ai-history .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ai-run-main {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 12px;
   min-width: 0;
-  overflow: auto;
-  padding: 18px 24px 32px;
+  min-height: 0;
 }
 
 .ai-run-head {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: baseline;
+  flex-basis: 64px;
 }
 
-.ai-run-head h1 {
+.ai-run-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ai-run-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ai-run-title-row h1 {
   margin: 0;
-  font-size: var(--fs-h1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-run-scroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow: auto;
+  padding: 20px 24px 32px;
+}
+
+.ai-run-scroll > * {
+  max-width: 860px;
 }
 
 .ai-connection-choice {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
-  margin-left: auto;
   font-size: var(--fs-small);
   color: var(--text-3);
+  white-space: nowrap;
 }
 
-.ai-connection-choice select {
-  height: var(--h-control-sm);
-  font: inherit;
+.ai-connection-choice .select {
+  width: auto;
+  max-width: 220px;
 }
 
 .ai-scene-select {
@@ -4799,25 +5091,28 @@ button.sb-btn:hover {
 
 .ai-run-settings {
   display: flex;
-  flex: 0 0 260px;
   flex-direction: column;
+  min-height: 0;
   overflow: auto;
-  padding-right: 12px;
   border-left: 1px solid var(--border);
   background: var(--panel-bg-2);
 }
 
-.ai-run-settings .ai-fields {
-  padding: 0 16px;
+.ai-run-kv {
+  grid-template-columns: 84px minmax(0, 1fr);
+}
+
+.ai-side-note {
+  margin: 0;
 }
 
 .ai-scope-note {
-  margin: 12px 16px 0;
+  margin: 0;
   font-size: var(--fs-small);
 }
 
-.ai-result .context-heading {
-  padding-left: 0;
+.ai-section-head {
+  margin: 8px 0 0;
 }
 
 /* 提案と行ごとの採用（T3-8） */
@@ -4907,13 +5202,6 @@ button.sb-btn:hover {
 }
 
 /* 出力の画面の「AI下書きを含める」（T3-9） */
-.export-ai-drafts {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
-  color: var(--text-2);
-  font-size: var(--fs-base);
-}
 
 /* 自律の実行（T3-9） */
 .ai-auto {
@@ -4952,20 +5240,6 @@ button.sb-btn:hover {
   font-size: var(--fs-base);
 }
 
-.ai-auto-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--fs-base);
-}
-
-.ai-auto-result .ai-auto-table thead th,
-.ai-auto-result .ai-auto-table tbody td {
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--border-soft);
-  text-align: left;
-  vertical-align: top;
-}
-
 .ai-branch-list {
   display: flex;
   flex-direction: column;
@@ -4981,10 +5255,6 @@ button.sb-btn:hover {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-}
-
-.ai-auto .context-heading {
-  padding-left: 0;
 }
 
 /* プロットとフローへの AI 支援（T3-10）：提案ノード、分岐案のカード、ルートの骨格の欄、同期、企画の画面の問い返し。 */
@@ -5090,28 +5360,43 @@ button.sb-btn:hover {
   padding-left: 20px;
 }
 
+/* 企画の右の欄（AI。見本 01-ideas.html）：タスクごとに名前・説明・ボタン */
 .concept-ai {
   display: flex;
-  flex: 1 1 280px;
   flex-direction: column;
-  gap: 10px;
-  min-width: 260px;
-  padding: 16px 14px;
+  min-height: 0;
   overflow: auto;
   border-left: 1px solid var(--border);
-  background: var(--paper);
+  background: var(--panel-bg-2);
 }
 
-.concept-ai-head {
+.concept-ai-task {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
+  padding: 12px 16px 14px;
+  border-top: 1px solid var(--border-soft);
 }
 
-.concept-ai-head h2 {
+.concept-ai > .panel-head + .concept-ai-task {
+  padding-top: 4px;
+  border-top: 0;
+}
+
+.concept-ai-title {
   margin: 0;
-  color: var(--ai);
-  font-size: var(--fs-h2);
+  font-size: var(--fs-base);
+  font-weight: 600;
+}
+
+.concept-ai-task > p {
+  margin: 0;
+}
+
+.concept-ai-foot {
+  margin: auto 0 0;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-soft);
 }
 
 .concept-ai-card {
@@ -5124,21 +5409,6 @@ button.sb-btn:hover {
   background: var(--ai-tint);
   font-size: var(--fs-base);
   line-height: 1.6;
-}
-
-.concept-ai-more {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 6px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-soft);
-}
-
-.concept-ai-label {
-  color: var(--text-2);
-  font-size: var(--fs-small);
-  font-weight: 600;
 }
 
 .concept-ai-link {

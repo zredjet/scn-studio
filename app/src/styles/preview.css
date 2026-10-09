@@ -1,29 +1,23 @@
 /* プレビューの画面（docs/ui/mockups/06-preview.html、T1-11、D050）。 */
 
 .preview-screen {
-  background: var(--preview-bg);
+  background: var(--app-bg);
 }
 
+/* 見本 v1（06・06b。T4-19）：明るい作業領域に暗い舞台。見出しの帯は作業領域の上だけで、右の欄は ADV では
+   デバッグ、縦書きではシーンの一覧。 */
 .preview-screen-body {
   display: flex;
   flex: 1;
-  flex-direction: column;
   min-width: 0;
   min-height: 0;
-  background: var(--preview-bg);
-  color: var(--chrome-text);
-}
-
-/* 見出しの下の本体（ADV では右にデバッグの欄。見出しは ADV と縦書きで同じ幅にする。T4-14、V10）。 */
-.preview-row {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
+  background: var(--app-bg);
+  color: var(--ink);
 }
 
 .preview-placeholder {
-  color: var(--chrome-text-2);
+  padding: 24px;
+  color: var(--text-2);
 }
 
 .preview-main {
@@ -31,127 +25,51 @@
   flex: 1;
   flex-direction: column;
   min-width: 0;
-  overflow: auto;
+  min-height: 0;
 }
 
-.preview-header {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--chrome-bg-2);
-  background: var(--chrome-bg);
-  font-size: var(--fs-small);
+.preview-head {
+  gap: 10px;
 }
 
-.preview-header strong {
-  font-size: var(--fs-h2);
-}
-
-.preview-header-title {
-  color: var(--chrome-text-2);
-}
-
-.preview-check {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.preview-check input {
-  width: 16px;
-  height: 16px;
-}
-
-.preview-check.ai input {
-  accent-color: var(--preview-ai-check);
-}
-
-.preview-check.sync input {
-  accent-color: var(--preview-sync-check);
-}
-
-/* 音量（T3-1、H5） */
-.preview-volume {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
-  white-space: nowrap;
+.preview-head > .mode-switch {
+  margin: 0 4px;
 }
 
 .preview-volume-range {
-  width: 88px;
+  width: 96px;
   accent-color: var(--accent);
 }
 
-.preview-volume-value {
-  min-width: 3.2em;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-.preview-button {
-  min-height: 30px;
-  padding: 0 12px;
-  border: 1px solid var(--preview-line);
-  border-radius: var(--r);
-  background: var(--preview-control);
-  color: var(--chrome-text);
-  font: inherit;
-  font-size: var(--fs-base);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.preview-button:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.preview-button.primary {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: #ffffff;
-}
-
-.preview-button[aria-pressed="true"] {
-  border-color: var(--preview-sync-check);
-  color: var(--preview-sync-check);
-}
-
-.preview-stale {
-  display: flex;
+/* 知らせと、本文が変わった後の帯（見出しの下に幅いっぱい）。 */
+.preview-band {
   flex-wrap: wrap;
-  gap: 8px;
   align-items: center;
-  padding: 8px 16px;
-  background: var(--chrome-bg-2);
-  color: var(--preview-provisional-text);
-  font-size: var(--fs-base);
+  border-width: 0 0 1px;
+  border-radius: 0;
 }
 
-.preview-notice {
+.preview-scroll {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex: 1;
+  flex-direction: column;
   align-items: center;
-  padding: 6px 16px;
-  background: var(--chrome-bg-2);
-  color: var(--chrome-text);
-  font-size: var(--fs-base);
+  gap: 12px;
+  min-height: 0;
+  overflow: auto;
+  padding: 24px;
 }
 
 .preview-stage-wrap {
   display: flex;
   justify-content: center;
-  padding: 20px 16px 12px;
+  width: 100%;
+  max-width: 860px;
 }
 
 .preview-stage {
   position: relative;
   width: 100%;
-  max-width: 960px;
   overflow: hidden;
   border-radius: var(--r);
   background: var(--preview-stage);
@@ -401,40 +319,23 @@
   gap: 8px;
   align-items: center;
   width: 100%;
-  max-width: 960px;
-  box-sizing: border-box;
-  margin: 0 auto;
-  padding: 0 16px;
-}
-
-.preview-controls .preview-button {
-  min-height: 34px;
-  border-radius: var(--r-lg);
-}
-
-.preview-position {
-  color: var(--chrome-text-2);
-  font-family: var(--font-mono);
-  font-size: var(--fs-small);
+  max-width: 860px;
 }
 
 .preview-info {
   width: 100%;
-  max-width: 960px;
-  box-sizing: border-box;
-  margin: 8px auto 16px;
-  padding: 0 16px;
-  color: var(--chrome-text-2);
-  font-size: var(--fs-small);
+  max-width: 860px;
+  margin: 0;
 }
 
+/* 右の欄（デバッグ。見本 06 の「いまの位置」「変数」「ジャンプ」「選択肢」「ログ」） */
 .preview-debug-wrap {
   display: flex;
-  flex: 0 0 320px;
-  min-width: 280px;
+  flex-direction: column;
+  min-height: 0;
   overflow: auto;
-  background: var(--paper);
-  color: var(--ink);
+  border-left: 1px solid var(--border);
+  background: var(--panel-bg-2);
 }
 
 .preview-debug {
@@ -444,28 +345,25 @@
   min-width: 0;
 }
 
-.preview-debug section {
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.preview-debug-heading {
-  margin: 0 0 8px;
-  color: var(--text-2);
-  font-size: var(--fs-small);
-  font-weight: 600;
-}
-
 .preview-debug-where {
-  margin: 0 0 4px;
-  font-weight: 600;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
 }
 
-.preview-debug-sub {
-  margin: 0 0 8px;
-  color: var(--text-3);
-  font-family: var(--font-mono);
-  font-size: var(--fs-small);
+.preview-debug-where .name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview-where {
+  gap: 2px;
+  padding-top: 4px;
 }
 
 .preview-vars {
@@ -481,11 +379,12 @@
   display: flex;
   gap: 8px;
   align-items: center;
-  font-size: var(--fs-base);
+  min-height: var(--h-control-sm);
+  font-size: var(--fs-small);
 }
 
 .preview-vars li.persistent.first {
-  margin-top: 4px;
+  margin-top: 2px;
   padding-top: 8px;
   border-top: 1px solid var(--border-soft);
 }
@@ -494,20 +393,8 @@
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  font-family: var(--font-mono);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.preview-var-int,
-.preview-var-text,
-.preview-vars select {
-  height: 30px;
-  box-sizing: border-box;
-  padding: 0 8px;
-  border: 1px solid var(--border-control);
-  border-radius: var(--r);
-  font: inherit;
 }
 
 .preview-var-int {
@@ -515,26 +402,14 @@
 }
 
 .preview-var-text,
-.preview-vars select {
+.preview-var-enum {
   width: 96px;
 }
 
 .preview-vars input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-}
-
-.preview-badge {
-  padding: 0 6px;
-  border-radius: var(--r-sm);
-  background: var(--panel-bg);
-  color: var(--text-2);
-  font-size: var(--fs-caption);
-}
-
-.preview-badge.warn {
-  background: var(--warn-tint);
-  color: var(--warn-strong);
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
 }
 
 /* シーンの選択を1行に置き、ボタン（折り返さない）はその下に並べる。 */
@@ -544,27 +419,19 @@
   gap: 6px;
 }
 
-.preview-jump select {
+.preview-jump .select {
   flex: 1 1 100%;
   min-width: 0;
-  height: 30px;
-  border: 1px solid var(--border-control);
-  border-radius: var(--r);
-  font: inherit;
-  font-size: var(--fs-base);
 }
 
 .preview-note {
-  margin: 6px 0 0;
-  color: var(--text-3);
-  font-size: var(--fs-small);
+  margin: 0;
 }
 
 .preview-policy {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: var(--fs-base);
 }
 
 .preview-warnings {
@@ -589,13 +456,15 @@
 
 .preview-log button {
   width: 100%;
-  padding: 4px 6px;
+  margin: 0 -8px;
+  padding: 2px 8px;
   border: 0;
-  border-radius: var(--r);
+  border-radius: var(--r-sm);
   background: transparent;
   color: var(--text-2);
   font-family: var(--font-text);
-  font-size: var(--fs-h2);
+  font-size: var(--fs-base);
+  line-height: 1.7;
   text-align: left;
   cursor: pointer;
 }
@@ -607,9 +476,14 @@
 
 .preview-log-name {
   margin-right: 6px;
-  color: var(--accent);
+  color: var(--text-2);
   font-family: var(--font-ui);
+  font-size: var(--fs-caption);
   font-weight: 600;
+}
+
+.preview-log li.current .preview-log-name {
+  color: var(--accent);
 }
 
 .preview-log-chosen {
@@ -633,77 +507,53 @@
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
-/* ---- 縦書きビュー（T2-5、D056。docs/ui/mockups/06b-preview-vertical.html） ---- */
+/* ---- 縦書きビュー（T2-5、D056。見本 06b-preview-vertical.html。T4-19） ---- */
 
-.preview-view-switch {
-  margin-left: 8px;
+.vertical-route {
+  width: 160px;
 }
 
-.vertical-body {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-}
-
-.vertical-main {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-}
-
-.vertical-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
-  padding: 8px 16px;
-  font-size: var(--fs-base);
-}
-
-.vertical-field {
+.vertical-size {
   display: inline-flex;
-  gap: 6px;
+  gap: 4px;
   align-items: center;
+  white-space: nowrap;
 }
 
-.vertical-field select,
-.vertical-field input[type="number"] {
-  font: inherit;
-}
-
-.vertical-field input[type="number"] {
+.vertical-size .input {
   width: 56px;
 }
 
-.vertical-count {
-  color: var(--chrome-text-2);
+.vertical-scroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-height: 0;
+  overflow: auto;
+  padding: 20px 24px;
 }
 
 .vertical-error {
-  margin: 0 16px;
-  color: var(--preview-provisional-text);
-  font-size: var(--fs-base);
+  align-self: stretch;
+  margin: 0;
 }
 
 .vertical-stage {
   display: flex;
-  flex: 1;
-  gap: 8px;
+  gap: 16px;
   align-items: center;
   justify-content: center;
-  min-height: 0;
-  padding: 12px;
-  overflow: auto;
 }
 
 .vertical-page {
   box-sizing: content-box;
   width: calc(var(--v-lines, 16) * 1.9em);
   height: calc(var(--v-chars, 40) * 1em);
-  padding: 28px 32px;
+  padding: 32px 40px;
   overflow: hidden;
+  border: 1px solid var(--border);
   border-radius: var(--r-sm);
   background: var(--paper);
   color: var(--ink);
@@ -729,8 +579,9 @@
 }
 
 .v-line.note {
-  color: var(--text-2);
-  font-size: 0.85em;
+  color: var(--accent-strong);
+  font-family: var(--font-ui);
+  font-size: 0.8em;
 }
 
 .v-tcy {
@@ -747,67 +598,34 @@
   font-size: 0.5em;
 }
 
-.vertical-turn {
-  flex: none;
-  width: 32px;
-  height: 64px;
-  border: 1px solid var(--preview-line);
-  border-radius: var(--r);
-  background: transparent;
-  color: var(--chrome-text);
-  font-size: var(--fs-display);
-  cursor: pointer;
-}
-
-.vertical-turn:disabled {
-  cursor: default;
-  opacity: 0.35;
-}
-
 .vertical-info {
   margin: 0;
-  padding: 0 16px 10px;
-  color: var(--chrome-text-2);
-  font-size: var(--fs-small);
 }
 
 .vertical-side {
   display: flex;
-  flex: 0 0 260px;
   flex-direction: column;
-  gap: 8px;
-  padding-bottom: 16px;
+  min-height: 0;
   overflow: auto;
-  background: var(--paper);
-  color: var(--ink);
-}
-
-.vertical-side .preview-debug-heading {
-  padding: 14px 16px 0;
+  border-left: 1px solid var(--border);
+  background: var(--panel-bg-2);
 }
 
 .vertical-scenes {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin: 0;
-  padding: 0 12px;
-  list-style: none;
+  padding-bottom: 8px;
 }
 
-/* 長い名前は左に寄せて折り返す（btn は中央寄せで折り返さない）。 */
-.vertical-scenes .btn {
-  justify-content: flex-start;
-  width: 100%;
-  height: auto;
-  min-height: var(--h-control-sm);
-  padding-block: 4px;
-  line-height: 18px;
-  text-align: left;
-  white-space: normal;
+.vertical-scenes .lrow {
+  padding: 0 16px;
 }
 
-.vertical-side > .btn {
+.vertical-scenes .lrow .id {
+  flex: none;
+  width: 44px;
+}
+
+.vertical-side .section > .btn {
   align-self: flex-start;
-  margin: 8px 12px 0;
 }

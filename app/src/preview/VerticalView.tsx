@@ -2,7 +2,13 @@
 // プレビューで選んだ道）を選び、コアの通読（`route::read`）を一本道として縦書きで読む。確認用と位置づける
 // （WebView の組版は OS で違う。厳密な組版は PDF・EPUB の書き出しで行う）。組み方は `vertical.ts`。
 
-import { type CSSProperties, useEffect, useMemo, useState } from "react";
+import {
+  type CSSProperties,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   type PersistentValues,
   readingChoices,
@@ -15,6 +21,9 @@ import type {
   ReadingTarget,
   RouteStep,
 } from "../core/types.ts";
+import { Icon } from "../shell/icons.tsx";
+import { useScreenStatus } from "../shell/StatusBar.tsx";
+import { verticalStatus } from "../shell/status.ts";
 import type { PreviewLine } from "./PreviewScreen.tsx";
 import {
   clampSize,
@@ -34,6 +43,8 @@ interface Props {
   readonly persistent: PersistentValues;
   /** AI下書き（status: ai-draft）のシーンを含めるか（プレビューの見出しの欄。T4-14、V10）。 */
   readonly aiDrafts: boolean;
+  /** 作業領域の見出しの帯（プレビューの画面が作る。縦書きの操作を `controls` に入れる。T4-19）。 */
+  readonly head: (controls: ReactNode) => ReactNode;
   readonly onShowInEditor: (line: PreviewLine) => void;
 }
 
@@ -93,6 +104,7 @@ export function VerticalView({
   steps,
   persistent,
   aiDrafts,
+  head,
   onShowInEditor,
 }: Props) {
   const [choices, setChoices] = useState<readonly ReadingChoice[]>([]);
@@ -186,13 +198,25 @@ export function VerticalView({
     first === undefined ? undefined : paragraphs[first.paragraph];
   const stop = result === null ? "" : (STOP_TEXT[result.reading.stop] ?? "");
 
+  useScreenStatus(
+    "preview",
+    verticalStatus({
+      route: current?.label ?? null,
+      page: shown + 1,
+      pages: pages.length,
+      perLine,
+      perPage,
+    }),
+  );
+
   return (
-    <div className="vertical-body">
-      <div className="vertical-main">
-        <div className="vertical-toolbar">
-          <label className="vertical-field">
-            ルート
+    <>
+      <main className="preview-main" aria-label="縦書き">
+        {head(
+          <>
             <select
+              className="select vertical-route"
+              aria-label="通読する道"
               value={current === null ? "" : keyOf(current.target)}
               onChange={(event) => {
                 setSelected(event.target.value);
@@ -205,136 +229,147 @@ export function VerticalView({
                 </option>
               ))}
             </select>
-          </label>
-          <label className="vertical-field">
-            <input
-              type="checkbox"
-              checked={notes}
-              onChange={(event) => setNotes(event.target.checked)}
-            />
-            選んだ選択肢を注記
-          </label>
-          <label className="vertical-field">
-            <input
-              type="number"
-              min={10}
-              max={60}
-              value={perLineText}
-              aria-label="1行の字数"
-              onChange={(event) => setPerLineText(event.target.value)}
-            />
-            字×
-            <input
-              type="number"
-              min={4}
-              max={40}
-              value={perPageText}
-              aria-label="1ページの行数"
-              onChange={(event) => setPerPageText(event.target.value)}
-            />
-            行
-          </label>
-          <span className="flow-spacer" />
-          <span className="vertical-count">
-            {shown + 1} / {pages.length}ページ · 原稿用紙換算 {sheets}枚
-          </span>
-        </div>
-        {error !== null && (
-          <p className="vertical-error" role="alert">
-            {error}
-          </p>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={notes}
+                onChange={(event) => setNotes(event.target.checked)}
+              />
+              選んだ選択肢を注記
+            </label>
+            <span className="vertical-size t-small t-2">
+              <input
+                className="input is-sm mono"
+                type="number"
+                min={10}
+                max={60}
+                value={perLineText}
+                aria-label="1行の字数"
+                onChange={(event) => setPerLineText(event.target.value)}
+              />
+              字×
+              <input
+                className="input is-sm mono"
+                type="number"
+                min={4}
+                max={40}
+                value={perPageText}
+                aria-label="1ページの行数"
+                onChange={(event) => setPerPageText(event.target.value)}
+              />
+              行
+            </span>
+          </>,
         )}
-        {result !== null && result.reading.stop === "unreachable" ? (
-          <p className="placeholder">
-            {result.label} には着けません：{result.reading.message ?? ""}
-          </p>
-        ) : (
-          <div className="vertical-stage">
-            <button
-              type="button"
-              className="vertical-turn"
-              aria-label="次のページ"
-              disabled={shown >= pages.length - 1}
-              onClick={() => setPage(shown + 1)}
-            >
-              ‹
-            </button>
-            <div
-              className="vertical-page"
-              style={
-                { "--v-chars": perLine, "--v-lines": perPage } as CSSProperties
-              }
-            >
-              {lines.map((line, i) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: ページの行は並べ替えない
-                <LineView key={i} line={line} />
-              ))}
-              {shown === pages.length - 1 && stop !== "" && (
-                <div className="v-line note">{stop}</div>
-              )}
-            </div>
-            <button
-              type="button"
-              className="vertical-turn"
-              aria-label="前のページ"
-              disabled={shown <= 0}
-              onClick={() => setPage(shown - 1)}
-            >
-              ›
-            </button>
-          </div>
-        )}
-        <p className="vertical-info">
-          {perLine}字×{perPage}行 · 話者名は小説の形では出しません ·
-          ルビ・傍点・縦中横に対応 · 確認用（厳密な組版は PDF・EPUB
-          の書き出しで行う）
-        </p>
-      </div>
-      <aside className="vertical-side ctx-column" aria-label="シーン">
-        <h2 className="preview-debug-heading">シーン</h2>
-        <ul className="vertical-scenes">
-          {scenes.map(({ p, index }) => (
-            <li key={index}>
+        <div className="vertical-scroll">
+          {error !== null && (
+            <p className="notice notice-danger vertical-error" role="alert">
+              {error}
+            </p>
+          )}
+          {result !== null && result.reading.stop === "unreachable" ? (
+            <p className="empty">
+              {result.label} には着けません：{result.reading.message ?? ""}
+            </p>
+          ) : (
+            <div className="vertical-stage">
               <button
                 type="button"
-                className="btn btn-sm"
-                onClick={() => {
-                  const at = pageOfParagraph(pages, index);
-                  if (at !== null) setPage(at);
-                }}
+                className="btn btn-icon"
+                aria-label="次のページ"
+                disabled={shown >= pages.length - 1}
+                onClick={() => setPage(shown + 1)}
               >
-                {p.scene}{" "}
+                <Icon name="back" size={16} stroke={2} />
+              </button>
+              <div
+                className="vertical-page"
+                style={
+                  {
+                    "--v-chars": perLine,
+                    "--v-lines": perPage,
+                  } as CSSProperties
+                }
+              >
+                {lines.map((line, i) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: ページの行は並べ替えない
+                  <LineView key={i} line={line} />
+                ))}
+                {shown === pages.length - 1 && stop !== "" && (
+                  <div className="v-line note">{stop}</div>
+                )}
+              </div>
+              <button
+                type="button"
+                className="btn btn-icon"
+                aria-label="前のページ"
+                disabled={shown <= 0}
+                onClick={() => setPage(shown - 1)}
+              >
+                <Icon name="forward" size={16} stroke={2} />
+              </button>
+            </div>
+          )}
+          <span className="t-small t-2 vertical-count">
+            {pages.length === 0 ? 0 : shown + 1} / {pages.length}ページ ·
+            原稿用紙換算 {sheets}枚
+          </span>
+          <p className="t-small t-3 vertical-info">
+            話者名は小説の形では出しません · ルビ・傍点・縦中横に対応 ·
+            確認用（厳密な組版は PDF・EPUB の書き出しで行う）
+          </p>
+        </div>
+      </main>
+      <aside className="vertical-side ctx-column" aria-label="シーン">
+        <div className="panel-head">
+          <h2 className="h-label">シーン</h2>
+        </div>
+        <div className="vertical-scenes">
+          {scenes.map(({ p, index }) => (
+            <button
+              key={index}
+              type="button"
+              className="lrow"
+              onClick={() => {
+                const at = pageOfParagraph(pages, index);
+                if (at !== null) setPage(at);
+              }}
+            >
+              <span className="id">{p.scene}</span>
+              <span className="name">
                 {p.tokens
                   .map((t) => (t.kind === "ruby" ? t.base : t.text))
                   .join("")}
-              </button>
-            </li>
+              </span>
+            </button>
           ))}
-        </ul>
-        <button
-          type="button"
-          className="btn btn-sm"
-          disabled={
-            firstParagraph === undefined || firstParagraph.span === null
-          }
-          onClick={() => {
-            if (
-              firstParagraph === undefined ||
-              firstParagraph.file === null ||
-              firstParagraph.span === null
-            ) {
-              return;
+        </div>
+        <section className="section">
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={
+              firstParagraph === undefined || firstParagraph.span === null
             }
-            onShowInEditor({
-              file: firstParagraph.file,
-              lineId: firstParagraph.lineId,
-              span: firstParagraph.span,
-            });
-          }}
-        >
-          このページをエディタで表示
-        </button>
+            onClick={() => {
+              if (
+                firstParagraph === undefined ||
+                firstParagraph.file === null ||
+                firstParagraph.span === null
+              ) {
+                return;
+              }
+              onShowInEditor({
+                file: firstParagraph.file,
+                lineId: firstParagraph.lineId,
+                span: firstParagraph.span,
+              });
+            }}
+          >
+            このページをエディタで表示
+          </button>
+        </section>
       </aside>
-    </div>
+    </>
   );
 }

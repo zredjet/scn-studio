@@ -10,6 +10,7 @@ import {
   panelMode,
   parseClosedPanels,
   resized,
+  showPanel,
   togglePanel,
 } from "../src/shell/layout.ts";
 import {
@@ -26,6 +27,7 @@ import {
   saveTitle,
   textStatus,
   variablesStatus,
+  verticalStatus,
 } from "../src/shell/status.ts";
 
 const open: PanelState = { closed: new Set(), drawer: false };
@@ -49,9 +51,8 @@ test("広い窓：右の欄は並べて出し、開け閉めを画面ごとに�
     "docked",
   );
   // 右の欄の無い画面では、ボタンを押しても何も変えない。
-  assert.equal(togglePanel(open, "check", false), open);
-  assert.equal(panelMode("check", false, open), "hidden");
-  assert.equal(panelMode("export", false, open), "hidden");
+  assert.equal(togglePanel(open, "preferences", false), open);
+  assert.equal(panelMode("check", false, open), "docked");
   assert.equal(panelMode("preferences", false, open), "hidden");
 });
 
@@ -86,7 +87,7 @@ test("覚えた「閉じている画面」を読む（右の欄のある画面�
   assert.deepEqual([...parseClosedPanels("not json")], []);
   assert.deepEqual([...parseClosedPanels('{"text":true}')], []);
   assert.deepEqual(
-    [...parseClosedPanels('["text","check","nope","bible",3]')].sort(),
+    [...parseClosedPanels('["text","preferences","nope","bible",3]')].sort(),
     ["bible", "text"],
   );
 });
@@ -264,4 +265,43 @@ test("ステータスバーの左：画面ごとの中身（U05）", () => {
     "出力",
     "最後の書き出し 21:02 · 収録の台本",
   ]);
+  assert.deepEqual(
+    texts(
+      verticalStatus({
+        route: "共通",
+        page: 1,
+        pages: 2,
+        perLine: 40,
+        perPage: 16,
+      }),
+    ),
+    ["プレビュー", "縦書き · 共通", "1 / 2ページ", "40字×16行"],
+  );
+  // 道が無い・まだ読んでいない（ページが無い）とき。
+  assert.deepEqual(
+    texts(
+      verticalStatus({
+        route: null,
+        page: 1,
+        pages: 0,
+        perLine: 30,
+        perPage: 10,
+      }),
+    ),
+    ["プレビュー", "縦書き", "30字×10行"],
+  );
+});
+
+test("右の欄を出す（出力の画面でカードを選んだとき）", () => {
+  const closed: PanelState = { closed: new Set(["export"]), drawer: false };
+  assert.equal(
+    panelMode("export", false, showPanel(closed, "export", false)),
+    "docked",
+  );
+  assert.equal(
+    panelMode("export", true, showPanel(open, "export", true)),
+    "drawer",
+  );
+  assert.equal(showPanel(open, "export", false), open);
+  assert.equal(showPanel(open, "preferences", false), open);
 });

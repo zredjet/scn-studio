@@ -11,8 +11,10 @@ export function isNarrow(width: number): boolean {
   return width < NARROW_WIDTH;
 }
 
-/** 右の欄のある画面（検証・出力・環境設定は、今は右の欄を持たない）。 */
+/** 右の欄のある画面（環境設定は右の欄を持たない。U19）。 */
 export const CONTEXT_SCREENS: ReadonlySet<Screen> = new Set<Screen>([
+  "check",
+  "export",
   "text",
   "flow",
   "bible",
@@ -54,6 +56,20 @@ export function togglePanel(
   const closed = new Set(state.closed);
   if (closed.has(screen)) closed.delete(screen);
   else closed.add(screen);
+  return { ...state, closed };
+}
+
+/** 右の欄を出す（出力の画面でカードを選んだとき。設定と書き出すボタンが右の欄にあるため。T4-19）。 */
+export function showPanel(
+  state: PanelState,
+  screen: Screen,
+  narrow: boolean,
+): PanelState {
+  if (!CONTEXT_SCREENS.has(screen)) return state;
+  if (narrow) return state.drawer ? state : { ...state, drawer: true };
+  if (!state.closed.has(screen)) return state;
+  const closed = new Set(state.closed);
+  closed.delete(screen);
   return { ...state, closed };
 }
 

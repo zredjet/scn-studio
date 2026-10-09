@@ -106,7 +106,6 @@ export function PreviewWindow() {
         <PreviewScreen
           data={data}
           error={error}
-          title=""
           assetUrl={assetUrl}
           onShowInEditor={(line) => void sendShowInEditor(line)}
           onLine={onLine}

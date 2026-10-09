@@ -18,6 +18,7 @@ import type {
   SceneSummary,
 } from "../core/types.ts";
 import { AiMark } from "../shell/AiMark.tsx";
+import { Icon } from "../shell/icons.tsx";
 import { AutoPanel } from "./AutoPanel.tsx";
 import { BranchProposals } from "./BranchProposals.tsx";
 import { type FieldDecision, FieldProposals } from "./FieldProposals.tsx";
@@ -295,57 +296,82 @@ export function AiScreen({
   return (
     <div className="ai-screen-body">
       <aside className="ai-task-list list-column" aria-label="AIタスク">
-        <h2 className="context-heading">AIタスク</h2>
+        <div className="panel-head">
+          <h2 className="h-label">AIタスク</h2>
+        </div>
         {groupTasks(tasks).map((group) => (
           <div key={group.level} className="ai-task-group">
-            <span className="ai-task-level">{group.label}</span>
-            {group.tasks.map((t) => (
-              <button
-                key={t.task.id}
-                type="button"
-                className="ai-task-item"
-                aria-pressed={selectedFile === null && t.task.id === task.id}
-                onClick={() => {
-                  setSelected(t.task.id);
-                  setSelectedFile(null);
-                }}
-              >
-                <span className="ai-task-name">{t.task.name}</span>
-                <span className="ai-task-place">{placeText(t)}</span>
-              </button>
-            ))}
+            <span className="menu-label">{group.label}</span>
+            {group.tasks.map((t) => {
+              const isSelected = selectedFile === null && t.task.id === task.id;
+              // まだ使えない接続先（クラウドを許可していない、キーが無い）は鍵の印で示す（見本 07）。
+              const locked = connectionBlocker(t);
+              return (
+                <button
+                  key={t.task.id}
+                  type="button"
+                  className={[
+                    "lrow",
+                    isSelected ? "is-selected" : null,
+                    locked !== null ? "is-locked" : null,
+                  ]
+                    .filter((c) => c !== null)
+                    .join(" ")}
+                  aria-pressed={isSelected}
+                  title={locked ?? undefined}
+                  onClick={() => {
+                    setSelected(t.task.id);
+                    setSelectedFile(null);
+                  }}
+                >
+                  <span className="name">{t.task.name}</span>
+                  <span className="meta">
+                    {locked !== null && (
+                      <Icon name="lock" size={11} stroke={2} />
+                    )}
+                    {placeText(t)}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         ))}
         {proposalFiles.length > 0 && (
           <>
-            <h2 className="context-heading">提案ファイル（ai/proposals）</h2>
+            <div className="panel-head ai-list-sep">
+              <h2 className="h-label">提案ファイル（ai/proposals）</h2>
+            </div>
             <div className="ai-task-group">
               {proposalFiles.map((f) => (
                 <button
                   key={f.path}
                   type="button"
-                  className="ai-task-item"
+                  className={
+                    selectedFile === f.path ? "lrow is-selected" : "lrow"
+                  }
                   aria-pressed={selectedFile === f.path}
                   onClick={() => setSelectedFile(f.path)}
                 >
-                  <span className="ai-task-name">
+                  <span className="name">
                     {f.path.replace(/^ai\/proposals\//, "")}
                   </span>
-                  <span className="ai-task-place">{f.proposals.length}件</span>
+                  <span className="meta">{f.proposals.length}件</span>
                 </button>
               ))}
             </div>
           </>
         )}
-        <h2 className="context-heading">実行履歴</h2>
+        <div className="panel-head ai-list-sep">
+          <h2 className="h-label">実行の履歴</h2>
+        </div>
         {history.length === 0 ? (
-          <p className="context-empty">まだ実行していません。</p>
+          <p className="empty">まだ実行していません。</p>
         ) : (
           <ul className="ai-history">
             {history.map((h) => (
               <li key={h.run}>
-                <span>{h.taskName}</span>
-                <span className="context-faint">
+                <span className="name">{h.taskName}</span>
+                <span className="t-caption t-3">
                   {h.at} · {h.status}
                 </span>
               </li>
@@ -355,48 +381,62 @@ export function AiScreen({
       </aside>
       {openFile !== null ? (
         <main className="ai-run-main" aria-label="提案ファイル">
-          <header className="ai-run-head">
-            <span className="tag tag-ai">提案</span>
-            <h1>{openFile.path}</h1>
-            <span className="context-faint">
-              {openFile.task ?? "タスクの記載なし"} ·{" "}
-              {openFile.model ?? "モデルの記載なし"}
-              {openFile.at !== null ? ` · ${openFile.at}` : ""}
-            </span>
+          <header className="work-head ai-run-head">
+            <div className="ai-run-title">
+              <span className="ai-run-title-row">
+                <span className="tag tag-ai">提案</span>
+                <h1 className="h1">{openFile.path}</h1>
+              </span>
+              <span className="t-small t-2">
+                {openFile.task ?? "タスクの記載なし"} ·{" "}
+                {openFile.model ?? "モデルの記載なし"}
+                {openFile.at !== null ? ` · ${openFile.at}` : ""}
+              </span>
+            </div>
           </header>
-          <p className="context-faint ai-scope-note">
-            外部のAIエージェントが置いた、人の書いた行への変更案です。採用した行だけを置き換え（行IDは変えません）、出自を
-            {fileProposalSet(openFile).task}{" "}
-            として記録します。却下はこの画面の中だけで、ファイルは書き換えません。
-          </p>
-          {openFile.problems.map((p) => (
-            <p key={p} className="notice notice-warn">
-              {p}
+          <div className="ai-run-scroll">
+            <p className="t-small t-3 ai-scope-note">
+              外部のAIエージェントが置いた、人の書いた行への変更案です。採用した行だけを置き換え（行IDは変えません）、出自を
+              {fileProposalSet(openFile).task}{" "}
+              として記録します。却下はこの画面の中だけで、ファイルは書き換えません。
             </p>
-          ))}
-          <ProposalPanel
-            set={fileProposalSet(openFile)}
-            version={textVersion}
-            onAdopt={onAdopt}
-            onGoTo={onGoToProposal}
-            rejected={rejected.get(fileProposalSet(openFile).id) ?? NO_REJECTED}
-            onToggleReject={onToggleReject}
-          />
+            {openFile.problems.map((p) => (
+              <p key={p} className="notice notice-warn">
+                {p}
+              </p>
+            ))}
+            <ProposalPanel
+              set={fileProposalSet(openFile)}
+              version={textVersion}
+              onAdopt={onAdopt}
+              onGoTo={onGoToProposal}
+              rejected={
+                rejected.get(fileProposalSet(openFile).id) ?? NO_REJECTED
+              }
+              onToggleReject={onToggleReject}
+            />
+          </div>
         </main>
       ) : (
         <>
           <main className="ai-run-main" aria-label="実行">
-            <header className="ai-run-head">
-              <span className="tag tag-ai">{LEVEL_LABEL[task.level]}</span>
-              <h1>{task.name}</h1>
-              <span className="context-faint">
-                {info.connection === null
-                  ? "接続先なし"
-                  : `${info.connection.name} · ${info.connection.model}（${cloud ? "クラウド" : "ローカル"}）`}
-              </span>
+            <header className="work-head ai-run-head">
+              <div className="ai-run-title">
+                <span className="ai-run-title-row">
+                  <span className="tag tag-ai">{LEVEL_LABEL[task.level]}</span>
+                  <h1 className="h1">{task.name}</h1>
+                </span>
+                <span className="t-small t-2">
+                  {info.connection === null
+                    ? "接続先なし"
+                    : `${info.connection.name} · ${info.connection.model}（${cloud ? "クラウド" : "ローカル"}）`}
+                </span>
+              </div>
+              <span className="grow" />
               <label className="ai-connection-choice">
                 <span>この端末の接続先</span>
                 <select
+                  className="select"
                   value={info.override ?? ""}
                   disabled={
                     choosing ||
@@ -424,498 +464,525 @@ export function AiScreen({
                 </select>
               </label>
             </header>
-            {chooseError !== null && (
-              <p className="notice notice-warn">{chooseError}</p>
-            )}
-            {taskBlocked !== null && (
-              <p className="notice notice-warn">{taskBlocked}</p>
-            )}
-            {task.level === "auto" ? (
-              <AutoPanel
-                key={task.id}
-                info={info}
-                checks={tasks.filter((t) => task.checks.includes(t.task.id))}
-                scenes={scenes}
-                run={autoRun}
-                result={autoResult}
-                error={autoError}
-                busy={isRunning || autoRun !== null || choosing}
-                blocked={blocked}
-                branches={branches}
-                onRun={onRunAuto}
-                onCancel={onCancelAuto}
-                onDiff={onBranchDiff}
-                onMerge={onBranchMerge}
-                onDelete={onBranchDelete}
-                stageTasks={{
-                  concept:
-                    tasks.find(
-                      (t) =>
-                        t.task.id === "draft_concept" &&
-                        t.task.output === "concept",
-                    ) ?? null,
-                  entries:
-                    tasks.find(
-                      (t) =>
-                        t.task.id === "draft_entries" &&
-                        t.task.output === "entries",
-                    ) ?? null,
-                }}
-                fieldDecisions={fieldDecisions}
-                onAdoptField={onAdoptField}
-                onRejectField={onRejectField}
-              />
-            ) : (
-              <>
-                {sceneNeeded && (
-                  <label className="ai-scene-select">
-                    <span>対象のシーン</span>
-                    <select
-                      value={scene ?? ""}
-                      onChange={(e) =>
-                        setScene(e.target.value === "" ? null : e.target.value)
-                      }
-                    >
-                      <option value="">選んでください</option>
-                      {scenes.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.id} {s.title}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
-                {skeleton && (
-                  <div className="ai-skeleton-target">
+            <div className="ai-run-scroll">
+              {chooseError !== null && (
+                <p className="notice notice-warn">{chooseError}</p>
+              )}
+              {taskBlocked !== null && (
+                <p className="notice notice-warn">{taskBlocked}</p>
+              )}
+              {task.level === "auto" ? (
+                <AutoPanel
+                  key={task.id}
+                  info={info}
+                  checks={tasks.filter((t) => task.checks.includes(t.task.id))}
+                  scenes={scenes}
+                  run={autoRun}
+                  result={autoResult}
+                  error={autoError}
+                  busy={isRunning || autoRun !== null || choosing}
+                  blocked={blocked}
+                  branches={branches}
+                  onRun={onRunAuto}
+                  onCancel={onCancelAuto}
+                  onDiff={onBranchDiff}
+                  onMerge={onBranchMerge}
+                  onDelete={onBranchDelete}
+                  stageTasks={{
+                    concept:
+                      tasks.find(
+                        (t) =>
+                          t.task.id === "draft_concept" &&
+                          t.task.output === "concept",
+                      ) ?? null,
+                    entries:
+                      tasks.find(
+                        (t) =>
+                          t.task.id === "draft_entries" &&
+                          t.task.output === "entries",
+                      ) ?? null,
+                  }}
+                  fieldDecisions={fieldDecisions}
+                  onAdoptField={onAdoptField}
+                  onRejectField={onRejectField}
+                />
+              ) : (
+                <>
+                  {sceneNeeded && (
                     <label className="ai-scene-select">
-                      <span>対象のルート</span>
-                      <input
-                        type="text"
-                        value={route}
-                        list="ai-route-names"
-                        placeholder="例：紬"
-                        onChange={(e) => setRoute(e.target.value)}
-                      />
-                      <datalist id="ai-route-names">
-                        {routeNames(scenes).map((r) => (
-                          <option key={r} value={r} />
-                        ))}
-                      </datalist>
-                    </label>
-                    <label className="ai-scene-select">
-                      <span>書く章</span>
+                      <span>対象のシーン</span>
                       <select
-                        value={chapter}
-                        onChange={(e) => setChapter(e.target.value)}
+                        value={scene ?? ""}
+                        onChange={(e) =>
+                          setScene(
+                            e.target.value === "" ? null : e.target.value,
+                          )
+                        }
                       >
-                        {plot.chapters.map((c) => (
-                          <option key={c} value={c}>
-                            {c}
+                        <option value="">選んでください</option>
+                        {scenes.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.id} {s.title}
                           </option>
                         ))}
-                        <option value={NEW_CHAPTER}>新しい章を作る…</option>
                       </select>
                     </label>
-                    {chapter === NEW_CHAPTER && (
+                  )}
+                  {skeleton && (
+                    <div className="ai-skeleton-target">
                       <label className="ai-scene-select">
-                        <span>新しい章の名前</span>
+                        <span>対象のルート</span>
                         <input
                           type="text"
-                          value={newChapter}
-                          placeholder="例：route_tsumugi.scn"
-                          onChange={(e) => setNewChapter(e.target.value)}
+                          value={route}
+                          list="ai-route-names"
+                          placeholder="例：紬"
+                          onChange={(e) => setRoute(e.target.value)}
                         />
+                        <datalist id="ai-route-names">
+                          {routeNames(scenes).map((r) => (
+                            <option key={r} value={r} />
+                          ))}
+                        </datalist>
                       </label>
-                    )}
-                    <p className="context-faint ai-scope-note">
-                      足すのはスタブのシーン（見出し、summary・route、選択肢とジャンプ）だけで、今あるシーンは変えません。足したシーンは
-                      status: ai-draft
-                      になります。入口の辺は、フロー図で引きます。
-                    </p>
-                  </div>
-                )}
-                <div className="ai-run-actions">
-                  {thisRunning ? (
-                    <>
-                      <span className="ai-test-state" role="status">
-                        実行中 · {progressText(running)}
-                      </span>
+                      <label className="ai-scene-select">
+                        <span>書く章</span>
+                        <select
+                          value={chapter}
+                          onChange={(e) => setChapter(e.target.value)}
+                        >
+                          {plot.chapters.map((c) => (
+                            <option key={c} value={c}>
+                              {c}
+                            </option>
+                          ))}
+                          <option value={NEW_CHAPTER}>新しい章を作る…</option>
+                        </select>
+                      </label>
+                      {chapter === NEW_CHAPTER && (
+                        <label className="ai-scene-select">
+                          <span>新しい章の名前</span>
+                          <input
+                            type="text"
+                            value={newChapter}
+                            placeholder="例：route_tsumugi.scn"
+                            onChange={(e) => setNewChapter(e.target.value)}
+                          />
+                        </label>
+                      )}
+                      <p className="context-faint ai-scope-note">
+                        足すのはスタブのシーン（見出し、summary・route、選択肢とジャンプ）だけで、今あるシーンは変えません。足したシーンは
+                        status: ai-draft
+                        になります。入口の辺は、フロー図で引きます。
+                      </p>
+                    </div>
+                  )}
+                  <div className="ai-run-actions">
+                    {thisRunning ? (
+                      <>
+                        <span className="ai-test-state" role="status">
+                          実行中 · {progressText(running)}
+                        </span>
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          onClick={onCancel}
+                        >
+                          取り消す
+                        </button>
+                      </>
+                    ) : (
                       <button
                         type="button"
-                        className="btn btn-sm"
-                        onClick={onCancel}
+                        className="btn"
+                        disabled={
+                          blocked !== null ||
+                          isRunning ||
+                          confirming ||
+                          (sceneNeeded && scene === null) ||
+                          skeletonMissing ||
+                          shown?.assembled.problem != null
+                        }
+                        title={blocked ?? undefined}
+                        onClick={() => {
+                          if (cloud) {
+                            setConfirming(true);
+                            if (shown === null) prepare();
+                          } else runNow();
+                        }}
                       >
-                        取り消す
+                        <AiMark locked={connectionBlocked !== null} />
+                        実行
                       </button>
-                    </>
-                  ) : (
+                    )}
                     <button
                       type="button"
-                      className="btn"
-                      disabled={
-                        blocked !== null ||
-                        isRunning ||
-                        confirming ||
-                        (sceneNeeded && scene === null) ||
-                        skeletonMissing ||
-                        shown?.assembled.problem != null
-                      }
-                      title={blocked ?? undefined}
-                      onClick={() => {
-                        if (cloud) {
-                          setConfirming(true);
-                          if (shown === null) prepare();
-                        } else runNow();
-                      }}
+                      className="btn btn-sm"
+                      disabled={preparing || (sceneNeeded && scene === null)}
+                      onClick={prepare}
                     >
-                      <AiMark locked={connectionBlocked !== null} />
-                      実行
+                      送る中身を見る
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    className="btn btn-sm"
-                    disabled={preparing || (sceneNeeded && scene === null)}
-                    onClick={prepare}
-                  >
-                    送る中身を見る
-                  </button>
-                  {isRunning && !thisRunning && (
-                    <span className="context-faint">
-                      ほかのタスクを実行しています
-                    </span>
-                  )}
-                </div>
-                {prepareError !== null && (
-                  <p className="notice notice-warn">{prepareError}</p>
-                )}
-                {shown !== null && (
-                  <section className="ai-prepared" aria-label="送る中身">
-                    <p className="export-info">
-                      {estimateText(shown.assembled)}
-                    </p>
-                    {shown.assembled.problem !== null && (
-                      <p className="notice notice-warn">
-                        {shown.assembled.problem}
-                      </p>
+                    {isRunning && !thisRunning && (
+                      <span className="context-faint">
+                        ほかのタスクを実行しています
+                      </span>
                     )}
-                    {trimmedText(shown.assembled).map((t) => (
-                      <p key={t} className="context-faint ai-prepared-note">
-                        {t}
+                  </div>
+                  {prepareError !== null && (
+                    <p className="notice notice-warn">{prepareError}</p>
+                  )}
+                  {shown !== null && (
+                    <section className="ai-prepared" aria-label="送る中身">
+                      <p className="export-info">
+                        {estimateText(shown.assembled)}
                       </p>
-                    ))}
-                    {shown.assembled.notes.map((n) => (
-                      <p key={n} className="context-faint ai-prepared-note">
-                        {n}
-                      </p>
-                    ))}
-                    {shown.connection.structured && (
-                      <p className="context-faint ai-prepared-note">
-                        {STRUCTURED_NOTE}
-                      </p>
-                    )}
-                    {confirming && shown.assembled.problem === null && (
-                      <div className="ai-confirm">
-                        <p>
-                          クラウド（{shown.connection.name} ·{" "}
-                          {shown.connection.model}
-                          ）へ次の中身を送ります。
+                      {shown.assembled.problem !== null && (
+                        <p className="notice notice-warn">
+                          {shown.assembled.problem}
                         </p>
-                        <div className="ai-actions">
-                          <button
-                            type="button"
-                            className="btn btn-primary"
-                            onClick={runNow}
-                          >
-                            送る
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-sm"
-                            onClick={() => setConfirming(false)}
-                          >
-                            やめる
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                    <details open={confirming}>
-                      <summary>指示（system）と依頼（user）</summary>
-                      <pre className="ai-preview">{shown.assembled.system}</pre>
-                      <pre className="ai-preview">{shown.assembled.user}</pre>
-                    </details>
-                  </section>
-                )}
-                {confirming && shown === null && preparing && (
-                  <p className="context-faint">送る中身を組み立てています…</p>
-                )}
-                {result !== undefined && !thisRunning && (
-                  <section className="ai-result" aria-label="結果">
-                    <h2 className="context-heading">
-                      結果{result.scene !== null ? `（${result.scene}）` : ""}
-                    </h2>
-                    {result.kind === "failed" && (
-                      <p className="notice notice-warn">{result.message}</p>
-                    )}
-                    {result.kind === "cancelled" && (
-                      <p className="context-faint">取り消しました。</p>
-                    )}
-                    {result.kind === "ok" && (
-                      <>
-                        <p className="context-faint">{result.tokens}</p>
-                        {result.written !== null && (
-                          <p
-                            className={
-                              result.wroteOk ? "notice" : "notice notice-warn"
-                            }
-                          >
-                            {result.written}
+                      )}
+                      {trimmedText(shown.assembled).map((t) => (
+                        <p key={t} className="context-faint ai-prepared-note">
+                          {t}
+                        </p>
+                      ))}
+                      {shown.assembled.notes.map((n) => (
+                        <p key={n} className="context-faint ai-prepared-note">
+                          {n}
+                        </p>
+                      ))}
+                      {shown.connection.structured && (
+                        <p className="context-faint ai-prepared-note">
+                          {STRUCTURED_NOTE}
+                        </p>
+                      )}
+                      {confirming && shown.assembled.problem === null && (
+                        <div className="ai-confirm">
+                          <p>
+                            クラウド（{shown.connection.name} ·{" "}
+                            {shown.connection.model}
+                            ）へ次の中身を送ります。
                           </p>
-                        )}
-                        {result.notes.map((n) => (
-                          <p key={n} className="context-faint ai-prepared-note">
-                            {n}
-                          </p>
-                        ))}
-                        {result.fields.map((written) => (
-                          <FieldProposals
-                            key={written.file}
-                            written={written}
-                            run={result.run}
-                            decisions={fieldDecisions}
-                            onAdopt={(p) =>
-                              onAdoptField(
-                                result.run,
-                                p,
-                                written,
-                                task.id,
-                                result.model,
-                              )
-                            }
-                            onReject={(p) => onRejectField(result.run, p)}
-                          />
-                        ))}
-                        {skeleton &&
-                          !result.wroteOk &&
-                          result.skeleton.length > 0 &&
-                          skeletonTarget !== undefined && (
-                            <div className="ai-actions">
-                              <span className="context-faint">
-                                骨格 {result.skeleton.length}シーン（
-                                {result.skeleton.map((s) => s.id).join("、")}）
-                              </span>
-                              <button
-                                type="button"
-                                className="btn btn-sm"
-                                disabled={skeletonMissing || isRunning}
-                                onClick={() =>
-                                  onRewriteSkeleton(info, skeletonTarget)
-                                }
-                              >
-                                書く章を直して書き直す（LLM を呼ばずに）
-                              </button>
-                            </div>
-                          )}
-                        {task.output === "summary" &&
-                          (result.summary === null ? (
-                            <p className="notice notice-warn">
-                              要約を読めませんでした。
-                            </p>
-                          ) : (
-                            <div className="export-info">
-                              <p className="ai-summary">{result.summary}</p>
-                              <p className="context-faint">
-                                {result.summaryProblem === null
-                                  ? "要約のキャッシュ（.cache/summaries.json）に入れました。要約を使うタスクの文脈に入ります。"
-                                  : result.summaryProblem}
-                              </p>
-                            </div>
-                          ))}
-                        {task.output === "diff" && (
-                          <ProposalPanel
-                            set={{
-                              id: `run-${result.run}`,
-                              label: task.name,
-                              task: task.id,
-                              model: result.model,
-                              proposals: result.proposals,
-                            }}
-                            version={textVersion}
-                            onAdopt={onAdopt}
-                            onGoTo={onGoToProposal}
-                            rejected={
-                              rejected.get(`run-${result.run}`) ?? NO_REJECTED
-                            }
-                            onToggleReject={onToggleReject}
-                          />
-                        )}
-                        {task.output === "proposals" && (
-                          <BranchProposals
-                            result={result}
-                            scenes={scenes}
-                            hidden={plot.branchHidden}
-                            onAdopt={(proposal, key, model) =>
-                              plot.onAdoptBranch(proposal, key, model, task.id)
-                            }
-                            onReject={plot.onRejectBranch}
-                          />
-                        )}
-                        {task.output === "ideas" && (
-                          <div className="export-info">
-                            <p>
-                              分類案 {result.ideas.length}
-                              件。企画の画面の「AIの問い返し」で、メモに当てます。
-                            </p>
-                            <ul className="ai-idea-list">
-                              {result.ideas.map((s) => (
-                                <li key={s.file}>
-                                  <code>{s.file}</code>
-                                  {s.status !== null && ` → ${s.status}`}
-                                  {s.tags.length > 0 &&
-                                    `（タグ：${s.tags.join("・")}）`}
-                                  {s.reason !== null && `：${s.reason}`}
-                                </li>
-                              ))}
-                            </ul>
+                          <div className="ai-actions">
+                            <button
+                              type="button"
+                              className="btn btn-primary"
+                              onClick={runNow}
+                            >
+                              送る
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-sm"
+                              onClick={() => setConfirming(false)}
+                            >
+                              やめる
+                            </button>
                           </div>
-                        )}
-                        {task.output === "findings" &&
-                          resultFindings.length === 0 && (
-                            <p className="context-empty">
-                              指摘はありません（閉じた指摘は出しません）。
+                        </div>
+                      )}
+                      <details open={confirming}>
+                        <summary>指示（system）と依頼（user）</summary>
+                        <pre className="ai-preview">
+                          {shown.assembled.system}
+                        </pre>
+                        <pre className="ai-preview">{shown.assembled.user}</pre>
+                      </details>
+                    </section>
+                  )}
+                  {confirming && shown === null && preparing && (
+                    <p className="context-faint">送る中身を組み立てています…</p>
+                  )}
+                  {result !== undefined && !thisRunning && (
+                    <section className="ai-result" aria-label="結果">
+                      <h2 className="h2 ai-section-head">
+                        結果{result.scene !== null ? `（${result.scene}）` : ""}
+                      </h2>
+                      {result.kind === "failed" && (
+                        <p className="notice notice-warn">{result.message}</p>
+                      )}
+                      {result.kind === "cancelled" && (
+                        <p className="context-faint">取り消しました。</p>
+                      )}
+                      {result.kind === "ok" && (
+                        <>
+                          <p className="context-faint">{result.tokens}</p>
+                          {result.written !== null && (
+                            <p
+                              className={
+                                result.wroteOk ? "notice" : "notice notice-warn"
+                              }
+                            >
+                              {result.written}
                             </p>
                           )}
-                        {resultFindings.map((r) => (
-                          <div key={r.id} className="ai-finding-card">
-                            <span>
-                              <span
-                                className={`ai-severity ${r.finding.severity}`}
-                              >
-                                {SEVERITY_LABEL[r.finding.severity]}
-                              </span>
-                              {r.finding.line !== null && (
-                                <span className="context-mono">
-                                  {" "}
-                                  ^{r.finding.line}{" "}
+                          {result.notes.map((n) => (
+                            <p
+                              key={n}
+                              className="context-faint ai-prepared-note"
+                            >
+                              {n}
+                            </p>
+                          ))}
+                          {result.fields.map((written) => (
+                            <FieldProposals
+                              key={written.file}
+                              written={written}
+                              run={result.run}
+                              decisions={fieldDecisions}
+                              onAdopt={(p) =>
+                                onAdoptField(
+                                  result.run,
+                                  p,
+                                  written,
+                                  task.id,
+                                  result.model,
+                                )
+                              }
+                              onReject={(p) => onRejectField(result.run, p)}
+                            />
+                          ))}
+                          {skeleton &&
+                            !result.wroteOk &&
+                            result.skeleton.length > 0 &&
+                            skeletonTarget !== undefined && (
+                              <div className="ai-actions">
+                                <span className="context-faint">
+                                  骨格 {result.skeleton.length}シーン（
+                                  {result.skeleton.map((s) => s.id).join("、")}
+                                  ）
                                 </span>
-                              )}
-                              {r.finding.line === null &&
-                                r.finding.scene !== null && (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm"
+                                  disabled={skeletonMissing || isRunning}
+                                  onClick={() =>
+                                    onRewriteSkeleton(info, skeletonTarget)
+                                  }
+                                >
+                                  書く章を直して書き直す（LLM を呼ばずに）
+                                </button>
+                              </div>
+                            )}
+                          {task.output === "summary" &&
+                            (result.summary === null ? (
+                              <p className="notice notice-warn">
+                                要約を読めませんでした。
+                              </p>
+                            ) : (
+                              <div className="export-info">
+                                <p className="ai-summary">{result.summary}</p>
+                                <p className="context-faint">
+                                  {result.summaryProblem === null
+                                    ? "要約のキャッシュ（.cache/summaries.json）に入れました。要約を使うタスクの文脈に入ります。"
+                                    : result.summaryProblem}
+                                </p>
+                              </div>
+                            ))}
+                          {task.output === "diff" && (
+                            <ProposalPanel
+                              set={{
+                                id: `run-${result.run}`,
+                                label: task.name,
+                                task: task.id,
+                                model: result.model,
+                                proposals: result.proposals,
+                              }}
+                              version={textVersion}
+                              onAdopt={onAdopt}
+                              onGoTo={onGoToProposal}
+                              rejected={
+                                rejected.get(`run-${result.run}`) ?? NO_REJECTED
+                              }
+                              onToggleReject={onToggleReject}
+                            />
+                          )}
+                          {task.output === "proposals" && (
+                            <BranchProposals
+                              result={result}
+                              scenes={scenes}
+                              hidden={plot.branchHidden}
+                              onAdopt={(proposal, key, model) =>
+                                plot.onAdoptBranch(
+                                  proposal,
+                                  key,
+                                  model,
+                                  task.id,
+                                )
+                              }
+                              onReject={plot.onRejectBranch}
+                            />
+                          )}
+                          {task.output === "ideas" && (
+                            <div className="export-info">
+                              <p>
+                                分類案 {result.ideas.length}
+                                件。企画の画面の「AIの問い返し」で、メモに当てます。
+                              </p>
+                              <ul className="ai-idea-list">
+                                {result.ideas.map((s) => (
+                                  <li key={s.file}>
+                                    <code>{s.file}</code>
+                                    {s.status !== null && ` → ${s.status}`}
+                                    {s.tags.length > 0 &&
+                                      `（タグ：${s.tags.join("・")}）`}
+                                    {s.reason !== null && `：${s.reason}`}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {task.output === "findings" &&
+                            resultFindings.length === 0 && (
+                              <p className="context-empty">
+                                指摘はありません（閉じた指摘は出しません）。
+                              </p>
+                            )}
+                          {resultFindings.map((r) => (
+                            <div key={r.id} className="ai-finding-card">
+                              <span>
+                                <span
+                                  className={`ai-severity ${r.finding.severity}`}
+                                >
+                                  {SEVERITY_LABEL[r.finding.severity]}
+                                </span>
+                                {r.finding.line !== null && (
                                   <span className="context-mono">
                                     {" "}
-                                    {r.finding.scene}{" "}
+                                    ^{r.finding.line}{" "}
                                   </span>
                                 )}
-                              {r.finding.message}
-                              {r.finding.unresolved && (
-                                <span className="context-faint">
-                                  （本文に無い行ID・シーンです）
-                                </span>
-                              )}
-                            </span>
-                            <div className="ai-finding-actions">
-                              <button
-                                type="button"
-                                className="btn btn-sm"
-                                disabled={
-                                  r.finding.file === null ||
-                                  r.finding.span === null
-                                }
-                                onClick={() => onGoToFinding(r)}
-                              >
-                                行へ移動
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-sm"
-                                onClick={() => onDismissFinding(r.id)}
-                              >
-                                閉じる
-                              </button>
+                                {r.finding.line === null &&
+                                  r.finding.scene !== null && (
+                                    <span className="context-mono">
+                                      {" "}
+                                      {r.finding.scene}{" "}
+                                    </span>
+                                  )}
+                                {r.finding.message}
+                                {r.finding.unresolved && (
+                                  <span className="context-faint">
+                                    （本文に無い行ID・シーンです）
+                                  </span>
+                                )}
+                              </span>
+                              <div className="ai-finding-actions">
+                                <button
+                                  type="button"
+                                  className="btn btn-sm"
+                                  disabled={
+                                    r.finding.file === null ||
+                                    r.finding.span === null
+                                  }
+                                  onClick={() => onGoToFinding(r)}
+                                >
+                                  行へ移動
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm"
+                                  onClick={() => onDismissFinding(r.id)}
+                                >
+                                  閉じる
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                        ))}
-                        {result.unread.length > 0 && (
-                          <details>
-                            <summary>
-                              応答のうち読めなかった行（{result.unread.length}
-                              行）
-                            </summary>
-                            <pre className="ai-preview">
-                              {result.unread.join("\n")}
-                            </pre>
-                          </details>
-                        )}
-                      </>
-                    )}
-                  </section>
-                )}
-                {task.output === "summary" && (
-                  <SyncPanel
-                    key={task.id}
-                    info={info}
-                    chapters={plot.chapters}
-                    drift={plot.drift}
-                    pending={plot.driftPending}
-                    driftError={plot.driftError}
-                    hidden={plot.driftHidden}
-                    running={plot.summarizeRun}
-                    busy={isRunning || choosing}
-                    result={plot.summarizeResult}
-                    error={plot.summarizeError}
-                    onSummarize={(file, confirmed) =>
-                      plot.onSummarize(task.id, file, confirmed)
-                    }
-                    onCancel={plot.onCancelSummarize}
-                    onAdopt={plot.onAdoptDrift}
-                    onReject={plot.onRejectDrift}
-                  />
-                )}
-              </>
-            )}
+                          ))}
+                          {result.unread.length > 0 && (
+                            <details>
+                              <summary>
+                                応答のうち読めなかった行（{result.unread.length}
+                                行）
+                              </summary>
+                              <pre className="ai-preview">
+                                {result.unread.join("\n")}
+                              </pre>
+                            </details>
+                          )}
+                        </>
+                      )}
+                    </section>
+                  )}
+                  {task.output === "summary" && (
+                    <SyncPanel
+                      key={task.id}
+                      info={info}
+                      chapters={plot.chapters}
+                      drift={plot.drift}
+                      pending={plot.driftPending}
+                      driftError={plot.driftError}
+                      hidden={plot.driftHidden}
+                      running={plot.summarizeRun}
+                      busy={isRunning || choosing}
+                      result={plot.summarizeResult}
+                      error={plot.summarizeError}
+                      onSummarize={(file, confirmed) =>
+                        plot.onSummarize(task.id, file, confirmed)
+                      }
+                      onCancel={plot.onCancelSummarize}
+                      onAdopt={plot.onAdoptDrift}
+                      onReject={plot.onRejectDrift}
+                    />
+                  )}
+                </>
+              )}
+            </div>
           </main>
           <aside className="ai-run-settings ctx-column" aria-label="実行の設定">
-            <h2 className="context-heading">実行の設定</h2>
-            <dl className="ai-fields">
-              <dt>関わり方</dt>
-              <dd>{LEVEL_LABEL[task.level]}</dd>
-              <dt>モデル</dt>
-              <dd>
-                {info.connection === null
-                  ? "なし"
-                  : `${info.connection.name} · ${info.connection.model}`}
-              </dd>
-              <dt>文脈の長さ</dt>
-              <dd>
-                {info.connection === null
-                  ? "—"
-                  : `${info.connection.context_tokens.toLocaleString("ja-JP")} トークン`}
-              </dd>
-              {task.budget_tokens !== null && (
-                <>
-                  <dt>上限</dt>
-                  <dd>{task.budget_tokens.toLocaleString("ja-JP")} トークン</dd>
-                </>
-              )}
-              {task.max_iterations !== null && (
-                <>
-                  <dt>反復</dt>
-                  <dd>最大 {task.max_iterations}回</dd>
-                </>
-              )}
-              <dt>定義ファイル</dt>
-              <dd>
-                <code>{task.path}</code>
-              </dd>
-            </dl>
+            <div className="panel-head">
+              <h2 className="h-label">実行の設定</h2>
+            </div>
+            <section className="section" aria-label="接続と上限">
+              <dl className="kv ai-run-kv">
+                <dt>関わり方</dt>
+                <dd>{LEVEL_LABEL[task.level]}</dd>
+                <dt>モデル</dt>
+                <dd>
+                  {info.connection === null
+                    ? "なし"
+                    : `${info.connection.name} · ${info.connection.model}`}
+                </dd>
+                <dt>文脈の長さ</dt>
+                <dd>
+                  {info.connection === null
+                    ? "—"
+                    : `${info.connection.context_tokens.toLocaleString("ja-JP")} トークン`}
+                </dd>
+                {task.budget_tokens !== null && (
+                  <>
+                    <dt>上限</dt>
+                    <dd>
+                      {task.budget_tokens.toLocaleString("ja-JP")} トークン
+                    </dd>
+                  </>
+                )}
+                {task.max_iterations !== null && (
+                  <>
+                    <dt>反復</dt>
+                    <dd>最大 {task.max_iterations}回</dd>
+                  </>
+                )}
+              </dl>
+            </section>
             {task.scope !== null && (
-              <p className="ai-scope-note">
-                書き込む範囲：スタブと空きのみ。人が書いた行は変更しません。変更が必要な場合は提案として出します。
-              </p>
+              <section className="section" aria-label="書く範囲">
+                <h3 className="h-label">書く範囲</h3>
+                <p className="t-small ai-side-note">
+                  スタブと空きのみ。人が書いた行は変更しません。変更が必要な場合は提案として出します。
+                </p>
+              </section>
             )}
-            <p className="context-faint ai-scope-note">
-              文脈の項目：{task.context.map((c) => c.kind).join("、")}
-            </p>
+            <section className="section" aria-label="文脈の項目">
+              <h3 className="h-label">文脈の項目</h3>
+              <p className="t-small t-2 ai-side-note">
+                {task.context.map((c) => c.kind).join("、")}
+              </p>
+            </section>
+            <section className="section" aria-label="定義">
+              <h3 className="h-label">定義</h3>
+              <span className="mono t-small t-2">{task.path}</span>
+            </section>
           </aside>
         </>
       )}

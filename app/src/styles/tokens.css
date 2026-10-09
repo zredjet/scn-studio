@@ -96,11 +96,9 @@
   --w-context: 300px;
   --w-drawer: 320px;
 
-  /* アプリだけの追加：プレビューの暗い面（作品側の見た目の仮置き。T1-11、D050） */
-  --preview-bg: #15181d; /* プレビューの画面の地 */
+  /* アプリだけの追加：プレビューの舞台（作品側の見た目の仮置き。T1-11、D050。地と操作は v1 の明るい面。T4-19） */
   --preview-stage: #0d0f12; /* 舞台の地（素材の無いとき） */
-  --preview-control: #22262e; /* 操作のボタンの地 */
-  --preview-line: #3a414d; /* 操作のボタンの枠 */
+  --preview-line: #3a414d; /* 舞台の上の選択肢と知らせの枠 */
   --preview-text: #f3f4f6; /* 舞台の札の文字 */
   --preview-text-soft: #c9d0d9; /* 送りの印、控えめな文字 */
   --preview-tag-bg: rgba(21, 24, 29, 0.72); /* 舞台の札の地 */
@@ -108,6 +106,5 @@
   --preview-silhouette: #3b3f4a; /* 仮素材の人影 */
   --preview-provisional-line: #f2b04b; /* 仮素材の札の点線 */
   --preview-provisional-text: #f7cb7e; /* 仮素材の札の文字 */
-  --preview-ai-check: #5fc4b6; /* 「AI下書きを含める」 */
-  --preview-sync-check: #7f8cf0; /* 「エディタと同期」 */
+  --preview-sync-check: #7f8cf0; /* 舞台の上の選択肢に重ねたときの枠 */
 }

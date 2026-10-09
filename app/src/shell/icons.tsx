@@ -95,6 +95,20 @@ const PATHS = {
     </>
   ),
   play: <path d="M7 4l13 8-13 8z" fill="currentColor" stroke="none" />,
+  back: <path d="M15 6l-6 6 6 6" />,
+  forward: <path d="M9 6l6 6-6 6" />,
+  volume: (
+    <>
+      <path d="M4 9h4l5-4v14l-5-4H4z" />
+      <path d="M17 9c1.5 1.5 1.5 4.5 0 6" />
+    </>
+  ),
+  muted: (
+    <>
+      <path d="M4 9h4l5-4v14l-5-4H4z" />
+      <path d="M16 10l4 4M20 10l-4 4" />
+    </>
+  ),
   panel: (
     <>
       <rect x="3" y="4" width="18" height="16" rx="2" />

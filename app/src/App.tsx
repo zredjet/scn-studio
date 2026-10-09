@@ -38,9 +38,8 @@ import {
 import { AssetsScreen } from "./assets/AssetsScreen.tsx";
 import { type BibleRequest, BibleScreen } from "./bible/BibleScreen.tsx";
 import { type FieldOrigin, fieldOrigins } from "./bible/origin.ts";
-import { CheckList } from "./check/CheckList.tsx";
+import { CheckScreen } from "./check/CheckScreen.tsx";
 import { countBySeverity } from "./check/group.ts";
-import { PlaythroughPanel } from "./check/PlaythroughPanel.tsx";
 import { ConceptScreen } from "./concept/ConceptScreen.tsx";
 import {
   addChapter,
@@ -66,6 +65,7 @@ import {
   devReport,
   devSettings,
   exportBook,
+  exportOrders,
   exportPlugin,
   exportPlugins,
   exportProvenance,
@@ -216,6 +216,7 @@ import {
   panelMode,
   resized,
   saveClosedPanels,
+  showPanel,
   togglePanel,
 } from "./shell/layout.ts";
 import {
@@ -286,15 +287,6 @@ function withoutFiles(
 ): ReadonlySet<string> {
   if (![...files].some((f) => set.has(f))) return set;
   return new Set([...set].filter((f) => !files.has(f)));
-}
-
-/** 設定DBのエントリか `variables.yaml` か素材カタログか（検証の画面から、その画面を開ける）。 */
-function isSettingsFile(file: string): boolean {
-  return (
-    file.startsWith("bible/entries/") ||
-    file === "variables.yaml" ||
-    file === "assets/catalog.yaml"
-  );
 }
 
 function withoutConflict(
@@ -383,6 +375,8 @@ export function App() {
   const [stage2Running, setStage2Running] = useState(false);
   const [stage2Error, setStage2Error] = useState<string | null>(null);
   const [stage2Discarded, setStage2Discarded] = useState(false);
+  /** 段階2を最後に調べた時刻（検証の画面。T4-19）。 */
+  const [stage2At, setStage2At] = useState<string | null>(null);
   /** 走らせた時点の本文（結果を受け取ったときに、本文が変わっていれば捨てる）。 */
   const stage2Summary = useRef<Summary | null>(null);
   const [currentFile, setCurrentFile] = useState<string | null>(null);
@@ -1749,7 +1743,15 @@ export function App() {
     [project, selectScene, requestBible],
   );
 
-  /** 検証の画面で診断を選んだ：本文ならその行へ、設定DBのエントリと変数ならその画面へ。 */
+  /** 本文の今の中身（検証の画面の行の番号と該当の行）。 */
+  const textOfBuffer = useCallback(
+    (file: string) => buffers.current.get(file),
+    [],
+  );
+  /**
+   * 検証の画面の行き先：本文ならその行へ、設定DBのエントリ・変数・素材・企画書とメモならその画面へ（検証の画面には
+   * 書きかけが無いので、`leaveSettings` を通さない）。
+   */
   const onSelectDiagnostic = useCallback(
     (d: IrDiagnostic) => {
       if (d.file.startsWith("bible/entries/")) {
@@ -1758,6 +1760,8 @@ export function App() {
         setScreen("variables");
       } else if (d.file === "assets/catalog.yaml") {
         setScreen("assets");
+      } else if (d.file === "concept.md" || d.file.startsWith("ideas/")) {
+        setScreen("concept");
       } else {
         goTo(d.file, d.span[0]);
       }
@@ -1973,6 +1977,10 @@ export function App() {
         stage2Summary.current = at;
         setStage2Discarded(false);
         setStage2(report);
+        const now = new Date();
+        setStage2At(
+          `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`,
+        );
       })
       .catch((e: unknown) => setStage2Error(String(e)))
       .finally(() => setStage2Running(false));
@@ -3775,7 +3783,6 @@ export function App() {
                     <PreviewScreen
                       data={preview}
                       error={previewError}
-                      title={project.title}
                       assetUrl={assetUrl}
                       onShowInEditor={showPreviewLine}
                       onLine={onPreviewLine}
@@ -3809,6 +3816,10 @@ export function App() {
                         writeText={exportText}
                         loadProvenance={aiLines}
                         writeProvenance={exportProvenance}
+                        writeOrders={exportOrders}
+                        onShowPanel={() =>
+                          setPanels((p) => showPanel(p, "export", narrow))
+                        }
                       />
                     </KeepAlive>
                   </section>
@@ -3957,22 +3968,24 @@ export function App() {
                     hidden={screen !== "check"}
                   >
                     <KeepAlive active={screen === "check"}>
-                      <PlaythroughPanel
-                        report={stage2}
-                        running={stage2Running}
-                        error={stage2Error}
-                        discarded={stage2Discarded}
-                        onRun={runStage2}
-                      />
-                      <CheckList
-                        heading="検証（プロジェクト全体）"
+                      <CheckScreen
                         diagnostics={checkDiagnostics}
                         files={project.files}
-                        onSelect={onSelectDiagnostic}
-                        onRegister={onRegister}
-                        canOpen={isSettingsFile}
-                        textOf={(file) => buffers.current.get(file)}
                         scenes={project.summary.scenes}
+                        textOf={textOfBuffer}
+                        onOpen={onSelectDiagnostic}
+                        onRegister={onRegister}
+                        onShowPanel={() =>
+                          setPanels((p) => showPanel(p, "check", narrow))
+                        }
+                        stage2={{
+                          report: stage2,
+                          running: stage2Running,
+                          error: stage2Error,
+                          discarded: stage2Discarded,
+                          at: stage2At,
+                          onRun: runStage2,
+                        }}
                       />
                     </KeepAlive>
                   </section>

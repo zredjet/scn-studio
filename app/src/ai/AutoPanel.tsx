@@ -315,7 +315,7 @@ export function AutoPanel({
         <div className="ai-auto-result">
           {result.outcome.stages.length > 0 && (
             <>
-              <h2 className="context-heading">企画と設定の段</h2>
+              <h2 className="h2 ai-section-head">企画と設定の段</h2>
               {result.outcome.stages.map((s) => (
                 <div key={s.stage} className="ai-auto-stage">
                   <p>
@@ -357,52 +357,54 @@ export function AutoPanel({
               ))}
             </>
           )}
-          <h2 className="context-heading">生成したシーン</h2>
+          <h2 className="h2 ai-section-head">生成したシーン</h2>
           {result.outcome.stopped !== null && (
             <p className="notice notice-warn">
               途中で止めました：{result.outcome.stopped}
             </p>
           )}
-          <table className="ai-auto-table">
-            <thead>
-              <tr>
-                <th scope="col">シーン</th>
-                <th scope="col">文字数</th>
-                <th scope="col">状態</th>
-                <th scope="col">点検</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.outcome.scenes.map((s) => (
-                <tr key={s.scene}>
-                  <td>
-                    <span className="context-mono">{s.scene}</span> {s.title}
-                  </td>
-                  <td>
-                    {s.status === "written"
-                      ? s.chars.toLocaleString("ja-JP")
-                      : "—"}
-                  </td>
-                  <td>
-                    {s.status === "written"
-                      ? "AI下書き"
-                      : s.status === "failed"
-                        ? "失敗"
-                        : "書き込まず"}
-                  </td>
-                  <td>
-                    {s.status !== "written"
-                      ? (s.message ?? "")
-                      : s.issues.length === 0
-                        ? s.iterations === 0
-                          ? "問題なし"
-                          : `${s.iterations}回直して 問題なし`
-                        : `残り ${s.issues.length}件：${s.issues.join("／")}`}
-                  </td>
+          <div className="table-wrap">
+            <table className="table ai-auto-table">
+              <thead>
+                <tr>
+                  <th scope="col">シーン</th>
+                  <th scope="col">文字数</th>
+                  <th scope="col">状態</th>
+                  <th scope="col">点検</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {result.outcome.scenes.map((s) => (
+                  <tr key={s.scene}>
+                    <td>
+                      <span className="context-mono">{s.scene}</span> {s.title}
+                    </td>
+                    <td>
+                      {s.status === "written"
+                        ? s.chars.toLocaleString("ja-JP")
+                        : "—"}
+                    </td>
+                    <td>
+                      {s.status === "written"
+                        ? "AI下書き"
+                        : s.status === "failed"
+                          ? "失敗"
+                          : "書き込まず"}
+                    </td>
+                    <td>
+                      {s.status !== "written"
+                        ? (s.message ?? "")
+                        : s.issues.length === 0
+                          ? s.iterations === 0
+                            ? "問題なし"
+                            : `${s.iterations}回直して 問題なし`
+                          : `残り ${s.issues.length}件：${s.issues.join("／")}`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <p className="context-faint">
             トークン {result.outcome.tokens.toLocaleString("ja-JP")}
             {result.outcome.budget !== null
@@ -466,7 +468,7 @@ function BranchList({
   };
   return (
     <div className="ai-branches">
-      <h2 className="context-heading">AIのブランチ</h2>
+      <h2 className="h2 ai-section-head">AIのブランチ</h2>
       <ul className="ai-branch-list">
         {branches.branches.map((name) => (
           <li key={name}>

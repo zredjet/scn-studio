@@ -61,60 +61,80 @@ export function PreferencesScreen({
   );
   return (
     <div className="preferences-body">
-      <header className="export-head">
-        <h1>環境設定</h1>
-      </header>
-      <section className="export-card" aria-label="AIの接続先">
-        <div>
-          <h2>AIの接続先</h2>
-          <p className="export-note">
-            接続先は、作品フォルダの project.toml の [ai.&lt;名前&gt;]
-            に書きます（チームで共有します。AIタスクの model
-            はこの名前を指します）。URL
-            とモデルと文脈の長さの上書き、クラウドへ送ることの許可は、この端末だけの設定です。キーは
-            OS のキーチェーンに置き、作品フォルダには書きません。既定の接続先は
-            [ai.local]
-            です。タスクごとの接続先は、この端末で、AI実行の画面で選べます。
-          </p>
+      <nav className="preferences-list list-column" aria-label="設定の頁">
+        <div className="panel-head">
+          <h2 className="h-label">このアプリ（すべての作品）</h2>
         </div>
-        {error !== null && <p className="notice notice-warn">{error}</p>}
-        {data?.settings_problem && (
-          <p className="notice notice-warn">
-            {data.settings_problem}。既定の設定で読みました。
-          </p>
-        )}
-        {data?.key_problem && (
-          <p className="notice notice-warn">{data.key_problem}</p>
-        )}
-        {data !== null && data.connections.length === 0 && (
-          <div className="export-info">
-            <p className="ai-empty">
-              接続先がありません。project.toml に次のように書きます（Ollama
-              の例）。
+        <button type="button" className="lrow is-selected" aria-current="page">
+          <span className="name">AIの接続</span>
+        </button>
+        <div className="panel-head prefs-group">
+          <h2 className="h-label">この作品（project.toml）</h2>
+        </div>
+        <p className="empty prefs-note">
+          ここで直せる項目はまだありません。作品フォルダの project.toml
+          を直します（AI の接続先は [ai.&lt;名前&gt;]）。
+        </p>
+      </nav>
+      <main className="preferences-main" aria-label="AIの接続">
+        <header className="work-head">
+          <h1 className="h1">AIの接続</h1>
+          <span className="t-small t-3">変えるとすぐに使われます</span>
+        </header>
+        <section className="preferences-scroll" aria-label="AIの接続先">
+          <div>
+            <p className="export-note prefs-lead">
+              接続先は、作品フォルダの project.toml の [ai.&lt;名前&gt;]
+              に書きます（チームで共有します。AIタスクの model
+              はこの名前を指します）。URL
+              とモデルと文脈の長さの上書き、クラウドへ送ることの許可は、この端末だけの設定です。キーは
+              OS
+              のキーチェーンに置き、作品フォルダには書きません。既定の接続先は
+              [ai.local]
+              です。タスクごとの接続先は、この端末で、AI実行の画面で選べます。
             </p>
-            <pre className="ai-preview">
-              {`[ai.local]
+          </div>
+          {error !== null && <p className="notice notice-warn">{error}</p>}
+          {data?.settings_problem && (
+            <p className="notice notice-warn">
+              {data.settings_problem}。既定の設定で読みました。
+            </p>
+          )}
+          {data?.key_problem && (
+            <p className="notice notice-warn">{data.key_problem}</p>
+          )}
+          {data !== null && data.connections.length === 0 && (
+            <div className="export-info">
+              <p className="ai-empty">
+                接続先がありません。project.toml に次のように書きます（Ollama
+                の例）。
+              </p>
+              <pre className="ai-preview">
+                {`[ai.local]
 provider = "openai-compatible"
 base_url = "http://localhost:11434/v1"
 model = "qwen3:8b"`}
-            </pre>
-          </div>
-        )}
-        {data?.connections.map((c) => (
-          <ConnectionCard
-            key={c.name}
-            connection={c}
-            test={currentTest(c, tests)}
-            otherRunning={running && currentTest(c, tests)?.kind !== "running"}
-            onOverride={onOverride}
-            onAllow={onAllow}
-            onSaveKey={onSaveKey}
-            onDeleteKey={onDeleteKey}
-            onTest={onTest}
-            onCancel={onCancel}
-          />
-        ))}
-      </section>
+              </pre>
+            </div>
+          )}
+          {data?.connections.map((c) => (
+            <ConnectionCard
+              key={c.name}
+              connection={c}
+              test={currentTest(c, tests)}
+              otherRunning={
+                running && currentTest(c, tests)?.kind !== "running"
+              }
+              onOverride={onOverride}
+              onAllow={onAllow}
+              onSaveKey={onSaveKey}
+              onDeleteKey={onDeleteKey}
+              onTest={onTest}
+              onCancel={onCancel}
+            />
+          ))}
+        </section>
+      </main>
     </div>
   );
 }
