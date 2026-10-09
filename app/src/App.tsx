@@ -201,6 +201,7 @@ import {
 import { PreferencesScreen } from "./preferences/PreferencesScreen.tsx";
 import { locateLine } from "./preview/locate.ts";
 import { type PreviewLine, PreviewScreen } from "./preview/PreviewScreen.tsx";
+import { outlineRows, sceneDiagnostics } from "./scenes/list.ts";
 import { SceneList } from "./scenes/SceneList.tsx";
 import { CommandPalette } from "./shell/CommandPalette.tsx";
 import { ContextPanel } from "./shell/ContextPanel.tsx";
@@ -497,6 +498,8 @@ export function App() {
   );
   /** フローの画面の粒度と、`layout.json` が外で変わった回数（D048）。 */
   const [flowLevel, setFlowLevel] = useState<GraphLevel>("scene");
+  /** 本文の検索と置換の欄を開く頼み（見出しの帯の検索。T4-18）。 */
+  const [openSearch, setOpenSearch] = useState(0);
   /** フローで選んでいるシーン（タイトルバーの再生。T4-17）。 */
   const [flowScene, setFlowScene] = useState<string | null>(null);
   const [layoutVersion, setLayoutVersion] = useState(0);
@@ -3383,11 +3386,23 @@ export function App() {
                     <SceneList
                       files={project.files}
                       scenes={project.summary.scenes}
+                      chapters={project.summary.chapters}
                       currentFile={currentFile}
                       currentScene={currentScene}
+                      outline={
+                        scene === null ||
+                        scene.scene !== currentScene ||
+                        currentFile === null
+                          ? []
+                          : outlineRows(
+                              scene.outline,
+                              buffers.current.get(currentFile) ?? "",
+                            )
+                      }
                       dirty={dirty}
                       onSelectScene={selectScene}
                       onSelectFile={(file) => goTo(file, null)}
+                      onGoTo={(file, offset) => goTo(file, offset)}
                       onAddChapter={onAddChapter}
                       onRenameChapter={onRenameChapter}
                       onDeleteChapter={(file) => void onDeleteChapter(file)}
@@ -3404,8 +3419,35 @@ export function App() {
                     {currentFile !== null && (
                       <ModeBar
                         file={currentFile}
+                        scene={
+                          currentSceneSummary === undefined ||
+                          currentSceneSummary.file !== currentFile
+                            ? null
+                            : {
+                                id: currentSceneSummary.id,
+                                title: currentSceneSummary.title,
+                              }
+                        }
                         mode={mode}
                         onSelect={(m) => selectMode(currentFile, m)}
+                        onSearch={() => setOpenSearch((n) => n + 1)}
+                        view={{
+                          focus: viewPrefs.focus,
+                          typewriter: viewPrefs.typewriter,
+                          gothic: viewPrefs.gothic,
+                          onFocus: () =>
+                            updateViewPrefs((p) => ({ ...p, focus: !p.focus })),
+                          onTypewriter: () =>
+                            updateViewPrefs((p) => ({
+                              ...p,
+                              typewriter: !p.typewriter,
+                            })),
+                          onGothic: () =>
+                            updateViewPrefs((p) => ({
+                              ...p,
+                              gothic: !p.gothic,
+                            })),
+                        }}
                       />
                     )}
                     {currentFile !== null && conflict !== undefined && (
@@ -3460,6 +3502,7 @@ export function App() {
                         aiLines={aiLineMap}
                         aiFindings={findingMap}
                         previewLine={previewMarker}
+                        openSearch={openSearch}
                       />
                     ) : (
                       <p className="placeholder">
@@ -3470,8 +3513,12 @@ export function App() {
                   {!viewPrefs.focus && (
                     <ContextPanel
                       scene={scene}
-                      diagnostics={allDiagnostics.filter(
-                        (d) => d.file === currentFile,
+                      // シーンにいれば、そのシーンの問題だけ（無ければファイルの問題。U13）。
+                      diagnostics={sceneDiagnostics(
+                        allDiagnostics,
+                        project.summary.scenes,
+                        currentFile,
+                        scene === null ? null : currentScene,
                       )}
                       files={project.files}
                       textOf={(file) => buffers.current.get(file)}
@@ -3501,6 +3548,7 @@ export function App() {
                         onLevel={setFlowLevel}
                         layoutVersion={layoutVersion}
                         onSelectScene={setFlowScene}
+                        onOpenConcept={() => selectScreen("concept")}
                         onOpen={selectScene}
                         chapters={project.files}
                         dirtyChapters={dirty}
@@ -3707,6 +3755,14 @@ export function App() {
                         onWritten={onSettingsWritten}
                         onOpenLocation={openFromSettings}
                         onUnsaved={onVariablesDraft}
+                        textOf={(file) => buffers.current.get(file)}
+                        onOpenCharacter={(id) =>
+                          requestBible((seq) => ({
+                            kind: "character",
+                            id,
+                            seq,
+                          }))
+                        }
                       />
                     </KeepAlive>
                   </section>

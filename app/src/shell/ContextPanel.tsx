@@ -54,98 +54,123 @@ export function ContextPanel({
   onGoToFinding,
   onDismissFinding,
 }: Props) {
-  // 立ち絵は、キャラクターごとに「灯/笑顔、灯/真顔」とまとめる。
-  const assets: { kind: string; name: string; registered: boolean }[] = [];
+  // 素材は種類ごとに1行にまとめる（立ち絵は「灯/笑顔・灯/真顔」）。カタログに無いものは仮素材。
+  const assets = new Map<string, { name: string; registered: boolean }[]>();
   for (const a of scene?.assets ?? []) {
     const name = a.character === null ? a.name : `${a.character}/${a.name}`;
-    assets.push({ kind: ASSET_KIND[a.kind], name, registered: a.registered });
+    const kind = ASSET_KIND[a.kind];
+    assets.set(kind, [
+      ...(assets.get(kind) ?? []),
+      { name, registered: a.registered },
+    ]);
   }
 
   return (
-    <aside className="context-panel ctx-column" aria-label="シーン情報">
+    <aside className="context-panel ctx-column" aria-label="このシーン">
+      <div className="panel-head">
+        <h2 className="h-label">
+          {scene === null ? "このファイル" : "このシーン"}
+        </h2>
+      </div>
       {scene !== null && (
         <>
-          <h2 className="context-heading">登場キャラ</h2>
-          {scene.characters.length === 0 && (
-            <p className="context-empty">このシーンには出ていません。</p>
-          )}
-          {scene.characters.map((c) => (
-            <section key={c.id} className="character-card" aria-label={c.name}>
-              <div className="character-head">
-                <span className="character-initial" aria-hidden="true">
-                  {[...c.name][0] ?? ""}
-                </span>
-                <div className="character-name">
+          <section className="section" aria-label="登場キャラ">
+            <h3 className="h-label">登場キャラ</h3>
+            {scene.characters.length === 0 && (
+              <p className="empty">このシーンには出ていません。</p>
+            )}
+            {scene.characters.map((c) => (
+              <div key={c.id} className="card character-card">
+                <div className="character-head">
+                  <span className="character-initial" aria-hidden="true">
+                    {[...c.name][0] ?? ""}
+                  </span>
+                  <div className="character-name">
+                    <strong>{c.name}</strong>
+                    <span className="t-caption t-3">
+                      {c.id} · このシーンの台詞 {c.lines}行
+                    </span>
+                  </div>
                   <button
                     type="button"
-                    className="character-open"
+                    className="btn btn-link btn-sm"
                     title="設定DBで開く"
                     onClick={() => onOpenCharacter(c.id)}
                   >
-                    {c.name}
+                    設定
                   </button>
-                  <span>
-                    {c.id} · このシーンで台詞 {c.lines}行
-                  </span>
                 </div>
+                {(c.first_person !== null || c.speech !== null) && (
+                  <dl className="kv">
+                    {c.first_person !== null && (
+                      <>
+                        <dt>一人称</dt>
+                        <dd>{c.first_person}</dd>
+                      </>
+                    )}
+                    {c.speech !== null && (
+                      <>
+                        <dt>口調</dt>
+                        <dd>{c.speech}</dd>
+                      </>
+                    )}
+                  </dl>
+                )}
               </div>
-              {(c.first_person !== null || c.speech !== null) && (
-                <dl className="character-fields">
-                  {c.first_person !== null && (
-                    <>
-                      <dt>一人称</dt>
-                      <dd>{c.first_person}</dd>
-                    </>
-                  )}
-                  {c.speech !== null && (
-                    <>
-                      <dt>口調</dt>
-                      <dd>{c.speech}</dd>
-                    </>
-                  )}
-                </dl>
-              )}
-            </section>
-          ))}
-          <h2 className="context-heading">変数</h2>
-          {scene.variables.length === 0 ? (
-            <p className="context-empty">読み書きしていません。</p>
-          ) : (
-            <ul className="context-rows">
-              {scene.variables.map((v) => (
-                <li key={v.key}>
-                  <span className="context-mono">{v.key}</span>
-                  <span className="context-faint">{v.type ?? "宣言なし"}</span>
-                  <span className="context-right">
-                    {usage(v.reads, v.writes)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <h2 className="context-heading">素材</h2>
-          {assets.length === 0 ? (
-            <p className="context-empty">使っていません。</p>
-          ) : (
-            <ul className="context-rows">
-              {assets.map((a) => (
-                <li key={`${a.kind}-${a.name}`}>
-                  <span className="context-kind">{a.kind}</span>
-                  <span>{a.name}</span>
-                  {a.registered ? (
-                    <span className="context-right">あり</span>
-                  ) : (
-                    <span className="context-right provisional">仮素材</span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
+            ))}
+          </section>
+          <section className="section" aria-label="変数">
+            <h3 className="h-label">変数</h3>
+            {scene.variables.length === 0 ? (
+              <p className="empty">読み書きしていません。</p>
+            ) : (
+              <ul className="context-rows">
+                {scene.variables.map((v) => (
+                  <li key={v.key}>
+                    <span className="mono context-var">{v.key}</span>
+                    {v.type === null && (
+                      <span className="tag tag-warn">宣言なし</span>
+                    )}
+                    <span className="context-right">
+                      {usage(v.reads, v.writes)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+          <section className="section" aria-label="素材">
+            <h3 className="h-label">素材</h3>
+            {assets.size === 0 ? (
+              <p className="empty">使っていません。</p>
+            ) : (
+              <dl className="kv">
+                {[...assets].map(([kind, list]) => (
+                  <div key={kind} className="kv-row">
+                    <dt>{kind}</dt>
+                    <dd>
+                      {list.map((a, i) => (
+                        <span key={a.name}>
+                          {i > 0 && "・"}
+                          {a.name}
+                          {!a.registered && (
+                            <span className="tag tag-ph context-ph">
+                              仮素材
+                            </span>
+                          )}
+                        </span>
+                      ))}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+          </section>
         </>
       )}
-      <div className="context-problems">
+      <div className="section context-problems">
         <CheckList
-          heading="このファイルの問題"
+          heading={scene === null ? "このファイルの問題" : "このシーンの問題"}
           diagnostics={diagnostics}
           files={files}
           onSelect={onSelectDiagnostic}
@@ -155,8 +180,8 @@ export function ContextPanel({
         />
       </div>
       {findings.length > 0 && (
-        <section className="context-ai-findings" aria-label="AIの指摘">
-          <h2 className="context-heading">AIの指摘</h2>
+        <section className="section context-ai-findings" aria-label="AIの指摘">
+          <h3 className="h-label">AIの指摘</h3>
           {findings.map((r) => (
             <div key={r.id} className="ai-finding-card">
               <span className="ai-finding-source">

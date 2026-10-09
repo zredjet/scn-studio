@@ -6,8 +6,9 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 
+use crate::bible::plain_text;
 use crate::index::Index;
-use crate::ir::{IrInline, Op};
+use crate::ir::{Ir, IrInline, Op};
 use crate::project::{Entry, Project};
 use crate::syntax::{BGM_STOP, DIRECTIVES, DirectiveInfo, POSITIONS};
 
@@ -202,6 +203,149 @@ pub struct CompletionCharacter {
     pub id: String,
     pub name: String,
     pub aliases: Vec<String>,
+}
+
+/// シーンのアウトラインの1行（本文の画面のシーン一覧。T4-17・T4-18、U14）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct OutlineItem {
+    /// `direction`（シーンの頭の演出）・`choice`（選択）・`branch`（条件分岐）・`exit`（出口）。
+    pub kind: &'static str,
+    pub text: String,
+    /// その行の頭（バイト位置）。
+    pub start: usize,
+}
+
+/// シーンのアウトライン：シーンの頭の演出（最初の台詞・地の文より前の演出の並び）、本文の一番外の選択と
+/// 条件分岐、出口（`->` と選択肢の飛び先、`@エンディング`、`@戻る`。入れ子の中も。出てきた順に1行へまとめる）。
+/// 無いシーンなら空。
+pub fn scene_outline(ir: &Ir, scene: &str) -> Vec<OutlineItem> {
+    let Some(scene) = ir.scenes.iter().find(|s| s.id == scene) else {
+        return Vec::new();
+    };
+    let mut items = Vec::new();
+    // シーンの頭の演出。
+    let mut kinds: Vec<&'static str> = Vec::new();
+    let mut first = None;
+    for op in &scene.ops {
+        let kind = match op {
+            Op::Bg { .. } => "背景",
+            Op::Show { .. } => "立ち絵",
+            Op::Hide { .. } => "退場",
+            Op::Bgm { .. } | Op::BgmStop { .. } => "BGM",
+            Op::Se { .. } => "SE",
+            Op::Fx { .. } => "効果",
+            Op::Wait { .. } => "待機",
+            Op::Break { .. } | Op::Set { .. } | Op::Raw { .. } | Op::UnknownDirective { .. } => {
+                continue;
+            }
+            _ => break,
+        };
+        first.get_or_insert(op.span().start);
+        if !kinds.contains(&kind) {
+            kinds.push(kind);
+        }
+    }
+    if let Some(start) = first {
+        items.push(OutlineItem {
+            kind: "direction",
+            text: kinds.join("・"),
+            start,
+        });
+    }
+    // 一番外の選択と条件分岐。
+    for op in &scene.ops {
+        match op {
+            Op::Choice {
+                span,
+                prompt,
+                options,
+                ..
+            } => {
+                let prompt = prompt.as_deref().map(plain_text).unwrap_or_default();
+                let prompt = if prompt.trim().is_empty() {
+                    "選択".to_owned()
+                } else {
+                    prompt
+                };
+                items.push(OutlineItem {
+                    kind: "choice",
+                    text: format!("{prompt}（{}つ）", options.len()),
+                    start: span.start,
+                });
+            }
+            Op::If { span, branches, .. } => {
+                let cond = branches
+                    .first()
+                    .map(|b| b.cond_text.clone())
+                    .unwrap_or_default();
+                items.push(OutlineItem {
+                    kind: "branch",
+                    text: cond,
+                    start: span.start,
+                });
+            }
+            _ => {}
+        }
+    }
+    // 出口。
+    let mut exits: Vec<String> = Vec::new();
+    let mut first_exit = None;
+    collect_exits(&scene.ops, &mut exits, &mut first_exit);
+    if let Some(start) = first_exit {
+        items.push(OutlineItem {
+            kind: "exit",
+            text: exits.join("・"),
+            start,
+        });
+    }
+    items
+}
+
+/// 出口を1つ覚える（同じ名前は1度だけ）。
+fn push_exit(exits: &mut Vec<String>, first: &mut Option<usize>, name: String, start: usize) {
+    first.get_or_insert(start);
+    if !exits.contains(&name) {
+        exits.push(name);
+    }
+}
+
+fn collect_exits(ops: &[Op], exits: &mut Vec<String>, first: &mut Option<usize>) {
+    for op in ops {
+        match op {
+            Op::Jump { span, target } => push_exit(exits, first, target.clone(), span.start),
+            Op::Ending { span, id } => push_exit(
+                exits,
+                first,
+                match id {
+                    Some(id) => format!("エンディング {id}"),
+                    None => "エンディング".to_owned(),
+                },
+                span.start,
+            ),
+            Op::Return { span } => push_exit(exits, first, "戻る".to_owned(), span.start),
+            Op::Choice { options, .. } => {
+                for option in options {
+                    collect_exits(&option.body, exits, first);
+                    if let Some(target) = &option.jump {
+                        push_exit(exits, first, target.clone(), option.span.start);
+                    }
+                }
+            }
+            Op::If {
+                branches,
+                else_body,
+                ..
+            } => {
+                for branch in branches {
+                    collect_exits(&branch.body, exits, first);
+                }
+                if let Some(body) = else_body {
+                    collect_exits(body, exits, first);
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]

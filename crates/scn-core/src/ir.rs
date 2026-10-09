@@ -296,8 +296,22 @@ pub struct IrDiagnostic {
     pub message: String,
 }
 
+/// 章の見出し（`# ` の行。仕様書3節）。アプリのシーン一覧に出す（T4-18、U14）。IRには入れない。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ChapterTitle {
+    /// プロジェクトの根からの相対パス。
+    pub file: String,
+    /// 章見出しの文字。無ければ `None`。
+    pub title: Option<String>,
+}
+
 /// プロジェクトを解析して、IRを作る。診断はIRの `diagnostics` に入る。
 pub fn analyze(project: &Project) -> Ir {
+    analyze_with_chapters(project).0
+}
+
+/// IR と、章ごとの見出し（`project.files` の順）を作る。見出しは同じ構文解析の結果から取る。
+pub fn analyze_with_chapters(project: &Project) -> (Ir, Vec<ChapterTitle>) {
     let options = project.parse_options();
     let files: Vec<ParsedFile<'_>> = project
         .files
@@ -344,7 +358,14 @@ pub fn analyze(project: &Project) -> Ir {
         }
     }
 
-    Ir {
+    let chapters = files
+        .iter()
+        .map(|f| ChapterTitle {
+            file: f.path.to_owned(),
+            title: f.parsed.chapter.heading.as_ref().map(|h| h.title.clone()),
+        })
+        .collect();
+    let ir = Ir {
         ir_version: IR_VERSION,
         start_scene: project.settings.start_scene.clone(),
         scenes,
@@ -373,7 +394,8 @@ pub fn analyze(project: &Project) -> Ir {
                 }
             }))
             .collect(),
-    }
+    };
+    (ir, chapters)
 }
 
 fn line_id(slot: &LineIdSlot) -> Option<String> {

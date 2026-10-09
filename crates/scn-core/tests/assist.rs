@@ -3,11 +3,11 @@
 
 use std::path::{Path, PathBuf};
 
-use scn_core::assist::{completion_data, scene_chars, scene_info};
+use scn_core::assist::{completion_data, scene_chars, scene_info, scene_outline};
 use scn_core::check::{check, overflow};
 use scn_core::index::build_index;
 use scn_core::project::{Character, Project, SourceFile};
-use scn_core::{analyze, load_project};
+use scn_core::{analyze, analyze_with_chapters, load_project};
 
 fn repo() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -148,4 +148,74 @@ fn unregistered_speaker_message() {
         "{}",
         d.message
     );
+}
+
+/// シーンのアウトライン（T4-18、U14）：シーンの頭の演出、一番外の選択と条件分岐、出口（入れ子の中も、出た順に1行）。
+/// 位置は行の頭のバイト位置。
+#[test]
+fn scene_outline_for_sample_scene() {
+    let project = sample();
+    let ir = analyze(&project);
+    let outline = scene_outline(&ir, "s012");
+    let text = &project
+        .files
+        .iter()
+        .find(|f| f.path == "story/chapter01.scn")
+        .unwrap()
+        .text;
+    let line_of = |start: usize| text[start..].lines().next().unwrap_or("");
+    let got: Vec<(&str, &str, &str)> = outline
+        .iter()
+        .map(|i| (i.kind, i.text.as_str(), line_of(i.start)))
+        .collect();
+    assert_eq!(
+        got,
+        vec![
+            (
+                "direction",
+                "背景・BGM・立ち絵・SE",
+                "@背景 屋上/夕方 フェード"
+            ),
+            ("choice", "どう答える（2つ）", "@選択 どう答える ^k3fc"),
+            ("branch", "灯.好感度 >= 3", "@if 灯.好感度 >= 3"),
+            ("exit", "s014・s013a・s013b", "  -> s014"),
+        ]
+    );
+    // 演出で始まらず、選択も分岐も無いシーンは、出口だけ。
+    let opening = scene_outline(&ir, "s010");
+    assert!(
+        opening
+            .iter()
+            .all(|i| i.kind != "choice" && i.kind != "branch")
+    );
+    assert!(scene_outline(&ir, "s999").is_empty());
+}
+
+/// 章の見出しは、IRと同じ解析から章ごとに返す（見出しの無い章は None）。
+#[test]
+fn chapter_titles_come_with_the_ir() {
+    let project = sample();
+    let (ir, chapters) = analyze_with_chapters(&project);
+    assert_eq!(ir, analyze(&project));
+    let titles: Vec<(&str, Option<&str>)> = chapters
+        .iter()
+        .map(|c| (c.file.as_str(), c.title.as_deref()))
+        .collect();
+    assert_eq!(
+        titles,
+        vec![
+            ("story/chapter01.scn", Some("第1章 放課後")),
+            ("story/chapter02.scn", Some("第2章 灯ルート")),
+            ("story/chapter03.scn", Some("第3章 紬ルート")),
+        ]
+    );
+    let project = Project {
+        files: vec![SourceFile {
+            path: "story/a.scn".into(),
+            text: "## a #s1\n地の文\n".into(),
+        }],
+        ..Project::default()
+    };
+    let (_, chapters) = analyze_with_chapters(&project);
+    assert_eq!(chapters[0].title, None);
 }

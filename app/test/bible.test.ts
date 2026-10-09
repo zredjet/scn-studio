@@ -15,6 +15,7 @@ import {
   initialOf,
   isComposingKey,
   isDate,
+  isWideWidget,
   kindLabel,
   listItems,
   matchesQuery,
@@ -303,4 +304,22 @@ test("項目の出自の印（T4-3）：ai は実線、ai-edited は点線。文
   assert.equal(isAiDraftEntry({ status: "ai-draft" }), true);
   assert.equal(isAiDraftEntry({ status: "確定" }), false);
   assert.equal(isAiDraftEntry(null), false);
+});
+
+test("フォームの2列：長文・リスト・複数選択・読むだけの欄は2列ぶち抜き（T4-18、U16）", () => {
+  assert.equal(isWideWidget("longtext"), true);
+  assert.equal(isWideWidget("list"), true);
+  assert.equal(isWideWidget("list-ref"), true);
+  assert.equal(isWideWidget("multiselect"), true);
+  assert.equal(isWideWidget("readonly"), true);
+  for (const w of [
+    "text",
+    "number",
+    "bool",
+    "date",
+    "select",
+    "asset",
+    "ref",
+  ] as const)
+    assert.equal(isWideWidget(w), false, w);
 });

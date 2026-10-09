@@ -3,6 +3,7 @@
 // まとまり（章・ルート）：3行（ファイル名か「ルート」、題名、シーンの数と字数）。帯：ルートの見出しと枠。
 
 import { Handle, type NodeProps, Position } from "@xyflow/react";
+import { SceneMarkView } from "../scenes/SceneMark.tsx";
 import type { FlowNodeData, ProposalNodeData } from "./model.ts";
 
 function classes(data: FlowNodeData, base: string): string {
@@ -32,6 +33,7 @@ export function SceneNode({ data }: NodeProps) {
     >
       <Handle type="target" position={Position.Left} />
       <span className="flow-node-head">
+        {d.mark !== undefined && <SceneMarkView mark={d.mark} />}
         {d.head}
         <Marks data={d} />
       </span>

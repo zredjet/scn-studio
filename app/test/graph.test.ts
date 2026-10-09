@@ -23,7 +23,10 @@ import {
   READABLE_ZOOM,
   rankOrder,
   readableViewport,
+  routeCounts,
+  sceneOfDiagnostic,
   startSceneOf,
+  structureProblems,
   withLabelSlots,
 } from "../src/graph/model.ts";
 
@@ -86,6 +89,7 @@ function group(
 
 const SUMMARY: Summary = {
   start_scene: "a",
+  chapters: [],
   scenes: [
     scene("a", "共通"),
     scene("b", "共通"),
@@ -527,4 +531,44 @@ test("フローの初めの表示（T4-13、U6）：収めた縮尺で読めれ�
     readableViewport({ x: 0, y: 0, zoom: 0.3 }, bounds, start, pane, 0.8),
     { x: 24 + 100 * 0.8, y: 350 - 332 * 0.8, zoom: 0.8 },
   );
+});
+
+test("フローの概要：構造の問題・問題のシーン・ルートごとの数（T4-18、U15）", () => {
+  const diag = (code: string, file: string, at: number) => ({
+    code,
+    severity: "warning",
+    file,
+    span: [at, at + 1] as [number, number],
+    message: code,
+  });
+  const checks = [
+    diag("W503", "story/a.scn", 120),
+    diag("W203", "story/a.scn", 10),
+    diag("W701", "concept.md", 0),
+    diag("W504", "story/a.scn", 5),
+  ];
+  assert.deepEqual(
+    structureProblems(checks).map((d) => d.code),
+    ["W503", "W701", "W504"],
+  );
+  const scenes = [
+    scene("a", "共通", { span: [0, 4] }),
+    scene("b", "共通", { span: [100, 104] }),
+    scene("c", "灯", { file: "story/b.scn", span: [0, 4] }),
+    scene("d", null, { span: [200, 204] }),
+  ];
+  assert.equal(
+    sceneOfDiagnostic(scenes, diag("W503", "story/a.scn", 120))?.id,
+    "b",
+  );
+  assert.equal(
+    sceneOfDiagnostic(scenes, diag("W504", "story/a.scn", 0))?.id,
+    "a",
+  );
+  assert.equal(sceneOfDiagnostic(scenes, diag("W701", "concept.md", 0)), null);
+  assert.deepEqual(routeCounts(scenes), [
+    { route: "共通", count: 2 },
+    { route: "灯", count: 1 },
+    { route: NO_ROUTE, count: 1 },
+  ]);
 });

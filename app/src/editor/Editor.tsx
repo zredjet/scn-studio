@@ -20,6 +20,7 @@
 
 import { closeCompletion } from "@codemirror/autocomplete";
 import { setDiagnostics } from "@codemirror/lint";
+import { openSearchPanel } from "@codemirror/search";
 import {
   ChangeSet,
   Compartment,
@@ -157,6 +158,8 @@ interface Props {
     readonly file: string;
     readonly offset: number;
   } | null;
+  /** 検索と置換の欄を開く頼み（見出しの帯の検索のボタン。増えたら開く。T4-18）。 */
+  readonly openSearch?: number;
 }
 
 /** AIが書いた行が無いとき（毎回新しい Map を作らないため）。 */
@@ -189,6 +192,7 @@ export function Editor({
   aiLines: aiLineMap = NO_AI_LINES,
   aiFindings: aiFindingMap = NO_AI_LINES,
   previewLine: preview = null,
+  openSearch = 0,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
@@ -775,6 +779,15 @@ export function Editor({
     });
     v.focus();
   }, [focus]);
+
+  // 検索と置換の欄を開く（⌘F と同じ）。作り直したとき（作品を開き直したときなど）は、前の頼みでは開かない。
+  const searchSeen = useRef(openSearch);
+  useEffect(() => {
+    const v = view.current;
+    if (v === null || openSearch === searchSeen.current) return;
+    searchSeen.current = openSearch;
+    openSearchPanel(v);
+  }, [openSearch]);
 
   // プレビュー中の行に印を付ける（カーソルもフォーカスも動かさない）。
   const previewAt = preview?.file === file ? preview.offset : null;

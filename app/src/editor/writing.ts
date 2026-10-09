@@ -739,7 +739,7 @@ export const writingThemeSpec = {
     lineHeight: "1.6",
   },
   "&.cm-writing .cm-content": {
-    maxWidth: "780px",
+    maxWidth: "860px",
     margin: "0 auto",
     padding: "28px 40px 56px",
   },

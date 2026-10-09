@@ -14,6 +14,7 @@ import {
   appended,
   type FieldChange,
   isComposingKey,
+  isWideWidget,
   keyed,
   kindLabel,
   listItems,
@@ -529,7 +530,9 @@ export function FieldInput({
       break;
   }
   return (
-    <div className={fieldClass(origin)}>
+    <div
+      className={`${fieldClass(origin)}${isWideWidget(widget) ? " span-2" : ""}`}
+    >
       <label className="bible-label" htmlFor={`field-${field.key}`}>
         {field.label}
         <span className="bible-label-note">

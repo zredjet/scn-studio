@@ -21,6 +21,7 @@ import type {
   SceneSummary,
   Summary,
 } from "../core/types.ts";
+import { Icon } from "../shell/icons.tsx";
 import { useScreenStatus } from "../shell/StatusBar.tsx";
 import { assetsStatus } from "../shell/status.ts";
 import {
@@ -57,11 +58,11 @@ interface Props {
   readonly onOpenLocation: (file: string, offset: number) => void;
 }
 
-/** 状態の見た目のクラス（`placeholder` は全体の段落のクラスと重なるので使わない）。 */
-const STATE_CLASS: Readonly<Record<AssetRow["state"], string>> = {
-  file: "file",
-  placeholder: "provisional",
-  unregistered: "unregistered",
+/** キャラ×差分の表のマスのクラス（見本 v1 の .mx：あり・仮素材は琥珀の点線・未登録は琥珀の実線）。 */
+const MX_CLASS: Readonly<Record<AssetRow["state"], string>> = {
+  file: "has",
+  placeholder: "ph",
+  unregistered: "unreg",
 };
 
 /** 状態の札の部品のクラス（見本 v1：仮素材は琥珀の点線、未登録は琥珀の実線）。 */
@@ -75,7 +76,14 @@ function StateBadge({ row }: { readonly row: AssetRow }) {
   if (row.state === "file") {
     return <span className="assets-state-file">{STATE_LABEL.file}</span>;
   }
-  return <span className={TAG_CLASS[row.state]}>{STATE_LABEL[row.state]}</span>;
+  return (
+    <span className={TAG_CLASS[row.state]}>
+      {row.state === "unregistered" && (
+        <Icon name="warning" size={11} stroke={2.2} />
+      )}
+      {STATE_LABEL[row.state]}
+    </span>
+  );
 }
 
 function fileText(row: AssetRow): string {
@@ -243,24 +251,22 @@ export function AssetsScreen({
       });
   };
 
+  const firstUse = row === null ? null : (usesByScene(row)[0] ?? null);
   return (
     <div className="assets-screen-body">
       <main className="assets-main" aria-label="素材の一覧">
-        <header className="assets-head">
-          <div className="assets-title">
-            <h1>素材カタログ</h1>
-            <span className="bible-path">{FILE}</span>
-          </div>
-          <div className="assets-counts">
-            <span className="assets-count">登録 {counts.registered}</span>
-            <span className="assets-count provisional">
-              仮素材 {counts.placeholders}
-            </span>
-            <span className="assets-count unregistered">
-              未登録の参照 {counts.unregistered}
-            </span>
-          </div>
-          <span className="flow-spacer" />
+        <header className="work-head assets-head">
+          <h1 className="h1">素材カタログ</h1>
+          <span className="bible-path">{FILE}</span>
+          <span className="tag">
+            ファイルあり {counts.registered - counts.placeholders}
+          </span>
+          <span className="tag tag-ph">仮素材 {counts.placeholders}</span>
+          <span className="tag tag-warn">
+            <Icon name="warning" size={11} stroke={2.2} />
+            未登録 {counts.unregistered}
+          </span>
+          <span className="grow" />
           <button
             type="button"
             className="btn"
@@ -277,7 +283,7 @@ export function AssetsScreen({
               )
             }
           >
-            未登録をカタログに追加
+            未登録をカタログに足す
           </button>
           <button
             type="button"
@@ -296,32 +302,9 @@ export function AssetsScreen({
                 .finally(() => setBusy(false));
             }}
           >
-            発注リストをCSV出力
+            発注リストを書き出す
           </button>
         </header>
-        <div className="assets-folder">
-          <span className="assets-folder-label">素材のフォルダ</span>
-          <code className="assets-folder-path" title={folder ?? undefined}>
-            {folder ?? "assets/"}
-          </code>
-          <button
-            type="button"
-            className="btn"
-            title="素材のフォルダを Finder（Windows はエクスプローラー）で開く。無ければ作る"
-            onClick={() => reveal(null)}
-          >
-            フォルダを開く
-          </button>
-          <button
-            type="button"
-            className="btn"
-            title="素材のフォルダのパスをクリップボードにコピーする"
-            disabled={folder === null}
-            onClick={() => copyPath(folder)}
-          >
-            パスをコピー
-          </button>
-        </div>
         <div className="assets-toolbar">
           <fieldset className="mode-switch" aria-label="種別">
             {TABS.map((t) => (
@@ -335,32 +318,54 @@ export function AssetsScreen({
               </button>
             ))}
           </fieldset>
-          <label className="assets-check">
+          <label className="check">
             <input
               type="checkbox"
               checked={missingOnly}
               onChange={(event) => setMissingOnly(event.target.checked)}
             />
-            仮素材と未登録のみ
+            仮素材と未登録だけ
           </label>
-          <label className="bible-search assets-search">
-            <span aria-hidden="true">⌕</span>
+          <span className="grow" />
+          <span className="assets-folder" title={folder ?? undefined}>
+            <Icon name="folder" size={14} />
+            <span className="assets-folder-path">{folder ?? "assets/"}</span>
+          </span>
+          <button
+            type="button"
+            className="btn btn-sm"
+            title="素材のフォルダを Finder（Windows はエクスプローラー）で開く。無ければ作る"
+            onClick={() => reveal(null)}
+          >
+            フォルダを開く
+          </button>
+          <button
+            type="button"
+            className="btn btn-sm"
+            title="素材のフォルダのパスをクリップボードにコピーする"
+            disabled={folder === null}
+            onClick={() => copyPath(folder)}
+          >
+            パスをコピー
+          </button>
+          <label className="search assets-search">
+            <Icon name="search" size={14} />
             <input
               type="search"
-              aria-label="素材を検索"
-              placeholder="意味名で検索"
+              aria-label="意味名で絞り込む"
+              placeholder="意味名で絞り込む"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
           </label>
         </div>
         {notice !== null && (
-          <p className="assets-notice" role="status">
+          <p className="notice assets-band" role="status">
             {notice}
           </p>
         )}
         {error !== null && (
-          <p className="assets-error" role="alert">
+          <p className="notice notice-danger assets-band" role="alert">
             {error}
           </p>
         )}
@@ -373,14 +378,14 @@ export function AssetsScreen({
           </p>
         ) : (
           <div className="assets-table-scroll">
-            <table className="bible-table assets-table">
+            <table className="table assets-table">
               <thead>
                 <tr>
                   <th>種別</th>
                   <th>意味名</th>
                   <th>ファイル</th>
                   <th>状態</th>
-                  <th className="number">使用回数</th>
+                  <th className="num">使用</th>
                   <th>初出</th>
                 </tr>
               </thead>
@@ -388,8 +393,8 @@ export function AssetsScreen({
                 {rows.map((r) => {
                   const id = rowId(r);
                   const classes = [
-                    id === selected ? "selected" : "",
-                    r.state === "unregistered" ? "unregistered" : "",
+                    id === selected ? "is-selected" : "",
+                    r.state === "unregistered" ? "is-unregistered" : "",
                   ]
                     .filter((c) => c !== "")
                     .join(" ");
@@ -417,7 +422,7 @@ export function AssetsScreen({
                       <td>
                         <StateBadge row={r} />
                       </td>
-                      <td className="number">{r.uses.length}</td>
+                      <td className="num">{r.uses.length}</td>
                       <td className="mono">{r.scenes[0] ?? "—"}</td>
                     </tr>
                   );
@@ -434,230 +439,245 @@ export function AssetsScreen({
           </div>
         )}
       </main>
-      <aside
-        className="bible-usage assets-side ctx-column"
-        aria-label="立ち絵と選んだ素材"
-      >
-        <h2 className="bible-usage-heading">立ち絵 · キャラ×差分</h2>
-        {matrix === null || matrix.columns.length === 0 ? (
-          <p className="context-empty">立ち絵の差分がありません。</p>
-        ) : (
-          <>
-            <p className="assets-side-note">セルの数字は本文での使用回数</p>
-            <div className="assets-matrix-scroll">
-              <table className="assets-matrix">
-                <thead>
-                  <tr>
-                    <th />
-                    {matrix.columns.map((c) => (
-                      <th key={c} scope="col">
-                        {c}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {matrix.rows.map((m) => (
-                    <tr key={m.id}>
-                      <th scope="row">
-                        {m.name}
-                        {!m.registered && (
-                          <span className="assets-matrix-unknown">
-                            （未登録）
-                          </span>
-                        )}
-                      </th>
-                      {m.cells.map((cell, i) => {
-                        const column = matrix.columns[i] ?? "";
-                        if (cell === null) {
+      <aside className="assets-side ctx-column" aria-label="選んだ素材と立ち絵">
+        <div className="panel-head">
+          <h2 className="h-label">選んだ素材</h2>
+        </div>
+        <section className="section assets-detail" aria-label="選んだ素材">
+          {row === null ? (
+            <p className="empty">
+              素材を選ぶと、使っているシーンとファイルの割り当てが出ます。
+            </p>
+          ) : (
+            <>
+              <div className="assets-detail-head">
+                <span className="t-2">{KIND_LABEL[row.kind]}</span>
+                <strong className="assets-detail-name">
+                  {displayName(row)}
+                </strong>
+                <span className="grow" />
+                <StateBadge row={row} />
+              </div>
+              <dl className="kv">
+                <dt>ファイル</dt>
+                <dd>
+                  {row.state === "file" && row.file !== null ? (
+                    <span className="mono">{row.file}</span>
+                  ) : row.state === "placeholder" ? (
+                    row.file === null ? (
+                      `まだ無い（${row.kind === "bgm" || row.kind === "se" ? "プレビューでは無音" : "プレビューでは名前入りの色の矩形"}）`
+                    ) : (
+                      `${row.file} が見つかりません`
+                    )
+                  ) : (
+                    "カタログに無い意味名です"
+                  )}
+                </dd>
+                {rowLocation !== null && (
+                  <>
+                    <dt>{row.path !== null ? "場所" : "置く場所"}</dt>
+                    <dd className="mono assets-location" title={rowLocation}>
+                      {rowLocation}
+                    </dd>
+                  </>
+                )}
+                <dt>使っている</dt>
+                <dd>
+                  {usesByScene(row).length === 0
+                    ? "本文で使われていません"
+                    : usesByScene(row).map((s, i) => (
+                        <span key={s.scene}>
+                          {i > 0 && "・"}
+                          <button
+                            type="button"
+                            className="btn-link-inline"
+                            onClick={() => onOpenLocation(s.file, s.offset)}
+                          >
+                            {s.scene} {titles.get(s.scene) ?? ""}
+                          </button>
+                          （{s.count}回）
+                        </span>
+                      ))}
+                </dd>
+              </dl>
+              {row.path !== null &&
+                (row.kind === "background" || row.kind === "expression") && (
+                  <img
+                    className="assets-thumb"
+                    src={assetUrl(row.path)}
+                    alt={displayName(row)}
+                  />
+                )}
+              {row.path !== null &&
+                (row.kind === "bgm" || row.kind === "se") && (
+                  // biome-ignore lint/a11y/useMediaCaption: 素材の音を確かめるだけで、字幕にする言葉が無い
+                  <audio
+                    className="assets-audio"
+                    controls
+                    src={assetUrl(row.path)}
+                  />
+                )}
+              <div className="assets-actions">
+                {row.addable && (
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    disabled={busy}
+                    onClick={() =>
+                      write(
+                        () => addCatalogEntries([assetKey(row)]),
+                        `${displayName(row)} をカタログに足しました（仮素材）`,
+                      )
+                    }
+                  >
+                    カタログに足す
+                  </button>
+                )}
+                {row.state !== "unregistered" && (
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    disabled={busy}
+                    onClick={() => assign(row)}
+                  >
+                    ファイルを割り当てる
+                  </button>
+                )}
+                {firstUse !== null && (
+                  <button
+                    type="button"
+                    className="btn btn-link btn-sm"
+                    onClick={() =>
+                      onOpenLocation(firstUse.file, firstUse.offset)
+                    }
+                  >
+                    本文で見る
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  title={
+                    row.path !== null
+                      ? "このファイルを Finder（Windows はエクスプローラー）で選んだ状態で開く"
+                      : "このファイルを置く場所（無ければ、いちばん近いフォルダ）を開く"
+                  }
+                  onClick={() => reveal(row.file)}
+                >
+                  {row.path !== null ? "場所を開く" : "置く場所を開く"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  title="このファイル（無ければ、置く場所のフォルダ）のパスをコピーする"
+                  disabled={rowLocation === null}
+                  onClick={() => copyPath(rowLocation)}
+                >
+                  パスをコピー
+                </button>
+              </div>
+              {row.state === "unregistered" && !row.addable && (
+                <p className="empty">
+                  キャラクターが設定DBに無いので、カタログに足せません。先に設定DBにキャラクターを登録してください。
+                </p>
+              )}
+            </>
+          )}
+        </section>
+        <section className="section" aria-label="立ち絵・キャラ×差分">
+          <h3 className="h-label">立ち絵・キャラ×差分</h3>
+          {matrix === null || matrix.columns.length === 0 ? (
+            <p className="empty">立ち絵の差分がありません。</p>
+          ) : (
+            <>
+              <p className="t-caption t-3 assets-side-note">
+                数字は本文で使っている回数
+              </p>
+              <div className="assets-matrix-scroll">
+                <table className="mx">
+                  <thead>
+                    <tr>
+                      <th />
+                      {matrix.columns.map((c) => (
+                        <th key={c} scope="col">
+                          {c}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {matrix.rows.map((m) => (
+                      <tr key={m.id}>
+                        <th scope="row">
+                          {m.name}
+                          {!m.registered && (
+                            <span className="assets-matrix-unknown">
+                              （未登録）
+                            </span>
+                          )}
+                        </th>
+                        {m.cells.map((cell, i) => {
+                          const column = matrix.columns[i] ?? "";
+                          if (cell === null) {
+                            return (
+                              <td key={column} className="none">
+                                —
+                              </td>
+                            );
+                          }
+                          const id = rowId(cell.row);
                           return (
-                            <td key={column} className="assets-cell-none">
-                              —
+                            <td key={column} className="mx-cell">
+                              <button
+                                type="button"
+                                className={`mx-button ${MX_CLASS[cell.row.state]}${id === selected ? " is-selected" : ""}`}
+                                title={`${displayName(cell.row)}：${STATE_LABEL[cell.row.state]}、${cell.uses}回`}
+                                onClick={() => setSelected(id)}
+                              >
+                                {cell.row.state === "unregistered" && (
+                                  <Icon name="warning" size={10} stroke={2.4} />
+                                )}
+                                {cell.uses}
+                              </button>
                             </td>
                           );
-                        }
-                        const id = rowId(cell.row);
-                        return (
-                          <td key={column} className="assets-cell-wrap">
-                            <button
-                              type="button"
-                              className={`assets-cell ${STATE_CLASS[cell.row.state]}${id === selected ? " selected" : ""}`}
-                              title={`${displayName(cell.row)}：${STATE_LABEL[cell.row.state]}、${cell.uses}回`}
-                              onClick={() => setSelected(id)}
-                            >
-                              {cell.uses}
-                              {cell.row.state === "placeholder" && (
-                                <span className="assets-cell-mark">仮</span>
-                              )}
-                              {cell.row.state === "unregistered" && (
-                                <span className="assets-cell-mark">未</span>
-                              )}
-                            </button>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="assets-legend">
-              <span>
-                <span className="assets-swatch file" aria-hidden="true" />
-                あり
-              </span>
-              <span>
-                <span
-                  className="assets-swatch provisional"
-                  aria-hidden="true"
-                />
-                仮素材
-              </span>
-              <span>
-                <span
-                  className="assets-swatch unregistered"
-                  aria-hidden="true"
-                />
-                未登録
-              </span>
-              <span>— 無い差分</span>
-            </div>
-          </>
-        )}
-
-        <h2 className="bible-usage-heading">
-          {row === null
-            ? "選択中の素材"
-            : `選択中：${KIND_LABEL[row.kind]} ${displayName(row)}`}
-        </h2>
-        {row === null ? (
-          <p className="context-empty">
-            素材を選ぶと、使用シーンとファイルの割り当てが出ます。
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="assets-legend t-caption t-3">
+                <span>
+                  <span className="mx-swatch has" aria-hidden="true" />
+                  あり
+                </span>
+                <span>
+                  <span className="mx-swatch ph" aria-hidden="true" />
+                  仮素材
+                </span>
+                <span>
+                  <span className="mx-swatch unreg" aria-hidden="true" />
+                  未登録
+                </span>
+                <span>— 差分なし</span>
+              </div>
+            </>
+          )}
+        </section>
+        <section className="section" aria-label="発注リスト">
+          <h3 className="h-label">発注リスト</h3>
+          <p className="t-small t-2 assets-orders-lead">
+            仮素材 {counts.placeholders}件と未登録 {counts.unregistered}
+            件を、1行1件で書き出す。
           </p>
-        ) : (
-          <div className="assets-detail">
-            <p>
-              <StateBadge row={row} />{" "}
-              {row.state === "file" && row.file !== null && (
-                <span className="mono">{row.file}</span>
-              )}
-              {row.state === "placeholder" &&
-                (row.file === null
-                  ? "ファイルがまだありません"
-                  : `${row.file} が見つかりません`)}
-              {row.state === "unregistered" && "カタログに無い意味名です"}
-            </p>
-            {rowLocation !== null && (
-              <p className="assets-location" title={rowLocation}>
-                {row.path !== null ? "場所" : "置く場所"}：
-                <code>{rowLocation}</code>
-              </p>
-            )}
-            {row.path !== null &&
-              (row.kind === "background" || row.kind === "expression") && (
-                <img
-                  className="assets-thumb"
-                  src={assetUrl(row.path)}
-                  alt={displayName(row)}
-                />
-              )}
-            {row.path !== null && (row.kind === "bgm" || row.kind === "se") && (
-              // biome-ignore lint/a11y/useMediaCaption: 素材の音を確かめるだけで、字幕にする言葉が無い
-              <audio
-                className="assets-audio"
-                controls
-                src={assetUrl(row.path)}
-              />
-            )}
-            {row.state !== "file" && (
-              <p className="assets-muted">
-                {row.kind === "bgm" || row.kind === "se"
-                  ? "プレビューでは鳴らしません（無音）"
-                  : "プレビューでは名前入りの色の矩形で見せます"}
-              </p>
-            )}
-            <div className="assets-actions">
-              {row.addable && (
-                <button
-                  type="button"
-                  className="btn"
-                  disabled={busy}
-                  onClick={() =>
-                    write(
-                      () => addCatalogEntries([assetKey(row)]),
-                      `${displayName(row)} をカタログに足しました（仮素材）`,
-                    )
-                  }
-                >
-                  カタログに追加
-                </button>
-              )}
-              {row.state !== "unregistered" && (
-                <button
-                  type="button"
-                  className="btn"
-                  disabled={busy}
-                  onClick={() => assign(row)}
-                >
-                  ファイルを割り当てる
-                </button>
-              )}
-              <button
-                type="button"
-                className="btn"
-                title={
-                  row.path !== null
-                    ? "このファイルを Finder（Windows はエクスプローラー）で選んだ状態で開く"
-                    : "このファイルを置く場所（無ければ、いちばん近いフォルダ）を開く"
-                }
-                onClick={() => reveal(row.file)}
-              >
-                {row.path !== null ? "場所を開く" : "置く場所を開く"}
-              </button>
-              <button
-                type="button"
-                className="btn"
-                title="このファイル（無ければ、置く場所のフォルダ）のパスをコピーする"
-                disabled={rowLocation === null}
-                onClick={() => copyPath(rowLocation)}
-              >
-                パスをコピー
-              </button>
-            </div>
-            {row.state === "unregistered" && !row.addable && (
-              <p className="assets-muted">
-                キャラクターが設定DBに無いので、カタログに足せません。先に設定DBにキャラクターを登録してください。
-              </p>
-            )}
-            {usesByScene(row).length === 0 ? (
-              <p className="context-empty">本文で使われていません。</p>
-            ) : (
-              <ul className="bible-usage-scenes">
-                {usesByScene(row).map((s) => (
-                  <li key={s.scene}>
-                    <button
-                      type="button"
-                      className="bible-usage-scene"
-                      onClick={() => onOpenLocation(s.file, s.offset)}
-                    >
-                      <span className="bible-usage-id">{s.scene}</span>
-                      <span className="bible-usage-title">
-                        {titles.get(s.scene) ?? ""}
-                      </span>
-                      <span className="bible-usage-count">{s.count}回</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-
-        <h2 className="bible-usage-heading">発注リスト（CSV）の列</h2>
-        <p className="assets-orders mono">{ORDER_COLUMNS.join(",")}</p>
-        <p className="assets-side-note">
-          仮素材と未登録の素材を1行ずつ書きます。書き出し先：export/orders.csv
-        </p>
+          <dl className="kv">
+            <dt>書き出し先</dt>
+            <dd className="mono">export/orders.csv</dd>
+            <dt>列</dt>
+            <dd>{ORDER_COLUMNS.join("・")}</dd>
+          </dl>
+        </section>
       </aside>
     </div>
   );

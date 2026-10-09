@@ -10,12 +10,12 @@
 
 import {
   Background,
-  Controls,
   type Edge,
   getViewportForBounds,
   MarkerType,
   type Node,
   ReactFlow,
+  ReactFlowProvider,
   useNodesInitialized,
   useNodesState,
   useReactFlow,
@@ -81,6 +81,8 @@ interface Props {
   readonly ai: FlowAi;
   /** 選んでいるシーン（シーン表示で選んだときだけ。タイトルバーの再生が、そのシーンから始める。T4-17）。 */
   readonly onSelectScene: (id: string | null) => void;
+  /** 企画の画面を開く（企画書とのずれの問題から。T4-18）。 */
+  readonly onOpenConcept: () => void;
 }
 
 /** フロー図の AI の分岐案（T3-10）。 */
@@ -189,6 +191,7 @@ export function SceneGraph({
   onStoryWritten,
   ai,
   onSelectScene,
+  onOpenConcept,
 }: Props) {
   /** スタブを足す欄を開いているか、書き足す辺（T2-9）。 */
   const [stubOpen, setStubOpen] = useState(false);
@@ -258,10 +261,13 @@ export function SceneGraph({
       .catch((e: unknown) => setError(String(e)));
   }, [layoutVersion]);
 
+  /** 粒度を変えた後に選ぶシーン（概要の欄で、章・ルートの粒度から「選ぶ」を押したとき。T4-18）。 */
+  const selectAfterLevel = useRef<string | null>(null);
   // 粒度を変えたら、選択を外す（ルートの絞り込みは、シーンの粒度に戻ったときのために残す）。
   useEffect(() => {
     void level;
-    setSelected(null);
+    setSelected(selectAfterLevel.current);
+    selectAfterLevel.current = null;
   }, [level]);
 
   const routes = useMemo(() => {
@@ -446,250 +452,301 @@ export function SceneGraph({
   );
 
   return (
-    <div className="flow-screen-body">
-      <div className="flow-main">
-        <div className="flow-toolbar">
-          <fieldset className="mode-switch" aria-label="表示の粒度">
-            {LEVELS.map((l) => (
-              <button
-                key={l}
-                type="button"
-                aria-pressed={level === l}
-                onClick={() => onLevel(l)}
-              >
-                {LEVEL_LABELS[l]}
-              </button>
-            ))}
-          </fieldset>
-          {level === "scene" && (
+    <ReactFlowProvider>
+      <div className="flow-screen-body">
+        <div className="flow-main">
+          <div className="work-head flow-toolbar">
+            <fieldset className="mode-switch" aria-label="表示の粒度">
+              {LEVELS.map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  aria-pressed={level === l}
+                  onClick={() => onLevel(l)}
+                >
+                  {LEVEL_LABELS[l]}
+                </button>
+              ))}
+            </fieldset>
+            {level === "scene" && (
+              <label className="flow-filter">
+                ルート
+                <select
+                  value={route ?? ""}
+                  onChange={(event) =>
+                    setRoute(
+                      event.target.value === "" ? null : event.target.value,
+                    )
+                  }
+                >
+                  <option value="">すべて</option>
+                  {routes.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <label className="flow-filter">
-              ルート
-              <select
-                value={route ?? ""}
-                onChange={(event) =>
-                  setRoute(
-                    event.target.value === "" ? null : event.target.value,
-                  )
-                }
-              >
-                <option value="">すべて</option>
-                {routes.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
+              <input
+                type="checkbox"
+                checked={showConditions}
+                onChange={(event) => setShowConditions(event.target.checked)}
+              />
+              条件を表示
             </label>
-          )}
-          <label className="flow-filter">
-            <input
-              type="checkbox"
-              checked={showConditions}
-              onChange={(event) => setShowConditions(event.target.checked)}
-            />
-            条件を表示
-          </label>
-          <span className="flow-spacer" />
-          {problem !== null && (
-            <span className="flow-problem" role="status">
-              {problem}
-            </span>
-          )}
-          {error !== null && (
-            <span className="flow-problem" role="alert">
-              {error}
-            </span>
-          )}
-          {level === "scene" && (
+            <span className="flow-spacer" />
+            {problem !== null && (
+              <span className="flow-problem" role="status">
+                {problem}
+              </span>
+            )}
+            {error !== null && (
+              <span className="flow-problem" role="alert">
+                {error}
+              </span>
+            )}
+            {level === "scene" && (
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setStubOpen(true)}
+              >
+                ＋ スタブを足す
+              </button>
+            )}
             <button
               type="button"
               className="btn btn-sm"
-              onClick={() => setStubOpen(true)}
-            >
-              ＋ スタブ
-            </button>
-          )}
-          <button
-            type="button"
-            className="btn btn-sm"
-            onClick={() => {
-              // 人が動かした位置があれば、捨ててよいかを聞く（T4-12、U4）。
-              const manual =
-                Object.keys(layout[level]).length > 0 ||
-                Object.keys(moved[level]).length > 0;
-              if (!manual) {
-                arrange();
-                return;
-              }
-              void confirm(
-                "この粒度で動かした位置を捨てて、自動で並べ直しますか？",
-                "自動整列",
-              ).then((ok) => {
-                if (ok) arrange();
-              });
-            }}
-          >
-            自動整列
-          </button>
-        </div>
-        <div className="scene-graph">
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            onNodesChange={onNodesChange}
-            // 初めの表示は FitOnLoad が決める（収めると読めないときは読める縮尺にするため。T4-13）。
-            minZoom={0.2}
-            // シーンの粒度では、ノードの右の点から別のノードへ引くと、辺を書き足す（T2-9）。
-            nodesConnectable={level === "scene"}
-            // 無いシーンの仮のノードと、IDの無いシーン（`_anon_…`）にはつながない（IDで書けないため）。
-            isValidConnection={(c) =>
-              [c.source, c.target].every(
-                (id) =>
-                  id !== null &&
-                  !id.startsWith("missing:") &&
-                  !id.startsWith("proposal:") &&
-                  !id.startsWith("_anon_"),
-              )
-            }
-            onConnect={(c) => {
-              if (c.source !== null && c.target !== null)
-                setEdgeDraft({ from: c.source, to: c.target });
-            }}
-            // ノードを消すキー、範囲選択、複数選択は使わない（本文を消さないため）。
-            deleteKeyCode={null}
-            selectionKeyCode={null}
-            multiSelectionKeyCode={null}
-            onNodeClick={(_, node) => {
-              // 帯（キーが無い）の中を押したら、何も選ばない。
-              setSelected((node.data as { key: string | null }).key);
-            }}
-            onNodeDoubleClick={(_, node) => {
-              if (level !== "scene") return;
-              const scene = scenesById.get(node.id);
-              if (scene !== undefined) onOpen(scene);
-            }}
-            onNodeDragStop={(_, _node, dragged) => {
-              const moves: { key: string; x: number; y: number }[] = [];
-              for (const n of dragged) {
-                const key = (n.data as { key: string | null }).key;
-                if (key !== null) {
-                  moves.push({ key, x: n.position.x, y: n.position.y });
+              onClick={() => {
+                // 人が動かした位置があれば、捨ててよいかを聞く（T4-12、U4）。
+                const manual =
+                  Object.keys(layout[level]).length > 0 ||
+                  Object.keys(moved[level]).length > 0;
+                if (!manual) {
+                  arrange();
+                  return;
                 }
+                void confirm(
+                  "この粒度で動かした位置を捨てて、自動で並べ直しますか？",
+                  "自動整列",
+                ).then((ok) => {
+                  if (ok) arrange();
+                });
+              }}
+            >
+              自動整列
+            </button>
+            <ZoomControl />
+          </div>
+          <div className="scene-graph">
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
+              onNodesChange={onNodesChange}
+              // 初めの表示は FitOnLoad が決める（収めると読めないときは読める縮尺にするため。T4-13）。
+              minZoom={0.2}
+              // シーンの粒度では、ノードの右の点から別のノードへ引くと、辺を書き足す（T2-9）。
+              nodesConnectable={level === "scene"}
+              // 無いシーンの仮のノードと、IDの無いシーン（`_anon_…`）にはつながない（IDで書けないため）。
+              isValidConnection={(c) =>
+                [c.source, c.target].every(
+                  (id) =>
+                    id !== null &&
+                    !id.startsWith("missing:") &&
+                    !id.startsWith("proposal:") &&
+                    !id.startsWith("_anon_"),
+                )
               }
-              save(moves);
-            }}
-            onPaneClick={() => setSelected(null)}
-          >
-            <Background />
-            <Controls showInteractive={false} />
-            <FitOnLoad
-              level={level}
-              start={level === "scene" ? startSceneOf(summary) : null}
-              ids={builtIds}
-            />
-          </ReactFlow>
+              onConnect={(c) => {
+                if (c.source !== null && c.target !== null)
+                  setEdgeDraft({ from: c.source, to: c.target });
+              }}
+              // ノードを消すキー、範囲選択、複数選択は使わない（本文を消さないため）。
+              deleteKeyCode={null}
+              selectionKeyCode={null}
+              multiSelectionKeyCode={null}
+              onNodeClick={(_, node) => {
+                // 帯（キーが無い）の中を押したら、何も選ばない。
+                setSelected((node.data as { key: string | null }).key);
+              }}
+              onNodeDoubleClick={(_, node) => {
+                if (level !== "scene") return;
+                const scene = scenesById.get(node.id);
+                if (scene !== undefined) onOpen(scene);
+              }}
+              onNodeDragStop={(_, _node, dragged) => {
+                const moves: { key: string; x: number; y: number }[] = [];
+                for (const n of dragged) {
+                  const key = (n.data as { key: string | null }).key;
+                  if (key !== null) {
+                    moves.push({ key, x: n.position.x, y: n.position.y });
+                  }
+                }
+                save(moves);
+              }}
+              onPaneClick={() => setSelected(null)}
+            >
+              <Background />
+              <FitOnLoad
+                level={level}
+                start={level === "scene" ? startSceneOf(summary) : null}
+                ids={builtIds}
+              />
+            </ReactFlow>
+            <div className="flow-legend">
+              <span className="legend-item">
+                <span className="legend-line" />辺
+              </span>
+              <span className="legend-item">
+                <span className="legend-line out" />
+                選択中の出口
+              </span>
+              <span className="legend-item">
+                <span className="legend-line call" />
+                呼び出し
+              </span>
+              <span className="legend-item">
+                <span className="legend-box ai" />
+                AI下書き
+              </span>
+              <span className="legend-item">
+                <span className="legend-box stub" />
+                スタブ（本文なし）
+              </span>
+              {overlay !== null && (
+                <span className="legend-item">
+                  <span className="legend-box proposal" />
+                  AI提案（未採用）
+                </span>
+              )}
+            </div>
+          </div>
         </div>
-        <footer className="flow-legend">
-          <strong>凡例</strong>
-          <span className="legend-item">
-            <span className="legend-line" />辺
-          </span>
-          <span className="legend-item">
-            <span className="legend-line out" />
-            選択中の出口
-          </span>
-          <span className="legend-item">
-            <span className="legend-line call" />
-            呼び出し
-          </span>
-          <span className="legend-item">
-            <span className="legend-box ai" />
-            AI下書き
-          </span>
-          <span className="legend-item">
-            <span className="legend-box stub" />
-            スタブ（本文なし）
-          </span>
-          {overlay !== null && (
-            <span className="legend-item">
-              <span className="legend-box proposal" />
-              AI提案（未採用）
-            </span>
-          )}
-          <span className="legend-counts">
-            到達できない {counts.unreachable} · 行き止まり {counts.deadEnds} ·
-            スタブ {counts.stubs} · AI下書き {counts.aiDrafts}
-            {level === "scene" && ` · エンディング ${counts.endings}`}
-          </span>
-        </footer>
+        {stubOpen && (
+          <StubDialog
+            chapters={chapters}
+            dirtyChapters={dirtyChapters}
+            defaultChapter={
+              selected === null
+                ? null
+                : (scenesById.get(selected)?.file ?? null)
+            }
+            sceneIds={summary.scenes.map((s) => s.id)}
+            onSubmit={async (file, id, title, text) => {
+              try {
+                const result = await addStub(
+                  file,
+                  id,
+                  title,
+                  text === "" ? null : text,
+                );
+                const from =
+                  selected === null
+                    ? null
+                    : (nodes.find((n) => n.id === selected)?.position ?? null);
+                const at = newStubPosition(
+                  nodes
+                    .filter((n) => n.type === "scene")
+                    .map((n) => n.position),
+                  from,
+                );
+                save([{ key: id, x: at.x, y: at.y }]);
+                onStoryWritten(result);
+                setSelected(id);
+                return null;
+              } catch (e) {
+                return String(e);
+              }
+            }}
+            onClose={() => setStubOpen(false)}
+          />
+        )}
+        {edgeDraft !== null && (
+          <EdgeDialog
+            from={edgeDraft.from}
+            to={edgeDraft.to}
+            onSubmit={async (kind, label) => {
+              const { from, to } = edgeDraft;
+              try {
+                const result = await addFlowEdge(
+                  kind === "jump"
+                    ? { kind, from, to }
+                    : { kind, from, to, label },
+                );
+                onStoryWritten(result);
+                return null;
+              } catch (e) {
+                return String(e);
+              }
+            }}
+            onClose={() => setEdgeDraft(null)}
+          />
+        )}
+        {graph !== null && graph.level === level && (
+          <FlowPanel
+            graph={graph}
+            scenes={summary.scenes}
+            selected={selected}
+            onOpen={onOpen}
+            ai={ai}
+            overview={{
+              checks,
+              counts,
+              endingsKnown: level === "scene",
+              start: startSceneOf(summary),
+              onSelect: (id) => {
+                if (level === "scene") {
+                  setSelected(id);
+                  return;
+                }
+                selectAfterLevel.current = id;
+                onLevel("scene");
+              },
+              onOpenConcept,
+            }}
+          />
+        )}
       </div>
-      {stubOpen && (
-        <StubDialog
-          chapters={chapters}
-          dirtyChapters={dirtyChapters}
-          defaultChapter={
-            selected === null ? null : (scenesById.get(selected)?.file ?? null)
-          }
-          sceneIds={summary.scenes.map((s) => s.id)}
-          onSubmit={async (file, id, title, text) => {
-            try {
-              const result = await addStub(
-                file,
-                id,
-                title,
-                text === "" ? null : text,
-              );
-              const from =
-                selected === null
-                  ? null
-                  : (nodes.find((n) => n.id === selected)?.position ?? null);
-              const at = newStubPosition(
-                nodes.filter((n) => n.type === "scene").map((n) => n.position),
-                from,
-              );
-              save([{ key: id, x: at.x, y: at.y }]);
-              onStoryWritten(result);
-              setSelected(id);
-              return null;
-            } catch (e) {
-              return String(e);
-            }
-          }}
-          onClose={() => setStubOpen(false)}
-        />
-      )}
-      {edgeDraft !== null && (
-        <EdgeDialog
-          from={edgeDraft.from}
-          to={edgeDraft.to}
-          onSubmit={async (kind, label) => {
-            const { from, to } = edgeDraft;
-            try {
-              const result = await addFlowEdge(
-                kind === "jump"
-                  ? { kind, from, to }
-                  : { kind, from, to, label },
-              );
-              onStoryWritten(result);
-              return null;
-            } catch (e) {
-              return String(e);
-            }
-          }}
-          onClose={() => setEdgeDraft(null)}
-        />
-      )}
-      {graph !== null && graph.level === level && (
-        <FlowPanel
-          graph={graph}
-          scenes={summary.scenes}
-          selected={selected}
-          onOpen={onOpen}
-          ai={ai}
-        />
-      )}
-    </div>
+    </ReactFlowProvider>
+  );
+}
+
+/** 拡大率（見出しの帯。xyflow の既定の操作部品の代わり。T4-18、U15）。 */
+function ZoomControl() {
+  const flow = useReactFlow();
+  const zoom = useStore((s) => s.transform[2]);
+  return (
+    <fieldset className="zoom-control" aria-label="拡大率">
+      <button
+        type="button"
+        className="btn btn-icon"
+        aria-label="縮小"
+        title="縮小"
+        onClick={() => void flow.zoomOut()}
+      >
+        −
+      </button>
+      <button
+        type="button"
+        className="zoom-value"
+        title="全体を収める"
+        onClick={() => void flow.fitView({ padding: 0.1 })}
+      >
+        {Math.round(zoom * 100)}%
+      </button>
+      <button
+        type="button"
+        className="btn btn-icon"
+        aria-label="拡大"
+        title="拡大"
+        onClick={() => void flow.zoomIn()}
+      >
+        ＋
+      </button>
+    </fieldset>
   );
 }

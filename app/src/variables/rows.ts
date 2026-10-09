@@ -65,3 +65,133 @@ export function locationsByScene(row: VariableRow): SceneUsage[] {
   for (const l of row.reads) add(l, false);
   return [...scenes.values()];
 }
+
+/** 名前空間（`akari.好感度` の `akari`。点が無ければ名前そのもの）。 */
+export function namespaceOf(key: string): string {
+  const dot = key.indexOf(".");
+  return dot < 0 ? key : key.slice(0, dot);
+}
+
+/** 問題で絞る（T4-18、見本 08-variables.html）：書いて読まない・使っていない・宣言されていない。 */
+export type VariableProblem = "written-not-read" | "unused" | "undeclared";
+
+export const PROBLEM_LABEL: Readonly<Record<VariableProblem, string>> = {
+  "written-not-read": "書いて読まない",
+  unused: "使っていない",
+  undeclared: "宣言されていない",
+};
+
+/** その変数に当たる問題（無ければ空）。 */
+export function problemsOf(row: VariableRow): VariableProblem[] {
+  const list: VariableProblem[] = [];
+  if (!row.declared) list.push("undeclared");
+  if (row.writes.length > 0 && row.reads.length === 0)
+    list.push("written-not-read");
+  if (row.declared && row.writes.length === 0 && row.reads.length === 0)
+    list.push("unused");
+  return list;
+}
+
+/** 名前空間ごとの数（書いた順。キャラクターなら名前を添える）。 */
+export function namespaceCounts(
+  rows: readonly VariableRow[],
+  characters: readonly { readonly id: string; readonly name: string }[],
+): {
+  readonly namespace: string;
+  readonly who: string | null;
+  readonly count: number;
+}[] {
+  const counts = new Map<string, number>();
+  for (const r of rows) {
+    const ns = namespaceOf(r.key);
+    counts.set(ns, (counts.get(ns) ?? 0) + 1);
+  }
+  return [...counts].map(([namespace, count]) => ({
+    namespace,
+    who: characters.find((c) => c.id === namespace)?.name ?? null,
+    count,
+  }));
+}
+
+/** 一覧の絞り込み（名前空間・問題・語）と、名前空間ごとのまとまり（出てきた順）。 */
+export function groupRows(
+  rows: readonly VariableRow[],
+  filter: {
+    readonly namespace: string | null;
+    readonly problem: VariableProblem | null;
+    readonly query: string;
+  },
+): { readonly namespace: string; readonly rows: VariableRow[] }[] {
+  const groups = new Map<string, VariableRow[]>();
+  for (const r of rows) {
+    const ns = namespaceOf(r.key);
+    if (filter.namespace !== null && ns !== filter.namespace) continue;
+    if (filter.problem !== null && !problemsOf(r).includes(filter.problem))
+      continue;
+    if (!matchesVariable(r, filter.query)) continue;
+    groups.set(ns, [...(groups.get(ns) ?? []), r]);
+  }
+  return [...groups].map(([namespace, list]) => ({ namespace, rows: list }));
+}
+
+/** 範囲・値の見せ方（列挙は値、範囲は `0〜10`、無ければ「—」）。 */
+export function rangeText(row: VariableRow): string {
+  if (row.type === "enum") return row.values.join("・") || "—";
+  if (row.range !== null) return `${row.range[0]}〜${row.range[1]}`;
+  return "—";
+}
+
+/** 書く場所・読む場所の1行：シーン、その行（前後の空白を除く）、行の番号。 */
+export function locationLines(
+  locations: readonly VariableRow["reads"][number][],
+  textOf: (file: string) => string | undefined,
+): {
+  readonly scene: string;
+  readonly file: string;
+  readonly offset: number;
+  readonly text: string;
+  readonly line: number | null;
+}[] {
+  // 章の中身は章ごとに1回だけバイトにする（多く使う変数でも、描くたびに章を何度も変換しない）。
+  const encoded = new Map<string, Uint8Array | null>();
+  const bytesOf = (file: string): Uint8Array | null => {
+    if (!encoded.has(file)) {
+      const text = textOf(file);
+      encoded.set(
+        file,
+        text === undefined ? null : new TextEncoder().encode(text),
+      );
+    }
+    return encoded.get(file) ?? null;
+  };
+  return locations.map((l) => {
+    const bytes = bytesOf(l.file);
+    if (bytes === null)
+      return {
+        scene: l.scene,
+        file: l.file,
+        offset: l.span[0],
+        text: "",
+        line: null,
+      };
+    const start = Math.min(l.span[0], bytes.length);
+    let line = 1;
+    let head = 0;
+    for (let i = 0; i < start; i += 1) {
+      if (bytes[i] === 0x0a) {
+        line += 1;
+        head = i + 1;
+      }
+    }
+    let end = bytes.indexOf(0x0a, start);
+    if (end < 0) end = bytes.length;
+    const lineText = new TextDecoder().decode(bytes.subarray(head, end)).trim();
+    return {
+      scene: l.scene,
+      file: l.file,
+      offset: l.span[0],
+      text: lineText,
+      line,
+    };
+  });
+}

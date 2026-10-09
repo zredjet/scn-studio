@@ -113,6 +113,8 @@ export interface LoadedLayout {
 export interface Summary {
   readonly start_scene: string | null;
   readonly scenes: readonly SceneSummary[];
+  /** 章ごとの見出し（`# ` の行。無ければ null。T4-18）。 */
+  readonly chapters: readonly ChapterTitle[];
   readonly edges: readonly IrEdge[];
   /** 読み込み・構文解析・意味解析の診断（段階0）。 */
   readonly diagnostics: readonly IrDiagnostic[];
@@ -243,9 +245,24 @@ export interface EditorSettings {
   readonly indent_narration: boolean;
 }
 
+/** 章の見出し（コアの `ir::ChapterTitle`、T4-18）。 */
+export interface ChapterTitle {
+  readonly file: string;
+  readonly title: string | null;
+}
+
+/** シーンのアウトラインの1行（コアの `assist::OutlineItem`、T4-18、U14）。`start` はバイト位置。 */
+export interface OutlineItem {
+  readonly kind: "direction" | "choice" | "branch" | "exit";
+  readonly text: string;
+  readonly start: number;
+}
+
 /** 今のシーンの情報（文脈パネル。コアの `assist::SceneInfo`）。 */
 export interface SceneInfo {
   readonly scene: string;
+  /** シーンの頭の演出・選択・条件分岐・出口（T4-18）。 */
+  readonly outline: readonly OutlineItem[];
   readonly characters: readonly {
     readonly id: string;
     readonly name: string;

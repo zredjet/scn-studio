@@ -26,6 +26,20 @@ export type Widget =
   | "list-ref"
   | "readonly";
 
+/**
+ * フォームの2列のうち、2列ぶち抜きにする欄（長文・リスト・複数選択・読むだけの欄。T4-18、U16）。
+ * ほかの欄は1列に1つ。
+ */
+export function isWideWidget(widget: Widget): boolean {
+  return (
+    widget === "longtext" ||
+    widget === "list" ||
+    widget === "list-ref" ||
+    widget === "multiselect" ||
+    widget === "readonly"
+  );
+}
+
 /** 項目の型の見せ方（参照は型の名前で。例：`ref<組織>`）。 */
 export function kindLabel(
   kind: FieldKind,

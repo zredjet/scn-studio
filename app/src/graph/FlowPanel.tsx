@@ -8,10 +8,20 @@ import { prettyExpr } from "../core/expr.ts";
 import type {
   GraphEdge,
   GraphGroup,
+  IrDiagnostic,
   SceneGraphData,
   SceneSummary,
 } from "../core/types.ts";
-import { edgeLabel, entriesOf, NO_ROUTE } from "./model.ts";
+import { Icon } from "../shell/icons.tsx";
+import {
+  edgeLabel,
+  entriesOf,
+  type LegendCounts,
+  NO_ROUTE,
+  routeCounts,
+  sceneOfDiagnostic,
+  structureProblems,
+} from "./model.ts";
 import type { FlowAi } from "./SceneGraph.tsx";
 
 interface Props {
@@ -21,6 +31,17 @@ interface Props {
   readonly selected: string | null;
   readonly onOpen: (scene: SceneSummary) => void;
   readonly ai: FlowAi;
+  /** 何も選んでいないときの「フローの概要」（T4-18、U15）。 */
+  readonly overview: {
+    readonly checks: readonly IrDiagnostic[];
+    readonly counts: LegendCounts;
+    /** エンディングの数を数えたか（シーンの粒度の構造グラフからだけ数える）。 */
+    readonly endingsKnown: boolean;
+    readonly start: string | null;
+    /** ノードを選ぶ（シーンID）。 */
+    readonly onSelect: (id: string) => void;
+    readonly onOpenConcept: () => void;
+  };
 }
 
 /** 辺の見分け（一覧のキー）。 */
@@ -89,15 +110,16 @@ function ExitItem({
   );
 }
 
-export function FlowPanel({ graph, scenes, selected, onOpen, ai }: Props) {
+export function FlowPanel({
+  graph,
+  scenes,
+  selected,
+  onOpen,
+  ai,
+  overview,
+}: Props) {
   if (selected === null) {
-    return (
-      <aside className="flow-panel ctx-column" aria-label="選択中のシーン">
-        <p className="context-empty flow-panel-empty">
-          ノードを選ぶと、ここに出口・入口・変数が出ます。ダブルクリックで本文を開きます。
-        </p>
-      </aside>
-    );
+    return <FlowOverview scenes={scenes} overview={overview} />;
   }
   if (graph.level !== "scene") {
     const group: GraphGroup | undefined = graph.groups.find(
@@ -246,6 +268,153 @@ export function FlowPanel({ graph, scenes, selected, onOpen, ai }: Props) {
             onReject={ai.onReject}
           />
         )}
+      </section>
+    </aside>
+  );
+}
+
+/** 何も選んでいないときの右の欄：フローの概要（数・ルート・構造の問題・スタブ・操作。U15）。 */
+function FlowOverview({
+  scenes,
+  overview,
+}: {
+  readonly scenes: readonly SceneSummary[];
+  readonly overview: Props["overview"];
+}) {
+  const { counts, endingsKnown, checks, start, onSelect, onOpenConcept } =
+    overview;
+  const startScene = scenes.find((s) => s.id === start) ?? null;
+  const stubs = scenes.filter((s) => s.is_stub);
+  const problems = structureProblems(checks);
+  return (
+    <aside className="flow-panel ctx-column" aria-label="フローの概要">
+      <div className="panel-head">
+        <h2 className="h-label">フローの概要</h2>
+      </div>
+      <section className="section">
+        <p className="t-small t-2 flow-guide">
+          シーンを選ぶと、ここに入口・出口・変数が出ます。ダブルクリックで本文を開きます。
+        </p>
+      </section>
+      <section className="section" aria-label="数">
+        <h3 className="h-label">数</h3>
+        <dl className="kv">
+          <dt>シーン</dt>
+          <dd>{scenes.length}</dd>
+          <dt>スタブ</dt>
+          <dd>{counts.stubs}</dd>
+          <dt>AI下書き</dt>
+          <dd>{counts.aiDrafts}</dd>
+          {endingsKnown && (
+            <>
+              <dt>エンディング</dt>
+              <dd>{counts.endings}</dd>
+            </>
+          )}
+          <dt>開始</dt>
+          <dd>
+            {startScene === null ? (
+              "—"
+            ) : (
+              <button
+                type="button"
+                className="btn-link-inline"
+                onClick={() => onSelect(startScene.id)}
+              >
+                {startScene.id} {startScene.title}
+              </button>
+            )}
+          </dd>
+        </dl>
+      </section>
+      <section className="section" aria-label="ルート">
+        <h3 className="h-label">ルート</h3>
+        <ul className="flow-route-counts">
+          {routeCounts(scenes).map((r) => (
+            <li key={r.route}>
+              <span>{r.route}</span>
+              <span className="t-caption t-3">{r.count}シーン</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+      <section className="section" aria-label="構造の問題">
+        <h3 className="h-label">構造の問題</h3>
+        {problems.length === 0 ? (
+          <p className="empty">ありません。</p>
+        ) : (
+          problems.map((d) => {
+            const at = sceneOfDiagnostic(scenes, d);
+            const concept = d.file === "concept.md";
+            return (
+              <div
+                key={`${d.code}-${d.file}-${d.span[0]}`}
+                className="card flow-problem-card"
+              >
+                <div className="flow-problem-row">
+                  <Icon
+                    name="warning"
+                    size={14}
+                    stroke={2}
+                    className="ic-warn"
+                  />
+                  <span className="flow-problem-text">{d.message}</span>
+                  {concept ? (
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      onClick={onOpenConcept}
+                    >
+                      企画
+                    </button>
+                  ) : (
+                    at !== null && (
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        onClick={() => onSelect(at.id)}
+                      >
+                        選ぶ
+                      </button>
+                    )
+                  )}
+                </div>
+                <span className="mono t-caption t-3">{d.code}</span>
+              </div>
+            );
+          })
+        )}
+      </section>
+      <section className="section" aria-label="スタブ">
+        <h3 className="h-label">スタブ（本文なし）</h3>
+        {stubs.length === 0 ? (
+          <p className="empty">ありません。</p>
+        ) : (
+          <div className="flow-stub-chips">
+            {stubs.map((s) => (
+              <button
+                key={`${s.id}-${s.span[0]}`}
+                type="button"
+                className="chip flow-stub-chip"
+                title={`${s.title}を選ぶ`}
+                onClick={() => onSelect(s.id)}
+              >
+                {s.id}
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+      <section className="section" aria-label="操作">
+        <h3 className="h-label">操作</h3>
+        <dl className="kv flow-ops">
+          <dt>ダブルクリック</dt>
+          <dd>本文を開く</dd>
+          <dt>ドラッグ</dt>
+          <dd>並べ替え（layout.json に保存）</dd>
+          <dt>右の点から引く</dt>
+          <dd>辺を足す</dd>
+        </dl>
       </section>
     </aside>
   );

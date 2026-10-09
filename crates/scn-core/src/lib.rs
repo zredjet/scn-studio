@@ -74,6 +74,6 @@ pub mod workspace;
 mod xlsx;
 
 pub use diag::{Code, Diagnostic, LineIndex, Severity, Span, Spanned};
-pub use ir::{Ir, analyze};
+pub use ir::{ChapterTitle, Ir, analyze, analyze_with_chapters};
 pub use project::{Project, ProjectError, load_project, write_source};
 pub use syntax::{DialogueBracket, ParseOptions, Parsed, parse};

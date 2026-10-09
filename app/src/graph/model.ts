@@ -16,6 +16,7 @@ import type {
   SceneSummary,
   Summary,
 } from "../core/types.ts";
+import { markOf, type SceneMark } from "../scenes/list.ts";
 
 /** ノードの大きさ（docs/ui/mockups/03-flow.html）。 */
 export const NODE_WIDTH = 144;
@@ -71,6 +72,8 @@ export interface FlowNodeData {
   readonly foot: string;
   readonly stub: boolean;
   readonly aiDraft: boolean;
+  /** シーンの状態の印（シーンのノードだけ。T4-18）。 */
+  readonly mark?: SceneMark;
   readonly start: boolean;
   readonly ending: boolean;
   readonly selected: boolean;
@@ -349,6 +352,7 @@ function sceneFlow(
         foot: sceneFoot(g, scenes.get(id)),
         stub: g.is_stub === true,
         aiDraft: g.status === "ai-draft",
+        mark: markOf(g.status ?? null, g.is_stub === true),
         start: id === startId,
         ending: endings.has(id),
         selected: id === options.selected,
@@ -671,4 +675,44 @@ export function proposalOverlay(
     target: n.id,
   }));
   return { nodes, edges };
+}
+
+/** 構造の問題（フローの概要に出す。T4-18、U15）：行き止まり・到達できない・着かない・企画書とのずれ。 */
+const STRUCTURE_CODES: ReadonlySet<string> = new Set([
+  "W503",
+  "W504",
+  "W505",
+  "W701",
+  "W702",
+]);
+
+export function structureProblems<
+  T extends { readonly code: string; readonly file: string },
+>(checks: readonly T[]): T[] {
+  return checks.filter((d) => STRUCTURE_CODES.has(d.code));
+}
+
+/** 診断のあるシーン（同じ章で、診断より前にある見出しのうち最後のもの）。本文の外なら null。 */
+export function sceneOfDiagnostic(
+  scenes: readonly SceneSummary[],
+  d: { readonly file: string; readonly span: readonly [number, number] },
+): SceneSummary | null {
+  let found: SceneSummary | null = null;
+  for (const s of scenes) {
+    if (s.file !== d.file || s.span[0] > d.span[0]) continue;
+    if (found === null || s.span[0] > found.span[0]) found = s;
+  }
+  return found;
+}
+
+/** ルートごとのシーンの数（書いた順。ルートの無いシーンは「共通」にまとめない）。 */
+export function routeCounts(
+  scenes: readonly SceneSummary[],
+): { readonly route: string; readonly count: number }[] {
+  const counts = new Map<string, number>();
+  for (const s of scenes) {
+    const route = s.meta.route ?? NO_ROUTE;
+    counts.set(route, (counts.get(route) ?? 0) + 1);
+  }
+  return [...counts].map(([route, count]) => ({ route, count }));
 }

@@ -38,7 +38,7 @@ use scn_core::scaffold::create_project as scaffold_project;
 use scn_core::script;
 use scn_core::typedef::TypeEdit;
 use scn_core::workspace::{AssetKey, Change, SaveOutcome, Workspace};
-use scn_core::{Project, Span, analyze};
+use scn_core::{ChapterTitle, Project, Span, analyze, analyze_with_chapters};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tauri::ipc::Response;
@@ -72,6 +72,8 @@ struct SceneSummary<'a> {
 struct Summary<'a> {
     start_scene: Option<&'a str>,
     scenes: Vec<SceneSummary<'a>>,
+    /// 章ごとの見出し（本文の画面のシーン一覧。T4-18）。
+    chapters: &'a [ChapterTitle],
     edges: &'a [Edge],
     /// 解析の診断と、はみ出し（W203）。はみ出しは書いている最中に波線を引くため、入力が止まるたびに出す（D047）。
     diagnostics: Vec<&'a IrDiagnostic>,
@@ -105,11 +107,12 @@ fn analyze_summary(
             .name("analyze".into())
             .stack_size(ANALYZE_STACK_SIZE)
             .spawn_scoped(scope, || {
-                let ir = analyze(project);
+                let (ir, chapters) = analyze_with_chapters(project);
                 let overflow = overflow(project, &ir);
                 let summary = to_json(
                     &Summary {
                         start_scene: ir.start_scene.as_deref(),
+                        chapters: &chapters,
                         scenes: ir
                             .scenes
                             .iter()
@@ -140,10 +143,13 @@ fn analyze_summary(
                     _ => None,
                 };
                 let scene = match (&index, scene) {
-                    (Some(index), Some(id)) => Some(to_json(
-                        &assist::scene_info(project, index, id),
-                        "シーンの情報",
-                    )?),
+                    (Some(index), Some(id)) => {
+                        // アウトライン（シーン一覧。T4-18、U14）を添える。
+                        let mut info =
+                            to_json(&assist::scene_info(project, index, id), "シーンの情報")?;
+                        info["outline"] = to_json(&assist::scene_outline(&ir, id), "アウトライン")?;
+                        Some(info)
+                    }
                     _ => None,
                 };
                 Ok(Analyzed {
@@ -3873,6 +3879,14 @@ mod tests {
         // シーンごとの文字数を持つ（D047）。
         assert!(summary["scenes"][0]["chars"].as_u64().unwrap() > 0);
         assert!(checks.is_none());
+        // 章の見出し（T4-18）。
+        assert_eq!(summary["chapters"][0]["file"], "story/chapter01.scn");
+        assert_eq!(summary["chapters"][0]["title"], "第1章 放課後");
+        // シーンの情報にアウトラインを添える（T4-18）。
+        let Analyzed { scene, .. } = analyze_summary(&project, false, Some("s012")).unwrap();
+        let outline = &scene.unwrap()["outline"];
+        assert_eq!(outline.as_array().unwrap().len(), 4);
+        assert_eq!(outline[0]["kind"], "direction");
     }
 
     /// はみ出し（W203）は、入力が止まるたびの診断（summary）に入れ、検証の段階1（checks）からは除く（D047）。

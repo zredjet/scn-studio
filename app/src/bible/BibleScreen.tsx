@@ -37,6 +37,7 @@ import type {
   Summary,
   TypeTemplate,
 } from "../core/types.ts";
+import { Icon } from "../shell/icons.tsx";
 import { useScreenStatus } from "../shell/StatusBar.tsx";
 import { bibleStatus } from "../shell/status.ts";
 import { AiDraftResult, AiDraftRun, type BibleAi } from "./AiDraftPanel.tsx";
@@ -55,7 +56,6 @@ import {
   fileLabel,
   formFields,
   initialOf,
-  kindLabel,
   matchesQuery,
   normalizeNewlines,
   typeOfPath,
@@ -531,12 +531,15 @@ export function BibleScreen({
 
   return (
     <div className="bible-screen-body">
-      <aside className="bible-types" aria-label="設定の型">
-        <div className="bible-types-head">
-          <h2 className="bible-small-heading">設定の型</h2>
+      <nav className="bible-list list-column" aria-label="設定の型とエントリ">
+        <div className="panel-head">
+          <h2 className="h-label">設定の型</h2>
           <button
             type="button"
-            className="btn btn-link"
+            className="btn btn-icon"
+            aria-label="型を作る"
+            title="型を作る"
+            aria-expanded={newType !== null}
             onClick={() =>
               setNewType(
                 newType === null
@@ -551,7 +554,7 @@ export function BibleScreen({
               )
             }
           >
-            ＋ 型
+            ＋
           </button>
         </div>
         {newType !== null && (
@@ -681,59 +684,11 @@ export function BibleScreen({
             </button>
           ))}
         </div>
-        {definedType !== undefined && (
-          <section className="bible-type-fields" aria-label="型の項目">
-            <h2 className="bible-small-heading">
-              型の項目
-              <button
-                type="button"
-                className="btn btn-link"
-                aria-pressed={editingType}
-                onClick={() => guard(() => setEditingType(!editingType))}
-              >
-                {editingType ? "閉じる" : "直す"}
-              </button>
-            </h2>
-            <span className="bible-type-file">
-              bible/types/{definedType.id}.yaml
-              {definedType.builtin !== null ? " · 組み込み" : ""}
-            </span>
-            <dl className="bible-type-grid">
-              {definedType.fields.map((f) => (
-                <div key={f.key} className="bible-type-row">
-                  <dt>{f.label}</dt>
-                  <dd>{kindLabel(f.kind, typeNames)}</dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-        )}
-        <p className="bible-types-foot">
-          {data.types.length}型 · {entryCount}エントリ · 参照切れ {brokenRefs}
-        </p>
-        <section className="bible-ai" aria-label="AIで下書き">
-          <h2 className="bible-small-heading">AIで下書き</h2>
-          <span className="context-faint">
-            未登録の話者、企画書の主要キャラ、参照先の無い参照のエントリを作り、空いている項目を書きます
-          </span>
-          <AiDraftRun ai={ai} target={null} />
-        </section>
-      </aside>
-
-      <aside className="bible-entries" aria-label="エントリ">
-        <div className="bible-search-row">
-          <label className="bible-search">
-            <span aria-hidden="true">⌕</span>
-            <input
-              type="search"
-              placeholder="名前・呼び名で検索"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </label>
+        <div className="panel-head bible-entries-head">
+          <h2 className="h-label">{currentType?.name ?? "エントリ"}</h2>
           <button
             type="button"
-            className="bible-add"
+            className="btn btn-icon"
             title="エントリを作る"
             aria-label="エントリを作る"
             disabled={
@@ -750,6 +705,16 @@ export function BibleScreen({
             ＋
           </button>
         </div>
+        <label className="search bible-list-search">
+          <Icon name="search" size={14} />
+          <input
+            type="search"
+            aria-label="名前・呼び名で絞り込む"
+            placeholder="名前・呼び名で絞り込む"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </label>
         {creating !== null && (
           <form
             className="bible-create"
@@ -832,14 +797,36 @@ export function BibleScreen({
             );
           })}
           {shown.length === 0 && (
-            <li className="context-empty">
+            <li className="empty bible-list-empty">
               {files.length === 0
                 ? "エントリがありません。「＋」で作れます。"
                 : "見つかりません。"}
             </li>
           )}
         </ul>
-      </aside>
+        <div className="bible-list-foot">
+          {definedType !== undefined && (
+            <button
+              type="button"
+              className="btn btn-link btn-sm"
+              aria-pressed={editingType}
+              title={`bible/types/${definedType.id}.yaml${definedType.builtin !== null ? "（組み込み）" : ""}`}
+              onClick={() => guard(() => setEditingType(!editingType))}
+            >
+              {editingType
+                ? "型の項目を閉じる"
+                : `${definedType.name}の型の項目を直す`}
+            </button>
+          )}
+          <section className="bible-ai" aria-label="AIで下書き">
+            <h2 className="bible-small-heading">AIで下書き</h2>
+            <span className="context-faint">
+              未登録の話者、企画書の主要キャラ、参照先の無い参照のエントリを作り、空いている項目を書きます
+            </span>
+            <AiDraftRun ai={ai} target={null} />
+          </section>
+        </div>
+      </nav>
 
       <main className="bible-main" aria-label="エントリの中身">
         {editingType && definedType !== undefined ? (
@@ -969,7 +956,7 @@ export function BibleScreen({
                     />
                   ))}
                   {form.extra.length > 0 && (
-                    <div className="bible-field">
+                    <div className="bible-field span-2">
                       <span className="bible-label">
                         型に無い項目
                         <span className="bible-label-note">
@@ -987,15 +974,15 @@ export function BibleScreen({
                     </div>
                   )}
                   {isCharacter && (
-                    <div className="bible-field">
-                      <span className="bible-label">
-                        立ち絵差分
+                    <div className="bible-section span-2">
+                      <h2 className="h2 bible-section-head">
+                        立ち絵の差分
                         <span className="bible-label-note">
-                          素材カタログから（組み込み）
+                          素材カタログの {entry.id} と同じもの
                         </span>
-                      </span>
+                      </h2>
                       {(data.expressions[entry.id] ?? []).length === 0 ? (
-                        <span className="context-empty">
+                        <span className="empty">
                           素材カタログに差分がありません
                         </span>
                       ) : (
@@ -1084,25 +1071,26 @@ export function BibleScreen({
                     </div>
                   )}
                   {isCharacter && (
-                    <div className="bible-field">
-                      <span className="bible-label">
+                    <div className="bible-section span-2">
+                      <h2 className="h2 bible-section-head">
                         紐づく変数
                         <span className="bible-label-note">
-                          キャラクターIDを名前空間にした変数（組み込み）
+                          名前空間が {entry.id} の変数
                         </span>
-                      </span>
+                      </h2>
                       {(usage?.variables ?? []).length === 0 ? (
-                        <span className="context-empty">ありません</span>
+                        <span className="empty">ありません</span>
                       ) : (
-                        <div className="bible-table-wrap">
-                          <table className="bible-table">
+                        <div className="table-wrap">
+                          <table className="table">
                             <thead>
                               <tr>
                                 <th>名前</th>
                                 <th>型</th>
                                 <th>初期値</th>
                                 <th>スコープ</th>
-                                <th>使用箇所</th>
+                                <th className="num">書き</th>
+                                <th className="num">読み</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1118,12 +1106,10 @@ export function BibleScreen({
                                       ? ""
                                       : ` ${v.range[0]}〜${v.range[1]}`}
                                   </td>
-                                  <td>{v.default ?? "—"}</td>
+                                  <td className="mono">{v.default ?? "—"}</td>
                                   <td>{v.scope ?? "—"}</td>
-                                  <td>
-                                    書き {v.writes.length} · 読み{" "}
-                                    {v.reads.length}
-                                  </td>
+                                  <td className="num">{v.writes.length}</td>
+                                  <td className="num">{v.reads.length}</td>
                                 </tr>
                               ))}
                             </tbody>
