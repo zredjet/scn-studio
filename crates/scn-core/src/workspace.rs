@@ -26,8 +26,9 @@ use crate::project::{
     Project, ProjectError, SourceFile, load_project, scn_paths, without_bom, write_source,
 };
 use crate::provenance::{
-    AI, PROVENANCE_FILE, Record, append_provenance, edited_ai_lines, now as provenance_now,
-    read_provenance,
+    AI, PROVENANCE_FILE, Record, append_provenance, edited_ai_fields, edited_ai_lines,
+    is_field_file, moved_field_records, now as provenance_now, read_provenance,
+    reset_field_records,
 };
 use crate::rename::{RenameTarget, plan_rename};
 use crate::scaffold::CONCEPT_TEMPLATE;
@@ -60,6 +61,8 @@ pub struct Workspace {
     /// ぶつかって「自分の変更を残す」・マージをしても変えない。出自の記録で、人が直した AI の行を見分ける
     /// （T3-4、D065）。
     base: BTreeMap<String, String>,
+    /// 企画書・エントリの項目の出自を書けなかったわけ（書いた後に呼ぶ側が受け取る。T4-3）。
+    field_provenance_problem: Option<String>,
 }
 
 /// 名前の変更の結果（T2-8、D059）。
@@ -334,6 +337,7 @@ impl Workspace {
             layout_written: None,
             settings_written: BTreeMap::new(),
             moved_away: BTreeSet::new(),
+            field_provenance_problem: None,
         })
     }
 
@@ -621,6 +625,7 @@ impl Workspace {
                         task: task.to_owned(),
                         model: model.to_owned(),
                         at: at.clone(),
+                        ..Record::default()
                     })
                     .collect();
                 if let Err(e) = append_provenance(&self.root, &records) {
@@ -758,6 +763,7 @@ impl Workspace {
                         task: task.to_owned(),
                         model: model.to_owned(),
                         at: at.clone(),
+                        ..Record::default()
                     })
                     .collect();
                 if let Err(e) = append_provenance(&self.root, &records) {
@@ -818,6 +824,7 @@ impl Workspace {
                         task: task.to_owned(),
                         model: model.to_owned(),
                         at: at.clone(),
+                        ..Record::default()
                     })
                     .collect();
                 if !records.is_empty()
@@ -1383,6 +1390,35 @@ impl Workspace {
         self.reload_settings()
     }
 
+    /// 人が企画書かエントリを書いた後に、直した AI の項目を記録する（T4-3）。書けなかったら、わけを
+    /// [`Self::take_field_provenance_problem`] で受け取れるようにする（書いた中身は残す）。
+    fn record_edited_ai_fields(&mut self, file: &str, before: &str, after: &str) {
+        if !is_field_file(file) {
+            return;
+        }
+        let result = read_provenance(&self.root).and_then(|provenance| {
+            let records = edited_ai_fields(file, before, after, &provenance, &provenance_now());
+            append_provenance(&self.root, &records)
+        });
+        self.field_provenance_problem = result.err().map(|e| e.to_string());
+    }
+
+    /// 企画書かエントリを作り直したパスに残っている AI の項目の記録を打ち消す（T4-3）。
+    fn reset_stale_fields(&mut self, file: &str) {
+        let result = read_provenance(&self.root).and_then(|provenance| {
+            append_provenance(
+                &self.root,
+                &reset_field_records(&provenance, file, &provenance_now()),
+            )
+        });
+        self.field_provenance_problem = result.err().map(|e| e.to_string());
+    }
+
+    /// 直前の書き換えで、企画書・エントリの項目の出自を書けなかったわけ（T4-3）。
+    pub fn take_field_provenance_problem(&mut self) -> Option<String> {
+        self.field_provenance_problem.take()
+    }
+
     /// 設定DBのエントリのファイル（読めたかどうかによらず、`bible/entries/<型>/*.md` のすべて）。
     /// パスの順。中身がUTF-8で読めなければ `None`。
     pub fn entry_files(&self) -> Vec<(String, Option<String>)> {
@@ -1444,6 +1480,7 @@ impl Workspace {
         match set_field(&current, key, value) {
             Ok(text) => {
                 self.write_settings_file(file, &text)?;
+                self.record_edited_ai_fields(file, &current, &text);
                 Ok(EntryEdit::Saved { text })
             }
             Err(e) => Ok(EntryEdit::Unsupported {
@@ -1474,6 +1511,7 @@ impl Workspace {
         }
         let text = set_body(&current, &body);
         self.write_settings_file(file, &text)?;
+        self.record_edited_ai_fields(file, &current, &text);
         Ok(EntryEdit::Saved { text })
     }
 
@@ -1493,6 +1531,7 @@ impl Workspace {
         }
         let text = same_newlines(&current, text);
         self.write_settings_file(file, &text)?;
+        self.record_edited_ai_fields(file, &current, &text);
         Ok(EntryEdit::Saved { text })
     }
 
@@ -1539,6 +1578,7 @@ impl Workspace {
             source,
         })?;
         self.write_settings_file(&file, &text)?;
+        self.reset_stale_fields(&file);
         Ok(file)
     }
 
@@ -2028,6 +2068,18 @@ impl Workspace {
             let (from, to) = (self.root.join(&m.from), self.root.join(&m.to));
             fs::rename(&from, &to).map_err(|source| ProjectError::Write { path: to, source })?;
             self.moved_away.insert(m.from.clone());
+            // 項目の出自を新しいパスへ写す（移り先に残っていた古い記録は打ち消す。T4-3）。
+            if is_field_file(&m.from) {
+                let moved = read_provenance(&self.root).and_then(|provenance| {
+                    let mut records = reset_field_records(&provenance, &m.to, &provenance_now());
+                    records.extend(moved_field_records(&provenance, &m.from, &m.to));
+                    append_provenance(&self.root, &records)
+                });
+                if let Err(e) = moved {
+                    done.notes
+                        .push(format!("出自の記録を書けませんでした：{e}"));
+                }
+            }
         }
         for change in &plan.settings {
             write_source(&self.root, &change.file, &change.text)?;
@@ -2205,6 +2257,7 @@ impl Workspace {
         }
         let text = CONCEPT_TEMPLATE.to_owned();
         self.write_settings_file(CONCEPT_FILE, &text)?;
+        self.reset_stale_fields(CONCEPT_FILE);
         Ok(text)
     }
 

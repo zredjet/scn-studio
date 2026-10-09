@@ -32,9 +32,15 @@ import type {
   EntryUsage,
   IrDiagnostic,
   SceneSummary,
+  SettingsWrittenExtra,
   Summary,
 } from "../core/types.ts";
-import { FieldInput, type RefCandidate } from "./FieldInput.tsx";
+import {
+  FieldInput,
+  fieldClass,
+  OriginBadge,
+  type RefCandidate,
+} from "./FieldInput.tsx";
 import {
   bodyOfText,
   diagnosticsByKey,
@@ -49,6 +55,12 @@ import {
   normalizeNewlines,
   typeOfPath,
 } from "./fields.ts";
+import {
+  BODY_KEY,
+  type FieldOrigin,
+  fieldKey,
+  isAiDraftEntry,
+} from "./origin.ts";
 import { SourceView } from "./SourceView.tsx";
 import { TypeEditor } from "./TypeEditor.tsx";
 import { UsagePanel } from "./UsagePanel.tsx";
@@ -72,11 +84,13 @@ interface Props {
   readonly settingsVersion: number;
   readonly request: BibleRequest | null;
   /** 書いた後：補完の材料、表示に要る分、検証の段階1の診断を画面に渡す。 */
-  readonly onWritten: (result: {
-    readonly assist: AssistData;
-    readonly summary: Summary;
-    readonly checks: readonly IrDiagnostic[];
-  }) => void;
+  readonly onWritten: (
+    result: {
+      readonly assist: AssistData;
+      readonly summary: Summary;
+      readonly checks: readonly IrDiagnostic[];
+    } & SettingsWrittenExtra,
+  ) => void;
   /** 本文のその位置へ移る。 */
   readonly onOpenLocation: (file: string, offset: number) => void;
   /** 保存していないソース表示の変更があるか（閉じる前の確認）。 */
@@ -85,6 +99,8 @@ interface Props {
   readonly onRequestHandled: () => void;
   /** エントリのIDを変える（名前の変更の画面を開く。T2-8）。 */
   readonly onRenameEntry?: (typeId: string, id: string, name: string) => void;
+  /** AI が書いた項目（ファイルとキー → 出自。T4-3）。 */
+  readonly aiFields: ReadonlyMap<string, FieldOrigin>;
 }
 
 type Status =
@@ -109,6 +125,7 @@ export function BibleScreen({
   onUnsaved,
   onRequestHandled,
   onRenameEntry,
+  aiFields,
 }: Props) {
   const [data, setData] = useState<BibleData | null>(null);
   const [typeId, setTypeId] = useState<string | null>(null);
@@ -744,7 +761,17 @@ export function BibleScreen({
                 {initialOf(fileLabel(file))}
               </span>
               <div className="bible-head-text">
-                <h1>{fileLabel(file)}</h1>
+                <h1>
+                  {fileLabel(file)}
+                  {entry !== null && isAiDraftEntry(entry.fields) && (
+                    <span
+                      className="ai-badge ai-draft-entry"
+                      title="AI が作ったエントリです（フロントマターの status: ai-draft を消すか変えれば、確かめたことになります）"
+                    >
+                      AI下書き
+                    </span>
+                  )}
+                </h1>
                 <span className="bible-path">
                   {file.path}
                   {entry !== null && onRenameEntry !== undefined && (
@@ -831,6 +858,7 @@ export function BibleScreen({
                       fileText={file.text ?? ""}
                       onCommit={(value) => commitField(field.key, value)}
                       onOpenRef={openRef}
+                      origin={aiFields.get(fieldKey(entry.path, field.key))}
                     />
                   ))}
                   {form.extra.length > 0 && (
@@ -1002,6 +1030,7 @@ export function BibleScreen({
                     body={entry.body}
                     fileText={file.text ?? ""}
                     onCommit={commitBody}
+                    origin={aiFields.get(fieldKey(entry.path, BODY_KEY))}
                   />
                 </form>
               </div>
@@ -1032,6 +1061,7 @@ export function BodyField({
   id = "field-body",
   label = "本文（Markdown）",
   rows = 5,
+  origin = null,
 }: {
   readonly body: string;
   readonly fileText: string;
@@ -1040,6 +1070,8 @@ export function BodyField({
   readonly id?: string;
   readonly label?: string;
   readonly rows?: number;
+  /** 本文の出自（AI が書いた・人が直した。T4-3）。 */
+  readonly origin?: FieldOrigin | null;
 }) {
   const [draft, setDraft] = useState(normalizeNewlines(body));
   const touched = useRef(false);
@@ -1079,10 +1111,11 @@ export function BodyField({
     });
   };
   return (
-    <div className="bible-field">
+    <div className={fieldClass(origin)}>
       <label className="bible-label" htmlFor={id}>
         {label}
         <span className="bible-label-note">フロントマターの後ろ</span>
+        <OriginBadge origin={origin} />
       </label>
       <textarea
         id={id}

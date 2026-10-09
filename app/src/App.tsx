@@ -31,6 +31,7 @@ import {
 } from "./ai/model.ts";
 import { AssetsScreen } from "./assets/AssetsScreen.tsx";
 import { type BibleRequest, BibleScreen } from "./bible/BibleScreen.tsx";
+import { type FieldOrigin, fieldOrigins } from "./bible/origin.ts";
 import { CheckList } from "./check/CheckList.tsx";
 import { countBySeverity } from "./check/group.ts";
 import { PlaythroughPanel } from "./check/PlaythroughPanel.tsx";
@@ -141,6 +142,7 @@ import type {
   RouteStat,
   SceneInfo,
   SceneSummary,
+  SettingsWrittenExtra,
   SkeletonScene,
   SummarizeResult,
   Summary,
@@ -380,6 +382,10 @@ export function App() {
   const [aiLineMap, setAiLineMap] = useState<ReadonlyMap<string, string>>(
     () => new Map(),
   );
+  /** 企画書と設定DBの AI の項目（ファイルとキーから、今の出自。T4-3）。 */
+  const [aiFieldMap, setAiFieldMap] = useState<
+    ReadonlyMap<string, FieldOrigin>
+  >(() => new Map());
   /** AIの接続先（環境設定とタイトルバー。T3-5）。 */
   const [aiState, setAiState] = useState<AiConnections | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -1095,13 +1101,25 @@ export function App() {
 
   /** 設定DBか変数を書いた後：補完の材料と、解析の結果を入れる。 */
   const onSettingsWritten = useCallback(
-    (result: {
-      readonly assist: AssistData;
-      readonly summary: Summary;
-      readonly checks: readonly IrDiagnostic[];
-    }) => {
+    (
+      result: {
+        readonly assist: AssistData;
+        readonly summary: Summary;
+        readonly checks: readonly IrDiagnostic[];
+      } & SettingsWrittenExtra,
+    ) => {
       setAssist(result.assist);
       showSummary(result.summary, result.checks);
+      // AI が書いた項目の印と、直した AI の項目の出自を書けなかったとき（T4-3）。
+      if (result.ai_fields !== undefined)
+        setAiFieldMap(fieldOrigins(result.ai_fields));
+      if (
+        result.provenance_problem !== undefined &&
+        result.provenance_problem !== null
+      )
+        setError(
+          `出自の記録（ai/provenance.jsonl）を書けませんでした：${result.provenance_problem}`,
+        );
     },
     [showSummary],
   );
@@ -1700,24 +1718,29 @@ export function App() {
     currentFile === null ? undefined : conflicts.get(currentFile);
   const savedText =
     currentFile === null ? "" : (saved.current.get(currentFile) ?? "");
-  // AIが書いた行を取り直す（作品を開いたとき、保存・読み込み直しのたびに）。
+  // AIが書いた行と項目を取り直す（作品を開いたとき、保存・読み込み直し・設定ファイルが変わったたびに）。
   const projectRoot = project?.root ?? null;
   useEffect(() => {
     void savedVersion;
+    void settingsVersion;
     if (projectRoot === null) return;
     let live = true;
     aiLines()
       .then((result) => {
-        if (live) setAiLineMap(new Map(Object.entries(result.lines)));
+        if (!live) return;
+        setAiLineMap(new Map(Object.entries(result.lines)));
+        setAiFieldMap(fieldOrigins(result.fields));
       })
       .catch(() => {
         // 読めなければ印を消す（前の作品の印を残さない）。
-        if (live) setAiLineMap(new Map());
+        if (!live) return;
+        setAiLineMap(new Map());
+        setAiFieldMap(new Map());
       });
     return () => {
       live = false;
     };
-  }, [projectRoot, savedVersion]);
+  }, [projectRoot, savedVersion, settingsVersion]);
 
   // AIの接続先を取り直す（作品を開いたとき、設定ファイルが変わったとき、環境設定で変えたとき。T3-5）。
   useEffect(() => {
@@ -2954,6 +2977,7 @@ export function App() {
                     dirtyChapters={dirty}
                     settingsVersion={settingsVersion}
                     ideasVersion={ideasVersion}
+                    aiFields={aiFieldMap}
                     onWritten={onSettingsWritten}
                     onStoryWritten={onStoryWritten}
                     onOpenLocation={openFromSettings}
@@ -2993,6 +3017,7 @@ export function App() {
                     diagnostics={allDiagnostics}
                     settingsVersion={settingsVersion}
                     request={bibleRequest}
+                    aiFields={aiFieldMap}
                     onWritten={onSettingsWritten}
                     onOpenLocation={openFromSettings}
                     onUnsaved={onBibleDraft}

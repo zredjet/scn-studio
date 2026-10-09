@@ -12,12 +12,18 @@ import {
   type TaskRunner,
 } from "../ai/model.ts";
 import { BodyField } from "../bible/BibleScreen.tsx";
-import { FieldInput, type RefCandidate } from "../bible/FieldInput.tsx";
+import {
+  FieldInput,
+  fieldClass,
+  OriginBadge,
+  type RefCandidate,
+} from "../bible/FieldInput.tsx";
 import {
   type FieldChange,
   isComposingKey,
   normalizeNewlines,
 } from "../bible/fields.ts";
+import { BODY_KEY, type FieldOrigin, fieldKey } from "../bible/origin.ts";
 import { SourceView } from "../bible/SourceView.tsx";
 import {
   createConcept,
@@ -43,6 +49,7 @@ import type {
   JsonValue,
   Promotion,
   SceneSummary,
+  SettingsWrittenExtra,
   Summary,
 } from "../core/types.ts";
 import { AiAside } from "./AiAside.tsx";
@@ -59,7 +66,7 @@ const CONCEPT_FILE = "concept.md";
 const FORESHADOW_TYPE = "foreshadow";
 
 /** 書いた後に App へ渡すもの。 */
-interface Written {
+interface Written extends SettingsWrittenExtra {
   readonly assist: AssistData;
   readonly summary: Summary;
   readonly checks: readonly IrDiagnostic[];
@@ -85,6 +92,8 @@ interface Props {
   readonly onUnsaved: (unsaved: boolean) => void;
   /** AIの問い返しと分類案（T3-10）。 */
   readonly ai: ConceptAi;
+  /** AI が書いた項目（ファイルとキー → 出自。T4-3）。 */
+  readonly aiFields: ReadonlyMap<string, FieldOrigin>;
 }
 
 /** 企画の画面の AI（T3-10）：問い返しと分類案のタスク、その結果。 */
@@ -191,6 +200,7 @@ export function ConceptScreen({
   onOpenEntry,
   onUnsaved,
   ai,
+  aiFields,
 }: Props) {
   const [ideas, setIdeas] = useState<readonly Idea[] | null>(null);
   const [concept, setConcept] = useState<ConceptData | null>(null);
@@ -706,6 +716,7 @@ export function ConceptScreen({
                   })
                 }
                 onOpenRef={() => {}}
+                origin={aiFields.get(fieldKey(CONCEPT_FILE, field.key))}
               />
             ))}
             <div className="concept-grid">
@@ -778,6 +789,7 @@ export function ConceptScreen({
                       )
                     }
                     onOpenRef={() => {}}
+                    origin={aiFields.get(fieldKey(CONCEPT_FILE, "volume"))}
                   />
                 );
               })}
@@ -813,6 +825,7 @@ export function ConceptScreen({
                 )?.path;
                 if (path !== null && path !== undefined) onOpenEntry(path);
               }}
+              origin={aiFields.get(fieldKey(CONCEPT_FILE, "main_characters"))}
             />
             {concept.main_characters.length > 0 && (
               <div className="concept-characters">
@@ -839,12 +852,19 @@ export function ConceptScreen({
                 ))}
               </div>
             )}
-            <div className="bible-field">
+            <div
+              className={fieldClass(
+                aiFields.get(fieldKey(CONCEPT_FILE, "endings")),
+              )}
+            >
               <span className="bible-label">
                 エンディング
                 <span className="bible-label-note">
                   本文の @エンディング と照合（直すときはソースで）
                 </span>
+                <OriginBadge
+                  origin={aiFields.get(fieldKey(CONCEPT_FILE, "endings"))}
+                />
               </span>
               {!concept.endings_listed ? (
                 <p className="concept-note">
@@ -922,6 +942,7 @@ export function ConceptScreen({
               id="concept-body"
               label="本文（やりたいこと・やらないこと・参考にしたい感触）"
               rows={10}
+              origin={aiFields.get(fieldKey(CONCEPT_FILE, BODY_KEY))}
               body={concept.body}
               fileText={concept.text ?? ""}
               onCommit={(body, seen) => {

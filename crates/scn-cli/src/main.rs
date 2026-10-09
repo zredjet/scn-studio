@@ -1427,6 +1427,7 @@ fn run_fmt(
                 task: task.to_owned(),
                 model: model.to_owned(),
                 at: at.clone(),
+                ..scn_core::provenance::Record::default()
             })
             .collect();
         match scn_core::provenance::append_provenance(dir, &records) {
@@ -1477,6 +1478,9 @@ struct CliProvenance<'a> {
     line: usize,
     column: usize,
     id: &'a str,
+    /// 項目の行（企画書と設定DBのエントリ。T4-3）のキー。本文の行では書かない。
+    #[serde(skip_serializing_if = "str::is_empty")]
+    key: &'a str,
     scene: &'a str,
     origin: &'a str,
     task: &'a str,
@@ -1605,7 +1609,9 @@ fn run_ai_context(
 
 /// AIが書いた行の一覧を出す（T3-4、D065）。`-o` で CSV に書き出す。出自の記録の読めない行と数を標準エラーに。
 fn run_provenance(dir: &Path, json: bool, output: Option<&Path>) -> Result<u8, CliError> {
-    use scn_core::provenance::{provenance_csv, provenance_rows, read_provenance};
+    use scn_core::provenance::{
+        provenance_csv, provenance_field_rows, provenance_rows, read_provenance,
+    };
     let project = load_project(dir).map_err(CliError::Project)?;
     let ir = analyze(&project);
     let provenance = read_provenance(dir).map_err(CliError::Project)?;
@@ -1615,7 +1621,9 @@ fn run_provenance(dir: &Path, json: bool, output: Option<&Path>) -> Result<u8, C
             display_path(dir, scn_core::provenance::PROVENANCE_FILE)
         );
     }
-    let (rows, counts) = provenance_rows(&project, &ir, &provenance);
+    let (mut rows, counts) = provenance_rows(&project, &ir, &provenance);
+    let (field_rows, fields) = provenance_field_rows(dir, &project, &provenance);
+    rows.extend(field_rows);
     eprintln!(
         "AIの行 {}（ai {}、ai-edited {}）／行IDのある行 {}",
         counts.ai + counts.ai_edited,
@@ -1623,6 +1631,14 @@ fn run_provenance(dir: &Path, json: bool, output: Option<&Path>) -> Result<u8, C
         counts.ai_edited,
         counts.lines
     );
+    if fields.ai + fields.ai_edited > 0 {
+        eprintln!(
+            "AIの項目 {}（ai {}、ai-edited {}）",
+            fields.ai + fields.ai_edited,
+            fields.ai,
+            fields.ai_edited
+        );
+    }
     let mut out = io::stdout().lock();
     if let Some(path) = output {
         let csv = provenance_csv(&rows);
@@ -1660,6 +1676,7 @@ fn run_provenance(dir: &Path, json: bool, output: Option<&Path>) -> Result<u8, C
                     line,
                     column,
                     id: &r.id,
+                    key: &r.key,
                     scene: &r.scene,
                     origin: &r.origin,
                     task: &r.task,
@@ -1673,6 +1690,19 @@ fn run_provenance(dir: &Path, json: bool, output: Option<&Path>) -> Result<u8, C
         return finish(writeln!(out, "{body}"), SUCCESS);
     }
     let written = rows.iter().try_for_each(|r| {
+        if !r.key.is_empty() {
+            // 項目の行（T4-3）：ファイルと項目。
+            return writeln!(
+                out,
+                "{} {} {} {} {} {}",
+                display_path(dir, &r.file),
+                r.key,
+                r.origin,
+                r.task,
+                r.model,
+                r.at
+            );
+        }
         let (line, column) = positions(&r.file, r.span.start);
         writeln!(
             out,

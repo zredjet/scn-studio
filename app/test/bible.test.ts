@@ -26,6 +26,13 @@ import {
   widgetOf,
   withoutItem,
 } from "../src/bible/fields.ts";
+import {
+  BODY_KEY,
+  fieldKey,
+  fieldOrigins,
+  isAiDraftEntry,
+  originMark,
+} from "../src/bible/origin.ts";
 import type {
   Entry,
   EntryFile,
@@ -269,4 +276,31 @@ test("AIに渡す内容の文：部分と字数、渡るシーン、タスクご
     aiContextText({ ...ai, character: false })?.lead ?? "",
     /名前が出るシーン/,
   );
+});
+
+test("項目の出自の印（T4-3）：ai は実線、ai-edited は点線。文でも見せる", () => {
+  const map = fieldOrigins([
+    { file: "concept.md", key: "logline", origin: "ai" },
+    {
+      file: "bible/entries/character/sora.md",
+      key: BODY_KEY,
+      origin: "ai-edited",
+    },
+    { file: "concept.md", key: "theme", origin: "human" },
+  ]);
+  assert.equal(map.size, 2);
+  assert.equal(map.get(fieldKey("concept.md", "logline")), "ai");
+  assert.equal(
+    map.get(fieldKey("bible/entries/character/sora.md", "#body")),
+    "ai-edited",
+  );
+  assert.equal(map.get(fieldKey("concept.md", "theme")), undefined);
+  assert.equal(originMark("ai")?.text, "AI");
+  assert.match(originMark("ai")?.className ?? "", /\bai\b/);
+  assert.equal(originMark("ai-edited")?.text, "AI・直した");
+  assert.equal(originMark(null), null);
+  assert.equal(originMark(undefined), null);
+  assert.equal(isAiDraftEntry({ status: "ai-draft" }), true);
+  assert.equal(isAiDraftEntry({ status: "確定" }), false);
+  assert.equal(isAiDraftEntry(null), false);
 });

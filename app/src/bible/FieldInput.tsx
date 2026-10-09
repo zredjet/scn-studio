@@ -24,6 +24,7 @@ import {
   widgetOf,
   withoutItem,
 } from "./fields.ts";
+import { type FieldOrigin, originMark } from "./origin.ts";
 
 /** 参照の候補（エントリかシーン）。 */
 export interface RefCandidate {
@@ -49,6 +50,29 @@ interface Props {
   readonly onCommit: (change: FieldChange) => Promise<EntryEdit | null>;
   /** 参照先を開く。 */
   readonly onOpenRef: (target: string, id: string) => void;
+  /** この項目の出自（AI が書いた・人が直した。T4-3）。 */
+  readonly origin?: FieldOrigin | null;
+}
+
+/** 項目の欄の class（AI が書いた項目には印。T4-3）。 */
+export function fieldClass(origin: FieldOrigin | null | undefined): string {
+  const mark = originMark(origin);
+  return mark === null ? "bible-field" : `bible-field ${mark.className}`;
+}
+
+/** 項目の出自の札（T4-3）。 */
+export function OriginBadge({
+  origin,
+}: {
+  readonly origin: FieldOrigin | null | undefined;
+}) {
+  const mark = originMark(origin);
+  if (mark === null) return null;
+  return (
+    <span className="field-origin-badge" title={mark.title}>
+      {mark.text}
+    </span>
+  );
 }
 
 /** 値を決める（選ぶ、切り替える）。書く時点の中身と照らす。 */
@@ -328,6 +352,7 @@ export function FieldInput({
   fileText,
   onCommit,
   onOpenRef,
+  origin = null,
 }: Props) {
   const widget = widgetOf(field.kind, value);
   let control: ReactNode;
@@ -504,12 +529,13 @@ export function FieldInput({
       break;
   }
   return (
-    <div className="bible-field">
+    <div className={fieldClass(origin)}>
       <label className="bible-label" htmlFor={`field-${field.key}`}>
         {field.label}
         <span className="bible-label-note">
           {hint ?? kindLabel(field.kind, typeNames)}
         </span>
+        <OriginBadge origin={origin} />
       </label>
       {control}
       {problems.map((d) => (

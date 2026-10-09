@@ -738,7 +738,12 @@ fn fmt_provenance_and_listing() {
         assert_eq!(v["model"], "test-model");
         assert!(v["at"].as_str().unwrap().ends_with('Z'));
     }
-    // 一覧：付けた5行と、もとの ai-edited の1行。
+    // 企画書の AI の項目（T4-3）。
+    fs::write(dir.join("concept.md"), "---\nlogline: AIの一文\n---\n").unwrap();
+    let mut records = fs::read_to_string(&path).unwrap();
+    records.push_str("{\"file\":\"concept.md\",\"key\":\"logline\",\"origin\":\"ai\",\"task\":\"draft_concept\",\"model\":\"m\",\"at\":\"2026-10-09T00:00:00Z\"}\n");
+    fs::write(&path, records).unwrap();
+    // 一覧：付けた5行と、もとの ai-edited の1行と、企画書の項目。
     let out = scn(&["provenance", "."], &dir);
     assert_eq!(out.code, SUCCESS, "{}", out.stderr);
     assert!(
@@ -746,7 +751,18 @@ fn fmt_provenance_and_listing() {
         "{}",
         out.stderr
     );
-    assert_eq!(out.stdout.lines().count(), 6);
+    assert!(
+        out.stderr.contains("AIの項目 1（ai 1、ai-edited 0）"),
+        "{}",
+        out.stderr
+    );
+    assert_eq!(out.stdout.lines().count(), 7);
+    assert!(
+        out.stdout
+            .contains("concept.md logline ai draft_concept m "),
+        "{}",
+        out.stdout
+    );
     assert!(
         out.stdout.contains(" ^k3fa ai-edited draft_stub "),
         "{}",
@@ -755,10 +771,20 @@ fn fmt_provenance_and_listing() {
     let out = scn(&["provenance", ".", "-o", "out/p.csv"], &dir);
     assert_eq!(out.code, SUCCESS, "{}", out.stderr);
     let csv = fs::read_to_string(dir.join("out/p.csv")).unwrap();
-    assert!(csv.starts_with("\u{feff}行ID,ファイル,シーン,出自,タスク,モデル,日時,本文\r\n"));
+    assert!(csv.starts_with("\u{feff}行ID,ファイル,項目,シーン,出自,タスク,モデル,日時,本文\r\n"));
+    assert!(
+        csv.contains(",concept.md,logline,,ai,draft_concept,"),
+        "{csv}"
+    );
     let out = scn(&["provenance", ".", "--json"], &dir);
     let list: Value = serde_json::from_str(&out.stdout).unwrap();
-    assert_eq!(list.as_array().unwrap().len(), 6);
+    assert_eq!(list.as_array().unwrap().len(), 7);
+    let field = list.as_array().unwrap().last().unwrap();
+    assert_eq!(
+        (field["key"].as_str(), field["text"].as_str()),
+        (Some("logline"), Some("AIの一文"))
+    );
+    assert!(list[0].get("key").is_none());
     let _ = fs::remove_dir_all(&dir);
 }
 

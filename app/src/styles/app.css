@@ -3479,6 +3479,37 @@ body {
   background-size: 3px 100%;
 }
 
+/* 企画書と設定DBの、AI が書いた項目の印（T4-3）。行の印と同じく、人が直したものは点線。 */
+.bible-field.field-origin {
+  padding-left: 9px;
+  box-shadow: inset 3px 0 0 var(--ai-line);
+}
+
+.bible-field.field-origin.ai-edited {
+  box-shadow: none;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--ai-line) 0 3px,
+    transparent 3px 6px
+  );
+  background-repeat: no-repeat;
+  background-size: 3px 100%;
+}
+
+.field-origin-badge {
+  margin-left: 8px;
+  padding: 0 5px;
+  border: 1px solid var(--ai-line);
+  border-radius: var(--radius-item);
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.field-origin.ai-edited .field-origin-badge {
+  border-style: dotted;
+}
+
 /* 環境設定（AIの接続先。T3-5、D066） */
 .preferences-screen {
   overflow: auto;

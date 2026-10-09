@@ -129,8 +129,8 @@ function ProvenanceCard({
         <div>
           <h2>AIの出自</h2>
           <p className="export-note">
-            出自の記録（ai/provenance.jsonl）で、AIが書いた行（ai）と、AIが書いた行を人が直した行（ai-edited）の一覧。アプリで
-            AI の行を直して保存すると、ai-edited
+            出自の記録（ai/provenance.jsonl）で、AIが書いた行（ai）と、AIが書いた行を人が直した行（ai-edited）の一覧。企画書と設定DBの、AIが書いた項目も続けて並べます。アプリで
+            AI の行や項目を直して保存すると、ai-edited
             と記録します。書き出し先：export/provenance.csv
           </p>
         </div>
@@ -157,6 +157,10 @@ function ProvenanceCard({
           行IDのある行 {data.counts.lines} のうち、AIが書いた行{" "}
           {data.counts.ai + data.counts.ai_edited}（ai {data.counts.ai}
           、ai-edited {data.counts.ai_edited}）
+          {data.field_counts.ai + data.field_counts.ai_edited > 0 &&
+            `。企画書と設定DBの、AIが書いた項目 ${
+              data.field_counts.ai + data.field_counts.ai_edited
+            }（ai ${data.field_counts.ai}、ai-edited ${data.field_counts.ai_edited}）`}
         </p>
       )}
       {data !== null && data.problems > 0 && (

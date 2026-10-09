@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::ParseOptions;
 use crate::ast::{LineIdSlot, Stmt};
+use crate::bible::{body_of, front_fields};
 use crate::diag::Span;
 use crate::ir::Ir;
 use crate::project::{Project, ProjectError, write_source};
@@ -35,11 +36,21 @@ pub const AI_EDITED: &str = "ai-edited";
 /// 人が書いた。
 pub const HUMAN: &str = "human";
 
-/// 記録の1行。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// 項目の記録の、フロントマターの後ろの本文の項目（T4-3。`#` で始まるキーはフロントマターのキーとぶつからない）。
+pub const BODY_KEY: &str = "#body";
+
+/// 記録の1行。本文の行の記録（`line`）か、企画書と設定DBのエントリの項目の記録（`file` と `key`。T4-3）。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Record {
-    /// 行ID（`^` を除く）。
+    /// 行ID（`^` を除く）。項目の記録では空。
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub line: String,
+    /// 項目の記録の、作品フォルダからのパス（`concept.md`、`bible/entries/<型>/<ID>.md`）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file: Option<String>,
+    /// 項目の記録の、フロントマターのキー（本文は [`BODY_KEY`]）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub key: Option<String>,
     /// `ai`・`ai-edited`・`human`。
     pub origin: String,
     /// AIタスクの名前か、`external:<エージェント名>`。
@@ -60,12 +71,33 @@ pub struct Provenance {
     pub problems: Vec<(usize, String)>,
 }
 
+impl Record {
+    /// 項目の記録のファイルとキー（行の記録なら `None`）。
+    pub fn field(&self) -> Option<(&str, &str)> {
+        match (&self.file, &self.key) {
+            (Some(file), Some(key)) if self.line.is_empty() => Some((file, key)),
+            _ => None,
+        }
+    }
+}
+
 impl Provenance {
     /// 行IDごとの今の出自（いちばん後ろの記録）。
     pub fn latest(&self) -> BTreeMap<&str, &Record> {
         let mut out = BTreeMap::new();
-        for record in &self.records {
+        for record in self.records.iter().filter(|r| !r.line.is_empty()) {
             out.insert(record.line.as_str(), record);
+        }
+        out
+    }
+
+    /// 項目（ファイルとキー）ごとの今の出自（いちばん後ろの記録。T4-3）。
+    pub fn latest_fields(&self) -> BTreeMap<(&str, &str), &Record> {
+        let mut out = BTreeMap::new();
+        for record in &self.records {
+            if let Some(field) = record.field() {
+                out.insert(field, record);
+            }
         }
         out
     }
@@ -91,16 +123,24 @@ pub fn parse_provenance(text: &str) -> Provenance {
             continue;
         }
         match serde_json::from_str::<Record>(line) {
-            Ok(record) if !record.line.is_empty() && !record.origin.is_empty() => {
-                out.records.push(record);
-            }
-            Ok(_) => out
-                .problems
-                .push((i + 1, "line と origin が要ります".to_owned())),
+            Ok(record) if readable(&record) => out.records.push(record),
+            Ok(_) => out.problems.push((
+                i + 1,
+                "origin と、line か file と key の組（どちらか一方）が要ります".to_owned(),
+            )),
             Err(e) => out.problems.push((i + 1, e.to_string())),
         }
     }
     out
+}
+
+/// 読める記録か：`origin` があり、行IDか、ファイルとキーの組のどちらか一方だけがある。
+fn readable(record: &Record) -> bool {
+    let line = !record.line.is_empty();
+    let field =
+        matches!((&record.file, &record.key), (Some(f), Some(k)) if !f.is_empty() && !k.is_empty());
+    let partial = record.file.is_some() || record.key.is_some();
+    !record.origin.is_empty() && (line != field) && (field || !partial)
 }
 
 /// 記録を書き足す（今の中身の後ろに足すだけ）。`ai/` が無ければ作る。
@@ -237,8 +277,11 @@ pub fn line_texts(text: &str, options: &ParseOptions) -> BTreeMap<String, String
 /// AI の行の一覧の1行。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ProvenanceRow {
+    /// 行ID（項目の行では空）。
     pub id: String,
     pub file: String,
+    /// 項目（フロントマターのキーか [`BODY_KEY`]。本文の行では空。T4-3）。
+    pub key: String,
     pub span: Span,
     /// シーンID（と題名）。
     pub scene: String,
@@ -306,6 +349,7 @@ pub fn provenance_rows(
             rows.push(ProvenanceRow {
                 id,
                 file: file.path.clone(),
+                key: String::new(),
                 span,
                 scene,
                 origin: record.origin.clone(),
@@ -320,9 +364,10 @@ pub fn provenance_rows(
 }
 
 /// 一覧の列の見出し。
-pub const PROVENANCE_COLUMNS: [&str; 8] = [
+pub const PROVENANCE_COLUMNS: [&str; 9] = [
     "行ID",
     "ファイル",
+    "項目",
     "シーン",
     "出自",
     "タスク",
@@ -339,6 +384,7 @@ pub fn provenance_csv(rows: &[ProvenanceRow]) -> String {
             vec![
                 r.id.clone(),
                 r.file.clone(),
+                r.key.clone(),
                 r.scene.clone(),
                 r.origin.clone(),
                 r.task.clone(),
@@ -349,6 +395,145 @@ pub fn provenance_csv(rows: &[ProvenanceRow]) -> String {
         })
         .collect();
     csv_table(&PROVENANCE_COLUMNS, &table)
+}
+
+/// 項目の記録を持てるファイル（企画書と設定DBのエントリ。T4-3）。
+pub fn is_field_file(file: &str) -> bool {
+    let parts: Vec<&str> = file.split('/').collect();
+    let safe = |p: &str| !p.is_empty() && !p.starts_with('.') && !p.contains('\\');
+    match parts.as_slice() {
+        ["concept.md"] => true,
+        ["bible", "entries", type_id, name] => safe(type_id) && safe(name) && name.ends_with(".md"),
+        _ => false,
+    }
+}
+
+/// 項目の値の文字（一覧と比べるため）。フロントマターの値は文字列ならそのまま、ほかは JSON。本文は前後の空白を
+/// 除く。無い・空なら `None`。
+fn field_value(text: &str, key: &str) -> Option<String> {
+    if key == BODY_KEY {
+        let body = body_of(text).trim();
+        return (!body.is_empty()).then(|| body.to_owned());
+    }
+    match front_fields(text).ok()?.get(key)? {
+        serde_json::Value::Null => None,
+        serde_json::Value::String(s) if s.trim().is_empty() => None,
+        serde_json::Value::String(s) => Some(s.clone()),
+        other => Some(other.to_string()),
+    }
+}
+
+/// 一覧の項目の数（T4-3）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
+pub struct FieldCounts {
+    pub ai: usize,
+    pub ai_edited: usize,
+}
+
+/// 今ある企画書とエントリの項目のうち、今の出自が `ai` か `ai-edited` の項目（ファイルとキーの順。T4-3）。
+/// 中身は作品フォルダのファイルから読む（書き換えは画面がすぐ書くので、保存していない中身は無い）。
+pub fn provenance_field_rows(
+    root: &Path,
+    _project: &Project,
+    provenance: &Provenance,
+) -> (Vec<ProvenanceRow>, FieldCounts) {
+    let mut rows = Vec::new();
+    let mut counts = FieldCounts::default();
+    let mut texts: BTreeMap<&str, Option<String>> = BTreeMap::new();
+    for ((file, key), record) in provenance.latest_fields() {
+        if !is_field_file(file) {
+            continue;
+        }
+        let text = texts
+            .entry(file)
+            .or_insert_with(|| fs::read_to_string(root.join(file)).ok());
+        let Some(value) = text.as_deref().and_then(|t| field_value(t, key)) else {
+            continue;
+        };
+        match record.origin.as_str() {
+            AI => counts.ai += 1,
+            AI_EDITED => counts.ai_edited += 1,
+            _ => continue,
+        }
+        rows.push(ProvenanceRow {
+            id: String::new(),
+            file: file.to_owned(),
+            key: key.to_owned(),
+            span: Span::default(),
+            scene: String::new(),
+            origin: record.origin.clone(),
+            task: record.task.clone(),
+            model: record.model.clone(),
+            at: record.at.clone(),
+            text: value,
+        });
+    }
+    (rows, counts)
+}
+
+/// 人が企画書かエントリを書くとき（フォーム、本文の欄、ソース表示）、今の出自が `ai` の項目のうち値が変わった
+/// ものの記録（`ai-edited`。タスクとモデルは前の記録から。T4-3）。`before` は書く前のディスクの中身。
+/// フロントマターの項目は、書く前と書いた後のフロントマターを両方読めたときだけ比べる（ソース表示で YAML を
+/// 壊した・直したときに、値の分からない項目を「変わった」と数えない）。
+pub fn edited_ai_fields(
+    file: &str,
+    before: &str,
+    after: &str,
+    provenance: &Provenance,
+    at: &str,
+) -> Vec<Record> {
+    let comparable = front_fields(before).is_ok() && front_fields(after).is_ok();
+    provenance
+        .latest_fields()
+        .into_iter()
+        .filter(|((f, key), record)| {
+            *f == file
+                && record.origin == AI
+                && (*key == BODY_KEY || comparable)
+                && field_value(before, key) != field_value(after, key)
+        })
+        .map(|((_, key), record)| Record {
+            file: Some(file.to_owned()),
+            key: Some(key.to_owned()),
+            origin: AI_EDITED.to_owned(),
+            task: record.task.clone(),
+            model: record.model.clone(),
+            at: at.to_owned(),
+            ..Record::default()
+        })
+        .collect()
+}
+
+/// 同じパスにファイルを作り直したとき（消したエントリと同じIDで作った、名前の変更の移り先など）、そのパスに
+/// 残っている AI の項目の記録を人の記録（`human`）で打ち消す（古い記録を新しいファイルの項目に当てない。T4-3）。
+pub fn reset_field_records(provenance: &Provenance, file: &str, at: &str) -> Vec<Record> {
+    provenance
+        .latest_fields()
+        .into_iter()
+        .filter(|((f, _), record)| *f == file && record.origin != HUMAN)
+        .map(|((_, key), _)| Record {
+            file: Some(file.to_owned()),
+            key: Some(key.to_owned()),
+            origin: HUMAN.to_owned(),
+            at: at.to_owned(),
+            ..Record::default()
+        })
+        .collect()
+}
+
+/// ファイルの名前が変わったとき（エントリのIDを変えた）、そのファイルの項目の今の記録を、新しいパスで写したもの
+/// （出自と時刻はそのまま。T4-3）。
+pub fn moved_field_records(provenance: &Provenance, from: &str, to: &str) -> Vec<Record> {
+    provenance
+        .latest_fields()
+        .into_iter()
+        .filter(|((f, _), _)| *f == from)
+        .map(|((_, key), record)| Record {
+            file: Some(to.to_owned()),
+            key: Some(key.to_owned()),
+            ..record.clone()
+        })
+        .collect()
 }
 
 /// 一覧の既定の置き場所。
@@ -416,6 +601,7 @@ pub fn edited_ai_lines(
             task,
             model,
             at: at.to_owned(),
+            ..Record::default()
         });
     };
     for id in &order {

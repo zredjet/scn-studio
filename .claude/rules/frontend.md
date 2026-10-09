@@ -47,6 +47,7 @@ paths:
 - 入力欄の値は、入力が決まったとき（フォーカスが外れた、変換中でない Enter、選んだ）に書く。変換中は書かない（D049）。
 - 型から入力欄を選ぶ、入力を値にする、検索などの判断は `app/src/bible/fields.ts` に置き、テストを付ける。
 - 変数の宣言のフォーム（T2-10、D061）は、設定DBと同じ入力欄（`FieldInput`）を `variables/form.ts` の項目の定義で使い、書くのはコア（`set_variable_field`。直した項目の行だけ）。範囲は最小と最大の欄を、両方そろってから `[最小, 最大]` で書く。
+- AI が書いた項目の印（T4-3、R203）：コアの項目の出自（`ai_lines` の `fields`、設定を書いた後の `ai_fields`）を App が `bible/origin.ts` の `fieldOrigins` で表にし、設定DBの画面と企画の画面の `FieldInput`・`BodyField` に `origin` を渡す。`ai` は実線、`ai-edited` は点線と札（色だけで分けない）。判断は `bible/origin.ts`（テストは `app/test/bible.test.ts`）。
 - 型定義の編集（`bible/TypeEditor.tsx`）は、項目を `key` で指し、画面が読んだときの型定義の中身を添えて書く（コアの `edit_type`）。項目の型の候補と選択肢の読み方は `bible/typeform.ts` に置き、テストを付ける（`app/test/forms.test.ts`）。Enter の後にフォーカスが外れても、同じ中身を2回書かない。
 
 ## プレビュー（app/src/preview/）

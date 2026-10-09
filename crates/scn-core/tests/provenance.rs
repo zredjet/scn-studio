@@ -6,8 +6,8 @@ use std::path::PathBuf;
 
 use scn_core::line_id::LineIdGenerator;
 use scn_core::provenance::{
-    AI, AI_EDITED, PROVENANCE_FILE, Record, append_provenance, provenance_csv, provenance_rows,
-    read_provenance,
+    AI, AI_EDITED, BODY_KEY, PROVENANCE_FILE, Record, append_provenance, parse_provenance,
+    provenance_csv, provenance_field_rows, provenance_rows, read_provenance,
 };
 use scn_core::workspace::{SaveOutcome, Workspace};
 use scn_core::{analyze, load_project};
@@ -30,6 +30,20 @@ fn record(line: &str, origin: &str) -> Record {
         task: "external:claude-code".to_owned(),
         model: "m".to_owned(),
         at: "2026-10-08T00:00:00Z".to_owned(),
+        ..Record::default()
+    }
+}
+
+/// 項目の記録（T4-3）。
+fn field_record(file: &str, key: &str, origin: &str) -> Record {
+    Record {
+        file: Some(file.to_owned()),
+        key: Some(key.to_owned()),
+        origin: origin.to_owned(),
+        task: "draft_entries".to_owned(),
+        model: "m".to_owned(),
+        at: "2026-10-09T00:00:00Z".to_owned(),
+        ..Record::default()
     }
 }
 
@@ -133,7 +147,7 @@ fn rows_and_csv() {
         "{first:?}"
     );
     let csv = provenance_csv(&rows);
-    assert!(csv.starts_with("\u{feff}行ID,ファイル,シーン,出自,タスク,モデル,日時,本文\r\n"));
+    assert!(csv.starts_with("\u{feff}行ID,ファイル,項目,シーン,出自,タスク,モデル,日時,本文\r\n"));
     assert!(csv.matches("\r\n").count() > rows.len());
 }
 
@@ -246,5 +260,251 @@ fn remembered_base_after_reload() {
         SaveOutcome::Conflict { .. } => panic!("衝突"),
     };
     assert!(saved.provenance.is_empty(), "{:?}", saved.provenance);
+    let _ = fs::remove_dir_all(&dir);
+}
+
+const SORA: &str = "bible/entries/character/sora.md";
+
+/// 企画書と設定DBの項目のある作品（T4-3）。
+fn field_project(name: &str, records: &str) -> PathBuf {
+    temp_project(
+        name,
+        &[
+            ("project.toml", "format_version = 0\n"),
+            ("story/a.scn", "## a #s1\n　地の文。\n"),
+            (
+                "concept.md",
+                "---\nlogline: AIが書いた一文\ntheme: 人が書いた主題\n---\n# 企画書\n",
+            ),
+            (
+                SORA,
+                "---\nid: sora\nname: 空\nfirst_person: 僕\nstatus: ai-draft\n---\nAIが書いた紹介。\n",
+            ),
+            (PROVENANCE_FILE, records),
+        ],
+    )
+}
+
+fn records_text(records: &[Record]) -> String {
+    records
+        .iter()
+        .map(|r| serde_json::to_string(r).unwrap() + "\n")
+        .collect()
+}
+
+/// 項目の記録（T4-3）：`file` と `key` の組で読み、書く。行の記録はそのままの形。どちらでもない・両方ある行は
+/// 読めない行。
+#[test]
+fn field_records_read_and_write() {
+    let text = records_text(&[record("aaaa", AI), field_record(SORA, "name", AI)]);
+    assert_eq!(
+        text.lines().next().unwrap(),
+        "{\"line\":\"aaaa\",\"origin\":\"ai\",\"task\":\"external:claude-code\",\"model\":\"m\",\"at\":\"2026-10-08T00:00:00Z\"}"
+    );
+    assert_eq!(
+        text.lines().nth(1).unwrap(),
+        "{\"file\":\"bible/entries/character/sora.md\",\"key\":\"name\",\"origin\":\"ai\",\"task\":\"draft_entries\",\"model\":\"m\",\"at\":\"2026-10-09T00:00:00Z\"}"
+    );
+    let read = parse_provenance(&format!(
+        "{text}{{\"file\":\"concept.md\",\"origin\":\"ai\"}}\n{{\"line\":\"bbbb\",\"file\":\"concept.md\",\"key\":\"theme\",\"origin\":\"ai\"}}\n{{\"origin\":\"ai\"}}\n{}\n",
+        serde_json::to_string(&field_record(SORA, "name", AI_EDITED)).unwrap()
+    ));
+    assert_eq!(read.records.len(), 3);
+    assert_eq!(
+        read.problems.iter().map(|(n, _)| *n).collect::<Vec<_>>(),
+        [3, 4, 5]
+    );
+    // 行の記録と項目の記録は分けて引く（いちばん後ろが今の出自）。
+    assert_eq!(read.latest().len(), 1);
+    let fields = read.latest_fields();
+    assert_eq!(fields.len(), 1);
+    assert_eq!(fields[&(SORA, "name")].origin, AI_EDITED);
+}
+
+/// アプリのフォーム・本文の欄・ソース表示で、今の出自が `ai` の項目を人が直すと `ai-edited` を書き足す（T4-3）。
+/// 人の項目、変わらない項目、もう `ai-edited` の項目には書かない。アイデアメモは数えない。
+#[test]
+fn edited_fields_from_forms() {
+    let records = records_text(&[
+        field_record(SORA, "first_person", AI),
+        field_record(SORA, "name", AI),
+        field_record(SORA, BODY_KEY, AI),
+        field_record("concept.md", "logline", AI),
+        field_record("concept.md", "theme", AI_EDITED),
+    ]);
+    let dir = field_project("forms", &records);
+    let mut ws = Workspace::open(&dir).unwrap();
+    let count = |dir: &PathBuf| read_provenance(dir).unwrap().records.len();
+
+    // 人の項目でない（記録の無い）キーを書いても数えない。
+    let seen = fs::read_to_string(dir.join(SORA)).unwrap();
+    ws.set_entry_field(SORA, "org", &serde_json::json!("北風高校"), &seen)
+        .unwrap();
+    assert_eq!(count(&dir), 5);
+    // AI の項目を同じ値で書いても数えない。
+    let seen = fs::read_to_string(dir.join(SORA)).unwrap();
+    ws.set_entry_field(SORA, "name", &serde_json::json!("空"), &seen)
+        .unwrap();
+    assert_eq!(count(&dir), 5);
+    // AI の項目を直す。
+    let seen = fs::read_to_string(dir.join(SORA)).unwrap();
+    ws.set_entry_field(SORA, "first_person", &serde_json::json!("俺"), &seen)
+        .unwrap();
+    let read = read_provenance(&dir).unwrap();
+    assert_eq!(read.records.len(), 6);
+    let last = read.records.last().unwrap();
+    assert_eq!(
+        (
+            last.file.as_deref(),
+            last.key.as_deref(),
+            last.origin.as_str(),
+            last.task.as_str()
+        ),
+        (Some(SORA), Some("first_person"), AI_EDITED, "draft_entries")
+    );
+    // 本文の欄（前後の空白だけの違いは数えない）。
+    let seen = fs::read_to_string(dir.join(SORA)).unwrap();
+    ws.set_entry_body(SORA, "\nAIが書いた紹介。\n\n", &seen)
+        .unwrap();
+    assert_eq!(count(&dir), 6);
+    let seen = fs::read_to_string(dir.join(SORA)).unwrap();
+    ws.set_entry_body(SORA, "人が書き直した紹介。\n", &seen)
+        .unwrap();
+    assert_eq!(
+        read_provenance(&dir).unwrap().latest_fields()[&(SORA, BODY_KEY)].origin,
+        AI_EDITED
+    );
+    assert_eq!(count(&dir), 7);
+    // ソース表示：企画書の AI の logline を直す。もう ai-edited の theme は直しても書かない。
+    let seen = fs::read_to_string(dir.join("concept.md")).unwrap();
+    let source = seen
+        .replace("AIが書いた一文", "人が直した一文")
+        .replace("人が書いた主題", "直した主題");
+    ws.write_entry_source("concept.md", &source, Some(&seen))
+        .unwrap();
+    let read = read_provenance(&dir).unwrap();
+    assert_eq!(read.records.len(), 8);
+    assert_eq!(
+        read.latest_fields()[&("concept.md", "logline")].origin,
+        AI_EDITED
+    );
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// エントリのIDを変えて（名前の変更）ファイルの名前が変わったら、そのファイルの項目の今の記録を新しいパスで
+/// 書き足す（出自と時刻はそのまま。T4-3）。
+#[test]
+fn field_records_follow_entry_rename() {
+    use scn_core::rename::RenameTarget;
+    let records = records_text(&[
+        field_record(SORA, "first_person", AI),
+        field_record(SORA, "name", AI_EDITED),
+        field_record("concept.md", "logline", AI),
+    ]);
+    let dir = field_project("rename", &records);
+    let mut ws = Workspace::open(&dir).unwrap();
+    let renamed = ws
+        .rename(
+            &RenameTarget::EntryId {
+                type_id: "character".to_owned(),
+                id: "sora".to_owned(),
+            },
+            "aozora",
+        )
+        .unwrap();
+    assert_eq!(renamed.problem, None);
+    let moved = "bible/entries/character/aozora.md";
+    let read = read_provenance(&dir).unwrap();
+    let fields = read.latest_fields();
+    assert_eq!(fields[&(moved, "first_person")].origin, AI);
+    assert_eq!(fields[&(moved, "name")].origin, AI_EDITED);
+    assert_eq!(fields[&(moved, "name")].at, "2026-10-09T00:00:00Z");
+    assert_eq!(read.records.len(), 5);
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// AI の項目の一覧（T4-3）：今ある項目だけを、今の出自で数え、行の一覧の後ろに CSV へ並べる。
+#[test]
+fn field_rows_and_csv() {
+    let records = records_text(&[
+        field_record(SORA, "first_person", AI),
+        field_record(SORA, BODY_KEY, AI),
+        field_record(SORA, "gone", AI),
+        field_record("bible/entries/character/nobody.md", "name", AI),
+        field_record("concept.md", "logline", AI),
+        field_record("concept.md", "logline", AI_EDITED),
+    ]);
+    let dir = field_project("rows", &records);
+    let project = load_project(&dir).unwrap();
+    let provenance = read_provenance(&dir).unwrap();
+    let (rows, counts) = provenance_field_rows(&dir, &project, &provenance);
+    let got: Vec<(&str, &str, &str, &str)> = rows
+        .iter()
+        .map(|r| {
+            (
+                r.file.as_str(),
+                r.key.as_str(),
+                r.origin.as_str(),
+                r.text.as_str(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        got,
+        [
+            (SORA, BODY_KEY, AI, "AIが書いた紹介。"),
+            (SORA, "first_person", AI, "僕"),
+            ("concept.md", "logline", AI_EDITED, "AIが書いた一文"),
+        ]
+    );
+    assert_eq!((counts.ai, counts.ai_edited), (2, 1));
+    assert!(rows.iter().all(|r| r.id.is_empty()));
+    let csv = provenance_csv(&rows);
+    assert!(
+        csv.contains(",bible/entries/character/sora.md,first_person,,ai,"),
+        "{csv}"
+    );
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// ソース表示で YAML を壊した・直したときは、値の分からない項目を「変わった」と数えない（本文は比べる。T4-3）。
+#[test]
+fn broken_front_matter_does_not_count() {
+    let records = records_text(&[
+        field_record(SORA, "name", AI),
+        field_record(SORA, "first_person", AI),
+    ]);
+    let dir = field_project("broken", &records);
+    let mut ws = Workspace::open(&dir).unwrap();
+    let seen = fs::read_to_string(dir.join(SORA)).unwrap();
+    let broken = seen.replace("status: ai-draft", "status: ai-draft\nnote: \"閉じない");
+    ws.write_entry_source(SORA, &broken, Some(&seen)).unwrap();
+    assert_eq!(read_provenance(&dir).unwrap().records.len(), 2);
+    // 直す（壊れた中身から読める中身へ）。
+    ws.write_entry_source(SORA, &seen, Some(&broken)).unwrap();
+    assert_eq!(read_provenance(&dir).unwrap().records.len(), 2);
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// 消したエントリと同じIDで作り直したら、古い AI の記録を新しいファイルの項目に当てない（人の記録で打ち消す。
+/// T4-3）。企画書を作り直したときも同じ。
+#[test]
+fn recreated_file_resets_records() {
+    let records = records_text(&[
+        field_record(SORA, "name", AI),
+        field_record("concept.md", "logline", AI),
+    ]);
+    let dir = field_project("recreate", &records);
+    fs::remove_file(dir.join(SORA)).unwrap();
+    fs::remove_file(dir.join("concept.md")).unwrap();
+    let mut ws = Workspace::open(&dir).unwrap();
+    ws.create_entry("character", "sora", "空").unwrap();
+    ws.create_concept().unwrap();
+    let read = read_provenance(&dir).unwrap();
+    let fields = read.latest_fields();
+    assert_eq!(fields[&(SORA, "name")].origin, "human");
+    assert_eq!(fields[&("concept.md", "logline")].origin, "human");
+    let (rows, _) = provenance_field_rows(&dir, &load_project(&dir).unwrap(), &read);
+    assert!(rows.is_empty(), "{rows:?}");
     let _ = fs::remove_dir_all(&dir);
 }

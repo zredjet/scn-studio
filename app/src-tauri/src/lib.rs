@@ -539,17 +539,36 @@ fn bible_data(workspace: &Workspace) -> Value {
     })
 }
 
-/// 設定DBか変数を書いた後に返すもの：書いた結果、設定DBの中身、補完の材料、表示に要る分、検証の段階1の診断。
-fn after_settings_write(workspace: &Workspace, edit: Value) -> Result<Response, String> {
+/// 企画書と設定DBのエントリの、今の出自が `ai`・`ai-edited` の項目（画面の印。T4-3）。記録を読めなければ空。
+fn ai_field_list(workspace: &Workspace) -> Vec<Value> {
+    let Ok(provenance) = scn_core::provenance::read_provenance(workspace.root()) else {
+        return Vec::new();
+    };
+    let (rows, _) = scn_core::provenance::provenance_field_rows(
+        workspace.root(),
+        workspace.project(),
+        &provenance,
+    );
+    rows.iter()
+        .map(|r| json!({ "file": r.file, "key": r.key, "origin": r.origin }))
+        .collect()
+}
+
+/// 設定DBか変数を書いた後に返すもの：書いた結果、設定DBの中身、補完の材料、表示に要る分、検証の段階1の診断、
+/// AI の項目と、その出自を書けなかったわけ（T4-3）。
+fn after_settings_write(workspace: &mut Workspace, edit: Value) -> Result<Response, String> {
     let Analyzed {
         summary, checks, ..
     } = analyze_summary(workspace.project(), true, None)?;
+    let provenance_problem = workspace.take_field_provenance_problem();
     json_response(&json!({
         "edit": edit,
         "bible": bible_data(workspace),
         "assist": completion_data(workspace.project()),
         "summary": summary,
         "checks": checks,
+        "ai_fields": ai_field_list(workspace),
+        "provenance_problem": provenance_problem,
     }))
 }
 
@@ -923,9 +942,18 @@ fn ai_lines(state: State<'_, AppState>) -> Result<Response, String> {
         .iter()
         .map(|r| (r.id.as_str(), r.origin.as_str()))
         .collect();
+    let (field_rows, field_counts) =
+        scn_core::provenance::provenance_field_rows(workspace.root(), project, &provenance);
+    let fields: Vec<Value> = field_rows
+        .iter()
+        .map(|r| json!({ "file": r.file, "key": r.key, "origin": r.origin }))
+        .collect();
     json_response(&json!({
         "lines": lines,
         "counts": counts,
+        // 企画書と設定DBの AI の項目（T4-3）。
+        "fields": fields,
+        "field_counts": field_counts,
         "problems": provenance.problems.len(),
     }))
 }
@@ -938,7 +966,11 @@ fn export_provenance(state: State<'_, AppState>) -> Result<Response, String> {
     let provenance =
         scn_core::provenance::read_provenance(workspace.root()).map_err(|e| e.to_string())?;
     let project = workspace.project();
-    let (rows, _) = scn_core::provenance::provenance_rows(project, &analyze(project), &provenance);
+    let (mut rows, _) =
+        scn_core::provenance::provenance_rows(project, &analyze(project), &provenance);
+    let (field_rows, _) =
+        scn_core::provenance::provenance_field_rows(workspace.root(), project, &provenance);
+    rows.extend(field_rows);
     let path = scn_core::provenance::write_provenance_csv(workspace.root(), &rows)
         .map_err(|e| e.to_string())?;
     json_response(&json!({

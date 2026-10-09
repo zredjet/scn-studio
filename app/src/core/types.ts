@@ -351,12 +351,25 @@ export type EntryEdit =
   | { readonly kind: "created"; readonly path: string };
 
 /** 設定DBを書いた後に受け取るもの。 */
-export interface BibleWritten {
+export interface BibleWritten extends SettingsWrittenExtra {
   readonly edit: EntryEdit;
   readonly bible: BibleData;
   readonly assist: AssistData;
   readonly summary: Summary;
   readonly checks: readonly IrDiagnostic[];
+}
+
+/** 設定を書いた後に付いてくるもの（T4-3）：AI の項目と、その出自を書けなかったわけ。 */
+export interface SettingsWrittenExtra {
+  readonly ai_fields?: readonly AiFieldRecord[];
+  readonly provenance_problem?: string | null;
+}
+
+/** 企画書と設定DBの AI の項目（コアの出自の記録。T4-3）。 */
+export interface AiFieldRecord {
+  readonly file: string;
+  readonly key: string;
+  readonly origin: string;
 }
 
 /** 本文の中の位置（コアの `index::Location`）。 */
@@ -494,6 +507,9 @@ export interface AiLines {
   };
   /** 出自の記録の読めない行の数。 */
   readonly problems: number;
+  /** 企画書と設定DBの AI の項目（T4-3）。 */
+  readonly fields: readonly AiFieldRecord[];
+  readonly field_counts: { readonly ai: number; readonly ai_edited: number };
 }
 
 /** AIの接続先の様子（コアの `ai::ConnectionStatus`、T3-5）。キーそのものは持たない。 */
