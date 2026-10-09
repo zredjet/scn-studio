@@ -4271,6 +4271,7 @@ export function App() {
                             contextTokens,
                             outputTokens,
                             structured,
+                            effort,
                           ) =>
                             setAiOverride(
                               name,
@@ -4279,6 +4280,7 @@ export function App() {
                               contextTokens,
                               outputTokens,
                               structured,
+                              effort,
                             ).finally(() => aiChanged([name]))
                           }
                           onAllow={(endpoint, allowed) =>

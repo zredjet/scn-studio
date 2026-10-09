@@ -54,6 +54,26 @@ impl Provider {
     }
 }
 
+/// 考える量（T4-28、D088）。送り方は接続先ごとに変わる（OpenAI 互換は `reasoning_effort`、Messages API は
+/// `output_config.effort`、Claude Code は `--effort`）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Effort {
+    Low,
+    Medium,
+    High,
+}
+
+impl Effort {
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Low => "low",
+            Self::Medium => "medium",
+            Self::High => "high",
+        }
+    }
+}
+
 /// この端末での呼び方（T4-26、N3）。Messages API の接続先だけが Claude Code を選べる。
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -94,6 +114,9 @@ pub struct Override {
     /// 構造化出力を使うか（T4-2）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub structured_output: Option<bool>,
+    /// 考える量（無ければ送らない。T4-28）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub effort: Option<Effort>,
     /// 呼び方（無ければ API。T4-26）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub via: Option<Via>,
@@ -109,6 +132,7 @@ impl Override {
             && self.context_tokens.is_none()
             && self.output_tokens.is_none()
             && self.structured_output.is_none()
+            && self.effort.is_none()
             && self.via.is_none()
             && self.cli.is_none()
     }
@@ -154,6 +178,7 @@ impl MachineSettings {
             context_tokens: value.context_tokens.filter(|&n| n > 0),
             output_tokens: value.output_tokens.filter(|&n| n > 0),
             structured_output: value.structured_output,
+            effort: value.effort,
             via: kept.and_then(|o| o.via),
             cli: kept.and_then(|o| o.cli.clone()),
         };
@@ -268,6 +293,8 @@ pub struct Connection {
     pub output_tokens: Option<u64>,
     /// 構造化出力（`response_format`）を使う（OpenAI 互換だけ。T4-2）。
     pub structured_output: bool,
+    /// 考える量（この端末の上書き。無ければ送らない。T4-28）。
+    pub effort: Option<Effort>,
     /// この端末での呼び方（Messages API の接続先だけが Claude Code を選べる。T4-26）。
     pub via: Via,
     /// Claude Code の CLI の場所（この端末で書いたもの。無ければ探す。T4-26）。
@@ -381,6 +408,7 @@ fn resolve_with(
         context_tokens,
         output_tokens,
         structured_output,
+        effort: over.and_then(|o| o.effort),
         via,
         cli: over.and_then(|o| o.cli.clone()),
     })
@@ -505,6 +533,8 @@ pub struct ConnectionStatus {
     pub structured_output: Option<bool>,
     pub project_structured_output: Option<bool>,
     pub override_structured_output: Option<bool>,
+    /// 考える量（この端末の上書き。T4-28）。
+    pub effort: Option<Effort>,
     /// この端末での呼び方と、書いた CLI の場所（T4-26）。
     pub via: Via,
     pub cli: Option<String>,
@@ -598,6 +628,7 @@ pub fn connection_statuses(
                 structured_output: resolved.as_ref().ok().map(|c| c.structured_output),
                 project_structured_output: decl.structured_output,
                 override_structured_output: over.and_then(|o| o.structured_output),
+                effort: over.and_then(|o| o.effort),
                 via,
                 cli: over.and_then(|o| o.cli.clone()),
                 claude_code: resolved

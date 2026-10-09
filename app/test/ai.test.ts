@@ -23,6 +23,7 @@ import {
   connectionBlocker,
   connectionOptions,
   driftKey,
+  effortNote,
   estimateText,
   type FindingRecord,
   fileProposalSet,
@@ -331,6 +332,7 @@ test("見た送る中身は、同じタスクと対象のときだけ使う", ()
       cloud: true,
       allowed: true,
       structured: false,
+      effort: null,
     },
   };
   assert.equal(preparedFor(prepared, "tone_check", "s012"), true);
@@ -937,4 +939,12 @@ test("AI の下書きの結果を畳む・閉じる（T4-27）", () => {
   assert.equal(resultShown(3, hidden), false);
   assert.equal(resultShown(4, hidden), true);
   assert.equal(resultShown(undefined, hidden), false);
+});
+
+test("送る中身に考える量を付けるときの知らせ（T4-28）", () => {
+  assert.equal(effortNote(null), null);
+  assert.match(
+    effortNote("high") ?? "",
+    /^考える量：高（high）を付けて送ります/,
+  );
 });

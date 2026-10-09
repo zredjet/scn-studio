@@ -1,6 +1,11 @@
 // AIの接続先の表示の判断（T3-5、D066）：使う前に足りないもの、タイトルバーの AI の様子（T4-17、U03）、試した結果の文。
 
-import type { AiConnection, AiModels, AiTestResult } from "../core/types.ts";
+import type {
+  AiConnection,
+  AiEffort,
+  AiModels,
+  AiTestResult,
+} from "../core/types.ts";
 
 /** 「接続を試す」の様子。 */
 export type TestState =
@@ -193,6 +198,31 @@ export function outputTokensProblem(
     : null;
 }
 
+/** 考える量の欄（既定は送らない。T4-28）。 */
+export type EffortChoice = "default" | AiEffort;
+
+export function effortChoice(value: AiEffort | null): EffortChoice {
+  return value ?? "default";
+}
+
+export function effortValue(choice: EffortChoice): AiEffort | null {
+  return choice === "default" ? null : choice;
+}
+
+/** 考える量の見せ方。 */
+export function effortLabel(value: AiEffort | null): string {
+  switch (value) {
+    case null:
+      return "既定（送らない）";
+    case "low":
+      return "低";
+    case "medium":
+      return "中";
+    case "high":
+      return "高";
+  }
+}
+
 /** 「この端末での上書き」の欄の今の中身（T4-12）。 */
 export interface OverrideDraft {
   readonly url: string;
@@ -200,6 +230,7 @@ export interface OverrideDraft {
   readonly tokens: string;
   readonly output: string;
   readonly structured: StructuredChoice;
+  readonly effort: EffortChoice;
 }
 
 /** 上書きの欄の中身から、保存するときの値。 */
@@ -209,6 +240,7 @@ export interface OverrideValues {
   readonly context_tokens: number | null;
   readonly output_tokens: number | null;
   readonly structured_output: boolean | null;
+  readonly effort: AiEffort | null;
 }
 
 /**
@@ -265,6 +297,7 @@ export function overrideSave(
     context_tokens: tokens,
     output_tokens: output,
     structured_output: structuredValue(draft.structured),
+    effort: effortValue(draft.effort),
   };
   const base: OverrideValues = sent ?? {
     base_url: connection.override_base_url,
@@ -272,13 +305,15 @@ export function overrideSave(
     context_tokens: connection.override_context_tokens,
     output_tokens: connection.override_output_tokens,
     structured_output: connection.override_structured_output,
+    effort: connection.effort,
   };
   const same =
     values.base_url === base.base_url &&
     values.model === base.model &&
     values.context_tokens === base.context_tokens &&
     values.output_tokens === base.output_tokens &&
-    values.structured_output === base.structured_output;
+    values.structured_output === base.structured_output &&
+    values.effort === base.effort;
   return same ? { kind: "unchanged" } : { kind: "save", values };
 }
 

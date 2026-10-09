@@ -27,6 +27,7 @@ import {
   blocker,
   connectionBlocker,
   connectionOptions,
+  effortNote,
   estimateText,
   type FindingRecord,
   fileProposalSet,
@@ -655,6 +656,11 @@ export function AiScreen({
                       {shown.connection.structured && (
                         <p className="context-faint ai-prepared-note">
                           {STRUCTURED_NOTE}
+                        </p>
+                      )}
+                      {effortNote(shown.connection.effort) !== null && (
+                        <p className="context-faint ai-prepared-note">
+                          {effortNote(shown.connection.effort)}
                         </p>
                       )}
                       {confirming && shown.assembled.problem === null && (

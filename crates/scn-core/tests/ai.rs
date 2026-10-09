@@ -174,6 +174,7 @@ fn local(provider: Provider, base_url: String) -> Connection {
         context_tokens: ai::DEFAULT_CONTEXT_TOKENS,
         output_tokens: None,
         structured_output: false,
+        effort: None,
         via: scn_core::ai::Via::Api,
         cli: None,
     }
@@ -549,6 +550,7 @@ fn over(base_url: Option<&str>, model: Option<&str>, context_tokens: Option<u64>
         context_tokens,
         output_tokens: None,
         structured_output: None,
+        effort: None,
         via: None,
         cli: None,
     }
@@ -1502,4 +1504,81 @@ fn resolve_for_models_needs_no_model() {
     // URL を読めなければ、どちらも誤り。
     let bad = decl("local", None, Some("not a url"), None);
     assert!(ai::resolve_for_models(&bad, &machine).is_err());
+}
+
+#[test]
+fn effort_is_sent_per_provider() {
+    // OpenAI 互換は reasoning_effort、Messages API は output_config.effort（T4-28）。送らなければ書かない。
+    let ok = r#"{"choices":[{"message":{"content":"はい"},"finish_reason":"stop"}]}"#;
+    let mock = serve(json_reply("200 OK", ok));
+    let mut conn = local(Provider::OpenaiCompatible, mock.base_url());
+    conn.effort = Some(ai::Effort::High);
+    call(&conn, None, &request()).0.unwrap();
+    assert_eq!(mock.received().json()["reasoning_effort"], "high");
+    let mock = serve(json_reply("200 OK", ok));
+    let conn = local(Provider::OpenaiCompatible, mock.base_url());
+    call(&conn, None, &request()).0.unwrap();
+    assert!(mock.received().json().get("reasoning_effort").is_none());
+    let mock = serve(json_reply(
+        "200 OK",
+        r#"{"content":[{"type":"text","text":"はい"}],"stop_reason":"end_turn"}"#,
+    ));
+    let conn = local(Provider::Anthropic, mock.base_url());
+    call(&conn, Some("ak-test"), &request()).0.unwrap();
+    let sent = mock.received().json();
+    assert!(sent.get("output_config").is_none() && sent.get("thinking").is_none());
+
+    let reply = r#"{"content":[{"type":"text","text":"はい"}],"stop_reason":"end_turn","usage":{"input_tokens":3,"output_tokens":1}}"#;
+    let mock = serve(json_reply("200 OK", reply));
+    let mut conn = local(Provider::Anthropic, mock.base_url());
+    conn.effort = Some(ai::Effort::Low);
+    call(&conn, Some("ak-test"), &request()).0.unwrap();
+    let sent = mock.received().json();
+    assert_eq!(sent["output_config"]["effort"], "low");
+    // 考える機能も入れる（考える量を選んだときだけ）。
+    assert_eq!(sent["thinking"]["type"], "adaptive");
+    // 送る中身の確かめにも出る。
+    assert!(ai::request_preview(&conn, &request()).contains("\"effort\": \"low\""));
+
+    // 断られたら、考える量を既定にするよう添える。
+    let mock = serve(json_reply(
+        "400 Bad Request",
+        r#"{"error":{"message":"unknown field reasoning_effort"}}"#,
+    ));
+    let mut conn = local(Provider::OpenaiCompatible, mock.base_url());
+    conn.effort = Some(ai::Effort::Medium);
+    let error = call(&conn, None, &request()).0.unwrap_err();
+    assert!(
+        matches!(&error, AiError::Http { status: 400, message } if message.contains("考える量")),
+        "{error:?}"
+    );
+}
+
+#[test]
+fn effort_in_machine_settings() {
+    // 端末の上書きの考える量は、ほかの上書きと一緒に書き、呼び方と CLI の場所は残す（T4-28）。
+    let mut machine = MachineSettings::default();
+    machine.set_via("cloud", ai::Via::ClaudeCode, Some("/opt/claude"));
+    machine.set_override(
+        "cloud",
+        ai::Override {
+            effort: Some(ai::Effort::High),
+            ..ai::Override::default()
+        },
+    );
+    let d = decl("cloud", Some("anthropic"), None, Some("c"));
+    let conn = ai::resolve(&d, &machine).unwrap();
+    assert_eq!(conn.effort, Some(ai::Effort::High));
+    assert_eq!(conn.via, ai::Via::ClaudeCode);
+    let (statuses, _) =
+        ai::connection_statuses(std::slice::from_ref(&d), &machine, &MemoryKeys::default());
+    assert_eq!(statuses[0].effort, Some(ai::Effort::High));
+    // 端末の設定のファイルに書いて読み直せる。
+    let text = toml::to_string(&machine).unwrap();
+    assert!(text.contains("effort = \"high\""), "{text}");
+    let back: MachineSettings = toml::from_str(&text).unwrap();
+    assert_eq!(back, machine);
+    // 上書きをやめると、考える量も送らない。
+    machine.set_override("cloud", ai::Override::default());
+    assert_eq!(ai::resolve(&d, &machine).unwrap().effort, None);
 }

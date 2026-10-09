@@ -13,6 +13,7 @@ import type {
   AiCliCheck,
   AiConnectionChoice,
   AiConnections,
+  AiEffort,
   AiLines,
   AiModels,
   AiPrepared,
@@ -584,6 +585,7 @@ export function setAiOverride(
   contextTokens: number | null,
   outputTokens: number | null,
   structuredOutput: boolean | null,
+  effort: AiEffort | null,
 ): Promise<void> {
   return invoke<void>("set_ai_override", {
     name,
@@ -592,6 +594,7 @@ export function setAiOverride(
     contextTokens,
     outputTokens,
     structuredOutput,
+    effort,
   });
 }
 

@@ -314,6 +314,10 @@ pub fn request_body(conn: &Connection, request: &ChatRequest) -> Value {
                 if let Some(t) = request.temperature {
                     object.insert("temperature".to_owned(), json!(t));
                 }
+                // 考える量（T4-28）。
+                if let Some(effort) = conn.effort {
+                    object.insert("reasoning_effort".to_owned(), json!(effort.name()));
+                }
                 if conn.structured_output
                     && let Some(schema) = &request.schema
                 {
@@ -341,6 +345,12 @@ pub fn request_body(conn: &Connection, request: &ChatRequest) -> Value {
                 }
                 if let Some(t) = request.temperature {
                     object.insert("temperature".to_owned(), json!(t));
+                }
+                // 考える量（T4-28。`output_config.effort`。beta のヘッダーは要らない）。考える機能も入れる
+                // （4.6〜4.8 の系は、送らなければ考えない。5 の系は送らなくても考えるので同じ）。
+                if let Some(effort) = conn.effort {
+                    object.insert("output_config".to_owned(), json!({"effort": effort.name()}));
+                    object.insert("thinking".to_owned(), json!({"type": "adaptive"}));
                 }
             }
             body
@@ -393,6 +403,15 @@ pub fn estimate_tokens(text: &str) -> u64 {
     other + ascii.div_ceil(4)
 }
 
+/// 考える量を送ったときに断られたら添える知らせ（T4-28）。送っていなければ空。
+fn effort_hint(conn: &Connection) -> String {
+    match (conn.effort, conn.provider) {
+        (None, _) => String::new(),
+        (Some(_), Provider::OpenaiCompatible) => "。接続先かモデルが考える量（reasoning_effort）に対応していないかもしれません。環境設定で、この接続先の「考える量」を既定にします".to_owned(),
+        (Some(_), Provider::Anthropic) => "。モデルが考える量（effort）に対応していないかもしれません。環境設定で、この接続先の「考える量」を既定にします".to_owned(),
+    }
+}
+
 /// 呼び出す。届いた文字は `on_text` に順に渡す。`cancel` が真になったら、次のデータの合間で止める。
 pub fn complete(
     conn: &Connection,
@@ -430,9 +449,16 @@ pub fn complete(
             AiError::Http {
                 status,
                 message: format!(
-                    "{}。接続先が構造化出力（response_format）に対応していないかもしれません。環境設定で、この接続先の「構造化出力」を切ります",
-                    redact(message)
+                    "{}。接続先が構造化出力（response_format）に対応していないかもしれません。環境設定で、この接続先の「構造化出力」を切ります{}",
+                    redact(message),
+                    effort_hint(conn)
                 ),
+            }
+        }
+        AiError::Http { status, message } if conn.effort.is_some() && (status == 400 || status == 422) => {
+            AiError::Http {
+                status,
+                message: format!("{}{}", redact(message), effort_hint(conn)),
             }
         }
         AiError::Http { status, message } => AiError::Http {

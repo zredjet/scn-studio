@@ -611,6 +611,9 @@ export interface Coverage {
   readonly total: number;
 }
 
+/** 考える量（コアの `ai::Effort`。T4-28）。 */
+export type AiEffort = "low" | "medium" | "high";
+
 /** この端末での呼び方（コアの `ai::Via`。T4-26）。 */
 export type AiVia = "api" | "claude-code";
 
@@ -705,6 +708,8 @@ export interface AiConnection {
   readonly structured_output: boolean | null;
   readonly project_structured_output: boolean | null;
   readonly override_structured_output: boolean | null;
+  /** 考える量（この端末の上書き。無ければ送らない。T4-28）。 */
+  readonly effort: AiEffort | null;
   /** 解決できない理由。 */
   readonly problem: string | null;
   /** URL の書き方の知らせ（パスが無い。コアの `missing_path_hint`、T3-1）。 */
@@ -832,6 +837,8 @@ export interface AiPrepared {
     readonly allowed: boolean;
     /** 構造化出力（返す形の JSON Schema）を付けて送る（T4-2）。 */
     readonly structured: boolean;
+    /** 考える量（T4-28。無ければ送らない）。 */
+    readonly effort: AiEffort | null;
   };
 }
 

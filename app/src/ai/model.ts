@@ -3,6 +3,7 @@
 import type {
   AiAssembled,
   AiConnectionChoice,
+  AiEffort,
   AiFinding,
   AiPrepared,
   AiProposal,
@@ -224,6 +225,13 @@ export interface RunState {
 /** 送る中身に構造化出力を付けるときの知らせ（T4-2）。 */
 export const STRUCTURED_NOTE =
   "構造化出力：返す形（JSON Schema）を response_format で付けて送ります（環境設定で切れます）";
+
+/** 送る中身に考える量を付けるときの知らせ（T4-28）。付けなければ null。 */
+export function effortNote(effort: AiEffort | null): string | null {
+  if (effort === null) return null;
+  const label = { low: "低", medium: "中", high: "高" }[effort];
+  return `考える量：${label}（${effort}）を付けて送ります（環境設定の接続先で変えられます）`;
+}
 
 /** 実行中の進み具合の文（T4-2：考えている間は「考えています」）。 */
 export function progressText(state: RunState): string {

@@ -10,6 +10,9 @@ import {
   connectionStatus,
   currentModelList,
   currentTest,
+  effortChoice,
+  effortLabel,
+  effortValue,
   modelListBusy,
   modelListOf,
   modelListText,
@@ -56,6 +59,7 @@ function connection(over: Partial<AiConnection>): AiConnection {
     structured_output: false,
     project_structured_output: null,
     override_structured_output: null,
+    effort: null,
     problem: null,
     url_hint: null,
     is_default: true,
@@ -271,6 +275,7 @@ const EMPTY: OverrideDraft = {
   tokens: "",
   output: "",
   structured: "project",
+  effort: "default",
 };
 
 test("上書きの欄を離れたときに保存するか（T4-12、Z1）：変わっていなければ保存しない", () => {
@@ -299,6 +304,7 @@ test("上書きの欄を離れたときに保存するか：保存する値（�
       tokens: "２６２１４４",
       output: "16384",
       structured: "off",
+      effort: "high",
     }),
     {
       kind: "save",
@@ -308,6 +314,7 @@ test("上書きの欄を離れたときに保存するか：保存する値（�
         context_tokens: 262144,
         output_tokens: 16384,
         structured_output: false,
+        effort: "high",
       },
     },
   );
@@ -320,6 +327,7 @@ test("上書きの欄を離れたときに保存するか：保存する値（�
       context_tokens: null,
       output_tokens: null,
       structured_output: null,
+      effort: null,
     },
   });
 });
@@ -397,6 +405,7 @@ test("上書きの欄を離れたときに保存するか：最後に保存を�
       context_tokens: null,
       output_tokens: null,
       structured_output: null,
+      effort: null,
     },
   });
 });
@@ -497,4 +506,20 @@ test("Claude Code の CLI を確かめた文（T4-26）", () => {
     cliCheckText({ kind: "failed", message: "claude が見つかりません" }),
     "CLI を確かめられません：claude が見つかりません",
   );
+});
+
+test("考える量の欄（T4-28）：既定は送らない。変えたら保存する", () => {
+  assert.equal(effortChoice(null), "default");
+  assert.equal(effortValue("default"), null);
+  assert.equal(effortValue("medium"), "medium");
+  assert.equal(effortLabel(null), "既定（送らない）");
+  assert.equal(effortLabel("high"), "高");
+  assert.deepEqual(
+    overrideSave(connection({ effort: "low" }), { ...EMPTY, effort: "low" }),
+    {
+      kind: "unchanged",
+    },
+  );
+  const saved = overrideSave(connection({ effort: "low" }), EMPTY);
+  assert.equal(saved.kind === "save" ? saved.values.effort : "x", null);
 });

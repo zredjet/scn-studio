@@ -26,7 +26,7 @@ use super::client::{
     AiError, CallOptions, ChatRequest, Completion, Received, Role, Usage, estimate_tokens,
     strip_thinking,
 };
-use super::connection::Connection;
+use super::connection::{Connection, Effort};
 
 /// CLI の名前。
 pub const CLI_NAME: &str = "claude";
@@ -163,8 +163,8 @@ pub fn cli_version(cli: &Path, timeout: Duration) -> Result<String, AiError> {
 }
 
 /// CLI に渡す引数（指示のファイルの場所を除く）。
-pub fn cli_args(model: &str) -> Vec<String> {
-    [
+pub fn cli_args(model: &str, effort: Option<Effort>) -> Vec<String> {
+    let mut args: Vec<String> = [
         "-p",
         "--safe-mode",
         "--output-format",
@@ -180,7 +180,13 @@ pub fn cli_args(model: &str) -> Vec<String> {
     ]
     .iter()
     .map(|s| (*s).to_owned())
-    .collect()
+    .collect();
+    // 考える量（T4-28）。
+    if let Some(effort) = effort {
+        args.push("--effort".to_owned());
+        args.push(effort.name().to_owned());
+    }
+    args
 }
 
 /// 標準入力で渡す依頼（発言が1つならそのまま。前の返事があれば印を付けてつなぐ）。
@@ -207,7 +213,7 @@ pub fn cli_prompt(request: &ChatRequest) -> String {
 /// 送る中身の見せ方（クラウドへ送る前の確かめ）。
 pub fn preview(conn: &Connection, request: &ChatRequest) -> String {
     let cli = conn.cli.as_deref().unwrap_or(CLI_NAME);
-    let args: Vec<String> = cli_args(&conn.model)
+    let args: Vec<String> = cli_args(&conn.model, conn.effort)
         .iter()
         .map(|a| {
             if a.is_empty() {
@@ -334,7 +340,7 @@ pub fn complete(
     let cli = cli_of(conn)?;
     let work = work_dir()?;
     let prompt_dir = PromptDir::new()?;
-    let mut args = cli_args(&conn.model);
+    let mut args = cli_args(&conn.model, conn.effort);
     if let Some(system) = request.system.as_deref().filter(|s| !s.is_empty()) {
         let file = prompt_dir.0.join("system.md");
         std::fs::write(&file, system)

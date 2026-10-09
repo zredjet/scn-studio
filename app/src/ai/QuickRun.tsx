@@ -8,6 +8,7 @@ import { AiMark } from "../shell/AiMark.tsx";
 import {
   blocker,
   connectionBlocker,
+  effortNote,
   estimateText,
   progressText,
   STRUCTURED_NOTE,
@@ -117,6 +118,11 @@ export function QuickRun({ runner, scene, label, disabledReason }: Props) {
               {t}
             </p>
           ))}
+          {effortNote(shown.connection.effort) !== null && (
+            <p className="context-faint ai-prepared-note">
+              {effortNote(shown.connection.effort)}
+            </p>
+          )}
           {shown.connection.structured && (
             <p className="context-faint ai-prepared-note">{STRUCTURED_NOTE}</p>
           )}

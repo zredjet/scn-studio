@@ -2323,6 +2323,7 @@ fn set_ai_override(
     context_tokens: Option<u64>,
     output_tokens: Option<u64>,
     structured_output: Option<bool>,
+    effort: Option<ai::Effort>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
@@ -2338,6 +2339,7 @@ fn set_ai_override(
                 context_tokens,
                 output_tokens,
                 structured_output,
+                effort,
                 via: None,
                 cli: None,
             },
@@ -2685,6 +2687,8 @@ fn ai_prepare(
             "allowed": conn.allowed,
             // 構造化出力（返す形）を付けて送るか（T4-2）。
             "structured": conn.structured_output && ai::output_schema(definition.output).is_some(),
+            // 考える量（T4-28。この端末の上書き。無ければ null）。
+            "effort": conn.effort,
         },
     }))
 }

@@ -25,7 +25,7 @@ fn main() {
         fake(exe.parent().unwrap());
         return;
     }
-    let tests: [Case; 9] = [
+    let tests: [Case; 10] = [
         ("streams_text_and_thinking", streams_text_and_thinking),
         ("whole_reply_without_deltas", whole_reply_without_deltas),
         ("login_and_crash_errors", login_and_crash_errors),
@@ -37,6 +37,7 @@ fn main() {
         ("missing_cli_and_cloud_rules", missing_cli_and_cloud_rules),
         ("version", version),
         ("preview_and_machine_settings", preview_and_machine_settings),
+        ("effort_flag", effort_flag),
         ("find_written_cli", find_written_cli),
     ];
     let dir = std::env::temp_dir().join(format!("scn-core-claude-{}", std::process::id()));
@@ -168,6 +169,7 @@ fn connection(cli: &Path) -> Connection {
         context_tokens: 200_000,
         output_tokens: None,
         structured_output: false,
+        effort: None,
         via: Via::ClaudeCode,
         cli: Some(cli.display().to_string()),
     }
@@ -250,6 +252,8 @@ fn streams_text_and_thinking(cli: &Path) {
     }
     let at = |flag: &str| args.iter().position(|a| *a == flag).unwrap();
     assert_eq!(args[at("--tools") + 1], "");
+    // 考える量を決めていなければ渡さない（T4-28）。
+    assert!(!args.contains(&"--effort"));
     assert_eq!(args[at("--model") + 1], "claude-test");
     assert_eq!(args[at("--output-format") + 1], "stream-json");
     assert_eq!(
@@ -442,6 +446,19 @@ fn preview_and_machine_settings(cli: &Path) {
     machine.set_via("cloud", Via::Api, None);
     let kept = &machine.connections["cloud"];
     assert!(kept.via.is_none() && kept.cli.is_none() && kept.model.as_deref() == Some("c2"));
+}
+
+fn effort_flag(cli: &Path) {
+    // 考える量は --effort で渡す（T4-28）。
+    let dir = mode(cli, "stream");
+    let mut conn = connection(cli);
+    conn.effort = Some(ai::Effort::Medium);
+    call(&conn).0.unwrap();
+    let args = fs::read_to_string(dir.join("args.txt")).unwrap();
+    let args: Vec<&str> = args.split('\n').collect();
+    let at = args.iter().position(|a| *a == "--effort").unwrap();
+    assert_eq!(args[at + 1], "medium");
+    assert!(ai::request_preview(&conn, &request()).contains("--effort medium"));
 }
 
 fn find_written_cli(cli: &Path) {

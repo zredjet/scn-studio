@@ -366,6 +366,7 @@ fn run_concept_task() {
         context_tokens: 32768,
         output_tokens: None,
         structured_output: true,
+        effort: None,
         via: scn_core::ai::Via::Api,
         cli: None,
     };

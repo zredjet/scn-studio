@@ -208,6 +208,7 @@ fn host(root: &Path, url: String, task: &str) -> TestHost {
             context_tokens: 200_000,
             output_tokens: None,
             structured_output: false,
+            effort: None,
             via: scn_core::ai::Via::Api,
             cli: None,
         },

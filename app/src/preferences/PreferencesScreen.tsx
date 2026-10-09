@@ -15,6 +15,7 @@ import {
 import type {
   AiConnection,
   AiConnections,
+  AiEffort,
   AiVia,
   ProjectSettings,
   ProjectSettingsWritten,
@@ -27,6 +28,9 @@ import {
   cliCheckText,
   currentModelList,
   currentTest,
+  type EffortChoice,
+  effortChoice,
+  effortLabel,
   type ModelList,
   modelListBusy,
   modelListOf,
@@ -64,6 +68,7 @@ interface Props {
     contextTokens: number | null,
     outputTokens: number | null,
     structuredOutput: boolean | null,
+    effort: AiEffort | null,
   ) => Promise<void>;
   readonly onAllow: (endpoint: string, allowed: boolean) => Promise<void>;
   readonly onSaveKey: (endpoint: string, key: string) => Promise<void>;
@@ -342,7 +347,15 @@ function ConnectionCard({
   const [structured, setStructured] = useState<StructuredChoice>(
     structuredChoice(c.override_structured_output),
   );
-  const draft: OverrideDraft = { url, model, tokens, output, structured };
+  const [effort, setEffort] = useState<EffortChoice>(effortChoice(c.effort));
+  const draft: OverrideDraft = {
+    url,
+    model,
+    tokens,
+    output,
+    structured,
+    effort,
+  };
   const outputProblem = overrideOutputProblem(c, draft);
   // 構造化出力は OpenAI 互換だけ（T4-2）。
   const canStructure = c.provider === "openai-compatible";
@@ -385,7 +398,8 @@ function ConnectionCard({
     c.override_model !== null ||
     c.override_context_tokens !== null ||
     c.override_output_tokens !== null ||
-    c.override_structured_output !== null;
+    c.override_structured_output !== null ||
+    c.effort !== null;
   // 欄を離れたとき（変換中でない Enter、選んだとき）に保存する（T4-12、Z1）。正しくない欄があれば保存せずに
   // そう知らせる。ほかのボタン（接続を試す、上書きをやめる）を止めないよう、`busy` は立てない。
   const commit = (next: OverrideDraft = draft) => {
@@ -404,6 +418,7 @@ function ConnectionCard({
       v.context_tokens,
       v.output_tokens,
       v.structured_output,
+      v.effort,
     )
       .then(() => setMessage("上書きを保存しました"))
       .catch((e: unknown) => {
@@ -475,6 +490,13 @@ function ConnectionCard({
             </dd>
           </>
         )}
+        <dt>考える量</dt>
+        <dd>
+          <code>{effortLabel(c.effort)}</code>
+          {c.effort !== null && (
+            <span className="ai-note">この端末で上書き</span>
+          )}
+        </dd>
         <dt>文脈の長さ</dt>
         <dd>
           <code>
@@ -631,6 +653,22 @@ function ConnectionCard({
             </select>
           </label>
         )}
+        <label>
+          <span>考える量（考えるモデルだけ。高いほど時間と費用がかかる）</span>
+          <select
+            value={effort}
+            onChange={(e) => {
+              const next = e.target.value as EffortChoice;
+              setEffort(next);
+              commit({ ...draft, effort: next });
+            }}
+          >
+            <option value="default">既定（送らない）</option>
+            <option value="low">低</option>
+            <option value="medium">中</option>
+            <option value="high">高</option>
+          </select>
+        </label>
         {parsedTokens === "invalid" && (
           <span className="ai-field-problem">
             文脈の長さは正の整数で書きます（LM Studio
@@ -658,15 +696,17 @@ function ConnectionCard({
                 setTokens("");
                 setOutput("");
                 setStructured("project");
+                setEffort("default");
                 sent.current = {
                   base_url: null,
                   model: null,
                   context_tokens: null,
                   output_tokens: null,
                   structured_output: null,
+                  effort: null,
                 };
                 act(
-                  () => onOverride(c.name, null, null, null, null, null),
+                  () => onOverride(c.name, null, null, null, null, null, null),
                   "上書きをやめました",
                 );
               }}
