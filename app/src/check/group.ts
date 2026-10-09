@@ -1,6 +1,6 @@
 // 検証の画面：プロジェクト全体の診断（段階0と段階1）を、ファイルごとにまとめる。
 
-import type { IrDiagnostic, Severity } from "../core/types.ts";
+import type { IrDiagnostic, SceneSummary, Severity } from "../core/types.ts";
 
 export interface FileDiagnostics {
   readonly file: string;
@@ -65,4 +65,48 @@ export function unregisteredSpeaker(d: IrDiagnostic): string | null {
     /^話者 (.+) を設定DBのキャラクターに解決できません/.exec(d.message)?.[1] ??
     null
   );
+}
+
+/** 診断の位置：行の番号（1から）と、本文ならシーンのID（T4-13、U17）。 */
+export interface DiagnosticPlace {
+  readonly line: number;
+  readonly scene: string | null;
+}
+
+/**
+ * 1つのファイルの診断の位置を、そのファイルの中身から求める（`diagnostics` と同じ順）。改行（`\n`）は UTF-8 で
+ * 1バイトなので、診断のバイト位置までの改行を数える。シーンは、そのファイルで診断の位置より前（同じ位置も）で
+ * 始まる、いちばん後ろのシーン。
+ */
+export function diagnosticPlaces(
+  diagnostics: readonly IrDiagnostic[],
+  text: string,
+  scenes: readonly SceneSummary[],
+): DiagnosticPlace[] {
+  const bytes = new TextEncoder().encode(text);
+  const breaks: number[] = [];
+  for (let i = 0; i < bytes.length; i++) if (bytes[i] === 0x0a) breaks.push(i);
+  const lineOf = (byte: number): number => {
+    // byte より前の改行の数（二分探索）。
+    let lo = 0;
+    let hi = breaks.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if ((breaks[mid] ?? 0) < byte) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo + 1;
+  };
+  return diagnostics.map((d) => {
+    let scene: { id: string; start: number } | null = null;
+    for (const s of scenes) {
+      if (s.file !== d.file) continue;
+      if (
+        s.span[0] <= d.span[0] &&
+        (scene === null || s.span[0] >= scene.start)
+      )
+        scene = { id: s.id, start: s.span[0] };
+    }
+    return { line: lineOf(d.span[0]), scene: scene?.id ?? null };
+  });
 }

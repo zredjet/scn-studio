@@ -2,7 +2,11 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { countBySeverity, groupDiagnostics } from "../src/check/group.ts";
+import {
+  countBySeverity,
+  diagnosticPlaces,
+  groupDiagnostics,
+} from "../src/check/group.ts";
 import {
   exampleText,
   quote,
@@ -10,7 +14,11 @@ import {
   summaryText,
   valuesText,
 } from "../src/check/playthrough.ts";
-import type { IrDiagnostic, Playthrough } from "../src/core/types.ts";
+import type {
+  IrDiagnostic,
+  Playthrough,
+  SceneSummary,
+} from "../src/core/types.ts";
 
 function diag(
   file: string,
@@ -118,5 +126,56 @@ test("自動巡回：道の例は「」で囲み（台詞の形はそのまま�
   assert.equal(
     summaryText(report),
     "シーン 11/13 · 選べた選択肢 3/4 · 状態 3 · 周回 2通り",
+  );
+});
+
+function sceneAt(id: string, file: string, start: number): SceneSummary {
+  return {
+    id,
+    title: id,
+    file,
+    span: [start, start + 1],
+    meta: { summary: null, status: null, route: null, tags: [], extra: {} },
+    is_stub: false,
+    chars: 0,
+  };
+}
+
+test("診断の位置（T4-13、U17）：行はバイト位置までの改行の数、シーンは前で始まるいちばん後ろのシーン", () => {
+  // 「あ」は UTF-8 で3バイト。行の終わりが \r\n でも数える改行は \n。
+  const text = "## a #s1\r\nあ\r\n## b #s2\r\n本文\r\n";
+  const second = Buffer.byteLength("## a #s1\r\nあ\r\n", "utf8");
+  const body = Buffer.byteLength("## a #s1\r\nあ\r\n## b #s2\r\n", "utf8");
+  const scenes = [
+    sceneAt("s1", "story/a.scn", 0),
+    sceneAt("s2", "story/a.scn", second),
+    sceneAt("x", "story/other.scn", 0),
+  ];
+  assert.deepEqual(
+    diagnosticPlaces(
+      [
+        diag("story/a.scn", 0),
+        diag("story/a.scn", second - 1),
+        diag("story/a.scn", second),
+        diag("story/a.scn", body),
+      ],
+      text,
+      scenes,
+    ),
+    [
+      { line: 1, scene: "s1" },
+      { line: 2, scene: "s1" },
+      { line: 3, scene: "s2" },
+      { line: 4, scene: "s2" },
+    ],
+  );
+  // シーンの前の位置（章の見出しなど）と、ほかのファイルのシーンは使わない。
+  assert.deepEqual(
+    diagnosticPlaces(
+      [diag("story/b.scn", Buffer.byteLength("# 章\n", "utf8"))],
+      "# 章\n本文\n",
+      scenes,
+    ),
+    [{ line: 2, scene: null }],
   );
 });

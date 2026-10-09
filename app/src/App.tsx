@@ -203,6 +203,7 @@ import { type PreviewLine, PreviewScreen } from "./preview/PreviewScreen.tsx";
 import { SceneList } from "./scenes/SceneList.tsx";
 import { CommandPalette } from "./shell/CommandPalette.tsx";
 import { ContextPanel } from "./shell/ContextPanel.tsx";
+import { KeepAlive } from "./shell/KeepAlive.tsx";
 import { LeftBar, type Screen } from "./shell/LeftBar.tsx";
 import type { Command } from "./shell/palette.ts";
 import { QuickOpen } from "./shell/QuickOpen.tsx";
@@ -308,6 +309,28 @@ function saveViewPrefs(prefs: ViewPrefs): void {
 export function App() {
   const [project, setProject] = useState<ProjectView | null>(null);
   const [screen, setScreen] = useState<Screen>("text");
+  /** 一度開いた画面（ほかの画面へ移っても隠して残す。作品を開き直したら空にする。T4-13、U5）。 */
+  const [visited, setVisited] = useState<ReadonlySet<Screen>>(() => new Set());
+  /**
+   * 画面を見せた回数。外で直しても版の数に入らないファイル（`export/*.yaml`、`assets/` に置いたファイル）は、
+   * 残した画面を見せるたびに読み直す（前は開くたびに作り直していたため。T4-13）。
+   */
+  const [shownCount, setShownCount] = useState(0);
+  useEffect(() => {
+    void screen;
+    setShownCount((n) => n + 1);
+    // プレビューは残さない（離れたら閉じて音を止める）。
+    if (screen === "preview") return;
+    setVisited((v) => (v.has(screen) ? v : new Set(v).add(screen)));
+  }, [screen]);
+  const loadBookSettings = useCallback(() => {
+    void shownCount;
+    return bookSettings();
+  }, [shownCount]);
+  const loadExportPlugins = useCallback(() => {
+    void shownCount;
+    return exportPlugins();
+  }, [shownCount]);
   /** 自動巡回（検証の段階2。T3-2）の結果と、走らせている途中か。本文が変わったら捨てる。 */
   const [stage2, setStage2] = useState<Playthrough | null>(null);
   const [stage2Running, setStage2Running] = useState(false);
@@ -649,6 +672,7 @@ export function App() {
         : analysisFor(opened.summary, first, buffers.current.get(first) ?? ""),
     );
     setScreen("text");
+    setVisited(new Set());
     setError(null);
     setNotice(`${opened.title} を開きました`);
     setAssist(opened.assist);
@@ -1107,9 +1131,12 @@ export function App() {
     [refreshScene],
   );
 
+  /** 設定DBの画面への頼みの番号（増え続ける。画面は残るので、処理した番号を覚えている。T4-13）。 */
+  const bibleSeq = useRef(0);
   /** 設定DBの画面を開いて頼む（D049）。 */
   const requestBible = useCallback((make: (seq: number) => BibleRequest) => {
-    setBibleRequest((r) => make((r?.seq ?? 0) + 1));
+    bibleSeq.current += 1;
+    setBibleRequest(make(bibleSeq.current));
     setScreen("bible");
   }, []);
 
@@ -1172,7 +1199,14 @@ export function App() {
       "ソース表示に保存していない変更があります。捨てて移りますか？",
       "保存していない変更",
     ).then((ok) => {
-      if (ok) go();
+      if (!ok) return;
+      // 画面は隠して残すので、その画面を外して作り直し、書きかけを本当に捨てる（T4-13）。
+      setVisited((v) => {
+        const next = new Set(v);
+        next.delete(here);
+        return next;
+      });
+      go();
     });
   }, []);
   const selectScreen = useCallback(
@@ -2903,6 +2937,9 @@ export function App() {
     onDeleteChapter,
   ]);
 
+  /** 集中モードで左端のバーを隠すのは、本文の画面だけ（ほかの画面では移れなくなるため。T4-13、U16）。 */
+  const focusing = viewPrefs.focus && screen === "text";
+
   const mixedLineBreak = useMemo(
     () => (hasMixedLineBreaks(savedText) ? lineBreakOf(savedText) : null),
     [savedText],
@@ -2994,7 +3031,7 @@ export function App() {
         </p>
       )}
       <div className="body">
-        {project !== null && viewPrefs.focus && (
+        {project !== null && focusing && (
           <button
             type="button"
             className="small-button focus-exit"
@@ -3003,9 +3040,10 @@ export function App() {
             集中モードを終える（⌘⇧F）
           </button>
         )}
-        {project !== null && !viewPrefs.focus && (
+        {project !== null && !focusing && (
           <LeftBar
-            screen={screen}
+            // プレビューは本文から開くので、本文を選んだ形にする（T4-13、U16）。
+            screen={screen === "preview" ? "text" : screen}
             problems={counts.error + counts.warning}
             onSelect={selectScreen}
           />
@@ -3030,6 +3068,7 @@ export function App() {
                     files={project.files}
                     scenes={project.summary.scenes}
                     currentFile={currentFile}
+                    currentScene={currentScene}
                     dirty={dirty}
                     onSelectScene={selectScene}
                     onSelectFile={(file) => goTo(file, null)}
@@ -3117,6 +3156,8 @@ export function App() {
                       (d) => d.file === currentFile,
                     )}
                     files={project.files}
+                    textOf={(file) => buffers.current.get(file)}
+                    scenes={project.summary.scenes}
                     onSelectDiagnostic={(d) => goTo(d.file, d.span[0])}
                     onRegister={onRegister}
                     onOpenCharacter={(id) =>
@@ -3128,195 +3169,226 @@ export function App() {
                   />
                 )}
               </section>
-              {screen === "flow" && (
-                <section className="screen flow-screen" aria-label="フロー">
-                  <SceneGraph
-                    summary={project.summary}
-                    checks={project.checks}
-                    level={flowLevel}
-                    onLevel={setFlowLevel}
-                    layoutVersion={layoutVersion}
-                    onOpen={selectScene}
-                    chapters={project.files}
-                    dirtyChapters={dirty}
-                    onStoryWritten={(result) => {
-                      onStoryWritten(result.file, result.text);
-                      showSummary(result.summary, result.checks);
-                    }}
-                    ai={{
-                      runner: runnerOf(branchTask),
-                      result:
-                        branchTask === null
-                          ? undefined
-                          : aiResults.get(branchTask.task.id),
-                      hidden: branchHidden,
-                      onAdopt: (proposal, key, model) =>
-                        adoptBranch(
-                          proposal,
-                          key,
-                          model,
-                          branchTask?.task.id ?? "branch_ideas",
-                        ),
-                      onReject: (key) =>
-                        setBranchHidden((h) => new Set(h).add(key)),
-                    }}
-                  />
+              {(screen === "flow" || visited.has("flow")) && (
+                <section
+                  className="screen flow-screen"
+                  aria-label="フロー"
+                  hidden={screen !== "flow"}
+                >
+                  <KeepAlive active={screen === "flow"}>
+                    <SceneGraph
+                      summary={project.summary}
+                      checks={project.checks}
+                      level={flowLevel}
+                      onLevel={setFlowLevel}
+                      layoutVersion={layoutVersion}
+                      onOpen={selectScene}
+                      chapters={project.files}
+                      dirtyChapters={dirty}
+                      onStoryWritten={(result) => {
+                        onStoryWritten(result.file, result.text);
+                        showSummary(result.summary, result.checks);
+                      }}
+                      ai={{
+                        runner: runnerOf(branchTask),
+                        result:
+                          branchTask === null
+                            ? undefined
+                            : aiResults.get(branchTask.task.id),
+                        hidden: branchHidden,
+                        onAdopt: (proposal, key, model) =>
+                          adoptBranch(
+                            proposal,
+                            key,
+                            model,
+                            branchTask?.task.id ?? "branch_ideas",
+                          ),
+                        onReject: (key) =>
+                          setBranchHidden((h) => new Set(h).add(key)),
+                      }}
+                    />
+                  </KeepAlive>
                 </section>
               )}
-              {screen === "concept" && (
-                <section className="screen concept-screen" aria-label="企画">
-                  <ConceptScreen
-                    scenes={project.summary.scenes}
-                    chapters={project.files}
-                    dirtyChapters={dirty}
-                    settingsVersion={settingsVersion}
-                    ideasVersion={ideasVersion}
-                    aiFields={aiFieldMap}
-                    onWritten={onSettingsWritten}
-                    onStoryWritten={onStoryWritten}
-                    onOpenLocation={openFromSettings}
-                    onOpenEntry={openEntry}
-                    onUnsaved={onConceptDraft}
-                    ai={{
-                      questions: runnerOf(questionTask),
-                      sort: runnerOf(sortTask),
-                      findings:
-                        questionTask === null
-                          ? []
-                          : aiFindings.filter(
-                              (f) => f.task === questionTask.task.id,
-                            ),
-                      onDismissFinding: dismissFinding,
-                      suggestions: ideaSuggestions,
-                      onHideSuggestion: (key) =>
-                        setIdeaHidden((h) => new Set(h).add(key)),
-                      onSkeleton:
-                        skeletonTask === null
-                          ? null
-                          : () => {
-                              setAiScreenRequest((r) => ({
-                                task: skeletonTask.task.id,
-                                seq: (r?.seq ?? 0) + 1,
-                              }));
-                              selectScreen("ai");
-                            },
-                      draft: {
-                        runner: runnerOf(conceptDraftTask),
-                        result:
-                          conceptDraftResult?.kind === "ok"
-                            ? {
-                                run: conceptDraftResult.run,
-                                text: conceptDraftResult.written ?? "",
-                                ok: conceptDraftResult.wroteOk,
-                                fields: conceptDraftResult.fields[0] ?? null,
-                              }
-                            : conceptDraftResult?.kind === "failed"
+              {(screen === "concept" || visited.has("concept")) && (
+                <section
+                  className="screen concept-screen"
+                  aria-label="企画"
+                  hidden={screen !== "concept"}
+                >
+                  <KeepAlive active={screen === "concept"}>
+                    <ConceptScreen
+                      scenes={project.summary.scenes}
+                      chapters={project.files}
+                      dirtyChapters={dirty}
+                      settingsVersion={settingsVersion}
+                      ideasVersion={ideasVersion}
+                      aiFields={aiFieldMap}
+                      onWritten={onSettingsWritten}
+                      onStoryWritten={onStoryWritten}
+                      onOpenLocation={openFromSettings}
+                      onOpenEntry={openEntry}
+                      onUnsaved={onConceptDraft}
+                      ai={{
+                        questions: runnerOf(questionTask),
+                        sort: runnerOf(sortTask),
+                        findings:
+                          questionTask === null
+                            ? []
+                            : aiFindings.filter(
+                                (f) => f.task === questionTask.task.id,
+                              ),
+                        onDismissFinding: dismissFinding,
+                        suggestions: ideaSuggestions,
+                        onHideSuggestion: (key) =>
+                          setIdeaHidden((h) => new Set(h).add(key)),
+                        onSkeleton:
+                          skeletonTask === null
+                            ? null
+                            : () => {
+                                setAiScreenRequest((r) => ({
+                                  task: skeletonTask.task.id,
+                                  seq: (r?.seq ?? 0) + 1,
+                                }));
+                                selectScreen("ai");
+                              },
+                        draft: {
+                          runner: runnerOf(conceptDraftTask),
+                          result:
+                            conceptDraftResult?.kind === "ok"
                               ? {
                                   run: conceptDraftResult.run,
-                                  text: conceptDraftResult.message,
+                                  text: conceptDraftResult.written ?? "",
+                                  ok: conceptDraftResult.wroteOk,
+                                  fields: conceptDraftResult.fields[0] ?? null,
+                                }
+                              : conceptDraftResult?.kind === "failed"
+                                ? {
+                                    run: conceptDraftResult.run,
+                                    text: conceptDraftResult.message,
+                                    ok: false,
+                                    fields: null,
+                                  }
+                                : null,
+                          decisions: fieldDecisions,
+                          onAdopt: (run, proposal, written) =>
+                            conceptDraftTask === null ||
+                            conceptDraftResult?.kind !== "ok"
+                              ? Promise.resolve(null)
+                              : adoptField(
+                                  run,
+                                  proposal,
+                                  written,
+                                  conceptDraftTask.task.id,
+                                  conceptDraftResult.model,
+                                ),
+                          onReject: rejectField,
+                        },
+                      }}
+                    />
+                  </KeepAlive>
+                </section>
+              )}
+              {(screen === "bible" || visited.has("bible")) && (
+                <section
+                  className="screen bible-screen"
+                  aria-label="設定DB"
+                  hidden={screen !== "bible"}
+                >
+                  <KeepAlive active={screen === "bible"}>
+                    <BibleScreen
+                      scenes={project.summary.scenes}
+                      diagnostics={allDiagnostics}
+                      settingsVersion={settingsVersion}
+                      request={bibleRequest}
+                      ai={{
+                        runner: entriesRunner,
+                        result:
+                          entriesResult?.kind === "ok"
+                            ? {
+                                run: entriesResult.run,
+                                text: entriesResult.written ?? "",
+                                ok: entriesResult.wroteOk,
+                                fields: entriesResult.fields,
+                                notes: [
+                                  ...entriesResult.notes,
+                                  ...entriesResult.unread,
+                                ],
+                              }
+                            : entriesResult?.kind === "failed"
+                              ? {
+                                  run: entriesResult.run,
+                                  text: entriesResult.message,
                                   ok: false,
-                                  fields: null,
+                                  fields: [],
+                                  notes: [],
                                 }
                               : null,
                         decisions: fieldDecisions,
                         onAdopt: (run, proposal, written) =>
-                          conceptDraftTask === null ||
-                          conceptDraftResult?.kind !== "ok"
+                          entriesTask === null || entriesResult?.kind !== "ok"
                             ? Promise.resolve(null)
                             : adoptField(
                                 run,
                                 proposal,
                                 written,
-                                conceptDraftTask.task.id,
-                                conceptDraftResult.model,
+                                entriesTask.task.id,
+                                entriesResult.model,
                               ),
                         onReject: rejectField,
-                      },
-                    }}
-                  />
+                      }}
+                      aiFields={aiFieldMap}
+                      onWritten={onSettingsWritten}
+                      onOpenLocation={openFromSettings}
+                      onUnsaved={onBibleDraft}
+                      onRequestHandled={onBibleRequestHandled}
+                      onRenameEntry={(typeId, id, name) =>
+                        setRenaming({
+                          target: { kind: "entry_id", type_id: typeId, id },
+                          current: id,
+                          label: `エントリのID（${name}）`,
+                        })
+                      }
+                    />
+                  </KeepAlive>
                 </section>
               )}
-              {screen === "bible" && (
-                <section className="screen bible-screen" aria-label="設定DB">
-                  <BibleScreen
-                    scenes={project.summary.scenes}
-                    diagnostics={allDiagnostics}
-                    settingsVersion={settingsVersion}
-                    request={bibleRequest}
-                    ai={{
-                      runner: entriesRunner,
-                      result:
-                        entriesResult?.kind === "ok"
-                          ? {
-                              run: entriesResult.run,
-                              text: entriesResult.written ?? "",
-                              ok: entriesResult.wroteOk,
-                              fields: entriesResult.fields,
-                              notes: [
-                                ...entriesResult.notes,
-                                ...entriesResult.unread,
-                              ],
-                            }
-                          : entriesResult?.kind === "failed"
-                            ? {
-                                run: entriesResult.run,
-                                text: entriesResult.message,
-                                ok: false,
-                                fields: [],
-                                notes: [],
-                              }
-                            : null,
-                      decisions: fieldDecisions,
-                      onAdopt: (run, proposal, written) =>
-                        entriesTask === null || entriesResult?.kind !== "ok"
-                          ? Promise.resolve(null)
-                          : adoptField(
-                              run,
-                              proposal,
-                              written,
-                              entriesTask.task.id,
-                              entriesResult.model,
-                            ),
-                      onReject: rejectField,
-                    }}
-                    aiFields={aiFieldMap}
-                    onWritten={onSettingsWritten}
-                    onOpenLocation={openFromSettings}
-                    onUnsaved={onBibleDraft}
-                    onRequestHandled={onBibleRequestHandled}
-                    onRenameEntry={(typeId, id, name) =>
-                      setRenaming({
-                        target: { kind: "entry_id", type_id: typeId, id },
-                        current: id,
-                        label: `エントリのID（${name}）`,
-                      })
-                    }
-                  />
+              {(screen === "assets" || visited.has("assets")) && (
+                <section
+                  className="screen assets-screen"
+                  aria-label="素材"
+                  hidden={screen !== "assets"}
+                >
+                  <KeepAlive active={screen === "assets"}>
+                    <AssetsScreen
+                      root={project.root}
+                      summary={project.summary}
+                      scenes={project.summary.scenes}
+                      settingsVersion={settingsVersion}
+                      shown={shownCount}
+                      onWritten={onSettingsWritten}
+                      onOpenLocation={openFromSettings}
+                    />
+                  </KeepAlive>
                 </section>
               )}
-              {screen === "assets" && (
-                <section className="screen assets-screen" aria-label="素材">
-                  <AssetsScreen
-                    root={project.root}
-                    summary={project.summary}
-                    scenes={project.summary.scenes}
-                    settingsVersion={settingsVersion}
-                    onWritten={onSettingsWritten}
-                    onOpenLocation={openFromSettings}
-                  />
-                </section>
-              )}
-              {screen === "variables" && (
-                <section className="screen variables-screen" aria-label="変数">
-                  <VariablesScreen
-                    scenes={project.summary.scenes}
-                    diagnostics={allDiagnostics}
-                    characters={assist?.characters ?? []}
-                    settingsVersion={settingsVersion}
-                    onWritten={onSettingsWritten}
-                    onOpenLocation={openFromSettings}
-                    onUnsaved={onVariablesDraft}
-                  />
+              {(screen === "variables" || visited.has("variables")) && (
+                <section
+                  className="screen variables-screen"
+                  aria-label="変数"
+                  hidden={screen !== "variables"}
+                >
+                  <KeepAlive active={screen === "variables"}>
+                    <VariablesScreen
+                      scenes={project.summary.scenes}
+                      diagnostics={allDiagnostics}
+                      characters={assist?.characters ?? []}
+                      settingsVersion={settingsVersion}
+                      onWritten={onSettingsWritten}
+                      onOpenLocation={openFromSettings}
+                      onUnsaved={onVariablesDraft}
+                    />
+                  </KeepAlive>
                 </section>
               )}
               {screen === "preview" && (
@@ -3337,174 +3409,197 @@ export function App() {
                   />
                 </section>
               )}
-              {screen === "export" && (
-                <section className="screen export-screen" aria-label="出力">
-                  <ExportScreen
-                    summary={project.summary}
-                    unsaved={dirty.size}
-                    load={scriptSheet}
-                    write={exportScript}
-                    writeRenpy={exportRenpy}
-                    writeTyrano={exportTyrano}
-                    writeUtage={exportUtage}
-                    writeBook={exportBook}
-                    loadBookSettings={bookSettings}
-                    loadPlugins={exportPlugins}
-                    runPlugin={exportPlugin}
-                    ask={confirm}
-                    loadChoices={readingChoices}
-                    writeText={exportText}
-                    loadProvenance={aiLines}
-                    writeProvenance={exportProvenance}
-                  />
+              {(screen === "export" || visited.has("export")) && (
+                <section
+                  className="screen export-screen"
+                  aria-label="出力"
+                  hidden={screen !== "export"}
+                >
+                  <KeepAlive active={screen === "export"}>
+                    <ExportScreen
+                      summary={project.summary}
+                      unsaved={dirty.size}
+                      load={scriptSheet}
+                      write={exportScript}
+                      writeRenpy={exportRenpy}
+                      writeTyrano={exportTyrano}
+                      writeUtage={exportUtage}
+                      writeBook={exportBook}
+                      loadBookSettings={loadBookSettings}
+                      loadPlugins={loadExportPlugins}
+                      runPlugin={exportPlugin}
+                      ask={confirm}
+                      loadChoices={readingChoices}
+                      writeText={exportText}
+                      loadProvenance={aiLines}
+                      writeProvenance={exportProvenance}
+                    />
+                  </KeepAlive>
                 </section>
               )}
-              {screen === "ai" && (
-                <section className="screen ai-screen" aria-label="AI実行">
-                  <AiScreen
-                    tasks={aiTasks}
-                    tasksError={aiTasksError}
-                    connections={aiTaskConnections}
-                    onChooseConnection={(task, connection) =>
-                      setAiTaskConnection(task, connection).then(() =>
-                        setAiVersion((n) => n + 1),
-                      )
-                    }
-                    scenes={project.summary.scenes}
-                    currentScene={currentScene}
-                    running={aiRunState}
-                    results={aiResults}
-                    history={aiHistory}
-                    findings={aiFindings}
-                    onPrepare={prepareAiTask}
-                    onRun={runTask}
-                    onCancel={cancelTaskRun}
-                    onGoToFinding={goToFinding}
-                    onDismissFinding={dismissFinding}
-                    onOpenPreferences={() => selectScreen("preferences")}
-                    proposalFiles={aiProposalFiles}
-                    textVersion={savedVersion}
-                    onAdopt={adopt}
-                    onGoToProposal={goToProposal}
-                    rejected={rejectedProposals}
-                    onToggleReject={toggleReject}
-                    fieldDecisions={fieldDecisions}
-                    onAdoptField={adoptField}
-                    onRejectField={rejectField}
-                    autoRun={aiAutoRun}
-                    autoResult={aiAutoResult}
-                    autoError={aiAutoError}
-                    onRunAuto={runAuto}
-                    onCancelAuto={cancelAuto}
-                    branches={aiBranchState}
-                    onBranchDiff={aiBranchDiff}
-                    onBranchMerge={(name) =>
-                      aiBranchMerge(name).finally(() =>
-                        setBranchesVersion((n) => n + 1),
-                      )
-                    }
-                    onBranchDelete={async (name) => {
-                      const ok = await confirm(
-                        `AI のブランチ ${name} を、取り込まずに捨てます。元に戻せません。`,
-                        "AIのブランチを破棄",
-                      );
-                      if (!ok) return false;
-                      try {
-                        await aiBranchDelete(name);
-                      } finally {
-                        setBranchesVersion((n) => n + 1);
+              {(screen === "ai" || visited.has("ai")) && (
+                <section
+                  className="screen ai-screen"
+                  aria-label="AI実行"
+                  hidden={screen !== "ai"}
+                >
+                  <KeepAlive active={screen === "ai"}>
+                    <AiScreen
+                      tasks={aiTasks}
+                      tasksError={aiTasksError}
+                      connections={aiTaskConnections}
+                      onChooseConnection={(task, connection) =>
+                        setAiTaskConnection(task, connection).then(() =>
+                          setAiVersion((n) => n + 1),
+                        )
                       }
-                      return true;
-                    }}
-                    request={aiScreenRequest}
-                    onRewriteSkeleton={(info, target) =>
-                      void rewriteSkeleton(info, target)
-                    }
-                    plot={{
-                      chapters: project.files,
-                      branchHidden,
-                      onAdoptBranch: adoptBranch,
-                      onRejectBranch: (key) =>
-                        setBranchHidden((h) => new Set(h).add(key)),
-                      drift,
-                      driftPending,
-                      driftError,
-                      driftHidden,
-                      onRejectDrift: (key) =>
-                        setDriftHidden((h) => new Set(h).add(key)),
-                      onAdoptDrift: adoptDrift,
-                      summarizeRun,
-                      summarizeResult,
-                      summarizeError,
-                      onSummarize: runSummarize,
-                      onCancelSummarize: cancelSummarize,
-                    }}
-                  />
+                      scenes={project.summary.scenes}
+                      currentScene={currentScene}
+                      running={aiRunState}
+                      results={aiResults}
+                      history={aiHistory}
+                      findings={aiFindings}
+                      onPrepare={prepareAiTask}
+                      onRun={runTask}
+                      onCancel={cancelTaskRun}
+                      onGoToFinding={goToFinding}
+                      onDismissFinding={dismissFinding}
+                      onOpenPreferences={() => selectScreen("preferences")}
+                      proposalFiles={aiProposalFiles}
+                      textVersion={savedVersion}
+                      onAdopt={adopt}
+                      onGoToProposal={goToProposal}
+                      rejected={rejectedProposals}
+                      onToggleReject={toggleReject}
+                      fieldDecisions={fieldDecisions}
+                      onAdoptField={adoptField}
+                      onRejectField={rejectField}
+                      autoRun={aiAutoRun}
+                      autoResult={aiAutoResult}
+                      autoError={aiAutoError}
+                      onRunAuto={runAuto}
+                      onCancelAuto={cancelAuto}
+                      branches={aiBranchState}
+                      onBranchDiff={aiBranchDiff}
+                      onBranchMerge={(name) =>
+                        aiBranchMerge(name).finally(() =>
+                          setBranchesVersion((n) => n + 1),
+                        )
+                      }
+                      onBranchDelete={async (name) => {
+                        const ok = await confirm(
+                          `AI のブランチ ${name} を、取り込まずに捨てます。元に戻せません。`,
+                          "AIのブランチを破棄",
+                        );
+                        if (!ok) return false;
+                        try {
+                          await aiBranchDelete(name);
+                        } finally {
+                          setBranchesVersion((n) => n + 1);
+                        }
+                        return true;
+                      }}
+                      request={aiScreenRequest}
+                      onRewriteSkeleton={(info, target) =>
+                        void rewriteSkeleton(info, target)
+                      }
+                      plot={{
+                        chapters: project.files,
+                        branchHidden,
+                        onAdoptBranch: adoptBranch,
+                        onRejectBranch: (key) =>
+                          setBranchHidden((h) => new Set(h).add(key)),
+                        drift,
+                        driftPending,
+                        driftError,
+                        driftHidden,
+                        onRejectDrift: (key) =>
+                          setDriftHidden((h) => new Set(h).add(key)),
+                        onAdoptDrift: adoptDrift,
+                        summarizeRun,
+                        summarizeResult,
+                        summarizeError,
+                        onSummarize: runSummarize,
+                        onCancelSummarize: cancelSummarize,
+                      }}
+                    />
+                  </KeepAlive>
                 </section>
               )}
-              {screen === "preferences" && (
+              {(screen === "preferences" || visited.has("preferences")) && (
                 <section
                   className="screen preferences-screen"
                   aria-label="環境設定"
+                  hidden={screen !== "preferences"}
                 >
-                  <PreferencesScreen
-                    data={aiState}
-                    error={aiError}
-                    tests={aiTests}
-                    onOverride={(
-                      name,
-                      baseUrl,
-                      model,
-                      contextTokens,
-                      outputTokens,
-                      structured,
-                    ) =>
-                      setAiOverride(
+                  <KeepAlive active={screen === "preferences"}>
+                    <PreferencesScreen
+                      data={aiState}
+                      error={aiError}
+                      tests={aiTests}
+                      onOverride={(
                         name,
                         baseUrl,
                         model,
                         contextTokens,
                         outputTokens,
                         structured,
-                      ).finally(() => aiChanged([name]))
-                    }
-                    onAllow={(endpoint, allowed) =>
-                      setAiCloudAllowed(endpoint, allowed).finally(() =>
-                        aiChanged(namesOfEndpoint(endpoint)),
-                      )
-                    }
-                    onSaveKey={(endpoint, key) =>
-                      setAiKey(endpoint, key).finally(() =>
-                        aiChanged(namesOfEndpoint(endpoint)),
-                      )
-                    }
-                    onDeleteKey={(endpoint) =>
-                      deleteAiKey(endpoint).finally(() =>
-                        aiChanged(namesOfEndpoint(endpoint)),
-                      )
-                    }
-                    onTest={runAiTest}
-                    onCancel={cancelTest}
-                  />
+                      ) =>
+                        setAiOverride(
+                          name,
+                          baseUrl,
+                          model,
+                          contextTokens,
+                          outputTokens,
+                          structured,
+                        ).finally(() => aiChanged([name]))
+                      }
+                      onAllow={(endpoint, allowed) =>
+                        setAiCloudAllowed(endpoint, allowed).finally(() =>
+                          aiChanged(namesOfEndpoint(endpoint)),
+                        )
+                      }
+                      onSaveKey={(endpoint, key) =>
+                        setAiKey(endpoint, key).finally(() =>
+                          aiChanged(namesOfEndpoint(endpoint)),
+                        )
+                      }
+                      onDeleteKey={(endpoint) =>
+                        deleteAiKey(endpoint).finally(() =>
+                          aiChanged(namesOfEndpoint(endpoint)),
+                        )
+                      }
+                      onTest={runAiTest}
+                      onCancel={cancelTest}
+                    />
+                  </KeepAlive>
                 </section>
               )}
-              {screen === "check" && (
-                <section className="screen check-screen" aria-label="検証">
-                  <PlaythroughPanel
-                    report={stage2}
-                    running={stage2Running}
-                    error={stage2Error}
-                    discarded={stage2Discarded}
-                    onRun={runStage2}
-                  />
-                  <CheckList
-                    heading="検証（プロジェクト全体）"
-                    diagnostics={checkDiagnostics}
-                    files={project.files}
-                    onSelect={onSelectDiagnostic}
-                    onRegister={onRegister}
-                    canOpen={isSettingsFile}
-                  />
+              {(screen === "check" || visited.has("check")) && (
+                <section
+                  className="screen check-screen"
+                  aria-label="検証"
+                  hidden={screen !== "check"}
+                >
+                  <KeepAlive active={screen === "check"}>
+                    <PlaythroughPanel
+                      report={stage2}
+                      running={stage2Running}
+                      error={stage2Error}
+                      discarded={stage2Discarded}
+                      onRun={runStage2}
+                    />
+                    <CheckList
+                      heading="検証（プロジェクト全体）"
+                      diagnostics={checkDiagnostics}
+                      files={project.files}
+                      onSelect={onSelectDiagnostic}
+                      onRegister={onRegister}
+                      canOpen={isSettingsFile}
+                      textOf={(file) => buffers.current.get(file)}
+                      scenes={project.summary.scenes}
+                    />
+                  </KeepAlive>
                 </section>
               )}
             </>

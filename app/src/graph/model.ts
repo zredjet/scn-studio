@@ -226,6 +226,46 @@ export function startSceneOf(summary: Summary): string | null {
   return summary.scenes[0]?.id ?? null;
 }
 
+/** フロー図を開いたときの縮尺の下限（これより小さいと、節の文字が読めない。T4-13、U6）。 */
+export const READABLE_ZOOM = 0.8;
+
+/** フロー図の表示（左上の位置と縮尺）。 */
+export interface GraphViewport {
+  readonly x: number;
+  readonly y: number;
+  readonly zoom: number;
+}
+
+/** フロー図の座標の箱。 */
+export interface GraphBox {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+/**
+ * 開いたときの表示（T4-13、U6）。全体を収めた表示 `fit` の縮尺が `zoom` より小さければ（節の文字が読めない）、
+ * `zoom` の縮尺で、図の左端を窓の左に、開始のノード（無ければ図の上端）を縦の真ん中に置く表示を返す。
+ * 収めた表示で読めるなら null（そのまま）。
+ */
+export function readableViewport(
+  fit: GraphViewport,
+  bounds: GraphBox,
+  start: GraphBox | null,
+  pane: { readonly width: number; readonly height: number },
+  zoom: number = READABLE_ZOOM,
+  padding = 24,
+): GraphViewport | null {
+  if (fit.zoom >= zoom) return null;
+  const x = padding - bounds.x * zoom;
+  const y =
+    start === null
+      ? padding - bounds.y * zoom
+      : pane.height / 2 - (start.y + start.height / 2) * zoom;
+  return { x, y, zoom };
+}
+
 /** シーンの粒度：シーンのノード、ルートの帯、無いシーンの仮のノード、辺。 */
 function sceneFlow(
   graph: SceneGraphData,

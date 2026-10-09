@@ -12,12 +12,14 @@ import {
   Background,
   Controls,
   type Edge,
+  getViewportForBounds,
   MarkerType,
   type Node,
   ReactFlow,
   useNodesInitialized,
   useNodesState,
   useReactFlow,
+  useStore,
 } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RunResult, TaskRunner } from "../ai/model.ts";
@@ -51,6 +53,8 @@ import {
   NO_ROUTE,
   newStubPosition,
   proposalOverlay,
+  readableViewport,
+  startSceneOf,
 } from "./model.ts";
 import { nodeTypes } from "./nodes.tsx";
 
@@ -101,17 +105,62 @@ const EMPTY_LAYOUT: Layout = { scene: {}, chapter: {}, route: {} };
 
 /**
  * グラフを読み込んだときと、粒度を変えたときに1回、全体が収まるように表示し直す。ノードの大きさを
- * 測り終えてから行う（測る前だと、はみ出す）。
+ * 測り終えてから行う（測る前だと、はみ出す）。収めると節の文字が読めないほど小さくなるときは、読める縮尺で
+ * 開始のノードのあたりを見せる（`start` は開始のノードのID。T4-13、U6）。
  */
-function FitOnLoad({ level }: { readonly level: GraphLevel }) {
+function FitOnLoad({
+  level,
+  start,
+  ids,
+}: {
+  readonly level: GraphLevel;
+  readonly start: string | null;
+  /** この粒度のノードのID（粒度を変えた直後は、前の粒度のノードが残っているので、届くまで待つ）。 */
+  readonly ids: ReadonlySet<string>;
+}) {
   const initialized = useNodesInitialized();
-  const { fitView } = useReactFlow();
+  const flow = useReactFlow();
+  const width = useStore((s) => s.width);
+  const height = useStore((s) => s.height);
+  const nodes = useStore((s) => s.nodes);
   const fitted = useRef<GraphLevel | null>(null);
   useEffect(() => {
     if (!initialized || fitted.current === level) return;
+    // この粒度のノードがそろい、大きさを測り終えてから求める。
+    if (
+      nodes.length === 0 ||
+      nodes.length !== ids.size ||
+      nodes.some((n) => {
+        const internal = flow.getInternalNode(n.id);
+        return (
+          !ids.has(n.id) ||
+          internal === undefined ||
+          !internal.measured.width ||
+          !internal.measured.height
+        );
+      })
+    ) {
+      return;
+    }
     fitted.current = level;
-    void fitView({ padding: 0.08, maxZoom: 1 });
-  }, [initialized, level, fitView]);
+    // 収めた表示を先に求め（fitView と同じ式）、小さすぎるなら読める縮尺にする。
+    const bounds = flow.getNodesBounds(nodes);
+    const fit = getViewportForBounds(bounds, width, height, 0.2, 1, 0.08);
+    const node = start === null ? undefined : flow.getInternalNode(start);
+    const view = readableViewport(
+      fit,
+      bounds,
+      node === undefined
+        ? null
+        : {
+            ...node.internals.positionAbsolute,
+            width: node.measured.width ?? 0,
+            height: node.measured.height ?? 0,
+          },
+      { width, height },
+    );
+    void flow.setViewport(view ?? fit);
+  }, [initialized, level, flow, start, width, height, nodes, ids]);
   return null;
 }
 
@@ -266,6 +315,7 @@ export function SceneGraph({
   );
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>(built);
   useEffect(() => setNodes(built), [built, setNodes]);
+  const builtIds = useMemo(() => new Set(built.map((n) => n.id)), [built]);
 
   const edges: Edge[] = useMemo(
     () => [
@@ -453,7 +503,7 @@ export function SceneGraph({
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             onNodesChange={onNodesChange}
-            fitView
+            // 初めの表示は FitOnLoad が決める（収めると読めないときは読める縮尺にするため。T4-13）。
             minZoom={0.2}
             // シーンの粒度では、ノードの右の点から別のノードへ引くと、辺を書き足す（T2-9）。
             nodesConnectable={level === "scene"}
@@ -498,7 +548,11 @@ export function SceneGraph({
           >
             <Background />
             <Controls showInteractive={false} />
-            <FitOnLoad level={level} />
+            <FitOnLoad
+              level={level}
+              start={level === "scene" ? startSceneOf(summary) : null}
+              ids={builtIds}
+            />
           </ReactFlow>
         </div>
         <footer className="flow-legend">

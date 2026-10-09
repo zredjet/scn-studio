@@ -4,12 +4,15 @@
 
 import { type FindingRecord, SEVERITY_LABEL } from "../ai/model.ts";
 import { CheckList } from "../check/CheckList.tsx";
-import type { IrDiagnostic, SceneInfo } from "../core/types.ts";
+import type { IrDiagnostic, SceneInfo, SceneSummary } from "../core/types.ts";
 
 interface Props {
   readonly scene: SceneInfo | null;
   readonly diagnostics: readonly IrDiagnostic[];
   readonly files: readonly string[];
+  /** ファイルの今の中身とシーン（問題に行の番号とシーンを添える。T4-13、U17）。 */
+  readonly textOf: (file: string) => string | undefined;
+  readonly scenes: readonly SceneSummary[];
   readonly onSelectDiagnostic: (d: IrDiagnostic) => void;
   /** 未登録の話者を設定DBの画面で登録する。 */
   readonly onRegister: (name: string) => void;
@@ -42,6 +45,8 @@ export function ContextPanel({
   scene,
   diagnostics,
   files,
+  textOf,
+  scenes,
   onSelectDiagnostic,
   onRegister,
   onOpenCharacter,
@@ -145,6 +150,8 @@ export function ContextPanel({
           files={files}
           onSelect={onSelectDiagnostic}
           onRegister={onRegister}
+          textOf={textOf}
+          scenes={scenes}
         />
       </div>
       {findings.length > 0 && (

@@ -8,6 +8,8 @@ interface Props {
   readonly files: readonly string[];
   readonly scenes: readonly SceneSummary[];
   readonly currentFile: string | null;
+  /** カーソルのあるシーン（一覧で示す。T4-13、U8）。 */
+  readonly currentScene: string | null;
   /** 保存していない変更のあるファイル。 */
   readonly dirty: ReadonlySet<string>;
   readonly onSelectScene: (scene: SceneSummary) => void;
@@ -27,6 +29,7 @@ export function SceneList({
   files,
   scenes,
   currentFile,
+  currentScene,
   dirty,
   onSelectScene,
   onSelectFile,
@@ -185,7 +188,20 @@ export function SceneList({
                 <li key={`${scene.id}-${scene.span[0]}`}>
                   <button
                     type="button"
-                    className={scene.is_stub ? "scene stub" : "scene"}
+                    className={[
+                      "scene",
+                      scene.is_stub ? "stub" : "",
+                      file === currentFile && scene.id === currentScene
+                        ? "current"
+                        : "",
+                    ]
+                      .filter((c) => c !== "")
+                      .join(" ")}
+                    aria-current={
+                      file === currentFile && scene.id === currentScene
+                        ? "location"
+                        : undefined
+                    }
                     onClick={() => onSelectScene(scene)}
                   >
                     <span className="scene-title">{scene.title}</span>

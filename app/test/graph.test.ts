@@ -20,7 +20,9 @@ import {
   NO_ROUTE,
   newStubPosition,
   proposalOverlay,
+  READABLE_ZOOM,
   rankOrder,
+  readableViewport,
   startSceneOf,
   withLabelSlots,
 } from "../src/graph/model.ts";
@@ -501,4 +503,28 @@ test("辺の札（T3-1、H3）：札を出すときは段の間を広げ、同�
   assert.deepEqual(labelPlacement(2), { above: true, shift: -23 });
   // 組み立てた辺にも振ってある。
   assert.ok(withLabels.edges.every((e) => e.labelSlot === 0));
+});
+
+test("フローの初めの表示（T4-13、U6）：収めた縮尺で読めればそのまま、小さすぎれば読める縮尺で開始のあたり", () => {
+  const bounds = { x: -100, y: 50, width: 4000, height: 600 };
+  const pane = { width: 1000, height: 700 };
+  assert.equal(
+    readableViewport({ x: 0, y: 0, zoom: 0.9 }, bounds, null, pane),
+    null,
+  );
+  // 開始のノードが無ければ、図の左上を窓の左上（余白24）に。
+  assert.deepEqual(
+    readableViewport({ x: 0, y: 0, zoom: 0.3 }, bounds, null, pane),
+    {
+      x: 24 + 100 * READABLE_ZOOM,
+      y: 24 - 50 * READABLE_ZOOM,
+      zoom: READABLE_ZOOM,
+    },
+  );
+  // 開始のノードがあれば、その縦の真ん中を窓の縦の真ん中に。
+  const start = { x: -100, y: 300, width: 144, height: 64 };
+  assert.deepEqual(
+    readableViewport({ x: 0, y: 0, zoom: 0.3 }, bounds, start, pane, 0.8),
+    { x: 24 + 100 * 0.8, y: 350 - 332 * 0.8, zoom: 0.8 },
+  );
 });

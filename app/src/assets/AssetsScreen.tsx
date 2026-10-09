@@ -47,6 +47,8 @@ interface Props {
   readonly scenes: readonly SceneSummary[];
   /** 設定ファイルが外で変わったら増える。 */
   readonly settingsVersion: number;
+  /** 画面を見せた回数（`assets/` に外で置いたファイルを、見せるたびに読み直す。T4-13）。 */
+  readonly shown: number;
   /** カタログを書いた後（補完の材料と解析の結果を入れる）。 */
   readonly onWritten: (result: CatalogWritten) => void;
   /** 使用箇所へ移る。 */
@@ -82,6 +84,7 @@ export function AssetsScreen({
   summary,
   scenes,
   settingsVersion,
+  shown,
   onWritten,
   onOpenLocation,
 }: Props) {
@@ -133,6 +136,7 @@ export function AssetsScreen({
   useEffect(() => {
     void summary;
     void settingsVersion;
+    void shown;
     let live = true;
     assetList()
       .then((l) => {
@@ -144,7 +148,7 @@ export function AssetsScreen({
     return () => {
       live = false;
     };
-  }, [summary, settingsVersion]);
+  }, [summary, settingsVersion, shown]);
 
   const rows = useMemo(
     () => filterRows(list?.rows ?? [], { tab, missingOnly, query }),
