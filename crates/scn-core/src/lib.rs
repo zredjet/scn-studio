@@ -63,6 +63,7 @@ pub mod renpy;
 pub mod route;
 pub mod scaffold;
 pub mod script;
+pub mod search;
 mod sema;
 pub mod syntax;
 pub mod typedef;

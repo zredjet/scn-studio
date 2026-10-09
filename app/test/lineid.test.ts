@@ -366,3 +366,33 @@ test("執筆表示の検索は、隠れた行IDの中の一致を除く（ソー
   assert.deepEqual(matches("writing"), [doc.indexOf("地の文a") + 3]);
   assert.equal(matches("source").length, 3);
 });
+
+test("執筆表示の検索は、問い合わせの test（本文だけ・このシーン）と行IDを除くことを両方当てる（T4-22）", () => {
+  const doc = "地の文a ^abab\n地の文a ^bbbb\n";
+  const base = EditorState.create({
+    doc,
+    extensions: [scn(), search(), lineIdGuard("writing")],
+  });
+  ensureSyntaxTree(base, base.doc.length, 5000);
+  // 2行目だけに絞る問い合わせ。
+  const secondLine = doc.indexOf("\n") + 1;
+  const state = base.update({
+    effects: setSearchQuery.of(
+      new SearchQuery({
+        search: "a",
+        test: (_m, _s, from) => from >= secondLine,
+      }),
+    ),
+  }).state;
+  const cursor = getSearchQuery(state).getCursor(state);
+  const found: number[] = [];
+  for (let r = cursor.next(); !r.done; r = cursor.next())
+    found.push(r.value.from);
+  // 2行目の地の文の a だけ（1行目は test で、行IDの中の a は行IDを除くことで外れる）。
+  assert.deepEqual(found, [secondLine + 3]);
+  // 包んだ問い合わせをもう一度入れても、二重に包まない（同じ結果）。
+  const again = state.update({
+    effects: setSearchQuery.of(getSearchQuery(state)),
+  }).state;
+  assert.equal(getSearchQuery(again).test, getSearchQuery(state).test);
+});

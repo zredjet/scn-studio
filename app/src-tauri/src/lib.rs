@@ -1973,6 +1973,17 @@ fn add_stub(
     story_written(workspace, &written)
 }
 
+/// 章ごとの検索の範囲（本文と行ID。作品全体の検索の「本文だけ」と執筆表示。保存していない本文も。バイト位置。T4-22）。
+#[tauri::command]
+fn story_search_ranges(state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    json_response(&to_json(
+        &scn_core::search::story_search_ranges(workspace.project()),
+        "検索の範囲",
+    )?)
+}
+
 /// スタブを足すときに書き込む行（書かない。足せなければ誤りの文。T4-20）。
 #[tauri::command]
 fn stub_preview(
@@ -3753,6 +3764,7 @@ pub fn run() {
             rename_preview,
             stub_preview,
             flow_edge_preview,
+            story_search_ranges,
             apply_rename,
             rename_chapter,
             delete_chapter,

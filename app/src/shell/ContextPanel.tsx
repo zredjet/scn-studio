@@ -1,12 +1,24 @@
 // 文脈パネル（docs/ui/mockups/02-editor.html の「シーン情報」）：今のシーンの登場キャラ（一人称と口調メモ）、
 // 読み書きした変数、使った素材と、このファイルの問題、今のシーンの AI の指摘（T3-7）。データはコアの
-// assist::scene_info（T1-8、D047）。
+// assist::scene_info（T1-8、D047）。検索の欄で「すべての章」を探している間は、検索の結果（見本 02b。T4-22）。
 
 import { type FindingRecord, SEVERITY_LABEL } from "../ai/model.ts";
 import { CheckList } from "../check/CheckList.tsx";
 import type { IrDiagnostic, SceneInfo, SceneSummary } from "../core/types.ts";
+import {
+  type FoundAll,
+  type FoundMatch,
+  sceneAt,
+} from "../editor/projectSearch.ts";
+import { Icon } from "./icons.tsx";
 
 interface Props {
+  /** すべての章の検索の結果（探していなければ null。T4-22）。 */
+  readonly found: FoundAll | null;
+  /** 検索の結果の一致へ移る。 */
+  readonly onOpenFound: (match: FoundMatch) => void;
+  /** 検索の結果を閉じる。 */
+  readonly onCloseFound: () => void;
   readonly scene: SceneInfo | null;
   readonly diagnostics: readonly IrDiagnostic[];
   readonly files: readonly string[];
@@ -42,6 +54,9 @@ function usage(reads: number, writes: number): string {
 }
 
 export function ContextPanel({
+  found,
+  onOpenFound,
+  onCloseFound,
   scene,
   diagnostics,
   files,
@@ -63,6 +78,17 @@ export function ContextPanel({
       ...(assets.get(kind) ?? []),
       { name, registered: a.registered },
     ]);
+  }
+
+  if (found !== null) {
+    return (
+      <FoundList
+        found={found}
+        scenes={scenes}
+        onOpen={onOpenFound}
+        onClose={onCloseFound}
+      />
+    );
   }
 
   return (
@@ -219,6 +245,77 @@ export function ContextPanel({
             </div>
           ))}
         </section>
+      )}
+    </aside>
+  );
+}
+
+/** すべての章の検索の結果（章ごとに、行・シーン・前後の文字）。 */
+function FoundList({
+  found,
+  scenes,
+  onOpen,
+  onClose,
+}: {
+  readonly found: FoundAll;
+  readonly scenes: readonly SceneSummary[];
+  readonly onOpen: (match: FoundMatch) => void;
+  readonly onClose: () => void;
+}) {
+  return (
+    <aside className="context-panel ctx-column" aria-label="検索の結果">
+      <div className="panel-head">
+        <h2 className="h-label">検索の結果</h2>
+        <span className="t-caption t-3">
+          {found.capped ? `${found.total}+` : found.total}件 ·{" "}
+          {found.files.length}章
+        </span>
+        <button
+          type="button"
+          className="btn btn-icon"
+          aria-label="検索の結果を閉じる"
+          title="検索の結果を閉じる"
+          onClick={onClose}
+        >
+          <Icon name="close" size={14} />
+        </button>
+      </div>
+      {found.invalid && (
+        <p className="empty found-note">正規表現が正しくありません。</p>
+      )}
+      {!found.invalid && found.total === 0 && (
+        <p className="empty found-note">見つかりません。</p>
+      )}
+      {found.files.map((f) => (
+        <section key={f.file} className="found-file" aria-label={f.file}>
+          <h3 className="menu-label">
+            {f.file.replace(/^story\//, "")}
+            <span className="found-count">{f.matches.length}</span>
+          </h3>
+          {f.matches.map((m) => (
+            <button
+              key={`${m.start}`}
+              type="button"
+              className="lrow found-row"
+              onClick={() => onOpen(m)}
+            >
+              <span className="found-place">
+                <span className="id">{m.line}行</span>
+                <span className="id">{sceneAt(scenes, m)?.id ?? ""}</span>
+              </span>
+              <span className="found-text t-small">
+                {m.before}
+                <mark>{m.match}</mark>
+                {m.after}
+              </span>
+            </button>
+          ))}
+        </section>
+      ))}
+      {found.capped && (
+        <p className="empty found-note">
+          多いので、ここまでで探すのをやめました。言葉を足して絞ってください。
+        </p>
       )}
     </aside>
   );

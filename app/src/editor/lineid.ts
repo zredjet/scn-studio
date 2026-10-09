@@ -440,16 +440,37 @@ function outsideLineIds(
   );
 }
 
+/** 行IDにかかる一致を除くようにした `test`（もう一度包まないため）。 */
+const outsideTests = new WeakSet<SearchTest>([outsideLineIds]);
+
+type SearchTest = (
+  match: string,
+  state: EditorState,
+  from: number,
+  to: number,
+) => boolean;
+
 /**
  * 執筆表示の検索（T4-14、U9）：検索の欄が作る問い合わせに、行IDにかかる一致を除く `test` を足す。行IDの中の一致を
- * 選ぶと `guard` がカーソルを行IDの手前へ戻し、次の検索が同じ一致に当たり続けるため。
+ * 選ぶと `guard` がカーソルを行IDの手前へ戻し、次の検索が同じ一致に当たり続けるため。問い合わせがもう `test` を
+ * 持っていれば（検索の欄の「本文だけ」「このシーン」。T4-22）、両方を満たす一致だけにする。
  */
 const searchOutsideIds = EditorState.transactionExtender.of((tr) => {
   const effect = tr.effects.find(
-    (e) => e.is(setSearchQuery) && e.value.test !== outsideLineIds,
+    (e) =>
+      e.is(setSearchQuery) &&
+      (e.value.test === undefined || !outsideTests.has(e.value.test)),
   );
   if (effect === undefined || !effect.is(setSearchQuery)) return null;
   const q = effect.value;
+  const inner = q.test;
+  const test: SearchTest =
+    inner === undefined
+      ? outsideLineIds
+      : (match, state, from, to) =>
+          outsideLineIds(match, state, from, to) &&
+          inner(match, state, from, to);
+  outsideTests.add(test);
   return {
     effects: setSearchQuery.of(
       new SearchQuery({
@@ -459,7 +480,7 @@ const searchOutsideIds = EditorState.transactionExtender.of((tr) => {
         regexp: q.regexp,
         replace: q.replace,
         wholeWord: q.wholeWord,
-        test: outsideLineIds,
+        test,
       }),
     ),
   };

@@ -1,29 +1,150 @@
 // 本文の検索と置換の欄（見本 02b-editor-source.html の findbar。T4-20、U9）：CodeMirror の検索の欄を自前にする。
-// 探す文字（件数「2 / 4」）・前へ・次へ・正規表現・大文字と小文字・語として・すべて選ぶ・閉じる、置き換える文字・
-// 置換・すべて置換、
-// 名前の変更（F2）への案内。置き換えは `@codemirror/search` のコマンドで行い、行IDにかかる変更は `lineid.ts` の
-// `replaceFilter` が除く。変換中の Enter・Esc では動かない（.claude/rules/frontend.md）。作品全体と「本文だけ」は
-// 作らない（N1）。
+// 探す文字（件数「2 / 4」）・前へ・次へ・正規表現・大文字と小文字・語として・すべて選ぶ・本文だけ・探す範囲・閉じる、
+// 置き換える文字・置換・すべて置換、名前の変更（F2）への案内。置き換えは `@codemirror/search` のコマンドで行い、
+// 行IDにかかる変更は `lineid.ts` の `replaceFilter` が除く。変換中の Enter・Esc では動かない
+// （.claude/rules/frontend.md）。
+// 探す範囲（T4-22、N1）：このファイル・このシーン（問い合わせの `test` で今のシーンの範囲に絞る）・すべての章（この章は
+// 同じに光らせ、すべての章の一致は App が右の欄に並べる。`findContext` の `onFindAll`）。「本文だけ」は、コアの本文の
+// 範囲（台詞と地の文）に入る一致だけ。範囲は App が `findContext` で渡す（エディタの位置）。
 
 import {
   closeSearchPanel,
   findNext,
   findPrevious,
   getSearchQuery,
+  openSearchPanel,
   replaceAll,
   replaceNext,
   SearchQuery,
+  searchPanelOpen,
   selectMatches,
   setSearchQuery,
 } from "@codemirror/search";
-import type { EditorState } from "@codemirror/state";
 import {
-  type EditorView,
+  type EditorState,
+  Facet,
+  StateEffect,
+  StateField,
+} from "@codemirror/state";
+import {
+  EditorView,
   type Panel,
   runScopeHandlers,
   type ViewUpdate,
 } from "@codemirror/view";
 import { IS_MAC } from "../shell/palette.ts";
+import { type FindSpec, insideRanges } from "./projectSearch.ts";
+
+/** 探す範囲。 */
+export type FindScope = "file" | "scene" | "chapters";
+
+/** 検索の欄が App へ知らせること（T4-22）。 */
+export interface FindContext {
+  /** すべての章を探す（null で探すのをやめる）。 */
+  readonly onFindAll: (spec: FindSpec | null) => void;
+  /** 本文の範囲が要る（「本文だけ」か「すべての章」を選んだ）。 */
+  readonly onNeedRanges: () => void;
+  /** 検索の欄を閉じた（章の切り替えで開き直すときは知らせない）。 */
+  readonly onClosed: () => void;
+}
+
+const NO_CONTEXT: FindContext = {
+  onFindAll: () => {},
+  onNeedRanges: () => {},
+  onClosed: () => {},
+};
+
+export const findContext = Facet.define<FindContext, FindContext>({
+  combine: (values) => values[values.length - 1] ?? NO_CONTEXT,
+});
+
+type Ranges = readonly (readonly [number, number])[];
+
+/** この章の本文の範囲と今のシーンの範囲（エディタの位置）。まだ無ければ null。 */
+export interface FindRanges {
+  readonly body: Ranges | null;
+  readonly scene: readonly [number, number] | null;
+}
+
+/** 範囲を入れる（入れたものだけ入れ替える）。 */
+export const setFindRanges = StateEffect.define<Partial<FindRanges>>();
+
+/**
+ * 範囲は、コアが作ったときの本文で求めて入れ、その後の編集ではずらして使う（新しい範囲が届くまで、ずれたままに
+ * しない）。範囲の端に打った文字は範囲に入れる。
+ */
+export const findRanges = StateField.define<FindRanges>({
+  create: () => ({ body: null, scene: null }),
+  update(value, tr) {
+    let next = value;
+    if (tr.docChanged) {
+      const map = ([from, to]: readonly [number, number]) =>
+        [tr.changes.mapPos(from, -1), tr.changes.mapPos(to, 1)] as const;
+      next = {
+        body: next.body === null ? null : next.body.map(map),
+        scene: next.scene === null ? null : map(next.scene),
+      };
+    }
+    for (const e of tr.effects) {
+      if (e.is(setFindRanges)) next = { ...next, ...e.value };
+    }
+    return next;
+  },
+});
+
+/** 検索の欄を閉じたことを App へ知らせる（章の切り替えの `setState` では呼ばれない）。 */
+export const findPanelWatch = EditorView.updateListener.of((update) => {
+  if (searchPanelOpen(update.startState) && !searchPanelOpen(update.state))
+    update.state.facet(findContext).onClosed();
+});
+
+/** 探す範囲と「本文だけ」（エディタごとに覚える。章を切り替えて欄を開き直しても残す）。 */
+interface FindOptions {
+  readonly scope: FindScope;
+  readonly bodyOnly: boolean;
+}
+
+const optionsOf = new WeakMap<EditorView, FindOptions>();
+
+/** 章を切り替えて開き直す欄（すべての章を探し直さない。× で閉じた結果を戻さないため）。 */
+const reopening = new WeakSet<EditorView>();
+
+/** 章を切り替えたときに、同じ問い合わせで欄を開き直す（すべての章の結果は App が持ったまま）。 */
+export function reopenFindPanel(view: EditorView): void {
+  reopening.add(view);
+  try {
+    openSearchPanel(view);
+  } finally {
+    reopening.delete(view);
+  }
+}
+
+type SearchTest = NonNullable<SearchQuery["test"]>;
+
+function inScene(state: EditorState, from: number, to: number): boolean {
+  const r = state.field(findRanges, false)?.scene ?? null;
+  return r !== null && from >= r[0] && to <= r[1];
+}
+
+function inBody(state: EditorState, from: number, to: number): boolean {
+  const ranges = state.field(findRanges, false)?.body ?? null;
+  return ranges !== null && insideRanges(ranges, from, to);
+}
+
+// 範囲の絞り方ごとに同じ関数を使う（問い合わせが同じなら `SearchQuery.eq` で同じと見るため）。範囲は呼ばれたときの
+// 状態から読む。
+const SCENE_TEST: SearchTest = (_m, state, from, to) =>
+  inScene(state, from, to);
+const BODY_TEST: SearchTest = (_m, state, from, to) => inBody(state, from, to);
+const SCENE_BODY_TEST: SearchTest = (_m, state, from, to) =>
+  inScene(state, from, to) && inBody(state, from, to);
+
+/** 探す範囲と「本文だけ」の `test`（この章だけ。すべての章は App が探す）。 */
+export function findTest(options: FindOptions): SearchTest | undefined {
+  if (options.scope === "scene")
+    return options.bodyOnly ? SCENE_BODY_TEST : SCENE_TEST;
+  return options.bodyOnly ? BODY_TEST : undefined;
+}
 
 /** 数える一致の上限（それより多ければ「1000+」）。 */
 export const COUNT_LIMIT = 1000;
@@ -107,6 +228,10 @@ function el<K extends keyof HTMLElementTagNameMap>(
 /** `search({ createPanel })` に渡す、検索と置換の欄。 */
 export function createFindPanel(view: EditorView): Panel {
   const query = getSearchQuery(view.state);
+  let options: FindOptions = optionsOf.get(view) ?? {
+    scope: "file",
+    bodyOnly: false,
+  };
   const field = el("input", {
     type: "search",
     "aria-label": "探す文字",
@@ -152,6 +277,24 @@ export function createFindPanel(view: EditorView): Panel {
     },
     "語",
   );
+  const bodyOnly = el(
+    "button",
+    {
+      type: "button",
+      class: "chip",
+      title: "台詞と地の文だけを探す（演出・ID・コメントを除く）",
+      "aria-pressed": String(options.bodyOnly),
+    },
+    "本文だけ",
+  );
+  const scope = el(
+    "select",
+    { class: "select is-sm findbar-scope", "aria-label": "探す範囲" },
+    el("option", { value: "file" }, "このファイル"),
+    el("option", { value: "chapters" }, "すべての章"),
+    el("option", { value: "scene" }, "このシーン"),
+  );
+  scope.value = options.scope;
   const button = (label: string, title: string, child: Node | string) =>
     el(
       "button",
@@ -218,7 +361,8 @@ export function createFindPanel(view: EditorView): Panel {
       regexp,
       caseSensitive,
       wholeWord,
-      selectAll,
+      bodyOnly,
+      scope,
       el("span", { class: "grow" }),
       close,
     ),
@@ -228,27 +372,71 @@ export function createFindPanel(view: EditorView): Panel {
       replaceField,
       replaceOne,
       replaceEvery,
+      selectAll,
       hint,
     ),
   );
 
-  const commit = () => {
+  const pressed = (b: HTMLButtonElement) =>
+    b.getAttribute("aria-pressed") === "true";
+  /** すべての章を探す頼み（すべての章でなければ、やめる）。 */
+  const findAll = () => {
+    const context = view.state.facet(findContext);
+    context.onFindAll(
+      options.scope === "chapters" && field.value !== ""
+        ? {
+            search: field.value,
+            regexp: pressed(regexp),
+            caseSensitive: pressed(caseSensitive),
+            wholeWord: pressed(wholeWord),
+            bodyOnly: options.bodyOnly,
+          }
+        : null,
+    );
+  };
+  /** 自分で問い合わせを入れている間（ほかから入った問い合わせと見分ける）。 */
+  let dispatching = false;
+  /** 探す文字の欄で変換している間（すべての章は、変換が終わってから探す）。 */
+  let composing = false;
+  /** 問い合わせを入れる。`force` なら同じ問い合わせでも入れ直す（光らせ直す）。 */
+  const apply = (force: boolean) => {
     const now = getSearchQuery(view.state);
     const q = new SearchQuery({
       search: field.value,
       replace: replaceField.value,
-      regexp: regexp.getAttribute("aria-pressed") === "true",
-      caseSensitive: caseSensitive.getAttribute("aria-pressed") === "true",
-      wholeWord: wholeWord.getAttribute("aria-pressed") === "true",
+      regexp: pressed(regexp),
+      caseSensitive: pressed(caseSensitive),
+      wholeWord: pressed(wholeWord),
       literal: now.literal,
+      test: findTest(options),
     });
-    if (!q.eq(now)) view.dispatch({ effects: setSearchQuery.of(q) });
+    if (!force && q.eq(now)) return;
+    dispatching = true;
+    try {
+      view.dispatch({ effects: setSearchQuery.of(q) });
+    } finally {
+      dispatching = false;
+    }
+  };
+  /** 欄を直した：問い合わせを入れ、すべての章も探し直す。 */
+  const commit = (force = false) => {
+    apply(force);
+    if (!composing) findAll();
+  };
+  /** 範囲が変わった：光らせ直すだけ（すべての章は App が範囲の読み直しで探し直す。閉じた結果も戻さない）。 */
+  const refresh = () => apply(true);
+  const needRanges = () => {
+    if (options.bodyOnly || options.scope === "chapters")
+      view.state.facet(findContext).onNeedRanges();
+  };
+  const setOptions = (next: FindOptions) => {
+    options = next;
+    optionsOf.set(view, next);
+    needRanges();
+    commit(true);
   };
   const toggle = (b: HTMLButtonElement) => () => {
-    b.setAttribute(
-      "aria-pressed",
-      String(b.getAttribute("aria-pressed") !== "true"),
-    );
+    b.setAttribute("aria-pressed", String(!pressed(b)));
     commit();
   };
   const showCount = (state: EditorState) => {
@@ -261,21 +449,48 @@ export function createFindPanel(view: EditorView): Panel {
           : "正しくない式";
   };
 
-  field.addEventListener("input", commit);
-  replaceField.addEventListener("input", commit);
+  field.addEventListener("input", () => commit());
+  field.addEventListener("compositionstart", () => {
+    composing = true;
+  });
+  field.addEventListener("compositionend", () => {
+    composing = false;
+    commit();
+  });
+  replaceField.addEventListener("input", () => commit());
+  bodyOnly.addEventListener("click", () => {
+    bodyOnly.setAttribute("aria-pressed", String(!options.bodyOnly));
+    setOptions({ ...options, bodyOnly: !options.bodyOnly });
+  });
+  scope.addEventListener("change", () => {
+    const value = scope.value;
+    setOptions({
+      ...options,
+      scope: value === "chapters" || value === "scene" ? value : "file",
+    });
+  });
   regexp.addEventListener("click", toggle(regexp));
   caseSensitive.addEventListener("click", toggle(caseSensitive));
   wholeWord.addEventListener("click", toggle(wholeWord));
   selectAll.addEventListener("click", () => selectMatches(view));
   prev.addEventListener("click", () => findPrevious(view));
   next.addEventListener("click", () => findNext(view));
-  close.addEventListener("click", () => closeSearchPanel(view));
+  // 閉じたことは `findPanelWatch` が App へ知らせる（すべての章の結果も消す。Esc がエディタにあっても同じ）。
+  const closePanel = () => {
+    closeSearchPanel(view);
+  };
+  close.addEventListener("click", closePanel);
   replaceOne.addEventListener("click", () => replaceNext(view));
   replaceEvery.addEventListener("click", () => replaceAll(view));
   dom.addEventListener("keydown", (event) => {
     // 変換を確定する Enter や、変換をやめる Esc では動かない。
     if (isComposing(event)) return;
-    // 検索のキー（Esc で閉じる、Mod-G など）。
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closePanel();
+      return;
+    }
+    // 検索のキー（Mod-G など）。
     if (runScopeHandlers(view, event, "search-panel")) {
       event.preventDefault();
       return;
@@ -291,6 +506,17 @@ export function createFindPanel(view: EditorView): Panel {
     }
   });
   showCount(view.state);
+  needRanges();
+  // 章を切り替えて開き直した欄は、覚えた範囲で光らせ直すだけ（すべての章は頼み直さない）。新しく開いた欄は、
+  // すべての章を覚えていれば探し直す（CodeMirror は作ったときの更新で `update` を呼ばないため）。
+  if (
+    !reopening.has(view) &&
+    options.scope === "chapters" &&
+    query.search !== ""
+  )
+    queueMicrotask(() => commit(true));
+  else if (findTest(options) !== undefined || query.test !== undefined)
+    queueMicrotask(refresh);
 
   return {
     dom,
@@ -303,16 +529,29 @@ export function createFindPanel(view: EditorView): Panel {
     update(update: ViewUpdate) {
       const before = getSearchQuery(update.startState);
       const after = getSearchQuery(update.state);
-      if (!after.eq(before)) {
-        // ほかから問い合わせが変わった（選んだ文字で開いたときなど）。
+      if (!after.eq(before) && !dispatching) {
+        // ほかから問い合わせが入った（欄を開いたまま、選んだ文字で ⌘F など）。欄をそろえ、範囲の `test` を付け直し、
+        // すべての章も探し直す（更新の中では入れられないので、後で）。
         if (field.value !== after.search) field.value = after.search;
         if (replaceField.value !== after.replace)
           replaceField.value = after.replace;
         regexp.setAttribute("aria-pressed", String(after.regexp));
         caseSensitive.setAttribute("aria-pressed", String(after.caseSensitive));
         wholeWord.setAttribute("aria-pressed", String(after.wholeWord));
+        queueMicrotask(() => commit(true));
       }
-      if (update.docChanged || update.selectionSet || !after.eq(before))
+      // 本文の範囲や今のシーンを入れ直したら、光らせ直す。
+      const rangesChanged = update.transactions.some((tr) =>
+        tr.effects.some((e) => e.is(setFindRanges)),
+      );
+      if (rangesChanged && findTest(options) !== undefined)
+        queueMicrotask(refresh);
+      if (
+        update.docChanged ||
+        update.selectionSet ||
+        rangesChanged ||
+        !after.eq(before)
+      )
         showCount(update.state);
     },
   };

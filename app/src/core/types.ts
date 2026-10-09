@@ -1488,6 +1488,14 @@ export type FlowEdge =
       readonly label: string;
     };
 
+/** 章の検索の範囲（コアの `search::SearchRanges`。バイト位置。T4-22）。 */
+export interface SearchRanges {
+  /** 本文（台詞と地の文）。 */
+  readonly text: readonly (readonly [number, number])[];
+  /** 行ID（`^` から）。 */
+  readonly line_ids: readonly (readonly [number, number])[];
+}
+
 /** 書き足す前に見せる、書き込む行（コアの `workspace::WritePreview`。T4-20）。 */
 export interface WritePreview {
   readonly file: string;

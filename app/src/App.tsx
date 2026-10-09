@@ -116,6 +116,7 @@ import {
   setAiTaskConnection,
   setSceneSummary,
   setViewMode,
+  storySearchRanges,
   summaryDrift,
   symbolAt,
   testAiConnection,
@@ -157,6 +158,7 @@ import type {
   RouteStat,
   SceneInfo,
   SceneSummary,
+  SearchRanges,
   SettingsWrittenExtra,
   SkeletonScene,
   SummarizeResult,
@@ -189,6 +191,7 @@ import { MergePanel } from "./editor/MergePanel.tsx";
 import { ModeBar } from "./editor/ModeBar.tsx";
 import { rememberBase } from "./editor/merge.ts";
 import type { Definition } from "./editor/navigate.ts";
+import { type FindSpec, findAll } from "./editor/projectSearch.ts";
 import { hasMixedLineBreaks, lineBreakOf } from "./editor/state.ts";
 import { ExportScreen } from "./export/ExportScreen.tsx";
 import { SceneGraph } from "./graph/SceneGraph.tsx";
@@ -201,7 +204,7 @@ import {
 import { PreferencesScreen } from "./preferences/PreferencesScreen.tsx";
 import { locateLine } from "./preview/locate.ts";
 import { type PreviewLine, PreviewScreen } from "./preview/PreviewScreen.tsx";
-import { outlineRows, sceneDiagnostics } from "./scenes/list.ts";
+import { outlineRows, sceneDiagnostics, sceneRange } from "./scenes/list.ts";
 import { SceneList } from "./scenes/SceneList.tsx";
 import { CommandPalette } from "./shell/CommandPalette.tsx";
 import { ContextPanel } from "./shell/ContextPanel.tsx";
@@ -450,6 +453,18 @@ export function App() {
   const [scene, setScene] = useState<SceneInfo | null>(null);
   /** 設定DBの画面への頼み（エントリを開く、作る。D049）。 */
   const [bibleRequest, setBibleRequest] = useState<BibleRequest | null>(null);
+  /**
+   * 章ごとの検索の範囲（本文と行ID。検索の「本文だけ」と「すべての章」。要るときだけ読む。T4-22）と、範囲を頼んだ
+   * ときの本文（コアに送ってあった本文。エディタは、自分の本文と同じときだけ範囲を使う）。
+   */
+  const [searchRanges, setSearchRanges] = useState<{
+    readonly ranges: Readonly<Record<string, SearchRanges>>;
+    readonly sources: ReadonlyMap<string, string>;
+  } | null>(null);
+  /** 検索の範囲を使う（検索の欄が「本文だけ」か「すべての章」の間。閉じたらやめる）。 */
+  const rangesWanted = useRef(false);
+  /** すべての章を探す問い合わせ（検索の欄の「すべての章」。null なら探さない。T4-22）。 */
+  const [findAllSpec, setFindAllSpec] = useState<FindSpec | null>(null);
   /** 素材の画面で選ぶ素材（パレットから。番号は増え続ける。T4-20）。 */
   const [assetRequest, setAssetRequest] = useState<{
     readonly id: string;
@@ -794,6 +809,9 @@ export function App() {
     setScene(null);
     setBibleRequest(null);
     setAssetRequest(null);
+    setSearchRanges(null);
+    rangesWanted.current = false;
+    setFindAllSpec(null);
     setSettingsDrafts(new Set());
     setPreview(null);
     setPreviewError(null);
@@ -1873,6 +1891,69 @@ export function App() {
     },
     [leaveSettings, selectScene, requestBible],
   );
+
+  /** 検索の範囲を読む（頼んだときの本文を添える）。 */
+  const loadRanges = useCallback(() => {
+    const sources = new Map(buffers.current);
+    return storySearchRanges().then((ranges) => ({ ranges, sources }));
+  }, []);
+  /** 検索の範囲が要る（検索の欄で「本文だけ」か「すべての章」を選んだ。T4-22）。 */
+  const needRanges = useCallback(() => {
+    if (rangesWanted.current) return;
+    rangesWanted.current = true;
+    void loadRanges()
+      .then(setSearchRanges)
+      .catch(() => {});
+  }, [loadRanges]);
+  /** 検索の欄を閉じた：すべての章の結果を消し、範囲を読むのをやめる。 */
+  const onFindClosed = useCallback(() => {
+    setFindAllSpec(null);
+    rangesWanted.current = false;
+  }, []);
+  const onFindAll = useCallback((spec: FindSpec | null) => {
+    setFindAllSpec((now) =>
+      JSON.stringify(now) === JSON.stringify(spec) ? now : spec,
+    );
+  }, []);
+  // すべての章を探し始めたら、結果を見せる右の欄を出す（閉じていても、狭い窓でも）。
+  const findingAll = findAllSpec !== null;
+  useEffect(() => {
+    if (findingAll) setPanels((p) => showPanel(p, "text", narrow));
+  }, [findingAll, narrow]);
+  // 本文が変わって解析し直したら、本文の範囲を読み直す（使っているときだけ）。
+  const analyzedSummary = project?.summary;
+  useEffect(() => {
+    if (analyzedSummary === undefined || !rangesWanted.current) return;
+    let live = true;
+    void loadRanges()
+      .then((r) => {
+        if (live) setSearchRanges(r);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [analyzedSummary, loadRanges]);
+  /**
+   * すべての章の一致（右の欄の「検索の結果」）。保存していない本文も探す。執筆表示では、隠れた行IDの中の一致を
+   * 除く（この章の検索の欄の件数とそろえる。表示は今の章のもの）。
+   */
+  const projectFiles = project?.files;
+  const writingView =
+    currentFile !== null && (modes.get(currentFile) ?? "writing") === "writing";
+  const found = useMemo(() => {
+    void analyzedSummary; // 本文が変わったら探し直す。
+    if (findAllSpec === null || projectFiles === undefined) return null;
+    return findAll(
+      projectFiles.map((file) => ({
+        file,
+        text: buffers.current.get(file) ?? "",
+      })),
+      findAllSpec,
+      new Map(Object.entries(searchRanges?.ranges ?? {})),
+      writingView,
+    );
+  }, [findAllSpec, projectFiles, searchRanges, analyzedSummary, writingView]);
 
   /** 本文の今の中身（検証の画面の行の番号と該当の行）。 */
   const textOfBuffer = useCallback(
@@ -3407,6 +3488,58 @@ export function App() {
     currentScene === null
       ? undefined
       : project?.summary.scenes.find((s) => s.id === currentScene);
+  // 検索の欄に渡す、この章の本文の範囲と今のシーン（T4-22）。
+  const findScene =
+    currentScene === null || project === null
+      ? null
+      : sceneRange(project.summary.scenes, currentScene);
+  const findSceneStart =
+    findScene !== null && findScene.file === currentFile
+      ? findScene.start
+      : null;
+  const findSceneEnd =
+    findScene !== null && findScene.file === currentFile ? findScene.end : null;
+  const findBodyRanges =
+    currentFile === null ? undefined : searchRanges?.ranges[currentFile]?.text;
+  const findBodySource =
+    currentFile === null ? undefined : searchRanges?.sources.get(currentFile);
+  // シーンの範囲は、要約を作った本文（要約と一緒に見せた診断の本文。送った後、結果が届くまでの buffers ではない）で
+  // 求めたもの。
+  const findSceneSource =
+    analysis !== null && analysis.file === currentFile
+      ? analysis.text
+      : undefined;
+  const editorFind = useMemo(
+    () => ({
+      body:
+        findBodyRanges === undefined || findBodySource === undefined
+          ? null
+          : { ranges: findBodyRanges, source: findBodySource },
+      scene:
+        findSceneStart === null ||
+        findSceneEnd === null ||
+        findSceneSource === undefined
+          ? null
+          : {
+              start: findSceneStart,
+              end: findSceneEnd,
+              source: findSceneSource,
+            },
+      onFindAll,
+      onNeedRanges: needRanges,
+      onClosed: onFindClosed,
+    }),
+    [
+      findBodyRanges,
+      findBodySource,
+      findSceneStart,
+      findSceneEnd,
+      findSceneSource,
+      onFindAll,
+      needRanges,
+      onFindClosed,
+    ],
+  );
   const statusItems: StatusItems =
     project === null
       ? []
@@ -3661,6 +3794,7 @@ export function App() {
                           aiFindings={findingMap}
                           previewLine={previewMarker}
                           openSearch={openSearch}
+                          find={editorFind}
                         />
                       ) : (
                         <p className="placeholder">
@@ -3670,6 +3804,9 @@ export function App() {
                     </section>
                     {!viewPrefs.focus && (
                       <ContextPanel
+                        found={found}
+                        onOpenFound={(m) => goTo(m.file, m.start)}
+                        onCloseFound={() => setFindAllSpec(null)}
                         scene={scene}
                         // シーンにいれば、そのシーンの問題だけ（無ければファイルの問題。U13）。
                         diagnostics={sceneDiagnostics(

@@ -31,7 +31,7 @@ import {
 import { scn, scnSyntaxHighlighting } from "@scn-studio/lezer-scn";
 import { PositionMap } from "../core/position.ts";
 import type { Bracket, IrDiagnostic, ViewMode } from "../core/types.ts";
-import { createFindPanel } from "./findPanel.ts";
+import { createFindPanel, findPanelWatch, findRanges } from "./findPanel.ts";
 import { programmatic } from "./flags.ts";
 import { lineIdGuard } from "./lineid.ts";
 import { halfwidthOf } from "./quickfix.ts";
@@ -298,6 +298,8 @@ export function createState(
       view?.extra ?? [],
       history(),
       search({ top: true, createPanel: createFindPanel }),
+      findRanges,
+      findPanelWatch,
       EditorState.phrases.of(SEARCH_PHRASES),
       drawSelection(),
       highlightActiveLine(),

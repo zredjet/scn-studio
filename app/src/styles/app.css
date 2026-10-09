@@ -965,6 +965,56 @@ body {
   margin-left: 8px;
 }
 
+.findbar-scope {
+  width: 132px;
+}
+
+/* すべての章の検索の結果（右の欄。見本 02b。T4-22） */
+.found-file {
+  display: flex;
+  flex-direction: column;
+}
+
+.found-file > .menu-label {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.found-count {
+  margin-left: 6px;
+  font-weight: 400;
+}
+
+.lrow.found-row {
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  padding: 6px 16px;
+}
+
+.found-place {
+  display: flex;
+  gap: 8px;
+}
+
+.found-text {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.found-text mark {
+  border-radius: var(--r-sm);
+  background: var(--accent-tint);
+  color: var(--accent-strong);
+}
+
+.found-note {
+  padding: 0 16px;
+}
+
 /* 探す窓（⌘K・⌘P。見本 12-overlays.html の 2。T4-20） */
 .finder-search {
   padding: 10px 12px;

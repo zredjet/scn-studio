@@ -20,7 +20,12 @@
 
 import { closeCompletion } from "@codemirror/autocomplete";
 import { setDiagnostics } from "@codemirror/lint";
-import { openSearchPanel } from "@codemirror/search";
+import {
+  getSearchQuery,
+  openSearchPanel,
+  searchPanelOpen,
+  setSearchQuery,
+} from "@codemirror/search";
 import {
   ChangeSet,
   Compartment,
@@ -31,6 +36,7 @@ import {
 import { EditorView, keymap } from "@codemirror/view";
 import { scn } from "@scn-studio/lezer-scn";
 import { useEffect, useRef } from "react";
+import { PositionMap } from "../core/position.ts";
 import type {
   AssistData,
   Bracket,
@@ -39,8 +45,16 @@ import type {
 } from "../core/types.ts";
 import { type AssistEnv, assistEnv, completion } from "./complete.ts";
 import { aiFindingLines, aiFindingMarks } from "./findings.ts";
+import {
+  type FindContext,
+  type FindRanges,
+  findContext,
+  reopenFindPanel,
+  setFindRanges,
+} from "./findPanel.ts";
 import { previewLine, setPreviewLine } from "./marker.ts";
 import { type Definition, definitionAt } from "./navigate.ts";
+import type { FindSpec } from "./projectSearch.ts";
 import { aiLineMarks, aiLines } from "./provenance.ts";
 import { replacement, savedChanges } from "./replace.ts";
 import {
@@ -162,6 +176,26 @@ interface Props {
   readonly openSearch?: number;
   /** 保存を頼む（変わったら今のファイルを保存する。保存の確認の「保存する」。T4-20）。 */
   readonly saveRequest?: number;
+  /**
+   * 検索の欄の「本文だけ」と「このシーン」と「すべての章」（T4-22）。範囲はこの章のバイト位置で、ここでエディタの
+   * 位置にする。
+   */
+  readonly find?: {
+    /** この章の本文の範囲と、範囲を作ったときの本文（エディタの本文が同じときだけ入れる）。読んでいなければ null。 */
+    readonly body: {
+      readonly ranges: readonly (readonly [number, number])[];
+      readonly source: string;
+    } | null;
+    /** 今のシーンの範囲と、範囲を求めたときの本文。 */
+    readonly scene: {
+      readonly start: number;
+      readonly end: number;
+      readonly source: string;
+    } | null;
+    readonly onFindAll: (spec: FindSpec | null) => void;
+    readonly onNeedRanges: () => void;
+    readonly onClosed: () => void;
+  };
 }
 
 /** AIが書いた行が無いとき（毎回新しい Map を作らないため）。 */
@@ -196,6 +230,7 @@ export function Editor({
   previewLine: preview = null,
   openSearch = 0,
   saveRequest = 0,
+  find,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
@@ -249,6 +284,7 @@ export function Editor({
     typewriter,
     aiLineMap,
     aiFindingMap,
+    find,
   });
   props.current = {
     file,
@@ -273,6 +309,56 @@ export function Editor({
     typewriter,
     aiLineMap,
     aiFindingMap,
+    find,
+  };
+
+  /** 検索の欄が App へ知らせる先（いつも最新の props を呼ぶ。T4-22）。 */
+  const findContextValue: FindContext = {
+    onFindAll: (spec) => props.current.find?.onFindAll(spec),
+    onNeedRanges: () => props.current.find?.onNeedRanges(),
+    onClosed: () => props.current.find?.onClosed(),
+  };
+
+  /**
+   * 検索の欄の範囲（本文と今のシーン）の入れ替え。範囲を作ったときの本文とエディタの本文が同じときだけ、エディタの
+   * 位置にして入れる（違えば、入れてある範囲を編集に合わせてずらしたまま使う）。変換中は、終わってから入れる。
+   */
+  const pendingFind = useRef(false);
+  const applyFind = () => {
+    const v = view.current;
+    if (v === null) return;
+    if (isComposing(v)) {
+      pendingFind.current = true;
+      return;
+    }
+    pendingFind.current = false;
+    const f = props.current.find;
+    const doc = v.state.sliceDoc();
+    // 範囲を作った本文がエディタの本文と同じとき（改行の種類だけ違うものも。診断と同じ）だけ、その本文で変換する
+    // （PositionMap はどの改行も1つの位置に数える）。
+    const mapFor = (source: string): PositionMap | null =>
+      source === doc || matchLineBreaks(source, v.state.lineBreak) === doc
+        ? new PositionMap(source)
+        : null;
+    const at = (map: PositionMap, byte: number) =>
+      map.byteToUtf16(Math.min(byte, map.byteLength));
+    const update: { -readonly [K in keyof FindRanges]?: FindRanges[K] } = {};
+    if (f?.body == null) update.body = null;
+    else {
+      const map = mapFor(f.body.source);
+      if (map !== null)
+        update.body = f.body.ranges.map(
+          ([a, b]) => [at(map, a), at(map, b)] as const,
+        );
+    }
+    if (f?.scene == null) update.scene = null;
+    else {
+      const map = mapFor(f.scene.source);
+      if (map !== null)
+        update.scene = [at(map, f.scene.start), at(map, f.scene.end)];
+    }
+    if (Object.keys(update).length > 0)
+      v.dispatch({ effects: setFindRanges.of(update) });
   };
 
   /** 補完に要るもの。 */
@@ -317,6 +403,7 @@ export function Editor({
       props.current.typewriter === true ? typewriterScroll() : [],
     ),
     assistSet.current.of(assistEnv.of(assistEnvOf())),
+    findContext.of(findContextValue),
     completion(),
     typingAssist(typingOptions),
     Prec.high(
@@ -626,6 +713,8 @@ export function Editor({
         }
         const pending = deferred.current;
         if (pending !== null) apply(pending);
+        // 変換中に見送った検索の範囲を入れる。
+        if (pendingFind.current) applyFind();
         const waiting = deferredReplace.current;
         if (waiting !== null) applyReplace(waiting);
         finishSave();
@@ -685,7 +774,14 @@ export function Editor({
     deferred.current = null;
     deferredReplace.current = null;
     saveAfterComposition.current = false;
+    // 検索の欄を開いていれば、切り替えた章でも同じ問い合わせで開き直す（すべての章の結果から移ったときなど。T4-22）。
+    const searching = searchPanelOpen(v.state);
+    const searchQuery = getSearchQuery(v.state);
     v.setState(makeStateRef.current(props.current.text));
+    if (searching) {
+      v.dispatch({ effects: setSearchQuery.of(searchQuery) });
+      reopenFindPanel(v);
+    }
     loaded.current = { file, sent: v.state.sliceDoc() };
     // 保存を待つ間に、そのファイルへ戻ってきた。本文が離れたときのままなら、続けて編集を追う。
     if (s !== null && s.detached !== null && s.file === file) {
@@ -713,6 +809,22 @@ export function Editor({
       effects: titleSet.current.reconfigure(sceneTitles.of(titles)),
     });
   }, [titles]);
+
+  // 検索の欄の本文の範囲と今のシーンを入れ替える（T4-22。章を切り替えた後にも。ファイルの効果より後に置く）。
+  const findBody = find?.body ?? null;
+  const findSceneStart = find?.scene?.start ?? null;
+  const findSceneEnd = find?.scene?.end ?? null;
+  const findSceneSource = find?.scene?.source ?? null;
+  const applyFindRef = useRef(applyFind);
+  applyFindRef.current = applyFind;
+  useEffect(() => {
+    void file;
+    void findBody;
+    void findSceneStart;
+    void findSceneEnd;
+    void findSceneSource;
+    applyFindRef.current();
+  }, [file, findBody, findSceneStart, findSceneEnd, findSceneSource]);
 
   // AIが書いた行の印を入れ替える。
   useEffect(() => {

@@ -73,6 +73,7 @@ import type {
   SceneInfo,
   ScriptFormat,
   ScriptSheet,
+  SearchRanges,
   SkeletonScene,
   StoryWrittenResult,
   SummarizeResult,
@@ -183,6 +184,11 @@ export function addStub(
   summary: string | null,
 ): Promise<StoryWrittenResult> {
   return invoke<StoryWrittenResult>("add_stub", { file, id, title, summary });
+}
+
+/** 章ごとの検索の範囲（本文と行ID。バイト位置。保存していない本文も。作品全体の検索。T4-22）。 */
+export function storySearchRanges(): Promise<Record<string, SearchRanges>> {
+  return invoke<Record<string, SearchRanges>>("story_search_ranges");
 }
 
 /** スタブを足すときに書き込む行（書かない。足せなければ誤りの文で失敗する。T4-20）。 */
