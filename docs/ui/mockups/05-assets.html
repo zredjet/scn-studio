@@ -2,251 +2,123 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<title>素材カタログ</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&amp;family=Shippori+Mincho:wght@400;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<title>素材</title>
+<link rel="stylesheet" href="scn-ui.css">
 <style>
 body{margin:0}
 a{color:#3343B8}a:hover{color:#1F2A8A}
-input::placeholder{color:#8B93A0}
 </style>
 </head>
 <body>
-<div style="min-height: 900px; display: flex; flex-direction: column; background: #EEF0F3; color: #1B1F24; font-family: 'Zen Kaku Gothic New', 'Hiragino Sans', sans-serif; font-size: 13px; line-height: 1.5">
-
-<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 6px 12px; background: #1C2027; color: #E6E9EE">
-<div style="display: flex; align-items: center; gap: 10px">
-<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A9B2F5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c3 4 5 6 5 9a5 5 0 0 1-10 0c0-3 2-5 5-9z"></path><path d="M12 13v5"></path></svg>
-<span style="font-weight: 700; font-size: 14px">放課後の灯</span>
-<span style="color: #AEB6C1; font-size: 12px; font-family: 'JetBrains Mono', monospace">main</span>
+<div class="app">
+<header class="tb">
+<div class="tb-l">
+<button class="tb-btn tb-project" type="button" aria-haspopup="menu" title="作品のメニュー"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"></path><path d="M5 17a3 3 0 0 1 3-3h11"></path></svg><span class="name">放課後の灯</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+<button class="tb-btn tb-sub" type="button" title="ブランチ"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="5" r="2"></circle><circle cx="6" cy="19" r="2"></circle><circle cx="18" cy="7" r="2"></circle><path d="M6 7v10"></path><path d="M18 9c0 5-6 4-12 8"></path></svg><span class="mono hide-narrow">main</span></button>
 </div>
-<label style="flex: 1 1 280px; max-width: 520px; margin: 0 auto; display: flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 8px; background: #2A3039; color: #AEB6C1">
-<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg>
-<input type="search" aria-label="コマンドパレット" placeholder="シーン・設定・コマンドを検索" style="flex: 1; min-width: 0; background: transparent; border: 0; outline: none; color: #E6E9EE; font: inherit">
-<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #AEB6C1">Ctrl K</span>
-</label>
-<div style="display: flex; align-items: center; gap: 10px">
-<span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #C9D0D9"><span aria-hidden="true" style="width: 8px; height: 8px; border-radius: 50%; background: #6FCF97"></span>AI：Ollama（ローカル）</span>
+<label class="tb-search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg><input type="search" aria-label="検索とコマンド" placeholder="シーン・設定・コマンドを検索"><kbd>⌘K</kbd></label>
+<div class="tb-r">
+<button class="tb-btn tb-ai" type="button" aria-haspopup="dialog" title="AIの接続：ローカル 接続中・クラウド 未許可"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z"></path><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"></path></svg><span class="who"><span class="gl-on" aria-hidden="true"></span>ローカル</span><span class="who"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>クラウド</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+<span class="tb-sep"></span>
+<div class="split"><a class="btn btn-primary btn-sm" href="06-preview.html" title="最初から再生"><svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z" fill="currentColor"></path></svg>再生</a><button class="btn btn-primary btn-sm" type="button" aria-label="再生の始め方を選ぶ"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button></div>
+<button class="tb-btn" type="button" aria-label="右の欄" aria-pressed="true" title="右の欄を開け閉め（⌥⌘B）"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M15 4v16"></path></svg></button>
 </div>
 </header>
 
-<div style="flex: 1; display: flex; flex-wrap: wrap; min-height: 0">
-
-<nav aria-label="メインナビゲーション" style="flex: 0 0 64px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; background: #1C2027">
-<a href="01-ideas.html" style="width: 52px; height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-radius: 10px; color: #AEB6C1; text-decoration: none; font-size: 11px">
-<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4"></path><path d="M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"></path></svg>企画</a>
-<a href="02-editor.html" style="width: 52px; height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-radius: 10px; color: #AEB6C1; text-decoration: none; font-size: 11px">
-<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"></path><path d="M14 3v5h5"></path><path d="M10 13h6M10 17h6"></path></svg>本文</a>
-<a href="03-flow.html" style="width: 52px; height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-radius: 10px; color: #AEB6C1; text-decoration: none; font-size: 11px">
-<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="7" height="5" rx="1"></rect><rect x="14" y="4" width="7" height="5" rx="1"></rect><rect x="8.5" y="15" width="7" height="5" rx="1"></rect><path d="M6.5 9v3h11V9M12 12v3"></path></svg>フロー</a>
-<a href="04-bible.html" style="width: 52px; height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-radius: 10px; color: #AEB6C1; text-decoration: none; font-size: 11px">
-<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"></path><path d="M5 17a3 3 0 0 1 3-3h11"></path></svg>設定</a>
-<a href="05-assets.html" aria-current="page" style="width: 52px; height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-radius: 10px; background: #343B48; color: #FFFFFF; text-decoration: none; font-size: 11px">
-<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="9" cy="10" r="2"></circle><path d="M21 16l-5-5-9 8"></path></svg>素材</a>
-<button type="button" style="width: 52px; height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-radius: 10px; border: 0; background: transparent; color: #AEB6C1; font: inherit; font-size: 11px; cursor: pointer">
-<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4c-2 0-3 1-3 3v2c0 1.5-1 2.5-2 3 1 .5 2 1.5 2 3v2c0 2 1 3 3 3"></path><path d="M16 4c2 0 3 1 3 3v2c0 1.5 1 2.5 2 3-1 .5-2 1.5-2 3v2c0 2-1 3-3 3"></path><path d="M10 9l4 6M14 9l-4 6"></path></svg>変数</button>
-<button type="button" style="position: relative; width: 52px; height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-radius: 10px; border: 0; background: transparent; color: #AEB6C1; font: inherit; font-size: 11px; cursor: pointer">
-<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 16H3z"></path><path d="M12 10v4M12 17h.01"></path></svg>検証
-<span style="position: absolute; top: 4px; right: 6px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 8px; background: #F2B04B; color: #3A2400; font-size: 10.5px; font-weight: 700; line-height: 16px; text-align: center">2</span></button>
-<a href="07-ai.html" style="width: 52px; height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-radius: 10px; color: #AEB6C1; text-decoration: none; font-size: 11px">
-<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"></path><path d="M9 10.5h.01M12 10.5h.01M15 10.5h.01"></path></svg>AI</a>
-<button type="button" style="width: 52px; height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-radius: 10px; border: 0; background: transparent; color: #AEB6C1; font: inherit; font-size: 11px; cursor: pointer">
-<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"></path><path d="M5 13v7h14v-7"></path></svg>出力</button>
-<div style="flex: 1"></div>
-<button type="button" aria-label="環境設定" style="width: 52px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 10px; border: 0; background: transparent; color: #AEB6C1; cursor: pointer">
-<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg></button>
+<div class="body">
+<nav class="rail" aria-label="画面">
+<a class="rail-item" href="01-ideas.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4"></path><path d="M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"></path></svg>企画</a>
+<a class="rail-item" href="02-editor.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"></path><path d="M14 3v5h5"></path><path d="M10 13h6M10 17h6"></path></svg>本文</a>
+<a class="rail-item" href="03-flow.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="7" height="5" rx="1"></rect><rect x="14" y="4" width="7" height="5" rx="1"></rect><rect x="8.5" y="15" width="7" height="5" rx="1"></rect><path d="M6.5 9v3h11V9M12 12v3"></path></svg>フロー</a>
+<a class="rail-item" href="04-bible.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"></path><path d="M5 17a3 3 0 0 1 3-3h11"></path></svg>設定</a>
+<a class="rail-item" href="05-assets.html" aria-current="page"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="9" cy="10" r="2"></circle><path d="M21 16l-5-5-9 8"></path></svg>素材</a>
+<a class="rail-item" href="08-variables.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4c-2 0-3 1-3 3v2c0 1.5-1 2.5-2 3 1 .5 2 1.5 2 3v2c0 2 1 3 3 3"></path><path d="M16 4c2 0 3 1 3 3v2c0 1.5 1 2.5 2 3-1 .5-2 1.5-2 3v2c0 2-1 3-3 3"></path><path d="M10 9l4 6M14 9l-4 6"></path></svg>変数</a>
+<a class="rail-item" href="09-check.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l1.5 1.5L8 5"></path><path d="M4 12l1.5 1.5L8 11"></path><path d="M4 18l1.5 1.5L8 17"></path><path d="M11 6h9M11 12h9M11 18h9"></path></svg>検証<span class="count" aria-label="警告5件">5</span></a>
+<a class="rail-item" href="07-ai.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z"></path><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"></path></svg>AI</a>
+<a class="rail-item" href="10-export.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"></path><path d="M5 13v7h14v-7"></path></svg>出力</a>
+<span class="rail-spacer"></span>
+<span class="rail-sep"></span>
+<a class="rail-item" href="11-preferences.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg>環境設定</a>
 </nav>
 
-<main style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; background: #FFFFFF">
-<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 16px 24px; border-bottom: 1px solid #ECEEF2">
-<div style="display: flex; flex-direction: column">
-<h1 style="margin: 0; font-size: 20px; font-weight: 700">素材カタログ</h1>
-<span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #4E5662">assets/catalog.yaml</span>
+<main class="work">
+<div class="work-head">
+<h1 class="h1">素材カタログ</h1>
+<span class="t-caption t-3 mono">assets/catalog.yaml</span>
+<span class="row" style="gap:6px;margin-left:8px"><span class="tag">ファイルあり 10</span><span class="tag tag-ph">仮素材 9</span><span class="tag tag-warn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 16H3z"></path><path d="M12 10v4"></path></svg>未登録 2</span></span>
+<span class="grow"></span>
+<button class="btn" type="button">未登録をカタログに足す</button>
+<button class="btn btn-primary" type="button">発注リストを書き出す</button>
 </div>
-<div style="display: flex; gap: 8px; margin-left: 8px">
-<span style="padding: 4px 10px; border-radius: 8px; background: #F1F3F6; font-size: 12.5px">登録 48</span>
-<span style="padding: 4px 10px; border-radius: 8px; border: 1px dashed #D19A3F; background: #FFF4E0; color: #6B3D00; font-size: 12.5px; font-weight: 500">仮素材 11</span>
-<span style="padding: 4px 10px; border-radius: 8px; background: #8A4F00; color: #FFFFFF; font-size: 12.5px; font-weight: 500">未登録の参照 1</span>
+<div class="row" style="flex-wrap:wrap;gap:8px 12px;padding:10px 16px;border-bottom:1px solid var(--border-soft)">
+<div class="seg" role="group" aria-label="種別"><button type="button" aria-pressed="true">すべて</button><button type="button" aria-pressed="false">背景</button><button type="button" aria-pressed="false">立ち絵</button><button type="button" aria-pressed="false">BGM</button><button type="button" aria-pressed="false">SE</button></div>
+<label class="check"><input type="checkbox">仮素材と未登録だけ</label>
+<span class="grow"></span>
+<span class="row t-small t-3" style="gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg><span class="mono" title="作品フォルダ/assets/files">…/houkago/assets/files</span></span>
+<button class="btn btn-sm" type="button">フォルダを開く</button>
+<label class="search is-sm" style="width:200px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg><input type="search" aria-label="意味名で絞り込む" placeholder="意味名で絞り込む"></label>
 </div>
-<div style="flex: 1"></div>
-<button type="button" style="min-height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid #D5D9E0; background: #FFFFFF; color: #1B1F24; font: inherit; cursor: pointer">未登録をカタログに追加</button>
-<button type="button" style="display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 14px; border-radius: 8px; border: 0; background: #3343B8; color: #FFFFFF; font: inherit; font-weight: 500; cursor: pointer">
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5"></path><path d="M5 20h14"></path></svg>発注リストをCSV出力</button>
-</div>
-
-<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 24px">
-<div role="group" aria-label="種別" style="display: inline-flex; padding: 3px; gap: 2px; border-radius: 8px; background: #EEF0F3">
-<button type="button" aria-pressed="true" style="min-height: 28px; padding: 0 12px; border-radius: 6px; border: 1px solid #D5D9E0; background: #FFFFFF; color: #1B1F24; font: inherit; font-weight: 500; cursor: pointer">すべて</button>
-<button type="button" aria-pressed="false" style="min-height: 28px; padding: 0 12px; border-radius: 6px; border: 1px solid transparent; background: transparent; color: #4E5662; font: inherit; cursor: pointer">背景</button>
-<button type="button" aria-pressed="false" style="min-height: 28px; padding: 0 12px; border-radius: 6px; border: 1px solid transparent; background: transparent; color: #4E5662; font: inherit; cursor: pointer">立ち絵</button>
-<button type="button" aria-pressed="false" style="min-height: 28px; padding: 0 12px; border-radius: 6px; border: 1px solid transparent; background: transparent; color: #4E5662; font: inherit; cursor: pointer">BGM</button>
-<button type="button" aria-pressed="false" style="min-height: 28px; padding: 0 12px; border-radius: 6px; border: 1px solid transparent; background: transparent; color: #4E5662; font: inherit; cursor: pointer">SE</button>
-</div>
-<label style="display: inline-flex; align-items: center; gap: 6px; color: #3D4550"><input type="checkbox" style="width: 16px; height: 16px; accent-color: #3343B8">仮素材と未登録のみ</label>
-<label style="flex: 0 1 240px; margin-left: auto; display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 6px; border: 1px solid #D5D9E0; color: #5E6672">
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg>
-<input type="search" aria-label="素材を検索" placeholder="意味名で検索" style="flex: 1; min-width: 0; border: 0; outline: none; background: transparent; font: inherit; color: #1B1F24">
-</label>
-</div>
-
-<div style="flex: 1; overflow: auto; padding: 0 24px 24px">
-<table style="width: 100%; min-width: 720px; border-collapse: collapse; font-size: 13px">
-<thead>
-<tr style="text-align: left; color: #4E5662; border-bottom: 1px solid #DDE1E6">
-<th scope="col" style="padding: 8px 10px; font-weight: 500; font-size: 12px">種別</th>
-<th scope="col" style="padding: 8px 10px; font-weight: 500; font-size: 12px">意味名</th>
-<th scope="col" style="padding: 8px 10px; font-weight: 500; font-size: 12px">ファイル</th>
-<th scope="col" style="padding: 8px 10px; font-weight: 500; font-size: 12px">状態</th>
-<th scope="col" style="padding: 8px 10px; font-weight: 500; font-size: 12px; text-align: right">使用回数</th>
-<th scope="col" style="padding: 8px 10px; font-weight: 500; font-size: 12px">初出</th>
-</tr>
-</thead>
+<div class="work-body">
+<table class="table">
+<thead><tr><th style="width:72px;padding-left:16px">種別</th><th>意味名</th><th>ファイル</th><th style="width:96px">状態</th><th class="num" style="width:56px">使用</th><th style="width:72px;padding-right:16px">初出</th></tr></thead>
 <tbody>
-<tr style="border-bottom: 1px solid #ECEEF2; background: #FFF8EC">
-<td style="padding: 9px 10px; color: #4E5662">SE</td>
-<td style="padding: 9px 10px; font-weight: 500">チャイム</td>
-<td style="padding: 9px 10px; color: #4E5662">本文で使用、カタログに無し</td>
-<td style="padding: 9px 10px"><span style="padding: 1px 8px; border-radius: 4px; background: #8A4F00; color: #FFFFFF; font-size: 11.5px; font-weight: 700">未登録</span></td>
-<td style="padding: 9px 10px; text-align: right">2</td>
-<td style="padding: 9px 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px">s010</td>
-</tr>
-<tr style="border-bottom: 1px solid #ECEEF2">
-<td style="padding: 9px 10px; color: #4E5662">背景</td>
-<td style="padding: 9px 10px; font-weight: 500">屋上/夕方</td>
-<td style="padding: 9px 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #3D4550">files/bg/rooftop_evening.png</td>
-<td style="padding: 9px 10px; color: #3D4550">あり</td>
-<td style="padding: 9px 10px; text-align: right">12</td>
-<td style="padding: 9px 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px">s003</td>
-</tr>
-<tr style="border-bottom: 1px solid #ECEEF2">
-<td style="padding: 9px 10px; color: #4E5662">背景</td>
-<td style="padding: 9px 10px; font-weight: 500">屋上/夜</td>
-<td style="padding: 9px 10px; color: #4E5662">—</td>
-<td style="padding: 9px 10px"><span style="padding: 1px 8px; border-radius: 4px; border: 1px dashed #D19A3F; background: #FFF4E0; color: #6B3D00; font-size: 11.5px; font-weight: 700">仮素材</span></td>
-<td style="padding: 9px 10px; text-align: right">3</td>
-<td style="padding: 9px 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px">s021</td>
-</tr>
-<tr style="border-bottom: 1px solid #ECEEF2">
-<td style="padding: 9px 10px; color: #4E5662">背景</td>
-<td style="padding: 9px 10px; font-weight: 500">教室/昼</td>
-<td style="padding: 9px 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #3D4550">files/bg/classroom_day.png</td>
-<td style="padding: 9px 10px; color: #3D4550">あり</td>
-<td style="padding: 9px 10px; text-align: right">9</td>
-<td style="padding: 9px 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px">s002</td>
-</tr>
-<tr style="border-bottom: 1px solid #ECEEF2">
-<td style="padding: 9px 10px; color: #4E5662">背景</td>
-<td style="padding: 9px 10px; font-weight: 500">帰り道/夕方</td>
-<td style="padding: 9px 10px; color: #4E5662">—</td>
-<td style="padding: 9px 10px"><span style="padding: 1px 8px; border-radius: 4px; border: 1px dashed #D19A3F; background: #FFF4E0; color: #6B3D00; font-size: 11.5px; font-weight: 700">仮素材</span></td>
-<td style="padding: 9px 10px; text-align: right">2</td>
-<td style="padding: 9px 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px">s013b</td>
-</tr>
-<tr style="border-bottom: 1px solid #ECEEF2">
-<td style="padding: 9px 10px; color: #4E5662">BGM</td>
-<td style="padding: 9px 10px; font-weight: 500">日常</td>
-<td style="padding: 9px 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #3D4550">files/bgm/nichijo.ogg</td>
-<td style="padding: 9px 10px; color: #3D4550">あり</td>
-<td style="padding: 9px 10px; text-align: right">21</td>
-<td style="padding: 9px 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px">s001</td>
-</tr>
-<tr style="border-bottom: 1px solid #ECEEF2">
-<td style="padding: 9px 10px; color: #4E5662">BGM</td>
-<td style="padding: 9px 10px; font-weight: 500">切ない</td>
-<td style="padding: 9px 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #3D4550">files/bgm/setsunai.ogg</td>
-<td style="padding: 9px 10px; color: #3D4550">あり</td>
-<td style="padding: 9px 10px; text-align: right">7</td>
-<td style="padding: 9px 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px">s012</td>
-</tr>
-<tr style="border-bottom: 1px solid #ECEEF2">
-<td style="padding: 9px 10px; color: #4E5662">SE</td>
-<td style="padding: 9px 10px; font-weight: 500">ドア</td>
-<td style="padding: 9px 10px; color: #4E5662">—</td>
-<td style="padding: 9px 10px"><span style="padding: 1px 8px; border-radius: 4px; border: 1px dashed #D19A3F; background: #FFF4E0; color: #6B3D00; font-size: 11.5px; font-weight: 700">仮素材</span></td>
-<td style="padding: 9px 10px; text-align: right">6</td>
-<td style="padding: 9px 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px">s002</td>
-</tr>
-<tr style="border-bottom: 1px solid #ECEEF2">
-<td style="padding: 9px 10px; color: #4E5662">SE</td>
-<td style="padding: 9px 10px; font-weight: 500">風</td>
-<td style="padding: 9px 10px; color: #4E5662">—</td>
-<td style="padding: 9px 10px"><span style="padding: 1px 8px; border-radius: 4px; border: 1px dashed #D19A3F; background: #FFF4E0; color: #6B3D00; font-size: 11.5px; font-weight: 700">仮素材</span></td>
-<td style="padding: 9px 10px; text-align: right">4</td>
-<td style="padding: 9px 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px">s012</td>
-</tr>
+<tr><td class="t-2" style="padding-left:16px">背景</td><td style="font-weight:600">駅/夕方</td><td class="t-3 t-small">本文で使っているが、カタログに無い</td><td><span class="tag tag-warn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 16H3z"></path><path d="M12 10v4"></path></svg>未登録</span></td><td class="num">1</td><td class="mono t-small">s040</td></tr>
+<tr><td class="t-2" style="padding-left:16px">SE</td><td style="font-weight:600">チャイム</td><td class="t-3 t-small">本文で使っているが、カタログに無い</td><td><span class="tag tag-warn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 16H3z"></path><path d="M12 10v4"></path></svg>未登録</span></td><td class="num">1</td><td class="mono t-small">s011</td></tr>
+<tr><td class="t-2" style="padding-left:16px">背景</td><td>屋上/夕方</td><td class="mono t-small t-2">files/bg/rooftop_evening.png</td><td class="t-2">あり</td><td class="num">1</td><td class="mono t-small">s012</td></tr>
+<tr><td class="t-2" style="padding-left:16px">背景</td><td>屋上/夜</td><td class="t-3">—</td><td><span class="tag tag-ph">仮素材</span></td><td class="num">1</td><td class="mono t-small">s021</td></tr>
+<tr><td class="t-2" style="padding-left:16px">背景</td><td>帰り道/夕方</td><td class="t-3">—</td><td><span class="tag tag-ph">仮素材</span></td><td class="num">1</td><td class="mono t-small">s013b</td></tr>
+<tr><td class="t-2" style="padding-left:16px">背景</td><td>教室/昼</td><td class="mono t-small t-2">files/bg/classroom_day.png</td><td class="t-2">あり</td><td class="num">1</td><td class="mono t-small">s011</td></tr>
+<tr><td class="t-2" style="padding-left:16px">背景</td><td>灯の家/朝</td><td class="t-3">—</td><td><span class="tag tag-ph">仮素材</span></td><td class="num">1</td><td class="mono t-small">s020</td></tr>
+<tr><td class="t-2" style="padding-left:16px">背景</td><td>通学路/朝</td><td class="mono t-small t-2">files/bg/street_morning.png</td><td class="t-2">あり</td><td class="num">1</td><td class="mono t-small">s010</td></tr>
+<tr><td class="t-2" style="padding-left:16px">立ち絵</td><td>灯/笑顔</td><td class="mono t-small t-2">files/chara/akari/smile.png</td><td class="t-2">あり</td><td class="num">2</td><td class="mono t-small">s010</td></tr>
+<tr><td class="t-2" style="padding-left:16px">立ち絵</td><td>灯/真顔</td><td class="mono t-small t-2">files/chara/akari/neutral.png</td><td class="t-2">あり</td><td class="num">2</td><td class="mono t-small">s012</td></tr>
+<tr><td class="t-2" style="padding-left:16px">立ち絵</td><td>灯/照れ</td><td class="t-3">—</td><td><span class="tag tag-ph">仮素材</span></td><td class="num">1</td><td class="mono t-small">s021</td></tr>
+<tr><td class="t-2" style="padding-left:16px">立ち絵</td><td>灯/泣き</td><td class="t-3">—</td><td><span class="tag tag-ph">仮素材</span></td><td class="num t-3">0</td><td class="t-3">—</td></tr>
+<tr><td class="t-2" style="padding-left:16px">立ち絵</td><td>紬/笑顔</td><td class="mono t-small t-2">files/chara/tsumugi/smile.png</td><td class="t-2">あり</td><td class="num">1</td><td class="mono t-small">s013b</td></tr>
+<tr><td class="t-2" style="padding-left:16px">立ち絵</td><td>紬/真顔</td><td class="t-3">—</td><td><span class="tag tag-ph">仮素材</span></td><td class="num">1</td><td class="mono t-small">s011</td></tr>
+<tr><td class="t-2" style="padding-left:16px">立ち絵</td><td>紬/怒り</td><td class="t-3">—</td><td><span class="tag tag-ph">仮素材</span></td><td class="num t-3">0</td><td class="t-3">—</td></tr>
+<tr><td class="t-2" style="padding-left:16px">立ち絵</td><td>三浦先生/笑顔</td><td class="mono t-small t-2">files/chara/miura/smile.png</td><td class="t-2">あり</td><td class="num t-3">0</td><td class="t-3">—</td></tr>
+<tr><td class="t-2" style="padding-left:16px">立ち絵</td><td>三浦先生/真顔</td><td class="mono t-small t-2">files/chara/miura/neutral.png</td><td class="t-2">あり</td><td class="num t-3">0</td><td class="t-3">—</td></tr>
+<tr><td class="t-2" style="padding-left:16px">BGM</td><td>日常</td><td class="mono t-small t-2">files/bgm/nichijo.ogg</td><td class="t-2">あり</td><td class="num">1</td><td class="mono t-small">s010</td></tr>
+<tr><td class="t-2" style="padding-left:16px">BGM</td><td>切ない</td><td class="mono t-small t-2">files/bgm/setsunai.ogg</td><td class="t-2">あり</td><td class="num">3</td><td class="mono t-small">s012</td></tr>
+<tr class="is-selected"><td class="t-2" style="padding-left:16px">SE</td><td style="font-weight:600">風</td><td class="t-3">—</td><td><span class="tag tag-ph">仮素材</span></td><td class="num">1</td><td class="mono t-small">s012</td></tr>
+<tr><td class="t-2" style="padding-left:16px">SE</td><td>ドア</td><td class="t-3">—</td><td><span class="tag tag-ph">仮素材</span></td><td class="num t-3">0</td><td class="t-3">—</td></tr>
 </tbody>
 </table>
-<p style="margin: 12px 0 0; font-size: 12px; color: #4E5662">意味名は本文の <span style="font-family: 'JetBrains Mono', 'Zen Kaku Gothic New', monospace">@背景 屋上/夕方</span> などと一致します。ファイル名とエンジン側の名前への対応はエクスポートプロファイルで決めます。</p>
 </div>
 </main>
 
-<aside aria-label="立ち絵の差分表" style="flex: 1 1 400px; min-width: 300px; display: flex; flex-direction: column; background: #FAFBFC; border-left: 1px solid #DDE1E6; overflow: auto">
-<h2 style="margin: 0; padding: 16px 16px 4px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #4E5662">立ち絵 · キャラ×差分</h2>
-<p style="margin: 0; padding: 0 16px 10px; font-size: 12px; color: #4E5662">セルの数字は本文での使用回数</p>
-<div style="padding: 0 12px; overflow-x: auto">
-<table style="width: 100%; border-collapse: separate; border-spacing: 4px; font-size: 12.5px">
-<thead>
-<tr style="color: #4E5662">
-<th scope="col" style="padding: 4px; font-weight: 500; text-align: left"></th>
-<th scope="col" style="padding: 4px; font-weight: 500">笑顔</th>
-<th scope="col" style="padding: 4px; font-weight: 500">真顔</th>
-<th scope="col" style="padding: 4px; font-weight: 500">照れ</th>
-<th scope="col" style="padding: 4px; font-weight: 500">泣き</th>
-<th scope="col" style="padding: 4px; font-weight: 500">怒り</th>
-</tr>
-</thead>
+<aside class="ctx" aria-label="素材の詳しい様子">
+<div class="panel-head"><span class="h-label">選んだ素材</span></div>
+<section class="section">
+<div class="row"><span class="h2 grow">SE　風</span><span class="tag tag-ph">仮素材</span></div>
+<dl class="kv"><dt>ファイル</dt><dd class="t-3">まだ無い（プレビューでは無音）</dd><dt>使っている</dt><dd><a href="02-editor.html">s012 放課後の屋上</a>（57行）</dd></dl>
+<div class="row"><button class="btn btn-sm" type="button">ファイルを割り当てる</button><a class="btn btn-link" href="02-editor.html">本文で見る</a></div>
+</section>
+<section class="section">
+<span class="h-label">立ち絵 · キャラ×差分</span>
+<span class="t-caption t-3">数字は本文で使っている回数</span>
+<table class="mx">
+<thead><tr><th></th><th>笑顔</th><th>真顔</th><th>照れ</th><th>泣き</th><th>怒り</th></tr></thead>
 <tbody>
-<tr>
-<th scope="row" style="padding: 4px; text-align: left; font-weight: 700">灯</th>
-<td style="height: 40px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E3E6EB; text-align: center">38</td>
-<td style="height: 40px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E3E6EB; text-align: center">21</td>
-<td style="height: 40px; border-radius: 6px; background: #FFF4E0; border: 1px dashed #D19A3F; text-align: center; color: #6B3D00; font-weight: 700">9 仮</td>
-<td style="height: 40px; border-radius: 6px; background: #FFF4E0; border: 1px dashed #D19A3F; text-align: center; color: #6B3D00; font-weight: 700">3 仮</td>
-<td style="height: 40px; border-radius: 6px; text-align: center; color: #8A93A3">—</td>
-</tr>
-<tr>
-<th scope="row" style="padding: 4px; text-align: left; font-weight: 700">紬</th>
-<td style="height: 40px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E3E6EB; text-align: center">27</td>
-<td style="height: 40px; border-radius: 6px; background: #FFF4E0; border: 1px dashed #D19A3F; text-align: center; color: #6B3D00; font-weight: 700">14 仮</td>
-<td style="height: 40px; border-radius: 6px; text-align: center; color: #8A93A3">—</td>
-<td style="height: 40px; border-radius: 6px; text-align: center; color: #8A93A3">—</td>
-<td style="height: 40px; border-radius: 6px; background: #FFF4E0; border: 1px dashed #D19A3F; text-align: center; color: #6B3D00; font-weight: 700">5 仮</td>
-</tr>
-<tr>
-<th scope="row" style="padding: 4px; text-align: left; font-weight: 700">三浦先生</th>
-<td style="height: 40px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E3E6EB; text-align: center">6</td>
-<td style="height: 40px; border-radius: 6px; background: #FFFFFF; border: 1px solid #E3E6EB; text-align: center">4</td>
-<td style="height: 40px; border-radius: 6px; text-align: center; color: #8A93A3">—</td>
-<td style="height: 40px; border-radius: 6px; text-align: center; color: #8A93A3">—</td>
-<td style="height: 40px; border-radius: 6px; background: #FFF4E0; border: 1px dashed #D19A3F; text-align: center; color: #6B3D00; font-weight: 700">1 仮</td>
-</tr>
+<tr><th style="text-align:left">灯</th><td class="has">2</td><td class="has">2</td><td class="ph">1</td><td class="ph">0</td><td class="none">—</td></tr>
+<tr><th style="text-align:left">紬</th><td class="has">1</td><td class="ph">1</td><td class="none">—</td><td class="none">—</td><td class="ph">0</td></tr>
+<tr><th style="text-align:left">三浦</th><td class="has">0</td><td class="has">0</td><td class="none">—</td><td class="none">—</td><td class="none">—</td></tr>
 </tbody>
 </table>
-</div>
-<div style="display: flex; flex-wrap: wrap; gap: 14px; padding: 8px 16px 0; font-size: 12px; color: #3D4550">
-<span style="display: inline-flex; align-items: center; gap: 6px"><span aria-hidden="true" style="width: 14px; height: 14px; box-sizing: border-box; border-radius: 3px; background: #FFFFFF; border: 1px solid #E3E6EB"></span>あり</span>
-<span style="display: inline-flex; align-items: center; gap: 6px"><span aria-hidden="true" style="width: 14px; height: 14px; box-sizing: border-box; border-radius: 3px; background: #FFF4E0; border: 1px dashed #D19A3F"></span>仮素材</span>
-<span>— 未使用</span>
-</div>
-
-<h2 style="margin: 0; padding: 22px 16px 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #4E5662">発注リスト（CSV）の列</h2>
-<div style="margin: 0 12px; padding: 10px 12px; border-radius: 8px; border: 1px solid #E3E6EB; background: #FFFFFF; font-family: 'JetBrains Mono', 'Zen Kaku Gothic New', monospace; font-size: 12px; line-height: 1.8; color: #3D4550; white-space: pre-wrap">種別,名前,キャラ,差分,使用回数,初出,使用シーン
-立ち絵,灯/照れ,灯,照れ,9,s014,"s014 s021 …"
-背景,屋上/夜,,,3,s021,"s021 s022 s030"</div>
-
-<h2 style="margin: 0; padding: 22px 16px 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #4E5662">選択中：SE 風</h2>
-<div style="display: flex; flex-direction: column; gap: 8px; padding: 0 16px 20px; font-size: 12.5px">
-<span>使用シーン：s012、s013a、s021、s030</span>
-<span style="color: #4E5662">プレビューでは無音として再生</span>
-<button type="button" style="align-self: flex-start; min-height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid #D5D9E0; background: #FFFFFF; color: #1B1F24; font: inherit; font-size: 12.5px; cursor: pointer">ファイルを割り当てる</button>
-</div>
+<div class="row t-caption t-2" style="gap:12px"><span class="row" style="gap:4px"><span style="width:12px;height:12px;border:1px solid var(--border);border-radius:3px;background:var(--paper)"></span>あり</span><span class="row" style="gap:4px"><span style="width:12px;height:12px;border:1px dashed var(--warn-border);border-radius:3px;background:var(--warn-tint)"></span>仮素材</span><span>— 差分なし</span></div>
+</section>
+<section class="section">
+<span class="h-label">発注リスト</span>
+<p class="t-small t-2">仮素材 9件と未登録 2件を、1行1件で書き出す。</p>
+<dl class="kv"><dt>書き出し先</dt><dd class="mono">export/orders.csv</dd><dt>列</dt><dd>種別・名前・キャラ・差分・使用回数・初出・使っているシーン・備考</dd></dl>
+</section>
 </aside>
 </div>
 
-<footer style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 5px 12px; background: #E4E7EC; border-top: 1px solid #D5D9E0; font-size: 12px; color: #3D4550">
-<span style="font-weight: 500">素材カタログ</span>
-<span>背景 14 · 立ち絵 22 · BGM 6 · SE 6</span>
-<span style="margin-left: auto">assets/files/ を監視中</span>
-<span>format v0</span>
+<footer class="sb">
+<div class="sb-l"><span class="sb-mode">素材</span><span>ファイルあり 10・仮素材 9・未登録 2</span><span class="hide-narrow">assets/files を見張り中</span></div>
+<div class="sb-r"><span class="sb-btn save"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"></path></svg>保存済み</span><a class="sb-btn" href="09-check.html" title="検証を開く"><svg class="ic-error" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9 9l6 6M15 9l-6 6"></path></svg>0<svg class="ic-warn" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 16H3z"></path><path d="M12 10v4M12 17h.01"></path></svg>5<svg class="ic-info" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg>7</a><span class="sb-btn hide-narrow">形式 v0</span></div>
 </footer>
 </div>
 </body>

@@ -2,24 +2,31 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<title>画面モック一覧</title>
-<style>
-body{margin:0;padding:48px;font-family:'Hiragino Sans','Yu Gothic UI',sans-serif;background:#EEF0F3;color:#1B1F24;line-height:1.7}
-h1{font-size:22px;margin:0 0 8px}p{margin:0 0 24px;color:#3D4550}
-ol{padding-left:1.4em;font-size:16px}a{color:#3343B8}
-</style>
+<title>画面モック v1</title>
+<link rel="stylesheet" href="scn-ui.css">
 </head>
 <body>
-<h1>画面モック一覧</h1>
-<p>デザインの方向を示す静的な見本。幅1440×高さ900を想定。画面間のリンクは左端のバーから辿れる。</p>
-<ol>
-<li><a href="01-ideas.html">企画とアイデアメモ</a></li>
-<li><a href="02-editor.html">本文エディタ</a>（<a href="02b-editor-source.html">ソース表示</a>）</li>
-<li><a href="03-flow.html">構造グラフ</a></li>
-<li><a href="04-bible.html">設定DB</a></li>
-<li><a href="05-assets.html">素材カタログ</a></li>
-<li><a href="06-preview.html">プレビュー</a>（<a href="06b-preview-vertical.html">縦書き</a>）</li>
-<li><a href="07-ai.html">AI実行</a></li>
+<div class="sheet">
+<h1 class="h1">画面モック v1</h1>
+<p class="t-2" style="margin:6px 0 20px">1ファイル1画面。窓の基準は 1440×900（最小 1024×700）。画面の間は左端のバーから移れる。トークンは tokens.md、決めたことは decisions-v1.md。</p>
+<ol class="col" style="gap:6px;font-size:15px">
+<li><a href="00-components.html">00-components</a>　部品と骨格</li>
+<li><a href="01-ideas.html">01-ideas</a>　企画</li>
+<li><a href="02-editor.html">02-editor</a>　本文（執筆表示）</li>
+<li><a href="02b-editor-source.html">02b-editor-source</a>　本文（ソース表示・検索と置換）</li>
+<li><a href="03-flow.html">03-flow</a>　フロー（選ぶ前）</li>
+<li><a href="04-bible.html">04-bible</a>　設定DB</li>
+<li><a href="05-assets.html">05-assets</a>　素材</li>
+<li><a href="06-preview.html">06-preview</a>　プレビュー（ADV）</li>
+<li><a href="06b-preview-vertical.html">06b-preview-vertical</a>　プレビュー（縦書き）</li>
+<li><a href="07-ai.html">07-ai</a>　AI実行</li>
+<li><a href="08-variables.html">08-variables</a>　変数</li>
+<li><a href="09-check.html">09-check</a>　検証</li>
+<li><a href="10-export.html">10-export</a>　出力</li>
+<li><a href="11-preferences.html">11-preferences</a>　環境設定</li>
+<li><a href="12-overlays.html">12-overlays</a>　重ね表示</li>
+<li><a href="13-narrow.html">13-narrow</a>　狭い窓（1280・1024）</li>
 </ol>
+</div>
 </body>
 </html>

@@ -13,7 +13,7 @@ paths:
 - TypeScriptは `strict`。`any` を使わない。コアから受け取るIRや診断の型は、1か所（`app/src/core/types.ts` など）で定義する。
 - Reactは関数コンポーネントとフックで書く。状態はまずReact標準の仕組みで持ち、状態管理ライブラリを足すときは人に確認する。
 - コアの呼び出し（Tauriの `invoke`）は1つのモジュール（`app/src/core/` など）にまとめ、コンポーネントから直接呼ばない。
-- UIコンポーネント集は使わない。見た目は `docs/ui/README.md` のデザイントークンをCSS変数にして使う。
+- UIコンポーネント集は使わない。見た目は `docs/ui/tokens.md`（値の正は `docs/ui/mockups/scn-ui.css` の `:root`）のデザイントークンをCSS変数にして使う。部品と画面の並べ方は `docs/ui/mockups/` の見本 v1、決めごとは `docs/ui/decisions-v1.md`（実装で変えたことは同じ文書の最後）。
 
 ## エディタ（CodeMirror 6）
 

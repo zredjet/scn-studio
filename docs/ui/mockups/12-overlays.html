@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>重ね表示</title>
+<link rel="stylesheet" href="scn-ui.css">
+<style>
+body{margin:0}
+a{color:#3343B8}a:hover{color:#1F2A8A}
+.ov2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;align-items:start}
+.ovs{position:relative;display:flex;justify-content:center;padding:32px 20px;border:1px solid var(--border);border-radius:8px;background:var(--app-bg);overflow:hidden}
+.ovs.dim::before{content:"";position:absolute;inset:0;background:var(--scrim)}
+.ovs>*{position:relative}
+.ovs.pop{padding:0 24px 28px;display:block}
+.ovs.pop .strip{height:44px;margin:0 -24px 6px;background:var(--chrome-bg)}
+.cap{display:flex;flex-direction:column;gap:2px;margin-top:8px}
+.code-box{margin:0;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:var(--panel-bg-2);font:400 12px/20px var(--font-mono);color:var(--ink);white-space:pre}
+.hk{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.hk>div{padding:8px 12px;font:400 12px/20px var(--font-mono);white-space:pre-wrap}
+.hk>div+div{border-left:1px solid var(--border)}
+.hk .pick{background:var(--accent-weak)}
+.hk .bar{grid-column:1 / -1;display:flex;align-items:center;gap:12px;padding:4px 12px;border-top:1px solid var(--border-soft);background:var(--panel-bg-2);font:400 12px/20px var(--font-ui);white-space:normal}
+.chg{background:var(--sunken);border-bottom:2px solid var(--border-strong)}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="col" style="gap:4px">
+<h1 class="h1">重ね表示 v1</h1>
+<p class="t-2">窓の上に重ねるものは2種類だけ。<b>ポップオーバー</b>は暗くせず、外を押すと閉じる。<b>ダイアログ</b>は後ろを暗くし、Esc で閉じる。どちらも角 8・線 1・影なし。幅は 320／480／600／960 の4つ。</p>
+</header>
+
+<section class="sheet-sec">
+<h2 class="h1">1. タイトルバーから開くもの</h2>
+<p class="lead">作品の出入りは作品名のメニューに、AIの接続の様子は AI の印のポップオーバーにまとめる。ほかの場所には出さない。</p>
+<div class="ov2">
+<div>
+<div class="ovs pop">
+<div class="strip"></div>
+<div class="popover" style="width:320px">
+<div class="menu">
+<div class="menu-label">最近開いた作品</div>
+<a class="menu-item is-active" href="02-editor.html"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-label="開いている"><path d="M5 12.5l4.5 4.5L19 7"></path></svg>放課後の灯<span class="t-caption t-3" style="margin-left:auto">~/scn/houkago</span></a>
+<a class="menu-item" href="02-editor.html"><span style="width:14px"></span>星降る町の観測者<span class="t-caption t-3" style="margin-left:auto">~/scn/hoshifuru</span></a>
+<a class="menu-item" href="02-editor.html"><span style="width:14px"></span>夏の終わり（短編）<span class="t-caption t-3" style="margin-left:auto">~/scn/natsu</span></a>
+<div class="menu-sep"></div>
+<a class="menu-item" href="02-editor.html"><span style="width:14px"></span>開く…<kbd>⌘O</kbd></a>
+<a class="menu-item" href="02-editor.html"><span style="width:14px"></span>新しく作る…<kbd>⌘N</kbd></a>
+<div class="menu-sep"></div>
+<a class="menu-item" href="02-editor.html"><span style="width:14px"></span>フォルダを表示</a>
+<a class="menu-item" href="11-preferences.html"><span style="width:14px"></span>この作品の設定</a>
+</div>
+</div>
+</div>
+<div class="cap"><span class="h-label">作品メニュー</span><span class="spec">幅 320 · 作品名を押す · 最近は 5件まで · Windows はメニューバーが無いのでここが入口</span></div>
+</div>
+
+<div>
+<div class="ovs pop">
+<div class="strip"></div>
+<div class="popover" style="width:320px;margin-left:auto">
+<div class="col" style="gap:0">
+<div class="row" style="gap:10px;padding:12px 14px;border-bottom:1px solid var(--border-soft)"><span style="flex:none;width:8px;height:8px;border-radius:50%;background:var(--ai-line)"></span><div class="col" style="gap:0;flex:1"><span style="font-weight:600">ローカル　接続中</span><span class="t-caption t-3">Ollama · qwen3:14b · 応答 0.12秒</span></div></div>
+<div class="row" style="gap:10px;padding:12px 14px;border-bottom:1px solid var(--border-soft)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg><div class="col" style="gap:0;flex:1"><span style="font-weight:600">クラウド　送ることを未許可</span><span class="t-caption t-3">Claude Code · ログイン済み</span></div><button class="btn btn-sm" type="button">許可する…</button></div>
+<div class="row" style="gap:8px;padding:8px 14px"><span class="t-small t-2">実行中 0</span><span class="grow"></span><a class="btn btn-link" href="07-ai.html" style="height:28px">AI実行を開く</a><a class="btn btn-link" href="11-preferences.html" style="height:28px">環境設定</a></div>
+</div>
+</div>
+</div>
+<div class="cap"><span class="h-label">AIの様子</span><span class="spec">幅 320 · AI の印を押す · 接続の様子を言葉で出すのはここだけ · ほかの画面は鍵の印と押せない状態だけ</span></div>
+</div>
+</div>
+</section>
+
+<section class="sheet-sec">
+<h2 class="h1">2. 探して開く</h2>
+<p class="lead">⌘K は何でも探す。⌘P はシーンだけを探す。どちらも窓の上から 72px に出し、↑↓ で選び Enter で開く。</p>
+<div class="ov2">
+<div>
+<div class="ovs dim" style="padding-top:28px;min-height:420px;align-items:flex-start">
+<div class="popover" style="width:600px">
+<div style="padding:10px 12px;border-bottom:1px solid var(--border-soft)"><label class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg><input type="search" value="屋上" aria-label="検索とコマンド"></label></div>
+<div class="menu">
+<div class="menu-label">シーン</div>
+<a class="menu-item is-active" href="02-editor.html"><span class="mono t-caption" style="width:40px">s012</span>放課後の屋上<span class="t-caption t-3" style="margin-left:auto">共通 · chapter01.scn</span></a>
+<a class="menu-item" href="02-editor.html"><span class="mono t-caption t-3" style="width:40px">s021</span>屋上の約束<span class="tag tag-ai">AI下書き</span><span class="t-caption t-3" style="margin-left:auto">灯 · chapter02.scn</span></a>
+<div class="menu-label">設定</div>
+<a class="menu-item" href="04-bible.html"><span class="t-caption t-3" style="width:40px">伏線</span>屋上の鍵<span class="t-caption t-3" style="margin-left:auto">bible/entries/foreshadow</span></a>
+<div class="menu-label">素材</div>
+<a class="menu-item" href="05-assets.html"><span class="t-caption t-3" style="width:40px">背景</span>屋上/夕方<span class="t-caption t-3" style="margin-left:auto">使用 1</span></a>
+<a class="menu-item" href="05-assets.html"><span class="t-caption t-3" style="width:40px">背景</span>屋上/夜<span class="tag tag-ph">仮素材</span><span class="t-caption t-3" style="margin-left:auto">使用 1</span></a>
+</div>
+<div class="row t-caption t-3" style="gap:12px;padding:8px 14px;border-top:1px solid var(--border-soft);background:var(--panel-bg-2)"><span><span class="mono">&gt;</span> で始めるとコマンドだけ</span><span>⌘P はシーンだけ</span><span class="grow"></span><span>↑↓ 選ぶ · Enter 開く · Esc 閉じる</span></div>
+</div>
+</div>
+<div class="cap"><span class="h-label">コマンドパレット（⌘K）</span><span class="spec">幅 600 · 種類ごとにまとめ、各 5件まで · タイトルバーの検索欄と同じもの</span></div>
+</div>
+
+<div>
+<div class="ovs dim" style="padding-top:28px;min-height:420px;align-items:flex-start">
+<div class="popover" style="width:600px">
+<div style="padding:10px 12px;border-bottom:1px solid var(--border-soft)"><label class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg><input type="search" value="s01" aria-label="シーンを開く"></label></div>
+<div class="menu">
+<a class="menu-item is-active" href="02-editor.html"><span class="st st-draft" title="下書き"><i></i></span><span class="mono t-caption" style="width:44px">s012</span>放課後の屋上<span class="t-caption t-3" style="margin-left:auto">共通</span></a>
+<a class="menu-item" href="02-editor.html"><span class="st st-writing" title="執筆中"><i></i></span><span class="mono t-caption t-3" style="width:44px">s010</span>登校<span class="t-caption t-3" style="margin-left:auto">共通</span></a>
+<a class="menu-item" href="02-editor.html"><span class="st st-writing" title="執筆中"><i></i></span><span class="mono t-caption t-3" style="width:44px">s011</span>昼休みの教室<span class="t-caption t-3" style="margin-left:auto">共通</span></a>
+<a class="menu-item" href="02-editor.html"><span class="st st-draft" title="下書き"><i></i></span><span class="mono t-caption t-3" style="width:44px">s013a</span>打ち明ける<span class="t-caption t-3" style="margin-left:auto">灯</span></a>
+<a class="menu-item" href="02-editor.html"><span class="st st-ai" title="AI下書き"><i></i></span><span class="mono t-caption t-3" style="width:44px">s013b</span>帰り道<span class="t-caption t-3" style="margin-left:auto">共通</span></a>
+<a class="menu-item" href="02-editor.html"><span class="st st-stub" title="スタブ"><i></i></span><span class="mono t-caption t-3" style="width:44px">s014</span>沈黙のあと<span class="t-caption t-3" style="margin-left:auto">共通</span></a>
+</div>
+<div class="row t-caption t-3" style="gap:12px;padding:8px 14px;border-top:1px solid var(--border-soft);background:var(--panel-bg-2)"><span>IDと名前の両方で探す · 入力が空なら最近開いた順</span><span class="grow"></span><span>⌘Enter 右に並べて開く</span></div>
+</div>
+</div>
+<div class="cap"><span class="h-label">シーンを開く（⌘P）</span><span class="spec">幅 600（⌘K と同じ部品）· 状態の印（形で区別）・ID・名前・ルート</span></div>
+</div>
+</div>
+</section>
+
+<section class="sheet-sec">
+<h2 class="h1">3. 構造を変える・確かめる</h2>
+<p class="lead">本文に書き込む操作は、書き込まれる行をダイアログの中で見せてから実行する。主のボタンは1つ、右下。消す・保存しないは左下に離す。</p>
+<div class="ov2">
+
+<div>
+<div class="ovs dim">
+<div class="dialog" style="width:480px">
+<div class="dialog-head"><h3 class="h2" style="margin:0">名前の変更</h3><button class="btn btn-icon" type="button" aria-label="閉じる"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>
+<div class="dialog-body">
+<div class="field"><span class="lbl">今の名前</span><input class="input is-readonly mono" value="akari.好感度" readonly aria-label="今の名前"></div>
+<div class="field"><span class="lbl">新しい名前</span><input class="input mono" value="akari.親しさ" aria-label="新しい名前" style="border-color:var(--accent)"><span class="hint">本文の <span class="mono">灯.好感度</span> は <span class="mono">灯.親しさ</span> に変わる（書き方はそのまま）</span></div>
+<div class="col" style="gap:4px"><span class="lbl">変わる場所　5</span>
+<div class="table-wrap"><table class="table"><tbody>
+<tr><td class="mono t-small" style="padding-left:12px">variables.yaml</td><td class="t-small t-2">宣言</td><td class="num" style="padding-right:12px">1</td></tr>
+<tr><td class="mono t-small" style="padding-left:12px">chapter01.scn</td><td class="t-small t-2">41・43・71・77行</td><td class="num" style="padding-right:12px">4</td></tr>
+</tbody></table></div></div>
+</div>
+<div class="dialog-foot"><button class="btn" type="button">キャンセル</button><button class="btn btn-primary" type="button">5か所を変える</button></div>
+</div>
+</div>
+<div class="cap"><span class="h-label">名前の変更（F2）</span><span class="spec">幅 480 · 変数・シーンID・キャラID・素材の意味名 · 行IDは変えられない</span></div>
+</div>
+
+<div>
+<div class="ovs dim">
+<div class="dialog" style="width:480px">
+<div class="dialog-head"><h3 class="h2" style="margin:0">スタブを足す</h3><button class="btn btn-icon" type="button" aria-label="閉じる"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>
+<div class="dialog-body">
+<div class="grid-2">
+<div class="field span-2"><span class="lbl">名前</span><input class="input" value="放課後の図書室" aria-label="名前" style="border-color:var(--accent)"></div>
+<div class="field"><span class="lbl">シーンID</span><input class="input mono" value="s015" aria-label="シーンID"></div>
+<div class="field"><span class="lbl">ルート</span><select class="select"><option>共通</option></select></div>
+<div class="field span-2"><span class="lbl">前のシーン</span><select class="select"><option>s014 沈黙のあと（選んでいるシーン）</option></select></div>
+<div class="field span-2"><span class="lbl">あらすじ</span><input class="input" value="灯が転校のことを言いかけて、やめる" aria-label="あらすじ"></div>
+</div>
+<div class="col" style="gap:4px"><span class="lbl">書き込む行　<span class="t-3" style="font-weight:400">chapter01.scn</span></span>
+<pre class="code-box">-&gt; s015            <span class="t-3"># s014 の最後に足す</span>
+
+## 放課後の図書室 #s015
+---
+summary: 灯が転校のことを言いかけて、やめる
+route: 共通
+---</pre>
+<span class="hint">s014 の W503（行き止まり）が消えます</span></div>
+</div>
+<div class="dialog-foot"><button class="btn" type="button">キャンセル</button><button class="btn btn-primary" type="button">足す</button></div>
+</div>
+</div>
+<div class="cap"><span class="h-label">スタブを足す</span><span class="spec">幅 480 · フローで選んだシーンの後ろに足す · 本文の無いシーン＝スタブ（灰色の点線）</span></div>
+</div>
+
+<div>
+<div class="ovs dim">
+<div class="dialog" style="width:480px">
+<div class="dialog-head"><h3 class="h2" style="margin:0">辺を足す</h3><button class="btn btn-icon" type="button" aria-label="閉じる"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>
+<div class="dialog-body">
+<div class="row" style="gap:8px;align-items:flex-end">
+<div class="field" style="flex:1"><span class="lbl">元</span><input class="input is-readonly" value="s014 沈黙のあと" readonly aria-label="元"></div>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-bottom:7px"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+<div class="field" style="flex:1"><span class="lbl">先</span><select class="select"><option>s022 雨の図書室</option></select></div>
+</div>
+<div class="field"><span class="lbl">つなぎ方</span><div class="seg" role="group" aria-label="つなぎ方" style="align-self:flex-start"><button type="button" aria-pressed="true">ジャンプ</button><button type="button" aria-pressed="false">選択肢</button><button type="button" aria-pressed="false">条件</button></div></div>
+<div class="field"><span class="lbl">条件（任意）</span><input class="input mono" placeholder="例：灯.好感度 &gt;= 3" aria-label="条件"><span class="hint">条件を付けると、偽のときの行き先も要る</span></div>
+<div class="col" style="gap:4px"><span class="lbl">書き込む行　<span class="t-3" style="font-weight:400">chapter01.scn 96行の後</span></span>
+<pre class="code-box">-&gt; s022</pre></div>
+</div>
+<div class="dialog-foot"><button class="btn" type="button">キャンセル</button><button class="btn btn-primary" type="button">つなぐ</button></div>
+</div>
+</div>
+<div class="cap"><span class="h-label">辺を足す</span><span class="spec">幅 480 · フローでシーンを2つ選ぶと押せる · 辺の線は藍（人の書いた構造）</span></div>
+</div>
+
+<div>
+<div class="ovs dim" style="min-height:300px;align-items:center">
+<div class="dialog" style="width:480px">
+<div class="dialog-head"><h3 class="h2" style="margin:0">変更を保存しますか</h3></div>
+<div class="dialog-body">
+<p style="margin:0">閉じる前に、保存していない変更があります。</p>
+<div class="col" style="gap:2px">
+<span class="row t-small" style="gap:8px"><span class="save save-dirty" style="padding:0"><span class="dot"></span></span><span class="mono">story/chapter01.scn</span></span>
+<span class="row t-small" style="gap:8px"><span class="save save-dirty" style="padding:0"><span class="dot"></span></span><span class="mono">bible/entries/character/akari.md</span></span>
+</div>
+<span class="hint">自動保存を切っているときと、外の変更と食い違ったときだけ出る</span>
+</div>
+<div class="dialog-foot"><button class="btn btn-danger" type="button" style="margin-right:auto">保存しない</button><button class="btn" type="button">キャンセル</button><button class="btn btn-primary" type="button">保存する</button></div>
+</div>
+</div>
+<div class="cap"><span class="h-label">保存していない変更の確認</span><span class="spec">幅 480 · 作品を閉じる・切り替える・アプリを終える · Enter＝保存する</span></div>
+</div>
+
+</div>
+</section>
+
+<section class="sheet-sec">
+<h2 class="h1">4. マージ</h2>
+<p class="lead">外のエディタやAIのブランチの変更が、アプリの中の変更と重なったときに出す。重ならない変更は黙って取り込み、重なった所だけを選ばせる。</p>
+<div class="ovs dim">
+<div class="dialog" style="width:960px">
+<div class="dialog-head"><h3 class="h2" style="margin:0;flex:none">chapter01.scn が外で変わりました</h3><span class="tag tag-warn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 16H3z"></path><path d="M12 10v4"></path></svg>重なり 2か所</span><span class="grow"></span><span class="t-small t-3">決めるまで自動保存を止めています</span></div>
+<div class="dialog-body">
+<div class="row t-small t-2" style="gap:0"><span style="flex:1;padding-left:12px;font-weight:600">このアプリの変更</span><span style="flex:1;padding-left:12px;font-weight:600">外の変更（VS Code · 21:16）</span></div>
+<div class="hk">
+<div class="pick"><span class="t-3">41  </span>@設定 灯.好感度 += <span class="chg">2</span></div>
+<div><span class="t-3">41  </span>@設定 灯.好感度 += <span class="chg">3</span></div>
+<div class="bar"><span class="t-3">s011 · 41行</span><span class="grow"></span><label class="check"><input type="radio" name="h1" checked>このアプリ</label><label class="check"><input type="radio" name="h1">外</label><label class="check"><input type="radio" name="h1">両方を残して自分で直す</label></div>
+</div>
+<div class="hk">
+<div><span class="t-3">58  </span>灯「やっと来た。遅いよ」 ^k3f9</div>
+<div class="pick"><span class="t-3">58  </span>灯「やっと来た。<span class="chg">……</span>遅いよ」 ^k3f9</div>
+<div class="bar"><span class="t-3">s012 · ^k3f9 · 台詞が変わると再収録の候補になる</span><span class="grow"></span><label class="check"><input type="radio" name="h2">このアプリ</label><label class="check"><input type="radio" name="h2" checked>外</label><label class="check"><input type="radio" name="h2">両方を残して自分で直す</label></div>
+</div>
+<span class="row t-small t-2" style="gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"></path></svg>重ならない変更 5か所（外 3・このアプリ 2）はそのまま取り込みます</span>
+</div>
+<div class="dialog-foot"><button class="btn" type="button" style="margin-right:auto">外の内容で読み直す</button><button class="btn" type="button">あとで決める</button><button class="btn btn-primary" type="button">選んだ内容で保存</button></div>
+</div>
+</div>
+<div class="cap"><span class="h-label">マージ</span><span class="spec">幅 960 · 左右で並べ、選んだ側を藍の薄い面と言葉で示す · 赤と緑は使わない · 行IDで行を突き合わせる</span></div>
+</section>
+
+</div>
+</body>
+</html>

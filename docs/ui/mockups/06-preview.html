@@ -2,135 +2,133 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<title>プレビュー</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&amp;family=Shippori+Mincho:wght@400;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<title>プレビュー（ADV）</title>
+<link rel="stylesheet" href="scn-ui.css">
 <style>
 body{margin:0}
 a{color:#3343B8}a:hover{color:#1F2A8A}
 </style>
 </head>
 <body>
-<div style="min-height: 900px; display: flex; flex-direction: column; background: #15181D; color: #1B1F24; font-family: 'Zen Kaku Gothic New', 'Hiragino Sans', sans-serif; font-size: 13px; line-height: 1.5">
-
-<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 16px; background: #1C2027; color: #E6E9EE; border-bottom: 1px solid #2A3039">
-<span style="font-weight: 700; font-size: 14px">プレビュー</span>
-<span style="color: #AEB6C1; font-size: 12px">放課後の灯 · 別ウィンドウ</span>
-<div role="group" aria-label="プレビューの種類" style="display: inline-flex; padding: 3px; gap: 2px; margin-left: 12px; border-radius: 8px; background: #2A3039">
-<button type="button" aria-pressed="true" style="min-height: 28px; padding: 0 14px; border-radius: 6px; border: 0; background: #E6E9EE; color: #1B1F24; font: inherit; font-weight: 500; cursor: pointer">ADV</button>
-<button type="button" aria-pressed="false" style="min-height: 28px; padding: 0 14px; border-radius: 6px; border: 0; background: transparent; color: #C9D0D9; font: inherit; cursor: pointer">縦書き</button>
+<div class="app">
+<header class="tb">
+<div class="tb-l">
+<button class="tb-btn tb-project" type="button" aria-haspopup="menu" title="作品のメニュー"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"></path><path d="M5 17a3 3 0 0 1 3-3h11"></path></svg><span class="name">放課後の灯</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+<button class="tb-btn tb-sub" type="button" title="ブランチ"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="5" r="2"></circle><circle cx="6" cy="19" r="2"></circle><circle cx="18" cy="7" r="2"></circle><path d="M6 7v10"></path><path d="M18 9c0 5-6 4-12 8"></path></svg><span class="mono hide-narrow">main</span></button>
 </div>
-<div style="flex: 1"></div>
-<label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #C9D0D9"><input type="checkbox" checked style="width: 16px; height: 16px; accent-color: #5FC4B6">AI下書きを含める</label>
-<label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #C9D0D9"><input type="checkbox" checked style="width: 16px; height: 16px; accent-color: #7F8CF0">エディタと同期</label>
-<button type="button" style="min-height: 30px; padding: 0 12px; border-radius: 6px; border: 1px solid #3A414D; background: transparent; color: #E6E9EE; font: inherit; font-size: 12px; cursor: pointer">最初から</button>
-<a href="02-editor.html" style="display: inline-flex; align-items: center; min-height: 30px; padding: 0 12px; border-radius: 6px; border: 1px solid #3A414D; color: #E6E9EE; text-decoration: none; font-size: 12px">エディタへ戻る</a>
+<label class="tb-search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg><input type="search" aria-label="検索とコマンド" placeholder="シーン・設定・コマンドを検索"><kbd>⌘K</kbd></label>
+<div class="tb-r">
+<button class="tb-btn tb-ai" type="button" aria-haspopup="dialog" title="AIの接続：ローカル 接続中・クラウド 未許可"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z"></path><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"></path></svg><span class="who"><span class="gl-on" aria-hidden="true"></span>ローカル</span><span class="who"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>クラウド</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+<span class="tb-sep"></span>
+<div class="split"><a class="btn btn-primary btn-sm" href="06-preview.html" title="カーソルの位置から再生（⌘R）"><svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z" fill="currentColor"></path></svg>再生</a><button class="btn btn-primary btn-sm" type="button" aria-label="再生の始め方を選ぶ"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button></div>
+<button class="tb-btn" type="button" aria-label="右の欄" aria-pressed="true" title="右の欄を開け閉め（⌥⌘B）"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M15 4v16"></path></svg></button>
+</div>
 </header>
 
-<div style="flex: 1; display: flex; flex-wrap: wrap; min-height: 0">
+<div class="body">
+<nav class="rail" aria-label="画面">
+<a class="rail-item" href="01-ideas.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4"></path><path d="M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"></path></svg>企画</a>
+<a class="rail-item" href="02-editor.html" aria-current="page"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"></path><path d="M14 3v5h5"></path><path d="M10 13h6M10 17h6"></path></svg>本文</a>
+<a class="rail-item" href="03-flow.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="7" height="5" rx="1"></rect><rect x="14" y="4" width="7" height="5" rx="1"></rect><rect x="8.5" y="15" width="7" height="5" rx="1"></rect><path d="M6.5 9v3h11V9M12 12v3"></path></svg>フロー</a>
+<a class="rail-item" href="04-bible.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"></path><path d="M5 17a3 3 0 0 1 3-3h11"></path></svg>設定</a>
+<a class="rail-item" href="05-assets.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="9" cy="10" r="2"></circle><path d="M21 16l-5-5-9 8"></path></svg>素材</a>
+<a class="rail-item" href="08-variables.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4c-2 0-3 1-3 3v2c0 1.5-1 2.5-2 3 1 .5 2 1.5 2 3v2c0 2 1 3 3 3"></path><path d="M16 4c2 0 3 1 3 3v2c0 1.5 1 2.5 2 3-1 .5-2 1.5-2 3v2c0 2-1 3-3 3"></path><path d="M10 9l4 6M14 9l-4 6"></path></svg>変数</a>
+<a class="rail-item" href="09-check.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l1.5 1.5L8 5"></path><path d="M4 12l1.5 1.5L8 11"></path><path d="M4 18l1.5 1.5L8 17"></path><path d="M11 6h9M11 12h9M11 18h9"></path></svg>検証<span class="count" aria-label="警告5件">5</span></a>
+<a class="rail-item" href="07-ai.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z"></path><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"></path></svg>AI</a>
+<a class="rail-item" href="10-export.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"></path><path d="M5 13v7h14v-7"></path></svg>出力</a>
+<span class="rail-spacer"></span>
+<span class="rail-sep"></span>
+<a class="rail-item" href="11-preferences.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg>環境設定</a>
+</nav>
 
-<main style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 28px 24px">
-
-<div style="width: 100%; max-width: 960px; display: flex; flex-direction: column; gap: 14px">
-<div style="position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: 6px; overflow: hidden; background: #E2A877">
-<div aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 0; height: 30%; background: #D9946A"></div>
-<div aria-hidden="true" style="position: absolute; left: 4%; bottom: 40%; width: 9%; height: 18%; background: #B5785A"></div>
-<div aria-hidden="true" style="position: absolute; left: 15%; bottom: 40%; width: 6%; height: 26%; background: #A86E52"></div>
-<div aria-hidden="true" style="position: absolute; right: 8%; bottom: 40%; width: 12%; height: 22%; background: #B5785A"></div>
-<div aria-hidden="true" style="position: absolute; right: 22%; bottom: 40%; width: 5%; height: 14%; background: #A86E52"></div>
-<div aria-hidden="true" style="position: absolute; left: 0; right: 0; bottom: 0; height: 40%; background: #7B5A4A"></div>
-<div aria-hidden="true" style="position: absolute; left: 0; right: 0; bottom: 40%; height: 1.2%; background: #5C4338"></div>
-<div aria-hidden="true" style="position: absolute; left: 14%; bottom: 0; width: 24%; height: 84%; display: flex; flex-direction: column; align-items: center">
-<div style="width: 34%; aspect-ratio: 1; border-radius: 50%; background: #3B3F4A"></div>
-<div style="width: 70%; flex: 1; margin-top: 4%; border-radius: 40% 40% 0 0; background: #3B3F4A"></div>
+<main class="work" style="background:var(--app-bg)">
+<div class="work-head" style="background:var(--paper)">
+<h1 class="h1">プレビュー</h1>
+<div class="seg" role="group" aria-label="表示"><a href="06-preview.html" aria-current="page">ADV</a><a href="06b-preview-vertical.html">縦書き</a></div>
+<label class="check"><input type="checkbox" checked>AI下書きを含める</label>
+<label class="check"><input type="checkbox" checked>エディタと同期</label>
+<span class="grow"></span>
+<button class="btn" type="button">最初から</button>
+<button class="btn btn-icon" type="button" aria-label="音を消す"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"></path><path d="M17 9c1.5 1.5 1.5 4.5 0 6"></path></svg></button>
+<input type="range" aria-label="音量" value="80" style="width:96px;accent-color:var(--accent)">
+<button class="btn" type="button">別ウィンドウで開く</button>
+<a class="btn btn-icon" href="02-editor.html" aria-label="プレビューを閉じる（Esc）"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></a>
 </div>
-<span style="position: absolute; left: 12px; top: 12px; padding: 2px 8px; border-radius: 4px; background: rgba(21, 24, 29, 0.72); color: #F3F4F6; font-size: 11.5px">背景：屋上/夕方</span>
-<span style="position: absolute; left: 16%; top: 12%; padding: 2px 8px; border-radius: 4px; background: rgba(21, 24, 29, 0.72); color: #F3F4F6; font-size: 11.5px">立ち絵：灯 · 真顔 · 左</span>
-<span style="position: absolute; right: 12px; top: 12px; padding: 2px 8px; border-radius: 4px; border: 1px dashed #F2B04B; background: rgba(21, 24, 29, 0.72); color: #F7CB7E; font-size: 11.5px">SE 風 · 仮素材（無音）</span>
-<div style="position: absolute; left: 3%; right: 3%; bottom: 4%; height: 28%; box-sizing: border-box; padding: 26px 30px 16px; border-radius: 10px; background: rgba(18, 21, 27, 0.88); color: #F3F4F6">
-<span style="position: absolute; left: 22px; top: -16px; padding: 3px 16px; border-radius: 6px; background: #3343B8; color: #FFFFFF; font-weight: 700; font-size: 15px">灯</span>
-<p style="margin: 0; font-family: 'Shippori Mincho', serif; font-size: 22px; line-height: 1.8">「あのね、話があるんだ」</p>
-<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style="position: absolute; right: 22px; bottom: 16px"><path d="M4 7h16l-8 11z" fill="#C9D0D9"></path></svg>
+<div class="work-body" style="display:flex;justify-content:center;padding:24px">
+<div class="col" style="gap:12px;width:100%;max-width:860px">
+<div class="stage" role="img" aria-label="屋上・夕方。左に灯（真顔）。灯「あのね、話があるんだ」">
+<div style="position:absolute;left:0;right:0;top:0;height:58%;background:#C98F6B"></div>
+<div style="position:absolute;left:0;right:0;top:58%;height:3%;background:#5C4338"></div>
+<div style="position:absolute;left:0;right:0;top:61%;bottom:0;background:#7B5A4A"></div>
+<div style="position:absolute;left:6%;top:30%;width:10%;height:28%;background:#A9765C"></div>
+<div style="position:absolute;right:10%;top:36%;width:14%;height:22%;background:#A9765C"></div>
+<div style="position:absolute;left:14%;bottom:0;width:22%;height:82%;display:flex;flex-direction:column;align-items:center">
+<div style="width:34%;aspect-ratio:1;border-radius:50%;background:#3B3F4A"></div>
+<div style="flex:1;width:72%;margin-top:4%;border-radius:40% 40% 0 0;background:#3B3F4A"></div>
 </div>
-</div>
-
-<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
-<button type="button" style="display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid #3A414D; background: #22262E; color: #E6E9EE; font: inherit; cursor: pointer">
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>戻る</button>
-<button type="button" style="display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 16px; border-radius: 8px; border: 0; background: #3343B8; color: #FFFFFF; font: inherit; font-weight: 500; cursor: pointer">次へ
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
-<button type="button" style="min-height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid #3A414D; background: #22262E; color: #E6E9EE; font: inherit; cursor: pointer">オート</button>
-<button type="button" style="min-height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid #3A414D; background: #22262E; color: #E6E9EE; font: inherit; cursor: pointer">スキップ</button>
-<button type="button" style="min-height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid #3A414D; background: #22262E; color: #E6E9EE; font: inherit; cursor: pointer">ログ</button>
-<span style="margin-left: auto; font-family: 'JetBrains Mono', 'Zen Kaku Gothic New', monospace; font-size: 12px; color: #AEB6C1">s012 · ^k3fb · 3/9行</span>
-</div>
-<div style="display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; color: #AEB6C1">
-<span>画面 1280×720</span><span>ウィンドウ 3行×24字</span><span>トランジション：フェードのみ再現</span>
+<span class="stage-label" style="left:12px;top:12px">背景 屋上/夕方</span>
+<span class="stage-label" style="left:16%;top:14%">立ち絵 灯・真顔・左</span>
+<span class="stage-label" style="right:12px;top:12px;border:1px dashed var(--warn-border);color:#F7CB7E">SE 風・仮素材（無音）</span>
+<div class="msgwin">
+<span class="namebox">灯</span>
+<p style="margin:0;font:400 20px/1.8 var(--font-text)">「あのね、話があるんだ」</p>
+<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style="position:absolute;right:22px;bottom:16px"><path d="M4 7h16l-8 11z" fill="#C9D0D9"></path></svg>
 </div>
 </div>
-
+<div class="row" style="gap:8px">
+<button class="btn" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>戻る</button>
+<button class="btn btn-primary" type="button">次へ<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+<button class="btn" type="button">オート</button>
+<button class="btn" type="button">スキップ</button>
+<button class="btn" type="button">ログ</button>
+<span class="grow"></span>
+<span class="mono t-small t-2">s012 · ^k3fb · 3/9行</span>
+</div>
+<p class="t-small t-3">画面 1280×720・ウィンドウ 3行×24字・トランジションはフェードだけ再現・音はファイルのある素材だけ鳴る</p>
+</div>
+</div>
 </main>
 
-<aside aria-label="デバッグ" style="flex: 1 1 320px; min-width: 280px; display: flex; flex-direction: column; background: #FFFFFF; overflow: auto">
-<h2 style="margin: 0; padding: 16px 16px 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #4E5662">現在位置</h2>
-<div style="display: flex; align-items: center; gap: 8px; padding: 0 16px">
-<span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #4E5662">s012</span>
-<span style="font-weight: 700">放課後の屋上</span>
-<a href="02-editor.html" style="margin-left: auto; font-size: 12px">エディタで表示</a>
-</div>
-
-<h2 style="margin: 0; padding: 18px 16px 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #4E5662">変数</h2>
-<div style="display: flex; flex-direction: column; gap: 8px; padding: 0 16px">
-<div style="display: flex; align-items: center; gap: 8px">
-<label for="v-like" style="flex: 1; font-family: 'JetBrains Mono', 'Zen Kaku Gothic New', monospace; font-size: 12.5px">灯.好感度</label>
-<input id="v-like" type="number" value="1" min="0" max="10" style="width: 72px; min-height: 30px; padding: 0 8px; box-sizing: border-box; border-radius: 6px; border: 1px solid #D5D9E0; font: inherit; font-family: 'JetBrains Mono', monospace">
-</div>
-<div style="display: flex; align-items: center; gap: 8px">
-<label for="v-brave" style="flex: 1; font-family: 'JetBrains Mono', 'Zen Kaku Gothic New', monospace; font-size: 12.5px">勇気</label>
-<input id="v-brave" type="number" value="2" min="0" style="width: 72px; min-height: 30px; padding: 0 8px; box-sizing: border-box; border-radius: 6px; border: 1px solid #D5D9E0; font: inherit; font-family: 'JetBrains Mono', monospace">
-</div>
-<div style="display: flex; align-items: center; gap: 8px">
-<label for="v-moved" style="flex: 1; font-family: 'JetBrains Mono', 'Zen Kaku Gothic New', monospace; font-size: 12.5px">灯.転校済み</label>
-<input id="v-moved" type="checkbox" style="width: 18px; height: 18px; accent-color: #3343B8">
-</div>
-<div style="display: flex; align-items: center; gap: 8px">
-<label for="v-route" style="flex: 1; font-family: 'JetBrains Mono', 'Zen Kaku Gothic New', monospace; font-size: 12.5px">flag.ルート</label>
-<select id="v-route" style="width: 96px; min-height: 30px; padding: 0 6px; border-radius: 6px; border: 1px solid #D5D9E0; background: #FFFFFF; font: inherit">
-<option>共通</option><option>灯</option><option>紬</option>
-</select>
-</div>
-<div style="display: flex; align-items: center; gap: 8px; padding-top: 8px; border-top: 1px solid #ECEEF2">
-<label for="v-true" style="flex: 1; font-family: 'JetBrains Mono', 'Zen Kaku Gothic New', monospace; font-size: 12.5px">周回.トゥルー解放</label>
-<span style="font-size: 11px; color: #4E5662">永続</span>
-<input id="v-true" type="checkbox" style="width: 18px; height: 18px; accent-color: #3343B8">
-</div>
-</div>
-
-<h2 style="margin: 0; padding: 18px 16px 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #4E5662">ジャンプ</h2>
-<div style="display: flex; gap: 8px; padding: 0 16px">
-<label for="jump" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">ジャンプ先のシーン</label>
-<select id="jump" style="flex: 1; min-width: 0; min-height: 32px; padding: 0 6px; border-radius: 6px; border: 1px solid #D5D9E0; background: #FFFFFF; font: inherit">
-<option>s013a 打ち明ける</option><option>s013b 帰り道</option><option>s014 沈黙のあと</option>
-</select>
-<button type="button" style="min-height: 32px; padding: 0 12px; border-radius: 6px; border: 0; background: #3343B8; color: #FFFFFF; font: inherit; font-size: 12.5px; cursor: pointer">この状態で開始</button>
-</div>
-<p style="margin: 6px 16px 0; font-size: 12px; color: #4E5662">変数は、開始シーンからの最短経路で自動復元されます。上の値で上書きできます。</p>
-
-<h2 style="margin: 0; padding: 18px 16px 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #4E5662">選択肢</h2>
-<fieldset style="margin: 0 16px; padding: 0; border: 0; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px">
-<legend style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">選択肢の扱い</legend>
-<label style="display: flex; align-items: center; gap: 8px"><input type="radio" name="choice" checked style="width: 16px; height: 16px; accent-color: #3343B8">毎回止まって選ぶ</label>
-<label style="display: flex; align-items: center; gap: 8px"><input type="radio" name="choice" style="width: 16px; height: 16px; accent-color: #3343B8">常に1番目を選ぶ</label>
-<label style="display: flex; align-items: center; gap: 8px"><input type="radio" name="choice" style="width: 16px; height: 16px; accent-color: #3343B8">ランダムに選ぶ</label>
-</fieldset>
-
-<h2 style="margin: 0; padding: 18px 16px 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #4E5662">バックログ</h2>
-<ol style="margin: 0; padding: 0 16px 20px; list-style: none; display: flex; flex-direction: column; gap: 6px; font-family: 'Shippori Mincho', serif; font-size: 14px">
-<li style="color: #4E5662"><span style="font-family: 'Zen Kaku Gothic New', sans-serif; font-size: 12px; font-weight: 700; margin-right: 6px">灯</span>「やっと来た。遅いよ」</li>
-<li style="color: #4E5662">　風が強くて、灯の髪が乱れていた。</li>
-<li style="padding: 6px 8px; border-radius: 6px; background: #F3F4FD; color: #1B1F24"><span style="font-family: 'Zen Kaku Gothic New', sans-serif; font-size: 12px; font-weight: 700; color: #3343B8; margin-right: 6px">灯</span>「あのね、話があるんだ」</li>
-</ol>
+<aside class="ctx" aria-label="再生の様子">
+<div class="panel-head"><span class="h-label">いまの位置</span></div>
+<section class="section">
+<div class="row"><span class="mono t-small t-3">s012</span><span style="font-weight:600" class="grow">放課後の屋上</span><a class="btn btn-link" href="02-editor.html">エディタで表示</a></div>
+<span class="t-caption t-3 mono">^k3fb · 3/9行</span>
+</section>
+<section class="section">
+<span class="h-label">変数</span>
+<div class="row"><label class="mono t-small grow" for="p-yu">flag.勇気</label><input id="p-yu" class="input is-sm mono" value="1" style="width:72px"></div>
+<div class="row"><label class="mono t-small grow" for="p-ro">flag.ルート</label><select id="p-ro" class="select is-sm" style="width:96px"><option>共通</option><option>灯</option><option>紬</option></select></div>
+<div class="row"><label class="mono t-small grow" for="p-ak">akari.好感度</label><input id="p-ak" class="input is-sm mono" value="2" style="width:72px"></div>
+<div class="row"><label class="mono t-small grow" for="p-tr">akari.転校済み</label><input id="p-tr" type="checkbox" style="width:16px;height:16px;accent-color:var(--accent)"></div>
+<div class="row"><label class="mono t-small grow" for="p-ts">tsumugi.好感度</label><input id="p-ts" class="input is-sm mono" value="0" style="width:72px"></div>
+<div class="row" style="padding-top:8px;border-top:1px solid var(--border-soft)"><label class="mono t-small grow" for="p-tu">周回.トゥルー解放</label><span class="tag">永続</span><input id="p-tu" type="checkbox" style="width:16px;height:16px;accent-color:var(--accent)"></div>
+</section>
+<section class="section">
+<span class="h-label">ジャンプ</span>
+<select class="select is-sm" aria-label="飛ぶシーン"><option>s013a 打ち明ける</option><option>s013b 帰り道</option><option>s014 沈黙のあと</option></select>
+<div class="row"><button class="btn btn-sm" type="button">この値で始める</button><button class="btn btn-sm" type="button">最短の道で始める</button></div>
+<p class="t-caption t-3">最短の道：開始シーンから選択肢がいちばん少ない道で、変数と舞台をそろえる</p>
+</section>
+<section class="section">
+<span class="h-label">選択肢</span>
+<label class="check"><input type="radio" name="pv-choice" checked style="accent-color:var(--accent)">毎回止まって選ぶ</label>
+<label class="check"><input type="radio" name="pv-choice" style="accent-color:var(--accent)">いつも1番目</label>
+<label class="check"><input type="radio" name="pv-choice" style="accent-color:var(--accent)">ランダム</label>
+</section>
+<section class="section">
+<span class="h-label">ログ</span>
+<p class="prose-sm t-2" style="font-size:15px"><span style="font:600 12px/1 var(--font-ui);margin-right:6px">灯</span>「やっと来た。遅いよ」</p>
+<p class="prose-sm t-2">　風が強くて、灯の髪が乱れていた。</p>
+<p class="prose-sm" style="padding:2px 8px;margin:0 -8px;border-radius:4px;background:var(--accent-weak)"><span style="font:600 12px/1 var(--font-ui);margin-right:6px;color:var(--accent)">灯</span>「あのね、話があるんだ」</p>
+</section>
 </aside>
 </div>
+
+<footer class="sb">
+<div class="sb-l"><span class="sb-mode">プレビュー</span><span>s012 · ^k3fb · 3/9行</span><span>1280×720</span><span class="hide-narrow">ウィンドウ 3行×24字</span></div>
+<div class="sb-r"><span class="sb-btn save"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"></path></svg>保存済み</span><a class="sb-btn" href="09-check.html" title="検証を開く"><svg class="ic-error" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9 9l6 6M15 9l-6 6"></path></svg>0<svg class="ic-warn" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 16H3z"></path><path d="M12 10v4M12 17h.01"></path></svg>5<svg class="ic-info" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg>7</a><span class="sb-btn hide-narrow">形式 v0</span></div>
+</footer>
 </div>
 </body>
 </html>

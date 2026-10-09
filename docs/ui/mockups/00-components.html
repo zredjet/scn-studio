@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>部品と骨格</title>
+<link rel="stylesheet" href="scn-ui.css">
+<style>
+body{margin:0}
+a{color:#3343B8}a:hover{color:#1F2A8A}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="col" style="gap:4px">
+<h1 class="h1">部品と骨格 v1</h1>
+<p class="t-2">窓の基準 1440×900（最小 1024×700）・明るい外観だけ・影とグラデーションなし・押せる部品は 28〜36px・文字は最小 11px・書体は OS のもの</p>
+</header>
+
+<section class="sheet-sec">
+<h2 class="h1">1. 骨格</h2>
+<p class="lead">全画面で共有する。タイトルバー 44・左端のバー 64・一覧 248・作業領域・右の欄 300・ステータスバー 28。</p>
+
+<div class="col" style="gap:10px">
+<span class="h-label">タイトルバー</span>
+<div style="overflow:hidden;border:1px solid var(--border);border-radius:8px">
+<header class="tb">
+<div class="tb-l">
+<button class="tb-btn tb-project" type="button" aria-haspopup="menu" title="作品のメニュー"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"></path><path d="M5 17a3 3 0 0 1 3-3h11"></path></svg><span class="name">放課後の灯</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+<button class="tb-btn tb-sub" type="button" title="ブランチ"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="5" r="2"></circle><circle cx="6" cy="19" r="2"></circle><circle cx="18" cy="7" r="2"></circle><path d="M6 7v10"></path><path d="M18 9c0 5-6 4-12 8"></path></svg><span class="mono">main</span></button>
+</div>
+<label class="tb-search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg><input type="search" aria-label="検索とコマンド" placeholder="シーン・設定・コマンドを検索"><kbd>⌘K</kbd></label>
+<div class="tb-r">
+<button class="tb-btn tb-ai" type="button" aria-haspopup="dialog" title="AIの接続：ローカル 接続中・クラウド 未許可"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z"></path><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"></path></svg><span class="who"><span class="gl-on" aria-hidden="true"></span>ローカル</span><span class="who"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>クラウド</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+<span class="tb-sep"></span>
+<div class="split"><a class="btn btn-primary btn-sm" href="06-preview.html" title="カーソルの位置から再生（⌘R）"><svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z" fill="currentColor"></path></svg>再生</a><button class="btn btn-primary btn-sm" type="button" aria-label="再生の始め方を選ぶ"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button></div>
+<button class="tb-btn" type="button" aria-label="右の欄" aria-pressed="true" title="右の欄を開け閉め（⌥⌘B）"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M15 4v16"></path></svg></button>
+</div>
+</header>
+</div>
+<ol style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px">
+<li class="col" style="gap:2px"><span class="lbl">① 作品メニュー</span><span class="t-small t-2">最近開いた作品・開く…・新しく作る…・フォルダを表示。開く／新しく作るのボタンは置かない</span></li>
+<li class="col" style="gap:2px"><span class="lbl">② ブランチ</span><span class="t-small t-2">今のブランチ。AIの実行が作るブランチもここで切り替える</span></li>
+<li class="col" style="gap:2px"><span class="lbl">③ 検索とコマンド</span><span class="t-small t-2">⌘K。シーン・設定・変数・コマンドをまとめて探す。⌘P はシーンだけ</span></li>
+<li class="col" style="gap:2px"><span class="lbl">④ AIの様子</span><span class="t-small t-2">接続の様子はここだけで示す。押すと詳しい様子と環境設定への入口</span></li>
+<li class="col" style="gap:2px"><span class="lbl">⑤ 再生</span><span class="t-small t-2">本文はカーソルの位置、フローは選んだシーン、ほかは最初から。▾で始め方を選ぶ</span></li>
+<li class="col" style="gap:2px"><span class="lbl">⑥ 右の欄</span><span class="t-small t-2">開け閉め（⌥⌘B）。窓が 1280 より狭いと閉じて始まり、開くと上に重なる</span></li>
+</ol>
+
+<span class="h-label" style="margin-top:12px">AIの様子（タイトルバーのこの場所だけ）</span>
+<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px">
+<div class="col" style="gap:6px">
+<div class="row" style="height:44px;padding:0 8px;border-radius:8px;background:var(--chrome-bg)"><span class="tb-btn tb-ai"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z"></path><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"></path></svg><span class="who"><span class="gl-on"></span>ローカル</span><span class="who"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>クラウド</span></span></div>
+<span class="t-small t-2">ローカルに接続中・クラウドは送ることを未許可</span>
+</div>
+<div class="col" style="gap:6px">
+<div class="row" style="height:44px;padding:0 8px;border-radius:8px;background:var(--chrome-bg)"><span class="tb-btn tb-ai"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z"></path><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"></path></svg><span class="who"><span class="gl-on"></span>ローカル</span><span class="who"><span class="gl-on"></span>クラウド</span></span></div>
+<span class="t-small t-2">両方使える</span>
+</div>
+<div class="col" style="gap:6px">
+<div class="row" style="height:44px;padding:0 8px;border-radius:8px;background:var(--chrome-bg)"><span class="tb-btn tb-ai"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z"></path><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"></path></svg><span class="who"><span class="gl-off"></span>ローカル</span><span class="who"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>クラウド</span></span></div>
+<span class="t-small t-2">ローカルにつながらない（輪だけの印）</span>
+</div>
+<div class="col" style="gap:6px">
+<div class="row" style="height:44px;padding:0 8px;border-radius:8px;background:var(--chrome-bg)"><span class="tb-btn tb-ai"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ai-on-chrome)" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"></path></svg><span style="color:var(--chrome-text)">実行中 1</span><span class="who"><span class="gl-on"></span>ローカル</span><span class="who"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>クラウド</span></span></div>
+<span class="t-small t-2">AIの実行中。左端のバーの「AI」にも点</span>
+</div>
+</div>
+<p class="t-small t-2">印は形で区別する（●接続中・○つながらない・鍵＝未許可）。ほかの画面では接続の注意の帯を出さず、使えない操作は「押せない状態」と鍵の印で示す。</p>
+
+<div style="display:grid;grid-template-columns:320px minmax(0,1fr);gap:40px;align-items:start;margin-top:16px">
+<div class="col" style="gap:10px">
+<span class="h-label">左端のバー</span>
+<div class="row" style="align-items:flex-start;gap:16px">
+<nav class="rail" aria-label="画面" style="height:560px;border-top:0;border-radius:8px">
+<a class="rail-item" href="01-ideas.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4"></path><path d="M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"></path></svg>企画</a>
+<a class="rail-item" href="02-editor.html" aria-current="page"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"></path><path d="M14 3v5h5"></path><path d="M10 13h6M10 17h6"></path></svg>本文</a>
+<a class="rail-item" href="03-flow.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="7" height="5" rx="1"></rect><rect x="14" y="4" width="7" height="5" rx="1"></rect><rect x="8.5" y="15" width="7" height="5" rx="1"></rect><path d="M6.5 9v3h11V9M12 12v3"></path></svg>フロー</a>
+<a class="rail-item" href="04-bible.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"></path><path d="M5 17a3 3 0 0 1 3-3h11"></path></svg>設定</a>
+<a class="rail-item" href="05-assets.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="9" cy="10" r="2"></circle><path d="M21 16l-5-5-9 8"></path></svg>素材</a>
+<a class="rail-item" href="08-variables.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4c-2 0-3 1-3 3v2c0 1.5-1 2.5-2 3 1 .5 2 1.5 2 3v2c0 2 1 3 3 3"></path><path d="M16 4c2 0 3 1 3 3v2c0 1.5 1 2.5 2 3-1 .5-2 1.5-2 3v2c0 2-1 3-3 3"></path><path d="M10 9l4 6M14 9l-4 6"></path></svg>変数</a>
+<a class="rail-item" href="09-check.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l1.5 1.5L8 5"></path><path d="M4 12l1.5 1.5L8 11"></path><path d="M4 18l1.5 1.5L8 17"></path><path d="M11 6h9M11 12h9M11 18h9"></path></svg>検証<span class="count" aria-label="警告5件">5</span></a>
+<a class="rail-item" href="07-ai.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z"></path><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"></path></svg>AI<span class="run" aria-label="実行中"></span></a>
+<a class="rail-item" href="10-export.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"></path><path d="M5 13v7h14v-7"></path></svg>出力</a>
+<span class="rail-spacer"></span>
+<span class="rail-sep"></span>
+<a class="rail-item" href="11-preferences.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg>環境設定</a>
+</nav>
+<dl class="col" style="gap:12px">
+<div><dt class="lbl">項目</dt><dd class="t-small t-2">56×48。アイコン 18 と名前 11 を縦に積む（押せる部品の高さの例外）</dd></div>
+<div><dt class="lbl">選んでいる画面</dt><dd class="t-small t-2">面を明るくし、左に藍の印</dd></div>
+<div><dt class="lbl">数の札</dt><dd class="t-small t-2">検証の件数。警告だけなら琥珀、エラーがあれば赤</dd></div>
+<div><dt class="lbl">点</dt><dd class="t-small t-2">AIの実行中（緑青）</dd></div>
+<div><dt class="lbl">環境設定</dt><dd class="t-small t-2">線で区切り、下に離す</dd></div>
+</dl>
+</div>
+</div>
+
+<div class="col" style="gap:10px">
+<span class="h-label">ステータスバー（左は画面ごと・右は共通）</span>
+<footer class="sb" style="border:1px solid var(--border);border-radius:6px">
+<div class="sb-l"><span class="sb-mode">執筆表示</span><span>s012 放課後の屋上 · 161字</span><span>23行 8列</span><span>chapter01.scn · 451字</span></div>
+<div class="sb-r"><span class="sb-btn save save-dirty"><span class="dot"></span>保存していない変更</span><a class="sb-btn" href="09-check.html" title="検証を開く"><svg class="ic-error" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9 9l6 6M15 9l-6 6"></path></svg>0<svg class="ic-warn" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 16H3z"></path><path d="M12 10v4M12 17h.01"></path></svg>5<svg class="ic-info" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg>7</a><span class="sb-btn">形式 v0</span></div>
+</footer>
+<footer class="sb" style="border:1px solid var(--border);border-radius:6px">
+<div class="sb-l"><span class="sb-mode">フロー</span><span>シーン表示</span><span>13シーン（スタブ 5・AI下書き 2）</span><span>拡大 100%</span></div>
+<div class="sb-r"><span class="sb-btn save"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"></path></svg>保存済み</span><a class="sb-btn" href="09-check.html"><svg class="ic-error" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9 9l6 6M15 9l-6 6"></path></svg>0<svg class="ic-warn" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 16H3z"></path><path d="M12 10v4M12 17h.01"></path></svg>5<svg class="ic-info" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg>7</a><span class="sb-btn">形式 v0</span></div>
+</footer>
+<div class="table-wrap" style="margin-top:6px">
+<table class="table">
+<thead><tr><th style="width:120px">画面</th><th>左に出すもの</th></tr></thead>
+<tbody>
+<tr><td>企画</td><td>メモの枚数（状態ごと）・エンディングの数（本文に無いもの）</td></tr>
+<tr><td>本文</td><td>表示モード・シーンと字数・行と列・章の字数</td></tr>
+<tr><td>フロー</td><td>粒度・シーンの数（スタブ・AI下書き）・拡大率</td></tr>
+<tr><td>設定</td><td>今の型と数・型とエントリの数・参照切れ</td></tr>
+<tr><td>素材</td><td>登録・仮素材・未登録・見張っているフォルダ</td></tr>
+<tr><td>プレビュー</td><td>位置（シーン・行ID・何行目）・画面とウィンドウの大きさ</td></tr>
+<tr><td>変数</td><td>変数の数・書いて読まない数・使っていない数</td></tr>
+<tr><td>検証</td><td>最後に調べた時刻・段階2の様子</td></tr>
+<tr><td>AI実行</td><td>実行中の数・履歴の数</td></tr>
+<tr><td>出力</td><td>最後の書き出し</td></tr>
+<tr><td>環境設定</td><td>設定の保存先</td></tr>
+</tbody>
+</table>
+</div>
+<p class="t-small t-2">右は全画面で同じ：保存の様子・問題の数（押すと検証）・形式。1280 より狭いと「形式」と章の字数を隠す。</p>
+</div>
+</div>
+</div>
+</section>
+
+<section class="sheet-sec">
+<h2 class="h1">2. 文字の段階</h2>
+<p class="lead">7段・太さは 400 と 600 だけ。明朝は作品の文章にだけ使い、UI はゴシック。</p>
+<div class="board" style="padding:0">
+<div class="row" style="min-height:52px;padding:8px 20px;border-bottom:1px solid var(--border-soft)"><span class="lbl" style="width:180px">作品の題</span><span class="h-display grow">放課後の屋上</span><span class="spec" style="width:340px">22/30・600・明朝｜シーン見出し・エントリ名</span></div>
+<div class="row" style="min-height:44px;padding:8px 20px;border-bottom:1px solid var(--border-soft)"><span class="lbl" style="width:180px">画面の題</span><span class="h1 grow">変数</span><span class="spec" style="width:340px">18/26・600｜画面の題</span></div>
+<div class="row" style="min-height:44px;padding:8px 20px;border-bottom:1px solid var(--border-soft)"><span class="lbl" style="width:180px">区分の見出し</span><span class="h2 grow">AIの接続先</span><span class="spec" style="width:340px">15/22・600｜カード・ダイアログ・区分の題</span></div>
+<div class="row" style="min-height:44px;padding:8px 20px;border-bottom:1px solid var(--border-soft)"><span class="lbl" style="width:180px">本文</span><span class="prose grow">　風が強くて、灯の髪が<ruby>乱<rt>みだ</rt></ruby>れていた。</span><span class="spec" style="width:340px">16/30・400・明朝｜執筆表示・縦書き</span></div>
+<div class="row" style="min-height:44px;padding:8px 20px;border-bottom:1px solid var(--border-soft)"><span class="lbl" style="width:180px">作品の文章（小）</span><span class="prose-sm grow">屋上の鍵を持っているのは灯だけ。</span><span class="spec" style="width:340px">15/26・400・明朝｜メモ・ログライン・要約</span></div>
+<div class="row" style="min-height:40px;padding:8px 20px;border-bottom:1px solid var(--border-soft)"><span class="lbl" style="width:180px">基本</span><span class="grow">シーンを絞り込む</span><span class="spec" style="width:340px">13/20・400｜一覧・入力・ボタン・表</span></div>
+<div class="row" style="min-height:40px;padding:8px 20px;border-bottom:1px solid var(--border-soft)"><span class="lbl" style="width:180px">ラベル</span><span class="h-label grow">登場キャラ</span><span class="spec" style="width:340px">12/18・600｜右の欄の見出し・欄の名前</span></div>
+<div class="row" style="min-height:40px;padding:8px 20px;border-bottom:1px solid var(--border-soft)"><span class="lbl" style="width:180px">補足</span><span class="t-small t-3 grow">台詞の話者の判定に使われます</span><span class="spec" style="width:340px">12/18・400｜説明・ステータスバー</span></div>
+<div class="row" style="min-height:40px;padding:8px 20px;border-bottom:1px solid var(--border-soft)"><span class="lbl" style="width:180px">注記</span><span class="t-caption t-3 grow">s012 · 161字 · 下書き</span><span class="spec" style="width:340px">11/16・400｜ID・件数・札・左端のバー</span></div>
+<div class="row" style="min-height:40px;padding:8px 20px"><span class="lbl" style="width:180px">等幅</span><span class="mono grow"><span class="c-mk">@背景</span> 屋上/夕方 <span class="c-id">^k3f9</span></span><span class="spec" style="width:340px">13/22・400・等幅｜ソース表示・式・ID</span></div>
+</div>
+<p class="t-small t-2" style="margin-top:8px">書体：UI＝ヒラギノ角ゴシック／Yu Gothic UI、作品の文章＝ヒラギノ明朝／游明朝、等幅＝ui-monospace／Menlo／Consolas。Windows の游ゴシックは「Yu Gothic UI」を使う（細く見えるため）。</p>
+</section>
+
+<section class="sheet-sec">
+<h2 class="h1">3. 色の意味</h2>
+<p class="lead">同じ色でも、線（実線・点線）・印（⚠・鍵・AI）・言葉で必ず区別する。点線はスタブと仮素材と未採用のAI提案だけ。</p>
+<div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px">
+<div class="board col" style="gap:10px;padding:16px">
+<span class="h2">藍</span><span class="t-small t-2">選択と、人の書いた構造（選択肢・分岐・話者・ジャンプ）</span>
+<div class="row" style="gap:4px"><span style="width:28px;height:28px;border-radius:4px;background:var(--accent)"></span><span style="width:28px;height:28px;border-radius:4px;background:var(--accent-strong)"></span><span style="width:28px;height:28px;border-radius:4px;background:var(--accent-tint)"></span><span style="width:28px;height:28px;border-radius:4px;background:var(--accent-weak);border:1px solid var(--border)"></span><span style="width:28px;height:28px;border-radius:4px;background:var(--accent-border)"></span></div>
+<div class="row"><span class="tag tag-accent">選択</span><span class="tag tag-accent">開始</span></div>
+</div>
+<div class="board col" style="gap:10px;padding:16px">
+<span class="h2">緑青</span><span class="t-small t-2">AI（生成物・提案・実行・出自）</span>
+<div class="row" style="gap:4px"><span style="width:28px;height:28px;border-radius:4px;background:var(--ai)"></span><span style="width:28px;height:28px;border-radius:4px;background:var(--ai-line)"></span><span style="width:28px;height:28px;border-radius:4px;background:var(--ai-tint)"></span><span style="width:28px;height:28px;border-radius:4px;background:var(--ai-border)"></span></div>
+<div class="row"><span class="tag tag-ai">AI下書き</span><svg class="ai-mark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z"></path><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"></path></svg></div>
+</div>
+<div class="board col" style="gap:10px;padding:16px">
+<span class="h2">琥珀</span><span class="t-small t-2">警告と仮素材</span>
+<div class="row" style="gap:4px"><span style="width:28px;height:28px;border-radius:4px;background:var(--warn)"></span><span style="width:28px;height:28px;border-radius:4px;background:var(--warn-strong)"></span><span style="width:28px;height:28px;border-radius:4px;background:var(--warn-tint);border:1px solid var(--border)"></span><span style="width:28px;height:28px;border-radius:4px;background:var(--warn-border)"></span></div>
+<div class="row"><span class="tag tag-warn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 16H3z"></path><path d="M12 10v4"></path></svg>未登録</span><span class="tag tag-ph">仮素材</span></div>
+</div>
+<div class="board col" style="gap:10px;padding:16px">
+<span class="h2">灰色の点線</span><span class="t-small t-2">スタブ（本文の無いシーン）</span>
+<div class="row" style="gap:4px"><span style="width:28px;height:28px;border-radius:4px;border:1.5px dashed var(--stub-line)"></span></div>
+<div class="row"><span class="tag tag-stub">スタブ</span></div>
+</div>
+<div class="board col" style="gap:10px;padding:16px">
+<span class="h2">赤</span><span class="t-small t-2">エラー・保存の失敗・取り消せない操作</span>
+<div class="row" style="gap:4px"><span style="width:28px;height:28px;border-radius:4px;background:var(--danger)"></span><span style="width:28px;height:28px;border-radius:4px;background:var(--danger-tint);border:1px solid var(--border)"></span><span style="width:28px;height:28px;border-radius:4px;background:var(--danger-border)"></span></div>
+<div class="row"><span class="tag tag-danger">エラー</span></div>
+</div>
+</div>
+<div class="row" style="gap:24px;margin-top:16px">
+<div class="row" style="gap:8px"><span class="lbl">文字</span><span style="width:24px;height:24px;border-radius:4px;background:var(--ink)"></span><span style="width:24px;height:24px;border-radius:4px;background:var(--text-2)"></span><span style="width:24px;height:24px;border-radius:4px;background:var(--text-3)"></span><span class="spec">ink・text-2・text-3（3段）</span></div>
+<div class="row" style="gap:8px"><span class="lbl">面</span><span style="width:24px;height:24px;border-radius:4px;background:var(--chrome-bg)"></span><span style="width:24px;height:24px;border-radius:4px;background:var(--app-bg);border:1px solid var(--border)"></span><span style="width:24px;height:24px;border-radius:4px;background:var(--panel-bg);border:1px solid var(--border)"></span><span style="width:24px;height:24px;border-radius:4px;background:var(--panel-bg-2);border:1px solid var(--border)"></span><span style="width:24px;height:24px;border-radius:4px;background:var(--paper);border:1px solid var(--border)"></span><span style="width:24px;height:24px;border-radius:4px;background:var(--statusbar-bg);border:1px solid var(--border)"></span><span class="spec">操作部・全体・一覧・右の欄・作業領域・ステータスバー</span></div>
+</div>
+</section>
+
+<section class="sheet-sec">
+<h2 class="h1">4. ボタン</h2>
+<p class="lead">5種類とアイコン。高さは 32（標準）と 28（小）の2つだけ。</p>
+<div class="table-wrap" style="background:var(--paper)">
+<table class="table">
+<thead><tr><th style="width:110px">種類</th><th style="width:260px">通常</th><th style="width:220px">押せない</th><th style="width:70px">高さ</th><th>使う場所</th></tr></thead>
+<tbody>
+<tr><td class="lbl">主</td><td style="height:48px"><button class="btn btn-primary" type="button">書き出す</button></td><td><button class="btn btn-primary" type="button" disabled>書き出す</button></td><td class="spec">32</td><td class="t-2">画面・ダイアログで一番の操作。1か所に1つまで</td></tr>
+<tr><td class="lbl">副</td><td style="height:48px"><button class="btn" type="button">未登録をカタログに追加</button></td><td><button class="btn" type="button" disabled>カタログに追加</button></td><td class="spec">32</td><td class="t-2">それ以外の操作</td></tr>
+<tr><td class="lbl">小</td><td style="height:48px"><span class="row"><button class="btn btn-sm" type="button">開く</button><button class="btn btn-primary btn-sm" type="button">採用</button></span></td><td><button class="btn btn-sm" type="button" disabled>開く</button></td><td class="spec">28</td><td class="t-2">一覧・カード・右の欄の中。主の小型はカードの中の決定（採用など）だけ</td></tr>
+<tr><td class="lbl">危険</td><td style="height:48px"><span class="row"><button class="btn btn-danger" type="button">破棄</button><button class="btn btn-danger btn-sm" type="button">削除</button></span></td><td><button class="btn btn-danger" type="button" disabled>破棄</button></td><td class="spec">32・28</td><td class="t-2">消す・破棄・保存しない。塗りつぶしは使わない</td></tr>
+<tr><td class="lbl">リンク風</td><td style="height:48px"><button class="btn btn-link" type="button">環境設定を開く</button></td><td><button class="btn btn-link" type="button" disabled>環境設定を開く</button></td><td class="spec">28</td><td class="t-2">別の画面へ移る・補助の操作</td></tr>
+<tr><td class="lbl">アイコン</td><td style="height:48px"><span class="row"><button class="btn btn-icon" type="button" aria-label="追加"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button><button class="btn btn-icon" type="button" aria-label="ほかの操作"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="19" cy="12" r="1.6"></circle></svg></button></span></td><td><button class="btn btn-icon" type="button" aria-label="追加" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button></td><td class="spec">28</td><td class="t-2">一覧の見出しの操作。必ず名前（aria-label）を付ける</td></tr>
+<tr><td class="lbl">AIの操作</td><td style="height:48px"><button class="btn" type="button"><svg class="ai-mark" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z"></path><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"></path></svg>AIで下書き</button></td><td><button class="btn" type="button" disabled title="クラウドへ送ることを許可していません"><svg class="ai-mark" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z"></path><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"></path></svg>AIで下書き<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></button></td><td class="spec">32・28</td><td class="t-2">副に緑青の✦を付ける。緑青で塗ったボタンは作らない。未許可は鍵の印</td></tr>
+<tr><td class="lbl">分割</td><td style="height:48px"><div class="split"><button class="btn btn-primary btn-sm" type="button"><svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z" fill="currentColor"></path></svg>再生</button><button class="btn btn-primary btn-sm" type="button" aria-label="再生の始め方を選ぶ"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button></div></td><td></td><td class="spec">28</td><td class="t-2">タイトルバーの再生だけ</td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<section class="sheet-sec">
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:32px">
+<div class="col" style="gap:12px">
+<h2 class="h1">5. 札</h2>
+<p class="t-2">1つの形（高さ 20・角 4）に、意味ごとの色と線。押せる絞り込みは丸い形（高さ 28）。</p>
+<div class="board col" style="gap:14px">
+<div class="row" style="flex-wrap:wrap;gap:8px"><span class="tag"><span class="k">ルート</span>共通</span><span class="tag tag-accent">開始</span><span class="tag tag-ai">AI下書き</span><span class="tag tag-warn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 16H3z"></path><path d="M12 10v4"></path></svg>未登録</span><span class="tag tag-ph">仮素材</span><span class="tag tag-stub">スタブ</span><span class="tag tag-danger">エラー</span></div>
+<div class="row" style="gap:8px"><button class="chip" type="button" aria-pressed="true">すべて</button><button class="chip" type="button" aria-pressed="false">灯</button><button class="chip" type="button" aria-pressed="false">屋上</button></div>
+<p class="spec">tag・tag-accent・tag-ai・tag-warn・tag-ph・tag-stub・tag-danger／chip</p>
+</div>
+</div>
+<div class="col" style="gap:12px">
+<h2 class="h1">6. 保存の様子</h2>
+<p class="t-2">ステータスバーの右に出す。書いてから1秒で自動保存。</p>
+<div class="board" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 24px">
+<div class="col" style="gap:4px"><span class="save"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"></path></svg>保存中…</span><span class="t-caption t-3">書き込みの最中</span></div>
+<div class="col" style="gap:4px"><span class="save"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"></path></svg>保存済み</span><span class="t-caption t-3">ふだんの状態</span></div>
+<div class="col" style="gap:4px"><span class="save save-dirty"><span class="dot"></span>保存していない変更</span><span class="t-caption t-3">自動保存を切っている・外の変更と食い違った</span></div>
+<div class="col" style="gap:4px"><span class="save save-error"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9 9l6 6M15 9l-6 6"></path></svg>保存できません</span><span class="t-caption t-3">押すと理由と再試行</span></div>
+</div>
+</div>
+<div class="col" style="gap:12px">
+<h2 class="h1">7. カード</h2>
+<p class="t-2">1つの形（角 8・線 1）。選んでいる・AIの提案・スタブは線と面で区別する。</p>
+<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">
+<div class="card"><span class="card-title">灯</span><span class="t-small t-2">akari · 台詞 11行</span></div>
+<div class="card is-selected"><span class="card-title">灯</span><span class="t-small t-2">選んでいる</span></div>
+<div class="card card-proposal"><span class="row"><span class="tag tag-ai">AI提案</span></span><span class="t-small t-2">未採用（点線）</span></div>
+<div class="card card-stub"><span class="row"><span class="tag tag-stub">スタブ</span></span><span class="t-small t-2">本文なし</span></div>
+</div>
+</div>
+<div class="col" style="gap:12px">
+<h2 class="h1">8. 注意の帯</h2>
+<p class="t-2">画面の状態を知らせるときだけ。1つの区画に1本まで。線は実線。</p>
+<div class="col" style="gap:8px">
+<div class="notice"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg><span>外のエディタで変わった内容を読み直しました。</span></div>
+<div class="notice notice-warn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 16H3z"></path><path d="M12 10v4M12 17h.01"></path></svg><span>未登録の素材が2件あります。</span><button class="btn btn-sm act" type="button">素材を開く</button></div>
+<div class="notice notice-danger"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9 9l6 6M15 9l-6 6"></path></svg><span>chapter01.scn を保存できません（書き込みが許されていません）。</span><button class="btn btn-sm act" type="button">再試行</button></div>
+<div class="notice notice-ai"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z"></path></svg><span>AIの下書き 4シーンが、取り込みを待っています。</span><a class="btn btn-sm act" href="07-ai.html">AI実行を開く</a></div>
+</div>
+</div>
+</div>
+</section>
+
+<section class="sheet-sec">
+<h2 class="h1">9. 入力と一覧</h2>
+<p class="lead">入力欄・選択欄は 32、表と一覧の行は 32（詰めた一覧は 28）。</p>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:32px">
+<div class="board grid-2">
+<div class="field"><label class="lbl" for="c-in">名前<span class="hint">台詞の話者の判定に使われます</span></label><input id="c-in" class="input" value="灯"></div>
+<div class="field"><label class="lbl" for="c-er">シーンID</label><input id="c-er" class="input is-error" value="s012"><span class="t-small" style="color:var(--danger)">s012 はもう使われています</span></div>
+<div class="field"><label class="lbl" for="c-se">所属<span class="hint">組織を参照</span></label><select id="c-se" class="select"><option>北風高校（kitakaze_high）</option></select></div>
+<div class="field"><span class="lbl">呼び名</span><div class="tokens"><span class="tag">あかり</span><span class="tag">灯ちゃん</span><input aria-label="呼び名を足す" placeholder="足す…"></div></div>
+<div class="field span-2"><label class="lbl" for="c-ta">口調メモ</label><textarea id="c-ta" class="textarea" rows="2">明るく軽口。語尾は「〜だよ」「〜じゃん」。核心に触れるときだけ短くなる。</textarea></div>
+<div class="row span-2" style="gap:16px"><div class="seg" role="group" aria-label="表示"><button type="button" aria-pressed="true">執筆表示</button><button type="button" aria-pressed="false">ソース表示</button></div><label class="check"><input type="checkbox" checked>AI下書きを含める</label><label class="search is-sm grow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg><input type="search" aria-label="絞り込む" placeholder="絞り込む"></label></div>
+</div>
+<div class="col" style="gap:16px">
+<div class="board" style="padding:8px 0;background:var(--panel-bg)">
+<a class="lrow"><span class="st st-writing"><i></i></span><span class="name">登校</span><span class="id">s010</span></a>
+<a class="lrow is-selected"><span class="st st-draft"><i></i></span><span class="name">放課後の屋上</span><span class="id">s012</span></a>
+<a class="lrow"><span class="st st-ai"><i></i></span><span class="name">帰り道</span><span class="id">s013b</span></a>
+<a class="lrow"><span class="st st-stub"><i></i></span><span class="name">沈黙のあと</span><span class="id">s014</span></a>
+</div>
+<div class="table-wrap" style="background:var(--paper)">
+<table class="table">
+<thead><tr><th>名前</th><th>型</th><th class="num">書き</th><th class="num">読み</th></tr></thead>
+<tbody>
+<tr><td class="mono">akari.好感度</td><td>int 0〜10</td><td class="num">3</td><td class="num">1</td></tr>
+<tr class="is-selected"><td class="mono">flag.勇気</td><td>int</td><td class="num">1</td><td class="num">1</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</section>
+
+<section class="sheet-sec">
+<h2 class="h1">10. 間隔と高さ</h2>
+<p class="lead">間隔は 4 の倍数の6段。高さは用途ごとに固定する。</p>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:32px">
+<div class="board col" style="gap:8px">
+<div class="row"><span class="spec" style="width:90px">sp-1 4</span><span style="width:4px;height:12px;background:var(--accent-border)"></span></div>
+<div class="row"><span class="spec" style="width:90px">sp-2 8</span><span style="width:8px;height:12px;background:var(--accent-border)"></span></div>
+<div class="row"><span class="spec" style="width:90px">sp-3 12</span><span style="width:12px;height:12px;background:var(--accent-border)"></span></div>
+<div class="row"><span class="spec" style="width:90px">sp-4 16</span><span style="width:16px;height:12px;background:var(--accent-border)"></span></div>
+<div class="row"><span class="spec" style="width:90px">sp-5 24</span><span style="width:24px;height:12px;background:var(--accent-border)"></span></div>
+<div class="row"><span class="spec" style="width:90px">sp-6 32</span><span style="width:32px;height:12px;background:var(--accent-border)"></span></div>
+</div>
+<div class="board" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 24px">
+<span class="spec">タイトルバー 44</span><span class="spec">作業領域の見出し 48</span>
+<span class="spec">ステータスバー 28</span><span class="spec">左端のバーの項目 56×48</span>
+<span class="spec">入力・ボタン 32</span><span class="spec">小さいボタン・絞り込み 28</span>
+<span class="spec">表・一覧の行 32（詰めて 28）</span><span class="spec">札 20</span>
+<span class="spec">左端のバー 64</span><span class="spec">一覧 248（狭い窓 220）</span>
+<span class="spec">右の欄 300（重ねて 320）</span><span class="spec">角 4・6・8</span>
+</div>
+</div>
+</section>
+
+</div>
+</body>
+</html>

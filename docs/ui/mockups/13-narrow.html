@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>狭い窓</title>
+<link rel="stylesheet" href="scn-ui.css">
+<style>
+body{margin:0}
+a{color:#3343B8}a:hover{color:#1F2A8A}
+.ruler{display:flex;height:22px;margin-bottom:6px;font:400 11px/22px var(--font-mono);color:var(--text-3)}
+.ruler>span{flex:none;border-left:1px solid var(--border-strong);border-bottom:1px solid var(--border-strong);text-align:center}
+.ruler>span:last-child{border-right:1px solid var(--border-strong)}
+.ruler>.hl{color:var(--accent-strong);font-weight:600}
+.wtab td,.wtab th{text-align:center}
+.wtab td:first-child,.wtab th:first-child{text-align:left}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+<header class="col" style="gap:4px">
+<h1 class="h1">狭い窓 v1</h1>
+<p class="t-2">窓の最小は 1024×700。幅 1280 からは右の欄を出し、1280 より狭いと右の欄を閉じて始める。閉じた右の欄はタイトルバー右端のボタン（⌥⌘B）で開き、作業領域の上に重ねる。</p>
+</header>
+
+<section class="sheet-sec">
+<h2 class="h1">1. 幅の決まり</h2>
+<p class="lead">左端のバーとステータスバーは幅によらず同じ。変わるのは一覧の幅と、右の欄の出し方だけ。</p>
+<div class="row" style="gap:32px;align-items:flex-start">
+<div class="table-wrap" style="background:var(--paper);width:640px">
+<table class="table wtab">
+<thead><tr><th style="padding-left:14px">窓の幅</th><th>左端のバー</th><th>一覧</th><th>作業領域</th><th style="padding-right:14px">右の欄</th></tr></thead>
+<tbody>
+<tr><td style="padding-left:14px">1440（基準）</td><td class="mono">64</td><td class="mono">248</td><td class="mono">828</td><td class="mono" style="padding-right:14px">300</td></tr>
+<tr><td style="padding-left:14px">1280</td><td class="mono">64</td><td class="mono">248</td><td class="mono">668</td><td class="mono" style="padding-right:14px">300</td></tr>
+<tr><td style="padding-left:14px">1279〜1024</td><td class="mono">64</td><td class="mono">220</td><td class="mono">995〜740</td><td style="padding-right:14px">閉じる／開くと 320 で重ねる</td></tr>
+</tbody>
+</table>
+</div>
+<ul class="col t-small t-2" style="gap:6px;max-width:560px">
+<li>・一覧の無い画面（フロー・出力・検証）は、その分を作業領域に回す。</li>
+<li>・重ねた右の欄は後ろを暗くしない。Esc、外を押す、もう一度ボタンで閉じる。開いたままの画面移動では閉じる。</li>
+<li>・1280 より狭いとき隠すもの：ブランチ名（印だけ残す）、ステータスバーの「形式」と章の字数。</li>
+<li>・本文の1行は最大 860 で、作業領域が狭ければその幅で折り返す（ソースの1行＝1行の飾りは変えない）。</li>
+<li>・右の欄の開け閉めは画面ごとに覚えるが、1280 以上に広げたら必ず出す。</li>
+</ul>
+</div>
+</section>
+
+<section class="sheet-sec">
+<h2 class="h1">2. 1280×800 — 右の欄を出す最小の幅</h2>
+<p class="lead">1440 と同じ並び。作業領域は 668 で、本文の1行は 37字前後で折り返す。</p>
+<div class="ruler" style="width:1282px"><span style="width:64px">64</span><span style="width:248px">248</span><span class="hl" style="width:668px">作業 668</span><span style="width:300px">300</span></div>
+<div class="frame" style="width:1282px;height:802px">
+<div class="app">
+<header class="tb">
+<div class="tb-l">
+<button class="tb-btn tb-project" type="button" aria-haspopup="menu" title="作品のメニュー"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"></path><path d="M5 17a3 3 0 0 1 3-3h11"></path></svg><span class="name">放課後の灯</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+<button class="tb-btn tb-sub" type="button" title="ブランチ"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="5" r="2"></circle><circle cx="6" cy="19" r="2"></circle><circle cx="18" cy="7" r="2"></circle><path d="M6 7v10"></path><path d="M18 9c0 5-6 4-12 8"></path></svg><span class="mono">main</span></button>
+</div>
+<label class="tb-search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg><input type="search" aria-label="検索とコマンド" placeholder="シーン・設定・コマンドを検索"><kbd>⌘K</kbd></label>
+<div class="tb-r">
+<button class="tb-btn tb-ai" type="button" aria-haspopup="dialog" title="AIの接続：ローカル 接続中・クラウド 未許可"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z"></path></svg><span class="who"><span class="gl-on" aria-hidden="true"></span>ローカル</span><span class="who"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>クラウド</span></button>
+<span class="tb-sep"></span>
+<div class="split"><a class="btn btn-primary btn-sm" href="06-preview.html"><svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z" fill="currentColor"></path></svg>再生</a><button class="btn btn-primary btn-sm" type="button" aria-label="再生の始め方を選ぶ"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button></div>
+<button class="tb-btn" type="button" aria-label="右の欄" aria-pressed="true" title="右の欄を開け閉め（⌥⌘B）"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M15 4v16"></path></svg></button>
+</div>
+</header>
+<div class="body">
+<nav class="rail" aria-label="画面">
+<a class="rail-item" href="01-ideas.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4"></path><path d="M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"></path></svg>企画</a>
+<a class="rail-item" href="02-editor.html" aria-current="page"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"></path><path d="M14 3v5h5"></path><path d="M10 13h6M10 17h6"></path></svg>本文</a>
+<a class="rail-item" href="03-flow.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="7" height="5" rx="1"></rect><rect x="14" y="4" width="7" height="5" rx="1"></rect><rect x="8.5" y="15" width="7" height="5" rx="1"></rect><path d="M6.5 9v3h11V9M12 12v3"></path></svg>フロー</a>
+<a class="rail-item" href="04-bible.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"></path><path d="M5 17a3 3 0 0 1 3-3h11"></path></svg>設定</a>
+<a class="rail-item" href="05-assets.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="9" cy="10" r="2"></circle><path d="M21 16l-5-5-9 8"></path></svg>素材</a>
+<a class="rail-item" href="08-variables.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4c-2 0-3 1-3 3v2c0 1.5-1 2.5-2 3 1 .5 2 1.5 2 3v2c0 2 1 3 3 3"></path><path d="M16 4c2 0 3 1 3 3v2c0 1.5 1 2.5 2 3-1 .5-2 1.5-2 3v2c0 2-1 3-3 3"></path><path d="M10 9l4 6M14 9l-4 6"></path></svg>変数</a>
+<a class="rail-item" href="09-check.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l1.5 1.5L8 5"></path><path d="M4 12l1.5 1.5L8 11"></path><path d="M4 18l1.5 1.5L8 17"></path><path d="M11 6h9M11 12h9M11 18h9"></path></svg>検証<span class="count" aria-label="警告5件">5</span></a>
+<a class="rail-item" href="07-ai.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z"></path><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"></path></svg>AI</a>
+<a class="rail-item" href="10-export.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"></path><path d="M5 13v7h14v-7"></path></svg>出力</a>
+<span class="rail-spacer"></span>
+<span class="rail-sep"></span>
+<a class="rail-item" href="11-preferences.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg>環境設定</a>
+</nav>
+<aside class="list" aria-label="ストーリー">
+<div class="panel-head"><span class="h-label">ストーリー</span></div>
+<div class="lrow" style="padding-left:8px;gap:6px;font-weight:600"><svg class="t-3" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg><span class="name">第1章 放課後</span><span class="t-caption t-3" style="font-weight:400">6</span></div>
+<a class="lrow" href="02-editor.html" style="padding-left:18px"><span class="st st-writing" title="執筆中"><i></i></span><span class="name">登校</span><span class="meta">共通</span><span class="id">s010</span></a>
+<a class="lrow" href="02-editor.html" style="padding-left:18px"><span class="st st-writing" title="執筆中"><i></i></span><span class="name">昼休みの教室</span><span class="meta">共通</span><span class="id">s011</span></a>
+<a class="lrow is-selected" href="02-editor.html" style="padding-left:18px"><span class="st st-draft" title="下書き"><i></i></span><span class="name" style="font-weight:600">放課後の屋上</span><span class="meta" style="color:var(--accent-strong)">共通</span><span class="id">s012</span></a>
+<a class="lrow" href="02-editor.html" style="padding-left:18px"><span class="st st-draft" title="下書き"><i></i></span><span class="name">打ち明ける</span><span class="meta">灯</span><span class="id">s013a</span></a>
+<a class="lrow" href="02-editor.html" style="padding-left:18px"><span class="st st-ai" title="AI下書き"><i></i></span><span class="name">帰り道</span><span class="meta">共通</span><span class="id">s013b</span></a>
+<a class="lrow" href="02-editor.html" style="padding-left:18px"><span class="st st-stub" title="スタブ"><i></i></span><span class="name">沈黙のあと</span><span class="meta">共通</span><span class="id">s014</span></a>
+<div class="lrow" style="padding-left:8px;gap:6px;font-weight:600"><svg class="t-3" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg><span class="name">第2章 灯</span><span class="t-caption t-3" style="font-weight:400">5</span></div>
+<div class="lrow" style="padding-left:8px;gap:6px;font-weight:600"><svg class="t-3" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg><span class="name">第3章 紬</span><span class="t-caption t-3" style="font-weight:400">2</span></div>
+</aside>
+<main class="work">
+<div class="work-head">
+<span class="row t-2" style="gap:6px"><span>chapter01.scn</span><span>›</span><span style="color:var(--ink);font-weight:600">s012 放課後の屋上</span></span>
+<span class="grow"></span>
+<div class="seg" role="group" aria-label="表示"><a href="02-editor.html" aria-current="page">執筆表示</a><a href="02b-editor-source.html">ソース表示</a></div>
+</div>
+<div class="work-body">
+<div class="ed">
+<div class="ln"><span class="gut"></span><div class="txt"><span class="h-display">放課後の屋上</span></div></div>
+<div class="ln"><span class="gut"></span><div class="txt"><span class="dchip"><span class="dk">背景</span>屋上/夕方 · フェード</span></div></div>
+<div class="ln"><span class="gut"></span><div class="txt"><span class="dchip"><span class="dk">立ち絵</span>灯 · 笑顔 · 左</span></div></div>
+<div class="ln"><span class="gut"></span><div class="txt"><span class="dchip is-ph"><span class="dk">SE</span>風 · 仮素材</span></div></div>
+<div class="ln"><span class="gut"></span><div class="txt"></div></div>
+<div class="ln"><span class="gut"></span><div class="txt"><span class="spk">灯</span>「やっと来た。遅いよ」</div></div>
+<div class="ln"><span class="gut"><span class="tag tag-ai" style="height:18px;padding:0 4px">AI</span></span><div class="txt">　風が強くて、灯の髪が<ruby>乱<rt>みだ</rt></ruby>れていた。</div></div>
+<div class="ln is-cursor"><span class="gut"></span><div class="txt"><span class="spk">灯</span>「あのね、話があるんだ」<span class="caret"></span></div></div>
+<div class="ln"><span class="gut"></span><div class="txt"><span class="blk">選択</span>どう答える</div></div>
+<div class="ln"><span class="gut"></span><div class="txt"><span class="opt-no">1</span>「ごめん、遅くなって」</div></div>
+<div class="ln"><span class="gut"></span><div class="txt"><span class="opt-no">2</span>黙ってうなずく<span class="cond">勇気 ≥ 2</span></div></div>
+<div class="ln"><span class="gut"><svg class="ic-warn" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="警告"><path d="M12 3l9 16H3z"></path><path d="M12 10v4M12 17h.01"></path></svg></span><span class="ind"></span><div class="txt"><span class="spk">灯</span>「……そういうところ、ずるいよね。昔からずっとそうだった。言わなくても分かってくれるって、私が勝手に思ってるだけなのに。<span class="u-warn">だから今日も、言えないまま来ちゃった」</span></div></div>
+<div class="ln"><span class="gut"></span><span class="ind"></span><div class="txt"><span class="jump">→ s014 沈黙のあと</span><span class="tag tag-stub" style="margin-left:8px;vertical-align:1px">スタブ</span></div></div>
+</div>
+</div>
+</main>
+<aside class="ctx" aria-label="このシーン">
+<div class="panel-head"><span class="h-label">このシーン</span></div>
+<section class="section"><span class="h-label">登場キャラ</span><span class="t-small">灯（台詞 11）・湊（台詞 6）</span></section>
+<section class="section"><span class="h-label">変数</span><span class="mono t-small">灯.好感度 += 1 · 勇気 ≥ 2</span></section>
+<section class="section"><span class="h-label">問題　1</span><span class="row t-small" style="gap:6px"><svg class="ic-warn" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 16H3z"></path><path d="M12 10v4M12 17h.01"></path></svg>W203 ウィンドウに収まらない</span></section>
+<section class="section"><span class="h-label">AI</span><button class="btn btn-sm" type="button" style="align-self:flex-start"><svg class="ai-mark" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z"></path></svg>この台詞の言い換え案</button></section>
+</aside>
+</div>
+<footer class="sb">
+<div class="sb-l"><span class="sb-mode">執筆表示</span><span>s012 · 161字</span><span>23行 8列</span><span>chapter01.scn · 451字</span></div>
+<div class="sb-r"><span class="sb-btn save"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"></path></svg>保存済み</span><span class="sb-btn"><svg class="ic-error" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9 9l6 6M15 9l-6 6"></path></svg>0<svg class="ic-warn" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 16H3z"></path><path d="M12 10v4M12 17h.01"></path></svg>5<svg class="ic-info" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg>7</span><span class="sb-btn">形式 v0</span></div>
+</footer>
+</div>
+</div>
+</section>
+
+<section class="sheet-sec">
+<h2 class="h1">3. 1024×700 — 右の欄を閉じている（1280 より狭いときの始まり）</h2>
+<p class="lead">一覧は 220 に縮め、作業領域は 740。タイトルバー右端のボタンは押していない状態。ブランチは印だけ、ステータスバーは形式と章の字数を隠す。</p>
+<div class="ruler" style="width:1026px"><span style="width:64px">64</span><span style="width:220px">220</span><span class="hl" style="width:740px">作業 740</span></div>
+<div class="frame" style="width:1026px;height:702px">
+<div class="app is-narrow">
+<header class="tb">
+<div class="tb-l">
+<button class="tb-btn tb-project" type="button" aria-haspopup="menu" title="作品のメニュー"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"></path><path d="M5 17a3 3 0 0 1 3-3h11"></path></svg><span class="name">放課後の灯</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+<button class="tb-btn tb-sub" type="button" title="ブランチ：main"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="5" r="2"></circle><circle cx="6" cy="19" r="2"></circle><circle cx="18" cy="7" r="2"></circle><path d="M6 7v10"></path><path d="M18 9c0 5-6 4-12 8"></path></svg><span class="mono hide-narrow">main</span></button>
+</div>
+<label class="tb-search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg><input type="search" aria-label="検索とコマンド" placeholder="検索とコマンド"><kbd>⌘K</kbd></label>
+<div class="tb-r">
+<button class="tb-btn tb-ai" type="button" aria-haspopup="dialog" title="AIの接続：ローカル 接続中・クラウド 未許可"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z"></path></svg><span class="who"><span class="gl-on" aria-hidden="true"></span>ローカル</span><span class="who"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>クラウド</span></button>
+<span class="tb-sep"></span>
+<div class="split"><a class="btn btn-primary btn-sm" href="06-preview.html"><svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z" fill="currentColor"></path></svg>再生</a><button class="btn btn-primary btn-sm" type="button" aria-label="再生の始め方を選ぶ"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button></div>
+<button class="tb-btn" type="button" aria-label="右の欄" aria-pressed="false" title="右の欄を開く（⌥⌘B）" style="outline:2px solid var(--accent-on-chrome);outline-offset:-2px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M15 4v16"></path></svg></button>
+</div>
+</header>
+<div class="body">
+<nav class="rail" aria-label="画面">
+<a class="rail-item" href="01-ideas.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4"></path><path d="M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"></path></svg>企画</a>
+<a class="rail-item" href="02-editor.html" aria-current="page"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"></path><path d="M14 3v5h5"></path><path d="M10 13h6M10 17h6"></path></svg>本文</a>
+<a class="rail-item" href="03-flow.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="7" height="5" rx="1"></rect><rect x="14" y="4" width="7" height="5" rx="1"></rect><rect x="8.5" y="15" width="7" height="5" rx="1"></rect><path d="M6.5 9v3h11V9M12 12v3"></path></svg>フロー</a>
+<a class="rail-item" href="04-bible.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"></path><path d="M5 17a3 3 0 0 1 3-3h11"></path></svg>設定</a>
+<a class="rail-item" href="05-assets.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="9" cy="10" r="2"></circle><path d="M21 16l-5-5-9 8"></path></svg>素材</a>
+<a class="rail-item" href="08-variables.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4c-2 0-3 1-3 3v2c0 1.5-1 2.5-2 3 1 .5 2 1.5 2 3v2c0 2 1 3 3 3"></path><path d="M16 4c2 0 3 1 3 3v2c0 1.5 1 2.5 2 3-1 .5-2 1.5-2 3v2c0 2-1 3-3 3"></path><path d="M10 9l4 6M14 9l-4 6"></path></svg>変数</a>
+<a class="rail-item" href="09-check.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l1.5 1.5L8 5"></path><path d="M4 12l1.5 1.5L8 11"></path><path d="M4 18l1.5 1.5L8 17"></path><path d="M11 6h9M11 12h9M11 18h9"></path></svg>検証<span class="count" aria-label="警告5件">5</span></a>
+<a class="rail-item" href="07-ai.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z"></path><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"></path></svg>AI</a>
+<a class="rail-item" href="10-export.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"></path><path d="M5 13v7h14v-7"></path></svg>出力</a>
+<span class="rail-spacer"></span>
+<span class="rail-sep"></span>
+<a class="rail-item" href="11-preferences.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg>環境設定</a>
+</nav>
+<aside class="list" aria-label="ストーリー">
+<div class="panel-head"><span class="h-label">ストーリー</span></div>
+<div class="lrow" style="padding-left:8px;gap:6px;font-weight:600"><svg class="t-3" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg><span class="name">第1章 放課後</span><span class="t-caption t-3" style="font-weight:400">6</span></div>
+<a class="lrow" href="02-editor.html" style="padding-left:18px"><span class="st st-writing" title="執筆中"><i></i></span><span class="name">登校</span><span class="id">s010</span></a>
+<a class="lrow" href="02-editor.html" style="padding-left:18px"><span class="st st-writing" title="執筆中"><i></i></span><span class="name">昼休みの教室</span><span class="id">s011</span></a>
+<a class="lrow is-selected" href="02-editor.html" style="padding-left:18px"><span class="st st-draft" title="下書き"><i></i></span><span class="name" style="font-weight:600">放課後の屋上</span><span class="id">s012</span></a>
+<a class="lrow" href="02-editor.html" style="padding-left:18px"><span class="st st-draft" title="下書き"><i></i></span><span class="name">打ち明ける</span><span class="id">s013a</span></a>
+<a class="lrow" href="02-editor.html" style="padding-left:18px"><span class="st st-ai" title="AI下書き"><i></i></span><span class="name">帰り道</span><span class="id">s013b</span></a>
+<a class="lrow" href="02-editor.html" style="padding-left:18px"><span class="st st-stub" title="スタブ"><i></i></span><span class="name">沈黙のあと</span><span class="id">s014</span></a>
+<div class="lrow" style="padding-left:8px;gap:6px;font-weight:600"><svg class="t-3" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg><span class="name">第2章 灯</span><span class="t-caption t-3" style="font-weight:400">5</span></div>
+<div class="lrow" style="padding-left:8px;gap:6px;font-weight:600"><svg class="t-3" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg><span class="name">第3章 紬</span><span class="t-caption t-3" style="font-weight:400">2</span></div>
+<p class="t-caption t-3" style="margin:8px 12px">狭いときはルート名を隠し、状態の印とIDを残す</p>
+</aside>
+<main class="work">
+<div class="work-head">
+<span class="row t-2" style="gap:6px;min-width:0"><span class="hide-narrow">chapter01.scn</span><span class="hide-narrow">›</span><span style="color:var(--ink);font-weight:600">s012 放課後の屋上</span></span>
+<span class="grow"></span>
+<div class="seg" role="group" aria-label="表示"><a href="02-editor.html" aria-current="page">執筆表示</a><a href="02b-editor-source.html">ソース表示</a></div>
+</div>
+<div class="work-body">
+<div class="ed">
+<div class="ln"><span class="gut"></span><div class="txt"><span class="h-display">放課後の屋上</span></div></div>
+<div class="ln"><span class="gut"></span><div class="txt"><span class="dchip"><span class="dk">背景</span>屋上/夕方 · フェード</span></div></div>
+<div class="ln"><span class="gut"></span><div class="txt"><span class="dchip"><span class="dk">立ち絵</span>灯 · 笑顔 · 左</span></div></div>
+<div class="ln"><span class="gut"></span><div class="txt"><span class="dchip is-ph"><span class="dk">SE</span>風 · 仮素材</span></div></div>
+<div class="ln"><span class="gut"></span><div class="txt"></div></div>
+<div class="ln"><span class="gut"></span><div class="txt"><span class="spk">灯</span>「やっと来た。遅いよ」</div></div>
+<div class="ln"><span class="gut"><span class="tag tag-ai" style="height:18px;padding:0 4px">AI</span></span><div class="txt">　風が強くて、灯の髪が<ruby>乱<rt>みだ</rt></ruby>れていた。</div></div>
+<div class="ln is-cursor"><span class="gut"></span><div class="txt"><span class="spk">灯</span>「あのね、話があるんだ」<span class="caret"></span></div></div>
+<div class="ln"><span class="gut"></span><div class="txt"><span class="blk">選択</span>どう答える</div></div>
+<div class="ln"><span class="gut"></span><div class="txt"><span class="opt-no">1</span>「ごめん、遅くなって」</div></div>
+<div class="ln"><span class="gut"></span><div class="txt"><span class="opt-no">2</span>黙ってうなずく<span class="cond">勇気 ≥ 2</span></div></div>
+<div class="ln"><span class="gut"><svg class="ic-warn" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="警告"><path d="M12 3l9 16H3z"></path><path d="M12 10v4M12 17h.01"></path></svg></span><span class="ind"></span><div class="txt"><span class="spk">灯</span>「……そういうところ、ずるいよね。昔からずっとそうだった。言わなくても分かってくれるって、私が勝手に思ってるだけなのに。<span class="u-warn">だから今日も、言えないまま来ちゃった」</span></div></div>
+<div class="ln"><span class="gut"></span><span class="ind"></span><div class="txt"><span class="jump">→ s014 沈黙のあと</span><span class="tag tag-stub" style="margin-left:8px;vertical-align:1px">スタブ</span></div></div>
+</div>
+</div>
+</main>
+<aside class="ctx" aria-label="このシーン"></aside>
+</div>
+<footer class="sb">
+<div class="sb-l"><span class="sb-mode">執筆表示</span><span>s012 · 161字</span><span>23行 8列</span><span class="hide-narrow">chapter01.scn · 451字</span></div>
+<div class="sb-r"><span class="sb-btn save"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"></path></svg>保存済み</span><span class="sb-btn"><svg class="ic-error" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9 9l6 6M15 9l-6 6"></path></svg>0<svg class="ic-warn" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 16H3z"></path><path d="M12 10v4M12 17h.01"></path></svg>5<svg class="ic-info" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg>7</span><span class="sb-btn hide-narrow">形式 v0</span></div>
+</footer>
+</div>
+</div>
+<p class="t-small t-3" style="margin-top:8px">藍の枠：右の欄を開くボタン（押していない状態）。</p>
+</section>
+
+<section class="sheet-sec">
+<h2 class="h1">4. 1024×700 — 右の欄を開いた（作業領域の上に重ねる）</h2>
+<p class="lead">幅 320 で右から重ねる。一覧と本文の幅は変えないので、開け閉めで本文の折り返しが動かない。後ろは暗くせず、境目は濃い線 1本。</p>
+<div class="ruler" style="width:1026px"><span style="width:64px">64</span><span style="width:220px">220</span><span style="width:420px">作業 740（下に残る）</span><span class="hl" style="width:320px">重ねた右の欄 320</span></div>
+<div class="frame" style="width:1026px;height:702px">
+<div class="app is-narrow">
+<header class="tb">
+<div class="tb-l">
+<button class="tb-btn tb-project" type="button" aria-haspopup="menu" title="作品のメニュー"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"></path><path d="M5 17a3 3 0 0 1 3-3h11"></path></svg><span class="name">放課後の灯</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+<button class="tb-btn tb-sub" type="button" title="ブランチ：main"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="5" r="2"></circle><circle cx="6" cy="19" r="2"></circle><circle cx="18" cy="7" r="2"></circle><path d="M6 7v10"></path><path d="M18 9c0 5-6 4-12 8"></path></svg><span class="mono hide-narrow">main</span></button>
+</div>
+<label class="tb-search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg><input type="search" aria-label="検索とコマンド" placeholder="検索とコマンド"><kbd>⌘K</kbd></label>
+<div class="tb-r">
+<button class="tb-btn tb-ai" type="button" aria-haspopup="dialog" title="AIの接続：ローカル 接続中・クラウド 未許可"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z"></path></svg><span class="who"><span class="gl-on" aria-hidden="true"></span>ローカル</span><span class="who"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>クラウド</span></button>
+<span class="tb-sep"></span>
+<div class="split"><a class="btn btn-primary btn-sm" href="06-preview.html"><svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z" fill="currentColor"></path></svg>再生</a><button class="btn btn-primary btn-sm" type="button" aria-label="再生の始め方を選ぶ"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button></div>
+<button class="tb-btn" type="button" aria-label="右の欄" aria-pressed="true" title="右の欄を閉じる（⌥⌘B）"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M15 4v16"></path></svg></button>
+</div>
+</header>
+<div class="body">
+<nav class="rail" aria-label="画面">
+<a class="rail-item" href="01-ideas.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4"></path><path d="M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"></path></svg>企画</a>
+<a class="rail-item" href="02-editor.html" aria-current="page"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"></path><path d="M14 3v5h5"></path><path d="M10 13h6M10 17h6"></path></svg>本文</a>
+<a class="rail-item" href="03-flow.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="7" height="5" rx="1"></rect><rect x="14" y="4" width="7" height="5" rx="1"></rect><rect x="8.5" y="15" width="7" height="5" rx="1"></rect><path d="M6.5 9v3h11V9M12 12v3"></path></svg>フロー</a>
+<a class="rail-item" href="04-bible.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"></path><path d="M5 17a3 3 0 0 1 3-3h11"></path></svg>設定</a>
+<a class="rail-item" href="05-assets.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="9" cy="10" r="2"></circle><path d="M21 16l-5-5-9 8"></path></svg>素材</a>
+<a class="rail-item" href="08-variables.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4c-2 0-3 1-3 3v2c0 1.5-1 2.5-2 3 1 .5 2 1.5 2 3v2c0 2 1 3 3 3"></path><path d="M16 4c2 0 3 1 3 3v2c0 1.5 1 2.5 2 3-1 .5-2 1.5-2 3v2c0 2-1 3-3 3"></path><path d="M10 9l4 6M14 9l-4 6"></path></svg>変数</a>
+<a class="rail-item" href="09-check.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l1.5 1.5L8 5"></path><path d="M4 12l1.5 1.5L8 11"></path><path d="M4 18l1.5 1.5L8 17"></path><path d="M11 6h9M11 12h9M11 18h9"></path></svg>検証<span class="count" aria-label="警告5件">5</span></a>
+<a class="rail-item" href="07-ai.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z"></path><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"></path></svg>AI</a>
+<a class="rail-item" href="10-export.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"></path><path d="M5 13v7h14v-7"></path></svg>出力</a>
+<span class="rail-spacer"></span>
+<span class="rail-sep"></span>
+<a class="rail-item" href="11-preferences.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg>環境設定</a>
+</nav>
+<aside class="list" aria-label="ストーリー">
+<div class="panel-head"><span class="h-label">ストーリー</span></div>
+<div class="lrow" style="padding-left:8px;gap:6px;font-weight:600"><svg class="t-3" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg><span class="name">第1章 放課後</span><span class="t-caption t-3" style="font-weight:400">6</span></div>
+<a class="lrow" href="02-editor.html" style="padding-left:18px"><span class="st st-writing" title="執筆中"><i></i></span><span class="name">登校</span><span class="id">s010</span></a>
+<a class="lrow" href="02-editor.html" style="padding-left:18px"><span class="st st-writing" title="執筆中"><i></i></span><span class="name">昼休みの教室</span><span class="id">s011</span></a>
+<a class="lrow is-selected" href="02-editor.html" style="padding-left:18px"><span class="st st-draft" title="下書き"><i></i></span><span class="name" style="font-weight:600">放課後の屋上</span><span class="id">s012</span></a>
+<a class="lrow" href="02-editor.html" style="padding-left:18px"><span class="st st-draft" title="下書き"><i></i></span><span class="name">打ち明ける</span><span class="id">s013a</span></a>
+<a class="lrow" href="02-editor.html" style="padding-left:18px"><span class="st st-ai" title="AI下書き"><i></i></span><span class="name">帰り道</span><span class="id">s013b</span></a>
+<a class="lrow" href="02-editor.html" style="padding-left:18px"><span class="st st-stub" title="スタブ"><i></i></span><span class="name">沈黙のあと</span><span class="id">s014</span></a>
+</aside>
+<main class="work">
+<div class="work-head">
+<span class="row t-2" style="gap:6px;min-width:0"><span style="color:var(--ink);font-weight:600">s012 放課後の屋上</span></span>
+<span class="grow"></span>
+<div class="seg" role="group" aria-label="表示"><a href="02-editor.html" aria-current="page">執筆表示</a><a href="02b-editor-source.html">ソース表示</a></div>
+</div>
+<div class="work-body">
+<div class="ed">
+<div class="ln"><span class="gut"></span><div class="txt"><span class="h-display">放課後の屋上</span></div></div>
+<div class="ln"><span class="gut"></span><div class="txt"><span class="dchip"><span class="dk">背景</span>屋上/夕方 · フェード</span></div></div>
+<div class="ln"><span class="gut"></span><div class="txt"><span class="dchip"><span class="dk">立ち絵</span>灯 · 笑顔 · 左</span></div></div>
+<div class="ln"><span class="gut"></span><div class="txt"><span class="dchip is-ph"><span class="dk">SE</span>風 · 仮素材</span></div></div>
+<div class="ln"><span class="gut"></span><div class="txt"></div></div>
+<div class="ln"><span class="gut"></span><div class="txt"><span class="spk">灯</span>「やっと来た。遅いよ」</div></div>
+<div class="ln"><span class="gut"><span class="tag tag-ai" style="height:18px;padding:0 4px">AI</span></span><div class="txt">　風が強くて、灯の髪が<ruby>乱<rt>みだ</rt></ruby>れていた。</div></div>
+<div class="ln is-cursor"><span class="gut"></span><div class="txt"><span class="spk">灯</span>「あのね、話があるんだ」<span class="caret"></span></div></div>
+<div class="ln"><span class="gut"></span><div class="txt"><span class="blk">選択</span>どう答える</div></div>
+<div class="ln"><span class="gut"></span><div class="txt"><span class="opt-no">1</span>「ごめん、遅くなって」</div></div>
+<div class="ln"><span class="gut"></span><div class="txt"><span class="opt-no">2</span>黙ってうなずく<span class="cond">勇気 ≥ 2</span></div></div>
+</div>
+</div>
+</main>
+<aside class="ctx is-open" aria-label="このシーン">
+<div class="panel-head"><span class="h-label">このシーン</span><button class="btn btn-icon" type="button" aria-label="右の欄を閉じる（Esc）"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>
+<section class="section"><span class="h-label">登場キャラ</span><span class="t-small">灯（台詞 11）・湊（台詞 6）</span></section>
+<section class="section"><span class="h-label">変数</span><span class="mono t-small">灯.好感度 += 1 · 勇気 ≥ 2</span></section>
+<section class="section"><span class="h-label">素材</span><span class="t-small">背景 屋上/夕方 · 立ち絵 灯/笑顔 · <span class="tag tag-ph">仮素材</span> SE 風</span></section>
+<section class="section"><span class="h-label">問題　1</span><span class="row t-small" style="gap:6px"><svg class="ic-warn" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 16H3z"></path><path d="M12 10v4M12 17h.01"></path></svg>W203 ウィンドウに収まらない</span></section>
+<section class="section"><span class="h-label">AI</span><button class="btn btn-sm" type="button" style="align-self:flex-start"><svg class="ai-mark" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z"></path></svg>この台詞の言い換え案</button></section>
+</aside>
+</div>
+<footer class="sb">
+<div class="sb-l"><span class="sb-mode">執筆表示</span><span>s012 · 161字</span><span>23行 8列</span><span class="hide-narrow">chapter01.scn · 451字</span></div>
+<div class="sb-r"><span class="sb-btn save"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"></path></svg>保存済み</span><span class="sb-btn"><svg class="ic-error" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9 9l6 6M15 9l-6 6"></path></svg>0<svg class="ic-warn" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 16H3z"></path><path d="M12 10v4M12 17h.01"></path></svg>5<svg class="ic-info" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg>7</span><span class="sb-btn hide-narrow">形式 v0</span></div>
+</footer>
+</div>
+</div>
+</section>
+
+</div>
+</body>
+</html>
