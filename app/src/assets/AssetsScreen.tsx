@@ -21,6 +21,8 @@ import type {
   SceneSummary,
   Summary,
 } from "../core/types.ts";
+import { useScreenStatus } from "../shell/StatusBar.tsx";
+import { assetsStatus } from "../shell/status.ts";
 import {
   type AssetTab,
   addableKeys,
@@ -158,6 +160,14 @@ export function AssetsScreen({
     [list, tab, missingOnly, query],
   );
   const counts = useMemo(() => countAssets(list?.rows ?? []), [list]);
+  useScreenStatus(
+    "assets",
+    assetsStatus({
+      files: counts.registered - counts.placeholders,
+      placeholders: counts.placeholders,
+      unregistered: counts.unregistered,
+    }),
+  );
   const matrix = useMemo(
     () => (list === null ? null : expressionMatrix(list)),
     [list],
@@ -425,7 +435,7 @@ export function AssetsScreen({
         )}
       </main>
       <aside
-        className="bible-usage assets-side"
+        className="bible-usage assets-side ctx-column"
         aria-label="立ち絵と選んだ素材"
       >
         <h2 className="bible-usage-heading">立ち絵 · キャラ×差分</h2>

@@ -37,6 +37,21 @@ h4 {
   font-weight: 600;
 }
 
+/* ユーティリティ（見本 v1 と同じもの） */
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+.ellipsis {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nowrap {
+  white-space: nowrap;
+}
+
 /* 文字 */
 .h-display {
   font: 600 var(--fs-display) / 30px var(--font-text);

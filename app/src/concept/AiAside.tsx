@@ -84,7 +84,7 @@ export function AiAside({
   const running = questions.running ?? sort.running ?? draft.runner.running;
   const draftResult = draft.result;
   return (
-    <aside className="concept-ai" aria-label="AIの問い返し">
+    <aside className="concept-ai ctx-column" aria-label="AIの問い返し">
       <div className="concept-ai-head">
         <h2>AIの問い返し</h2>
         <span className="context-faint">

@@ -290,7 +290,7 @@ export function VerticalView({
           の書き出しで行う）
         </p>
       </div>
-      <aside className="vertical-side" aria-label="シーン">
+      <aside className="vertical-side ctx-column" aria-label="シーン">
         <h2 className="preview-debug-heading">シーン</h2>
         <ul className="vertical-scenes">
           {scenes.map(({ p, index }) => (

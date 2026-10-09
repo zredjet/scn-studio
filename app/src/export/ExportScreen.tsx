@@ -24,6 +24,8 @@ import type {
   ScriptSheet,
   Summary,
 } from "../core/types.ts";
+import { useScreenStatus } from "../shell/StatusBar.tsx";
+import { exportStatus } from "../shell/status.ts";
 import {
   outputTail,
   pluginKindLabel,
@@ -794,6 +796,21 @@ export function ExportScreen({
   const [written, setWritten] = useState(0);
   /** AI下書き（status: ai-draft）のシーンを含めるか（T3-9）。 */
   const [aiDrafts, setAiDrafts] = useState(true);
+  /** この窓で最後に書き出したもの（ステータスバー。T4-17、U05）。 */
+  const [last, setLast] = useState<string | null>(null);
+  useScreenStatus("export", exportStatus(last));
+  /** 書き出しを覚える。何も書かなかった回（外部コマンドの確かめ待ちなど）は覚えない。 */
+  const track = <R,>(
+    name: string,
+    promise: Promise<R>,
+    wrote: (r: R) => boolean = () => true,
+  ): Promise<R> =>
+    promise.then((r) => {
+      if (wrote(r)) setLast(`${clockText(new Date())} · ${name}`);
+      return r;
+    });
+  const pluginWrote = (r: PluginRun) =>
+    r.needs_approval === undefined && (r.path ?? null) !== null;
 
   useEffect(() => {
     void summary;
@@ -832,7 +849,7 @@ export function ExportScreen({
         name="Ren'Py"
         note="出力プロファイル（export/renpy.yaml）に従って、Ren'Py のスクリプトを書き出します。書き出し先（既定は export/renpy）の game/scn/ だけを毎回作り直し、ほかのファイルには触れません。書き出したものは手で直さず、本文を直して書き出し直してください。"
         unsaved={unsaved}
-        write={() => writeRenpy(aiDrafts)}
+        write={() => track("Ren'Py", writeRenpy(aiDrafts))}
       />
       <EngineCard
         name="ティラノスクリプト"
@@ -840,32 +857,38 @@ export function ExportScreen({
           '出力プロファイル（export/tyrano.yaml）に従って、ティラノスクリプトのシナリオを書き出します。書き出し先（既定は export/tyrano）の data/scenario/scn/ と素材の data/*/scn/ だけを毎回作り直し、ほかのファイルには触れません。first.ks か title.ks から [jump storage="scn/scn_start.ks"] で始めます（プロファイルの first: true なら first.ks も書きます）。'
         }
         unsaved={unsaved}
-        write={() => writeTyrano(aiDrafts)}
+        write={() => track("ティラノスクリプト", writeTyrano(aiDrafts))}
       />
       <EngineCard
         name="宴"
         note="出力プロファイル（export/utage.yaml）に従って、宴のシナリオ（シーンごとのシート）と設定のシート（Character・Texture・Sound・Param）を Excel 形式で書き出します。書き出し先（既定は export/utage）をまるごと作り直します。宴のプロジェクトへは、シナリオのブックを足し、設定のシートの行と Texture・Sound のファイルを取り込みます（作品の Start のシートから Jump *scn_start で始めます）。"
         unsaved={unsaved}
-        write={() => writeUtage(aiDrafts)}
+        write={() => track("宴", writeUtage(aiDrafts))}
       />
       <TextCard
         summary={summary}
         loadChoices={loadChoices}
-        writeText={(target, notes) => writeText(target, notes, aiDrafts)}
+        writeText={(target, notes) =>
+          track("プレーンテキスト", writeText(target, notes, aiDrafts))
+        }
       />
       <BookCard
         summary={summary}
         loadChoices={loadChoices}
         loadSettings={loadBookSettings}
         writeBook={(target, print, horizontal, notes, typeset, approved) =>
-          writeBook(
-            target,
-            print,
-            horizontal,
-            notes,
-            aiDrafts,
-            typeset,
-            approved,
+          track(
+            print ? "縦書きPDF" : "EPUB",
+            writeBook(
+              target,
+              print,
+              horizontal,
+              notes,
+              aiDrafts,
+              typeset,
+              approved,
+            ),
+            pluginWrote,
           )
         }
         ask={ask}
@@ -873,7 +896,9 @@ export function ExportScreen({
       <PluginCard
         summary={summary}
         load={loadPlugins}
-        run={(name, approved) => runPlugin(name, aiDrafts, approved)}
+        run={(name, approved) =>
+          track(name, runPlugin(name, aiDrafts, approved), pluginWrote)
+        }
         ask={ask}
       />
       <ProvenanceCard
@@ -898,7 +923,7 @@ export function ExportScreen({
             disabled={busy || sheet === null}
             onClick={() => {
               setBusy(true);
-              write(format, baseline, aiDrafts)
+              track("収録の台本", write(format, baseline, aiDrafts))
                 .then((r) => {
                   setNotice(
                     `${r.path} に書き出しました（${r.rows}行）${baseline ? "。収録の基準として記録しました" : ""}`,
@@ -1010,4 +1035,9 @@ export function ExportScreen({
       </section>
     </div>
   );
+}
+
+/** 時刻（時:分）。 */
+function clockText(d: Date): string {
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }

@@ -54,7 +54,7 @@ export function UsagePanel({
   const [all, setAll] = useState(false);
   if (usage === null) {
     return (
-      <aside className="bible-usage" aria-label="逆引き">
+      <aside className="bible-usage ctx-column" aria-label="逆引き">
         <h2 className="bible-usage-heading">逆引き</h2>
         <p className="context-empty">
           エントリを選ぶと、使われている場所が出ます。
@@ -69,7 +69,7 @@ export function UsagePanel({
       ? "シーン"
       : (typeNames.get(r.type_id ?? "") ?? r.type_id ?? "");
   return (
-    <aside className="bible-usage" aria-label="逆引き">
+    <aside className="bible-usage ctx-column" aria-label="逆引き">
       <h2 className="bible-usage-heading">逆引き</h2>
       <div className="bible-usage-cards">
         <div className="bible-usage-card">

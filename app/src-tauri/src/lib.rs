@@ -1626,6 +1626,17 @@ fn asset_location(
     Ok(target.display().to_string())
 }
 
+/// 作品フォルダを OS のファイルの画面で見せる（タイトルバーの作品メニューの「フォルダを表示」。T4-17）。
+#[tauri::command]
+fn reveal_project(state: State<'_, AppState>) -> Result<(), String> {
+    let root = {
+        let mut guard = locked(&state.workspace)?;
+        open_workspace(&mut guard)?.root().to_owned()
+    };
+    let root = plain_path(&std::path::absolute(root).map_err(|e| e.to_string())?);
+    reveal_in_file_manager(&root, true)
+}
+
 /// Windows の長いパスの印（`\\?\`）を外す（エクスプローラーと、人が写して使うパスのため）。ほかの OS ではそのまま。
 fn plain_path(path: &Path) -> PathBuf {
     let text = path.to_string_lossy();
@@ -3768,6 +3779,7 @@ pub fn run() {
             export_plugin,
             asset_list,
             asset_location,
+            reveal_project,
             route_at,
             route_to_scene,
             reading_choices,

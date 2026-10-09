@@ -62,7 +62,7 @@ export function ContextPanel({
   }
 
   return (
-    <aside className="context-panel" aria-label="シーン情報">
+    <aside className="context-panel ctx-column" aria-label="シーン情報">
       {scene !== null && (
         <>
           <h2 className="context-heading">登場キャラ</h2>

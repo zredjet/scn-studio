@@ -18,6 +18,7 @@ import {
   autoStageText,
   blocker,
   cloudDestinations,
+  connectionBlocker,
   connectionOptions,
   driftKey,
   estimateText,
@@ -42,6 +43,7 @@ import {
   proposalsByFile,
   proposalsKey,
   resultKey,
+  taskBlocker,
   tokensText,
 } from "../src/ai/model.ts";
 import type {
@@ -153,7 +155,7 @@ test("シーンを選ぶタスクと、実行できない理由", () => {
     blocker(
       info({}, { connection: null, connection_problem: "接続先がありません" }),
     ),
-    "接続先がありません",
+    "接続先がありません（タイトルバーのAIから）",
   );
   assert.match(blocker(info({ prompt: null })) ?? "", /prompt/);
   assert.match(
@@ -174,6 +176,16 @@ test("シーンを選ぶタスクと、実行できない理由", () => {
     ) ?? "",
     /許可/,
   );
+  // 接続のわけ（鍵の印と説明だけで示す）と、タスクの定義のわけ（帯で示す）を分ける（T4-17、U03）。
+  const noConnection = info(
+    {},
+    { connection: null, connection_problem: "接続先がありません" },
+  );
+  assert.equal(taskBlocker(noConnection), null);
+  assert.match(connectionBlocker(noConnection) ?? "", /タイトルバーのAIから/);
+  const noPrompt = info({ prompt: null }, { unsupported: null });
+  assert.match(taskBlocker(noPrompt) ?? "", /prompt/);
+  assert.equal(connectionBlocker(noPrompt), null);
 });
 
 test("指摘：同じタスクと対象のやり直しは置き換え、シーンごと・行ごとに引く", () => {

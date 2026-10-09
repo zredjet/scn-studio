@@ -1,4 +1,4 @@
-// AIの接続先の表示の判断（T3-5、D066）：使う前に足りないもの、タイトルバーの表示、試した結果の文。
+// AIの接続先の表示の判断（T3-5、D066）：使う前に足りないもの、タイトルバーの AI の様子（T4-17、U03）、試した結果の文。
 
 import type { AiConnection, AiTestResult } from "../core/types.ts";
 
@@ -44,56 +44,85 @@ export function readiness(connection: AiConnection): string | null {
   return null;
 }
 
-/** タイトルバーの接続の印。 */
-export interface AiIndicator {
-  readonly text: string;
-  /** 印の形と色：試して応答があった・失敗した・試している・まだ試していない・使えない。 */
-  readonly state: "ok" | "failed" | "running" | "unknown" | "unusable";
-  /** 詳しい説明（ツールチップと読み上げ）。 */
+/** 接続先の印の形（色だけで区別しない。U03）：● 接続中・○ つながらない／まだ・鍵 送ることを未許可。 */
+export type ConnectionMark = "on" | "off" | "lock";
+
+/** タイトルバーの AI の様子の、接続先1つ分（U03、D086：接続先は名前ごとに並べる）。 */
+export interface ConnectionStatus {
+  readonly name: string;
+  /** ローカルかクラウドか。 */
+  readonly place: string;
+  readonly mark: ConnectionMark;
+  /** 様子の言葉。 */
+  readonly state: string;
+  /** モデル・行き先・応答の速さ。 */
   readonly detail: string;
+  /** 使う前に足りないもの（無ければ null）。 */
+  readonly missing: string | null;
+  readonly isDefault: boolean;
 }
 
-const STATE_TEXT: Readonly<Record<AiIndicator["state"], string>> = {
-  ok: "応答あり",
-  failed: "失敗",
-  running: "試しています",
-  unknown: "まだ試していません",
-  unusable: "使えません",
-};
+/** タイトルバーの AI の様子。 */
+export interface AiStatus {
+  readonly connections: readonly ConnectionStatus[];
+  /** 実行中の数（AI実行と自律）。 */
+  readonly running: number;
+  /** ボタンのツールチップと読み上げ。 */
+  readonly title: string;
+}
 
-/** タイトルバーに出す、既定の接続先。接続先が無ければ「未設定」。 */
-export function indicator(
-  connections: readonly AiConnection[],
+/** 接続先1つの様子。使う前に足りないものを、試した結果より先に知らせる。 */
+export function connectionStatus(
+  c: AiConnection,
   tests: ReadonlyMap<string, TestRecord>,
-): AiIndicator {
-  const current = connections.find((c) => c.is_default);
-  if (current === undefined)
-    return {
-      text: "AI：未設定",
-      state: "unusable",
-      detail: "project.toml に [ai.local] などの接続先がありません",
-    };
-  const label = current.model ?? current.name;
-  const missing = readiness(current);
-  const test = currentTest(current, tests);
-  const state: AiIndicator["state"] =
-    missing !== null
-      ? "unusable"
-      : test === undefined || test.kind === "cancelled"
-        ? "unknown"
-        : test.kind;
-  const where = current.base_url ?? "URL なし";
-  const parts = [
-    `接続先 ${current.name}（${placeLabel(current)}）`,
-    where,
-    STATE_TEXT[state],
-  ];
-  if (missing !== null) parts.push(missing);
+): ConnectionStatus {
+  const missing = readiness(c);
+  const test = currentTest(c, tests);
+  const [mark, state]: [ConnectionMark, string] =
+    c.problem !== null
+      ? ["off", "使えません"]
+      : c.cloud && !c.allowed
+        ? ["lock", "送ることを未許可"]
+        : missing !== null
+          ? ["off", missing]
+          : test === undefined || test.kind === "cancelled"
+            ? ["off", "まだ試していません"]
+            : test.kind === "running"
+              ? ["off", "試しています"]
+              : test.kind === "failed"
+                ? ["off", "つながらない"]
+                : ["on", "接続中"];
+  const parts = [c.model ?? "モデル未設定", c.base_url ?? "URL なし"];
+  if (test?.kind === "ok")
+    parts.push(`応答 ${(test.result.elapsed_ms / 1000).toFixed(2)}秒`);
+  if (c.problem !== null) parts.push(c.problem);
   return {
-    text: `AI：${label}（${placeLabel(current)}）`,
+    name: c.name,
+    place: placeLabel(c),
+    mark,
     state,
     detail: parts.join(" · "),
+    missing,
+    isDefault: c.is_default,
   };
+}
+
+/** タイトルバーの AI の様子（接続先は既定を先に、あとは書いた順）。 */
+export function aiStatus(
+  connections: readonly AiConnection[],
+  tests: ReadonlyMap<string, TestRecord>,
+  running: number,
+): AiStatus {
+  const list = [
+    ...connections.filter((c) => c.is_default),
+    ...connections.filter((c) => !c.is_default),
+  ].map((c) => connectionStatus(c, tests));
+  const parts =
+    list.length === 0
+      ? ["接続先がありません（project.toml の [ai.<名前>]）"]
+      : list.map((c) => `${c.name} ${c.state}`);
+  const title = `AIの接続：${parts.join("・")}${running > 0 ? `。実行中 ${running}` : ""}`;
+  return { connections: list, running, title };
 }
 
 /**

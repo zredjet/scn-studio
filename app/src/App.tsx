@@ -100,6 +100,7 @@ import {
   reloadFile,
   renameChapter,
   renamePreview,
+  revealProject,
   routeStats,
   runAiAuto,
   runAiSummarize,
@@ -192,7 +193,7 @@ import { hasMixedLineBreaks, lineBreakOf } from "./editor/state.ts";
 import { ExportScreen } from "./export/ExportScreen.tsx";
 import { SceneGraph } from "./graph/SceneGraph.tsx";
 import {
-  indicator,
+  aiStatus,
   type TestRecord,
   type TestState,
   testTarget,
@@ -206,6 +207,17 @@ import { ContextPanel } from "./shell/ContextPanel.tsx";
 import { KeepAlive } from "./shell/KeepAlive.tsx";
 import { LeftBar, type Screen } from "./shell/LeftBar.tsx";
 import {
+  CONTEXT_SCREENS,
+  closeDrawer,
+  isNarrow,
+  loadClosedPanels,
+  type PanelState,
+  panelMode,
+  resized,
+  saveClosedPanels,
+  togglePanel,
+} from "./shell/layout.ts";
+import {
   type Command,
   IS_MAC,
   keyForScreen,
@@ -214,13 +226,28 @@ import {
 } from "./shell/palette.ts";
 import { QuickOpen } from "./shell/QuickOpen.tsx";
 import { RenameDialog } from "./shell/RenameDialog.tsx";
-import { StatusBar } from "./shell/StatusBar.tsx";
+import {
+  CursorPosition,
+  cursorStore,
+  StatusBar,
+  StatusContext,
+} from "./shell/StatusBar.tsx";
 import {
   fileChars,
+  formatChars,
   routeStatText,
   sceneAt,
   statOfRoute,
 } from "./shell/scene.ts";
+import {
+  aiRunStatus,
+  checkStatus,
+  preferencesStatus,
+  SCREEN_LABEL,
+  type StatusItems,
+  saveState,
+  textStatus,
+} from "./shell/status.ts";
 import { TitleBar } from "./shell/TitleBar.tsx";
 import { Welcome } from "./shell/Welcome.tsx";
 import { VariablesScreen } from "./variables/VariablesScreen.tsx";
@@ -376,6 +403,34 @@ export function App() {
     return () => clearTimeout(timer);
   }, [notice]);
   const [recent, setRecent] = useState<RecentProject[]>([]);
+  /** 右の欄の開け閉め（画面ごとに覚える）と、狭い窓で重ねて開いているか（T4-17、U06）。 */
+  const [panels, setPanels] = useState<PanelState>(() => ({
+    closed: loadClosedPanels(),
+    drawer: false,
+  }));
+  /** 窓が 1280 より狭いか。 */
+  const [narrow, setNarrow] = useState(() =>
+    typeof window === "undefined" ? false : isNarrow(window.innerWidth),
+  );
+  /** 画面ごとのステータスバーの左（各画面が出す。T4-17、U05）。 */
+  const [screenStatus, setScreenStatus] = useState<
+    ReadonlyMap<Screen, StatusItems>
+  >(new Map());
+  const publishStatus = useCallback((s: Screen, items: StatusItems) => {
+    setScreenStatus((map) =>
+      JSON.stringify(map.get(s)) === JSON.stringify(items)
+        ? map
+        : new Map(map).set(s, items),
+    );
+  }, []);
+  /** 今のブランチ（タイトルバー。Git でなければ null）。 */
+  const [branch, setBranch] = useState<string | null>(null);
+  /** 保存している本文の数と、保存できなかったわけ（ステータスバーの保存の様子。U08）。 */
+  const [saving, setSaving] = useState(0);
+  const [saveFailed, setSaveFailed] = useState<{
+    readonly file: string;
+    readonly message: string;
+  } | null>(null);
   /** 補完の材料と、入力補助の設定（D047）。 */
   const [assist, setAssist] = useState<AssistData | null>(null);
   const [editorSettings, setEditorSettings] = useState<EditorSettings>({
@@ -442,6 +497,8 @@ export function App() {
   );
   /** フローの画面の粒度と、`layout.json` が外で変わった回数（D048）。 */
   const [flowLevel, setFlowLevel] = useState<GraphLevel>("scene");
+  /** フローで選んでいるシーン（タイトルバーの再生。T4-17）。 */
+  const [flowScene, setFlowScene] = useState<string | null>(null);
   const [layoutVersion, setLayoutVersion] = useState(0);
   /** ファイルごとの表示（覚えていないファイルは執筆表示。D046）。 */
   const [modes, setModes] = useState<ReadonlyMap<string, ViewMode>>(new Map());
@@ -572,6 +629,7 @@ export function App() {
     previewMarker,
     previewWindow,
     aiResults,
+    narrow,
   });
   latest.current = {
     project,
@@ -586,6 +644,7 @@ export function App() {
     previewMarker,
     previewWindow,
     aiResults,
+    narrow,
   };
 
   /**
@@ -677,6 +736,7 @@ export function App() {
     setFocus(null);
     setReplace(null);
     setDirty(new Set());
+    setSaveFailed(null);
     setConflicts(new Map());
     setMerge(null);
     mergeBases.current.clear();
@@ -992,6 +1052,7 @@ export function App() {
   const onSave = useCallback(
     async (file: string, text: string): Promise<string | null> => {
       buffers.current.set(file, text);
+      setSaving((n) => n + 1);
       try {
         // 外部の変更とぶつかっていたら、保存は「自分の変更を残す」ことにする。
         if (latest.current.conflicts.has(file)) await keep(file, text);
@@ -1014,6 +1075,7 @@ export function App() {
         }
         saved.current.set(file, result.text);
         mergeBases.current.delete(file);
+        setSaveFailed((f) => (f?.file === file ? null : f));
         // 保存を待つ間に編集を送っていなければ、書いた本文が今の本文。送っていれば、エディタが行IDを入れて送り直す。
         if (buffers.current.get(file) === text)
           buffers.current.set(file, result.text);
@@ -1033,8 +1095,14 @@ export function App() {
         });
         return result.text;
       } catch (e) {
+        setSaveFailed({
+          file,
+          message: `${file} を保存できません：${String(e)}`,
+        });
         whenIdle(() => setError(String(e)));
         return null;
+      } finally {
+        setSaving((n) => n - 1);
       }
     },
     [keep, showSummary, whenIdle],
@@ -1152,6 +1220,7 @@ export function App() {
   const onCursor = useCallback(
     (file: string, offset: number) => {
       lastCursor.current = { file, offset };
+      cursorStore.set({ file, offset });
       const p = latest.current.project;
       const text = buffers.current.get(file);
       if (p === null || text === undefined) return;
@@ -1723,15 +1792,39 @@ export function App() {
     };
   }, [previewSummary]);
 
-  // クイックオープン（Mod-P）、コマンドパレット（Mod-Shift-P）、集中モード（Mod-Shift-F）。エディタの外に
-  // フォーカスがあるときも開く。変換中は動かさない。
+  // クイックオープン（Mod-P）、コマンドパレット（Mod-Shift-P と Mod-K）、集中モード（Mod-Shift-F）、右の欄の
+  // 開け閉め（Alt-Mod-B）、作品を開く・新しく作る（Mod-O・Mod-N。作品を開く前も）。エディタの外にフォーカスが
+  // あるときも効く。変換中は動かさない。
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || latest.current.project === null) return;
+      if (event.defaultPrevented) return;
       if (event.isComposing || event.keyCode === 229) return;
       if (!(event.metaKey || event.ctrlKey)) return;
       const key = event.key.toLowerCase();
-      if (key === "p" && event.shiftKey) {
+      // 新しく足したキーは、macOS では ⌘ だけで受ける（Ctrl+K・Ctrl+O・Ctrl+N は入力欄の OS のキー）。
+      const mod = IS_MAC ? event.metaKey : event.ctrlKey;
+      if (
+        mod &&
+        !event.shiftKey &&
+        !event.altKey &&
+        (key === "o" || key === "n")
+      ) {
+        event.preventDefault();
+        if (key === "o") void openPicker();
+        else void create();
+        return;
+      }
+      if (latest.current.project === null) return;
+      // Option を押すと key が別の文字になるので、キーの場所で見る。
+      if (mod && event.altKey && !event.shiftKey && event.code === "KeyB") {
+        event.preventDefault();
+        setPanels((p) =>
+          togglePanel(p, latest.current.screen, latest.current.narrow),
+        );
+      } else if (mod && key === "k" && !event.shiftKey && !event.altKey) {
+        event.preventDefault();
+        setPalette(true);
+      } else if (key === "p" && event.shiftKey) {
         event.preventDefault();
         setPalette(true);
       } else if (key === "p") {
@@ -1751,7 +1844,76 @@ export function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [updateViewPrefs, selectScreen]);
+  }, [updateViewPrefs, selectScreen, openPicker, create]);
+
+  // 窓の幅：1280 を境に、右の欄を並べるか重ねるかを変える（T4-17、U06）。
+  useEffect(() => {
+    const onResize = () => {
+      const next = isNarrow(window.innerWidth);
+      const was = latest.current.narrow;
+      if (next === was) return;
+      latest.current.narrow = next;
+      setNarrow(next);
+      setPanels((p) => resized(p, latest.current.screen, was, next));
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  // 右の欄の開け閉めを覚える（広い窓で閉じた画面だけ）。
+  const closedPanels = panels.closed;
+  useEffect(() => saveClosedPanels(closedPanels), [closedPanels]);
+  // 重ねた右の欄は、画面を移ったら閉じる。
+  useEffect(() => {
+    void screen;
+    setPanels(closeDrawer);
+  }, [screen]);
+  // 重ねた右の欄は、Esc と外を押したときに閉じる（右の欄の開け閉めのボタンは自分で閉じる）。
+  const drawerOpen = panels.drawer;
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onDown = (event: MouseEvent) => {
+      if (!(event.target instanceof Element)) return;
+      if (event.target.closest(".ctx-column, .tb-panel-toggle") !== null)
+        return;
+      setPanels(closeDrawer);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (event.isComposing || event.keyCode === 229) return;
+      setPanels(closeDrawer);
+    };
+    // フローの図などが押した知らせを止めるので、捕捉の段階で受ける。
+    document.addEventListener("mousedown", onDown, true);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown, true);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [drawerOpen]);
+  // 今のブランチ（タイトルバー）：作品を開いたときと、窓に戻ってきたときに読む。
+  const branchRoot = project?.root ?? null;
+  useEffect(() => {
+    if (branchRoot === null) {
+      setBranch(null);
+      return;
+    }
+    let live = true;
+    const read = () => {
+      aiBranches()
+        .then((b) => {
+          if (live) setBranch(b.repo ? b.current : null);
+        })
+        .catch(() => {
+          if (live) setBranch(null);
+        });
+    };
+    read();
+    window.addEventListener("focus", read);
+    return () => {
+      live = false;
+      window.removeEventListener("focus", read);
+    };
+  }, [branchRoot]);
 
   // ルートごとの文字数（ステータスバー）。本文が変わってから少し待って取り直す。
   const statSummary = project?.summary;
@@ -2846,10 +3008,6 @@ export function App() {
     (aiState?.connections ?? [])
       .filter((c) => c.endpoint === endpoint)
       .map((c) => c.name);
-  const aiIndicator =
-    project === null || aiState === null
-      ? null
-      : indicator(aiState.connections, aiTests);
 
   // savedVersion が変わるたびに、エディタへ渡すディスクの中身を読み直す。
   void savedVersion;
@@ -3050,655 +3208,776 @@ export function App() {
           .filter(({ key }) => !ideaHidden.has(key))
       : [];
 
+  /** AI の実行中の数（AI実行・自律・要約の作り直し）。タイトルバーの AI の様子と、左端のバーの点。 */
+  const aiActive =
+    (aiRunState !== null ? 1 : 0) +
+    (aiAutoRun !== null ? 1 : 0) +
+    (summarizeRun !== null ? 1 : 0);
+  const ai =
+    project === null || aiState === null
+      ? null
+      : aiStatus(aiState.connections, aiTests, aiActive);
+  /** 右の欄の出し方（今の画面）。集中モードの本文には右の欄が無い。 */
+  const focusText = screen === "text" && viewPrefs.focus;
+  const panel = focusText ? "hidden" : panelMode(screen, narrow, panels);
+  const panelAvailable =
+    project !== null && CONTEXT_SCREENS.has(screen) && !focusText;
+  /** 「このシーンから」のシーン（フローは選んだシーン、ほかは本文のカーソルのシーン）。 */
+  const playScene = screen === "flow" ? flowScene : currentScene;
+  const sceneToPlay =
+    playScene === null
+      ? null
+      : {
+          scene: playScene,
+          run: () =>
+            sendPreview((seq) => ({ seq, kind: "scene", scene: playScene })),
+        };
+  /** 再生：本文ではカーソルの位置から、フローでは選んだシーンから、ほかの画面では最初から（U02）。 */
+  const playStart = () => sendPreview((seq) => ({ seq, kind: "start" }));
+  const play =
+    project === null
+      ? null
+      : screen === "text" && currentFile !== null
+        ? { title: "カーソルの位置から再生", run: playAtCursor }
+        : screen === "flow" && flowScene !== null
+          ? {
+              title: `選んだシーン（${flowScene}）から再生`,
+              run: () =>
+                sendPreview((seq) => ({
+                  seq,
+                  kind: "scene",
+                  scene: flowScene,
+                })),
+            }
+          : { title: "最初から再生", run: playStart };
+  /** ステータスバーの左（U05）。本文・検証・AI実行・環境設定は App が作り、ほかは画面が出す。 */
+  const currentSceneSummary =
+    currentScene === null
+      ? undefined
+      : project?.summary.scenes.find((s) => s.id === currentScene);
+  const statusItems: StatusItems =
+    project === null
+      ? []
+      : screen === "text"
+        ? textStatus({
+            mode: currentFile === null ? null : mode,
+            scene:
+              currentSceneSummary === undefined
+                ? null
+                : {
+                    id: currentSceneSummary.id,
+                    title: currentSceneSummary.title,
+                    chars: formatChars(currentSceneSummary.chars),
+                  },
+            file: currentFile,
+            fileChars:
+              currentFile === null
+                ? null
+                : formatChars(fileChars(project.summary.scenes, currentFile)),
+            route: routeStat === null ? null : routeStatText(routeStat),
+          })
+        : screen === "check"
+          ? checkStatus({
+              stage2: stage2Running
+                ? "running"
+                : stage2 !== null
+                  ? "done"
+                  : stage2Discarded
+                    ? "stale"
+                    : "none",
+              counts,
+            })
+          : screen === "ai"
+            ? aiRunStatus({
+                running: aiActive,
+                pending: aiBranchState?.branches.length ?? 0,
+                history: aiHistory.length,
+              })
+            : screen === "preferences"
+              ? preferencesStatus()
+              : (screenStatus.get(screen) ?? [
+                  { text: SCREEN_LABEL[screen], strong: true },
+                ]);
+
   return (
-    <div className="app">
-      <TitleBar
-        title={project?.title ?? null}
-        recent={recent}
-        onOpen={() => void openPicker()}
-        onCreate={() => void create()}
-        onOpenRecent={(path) => void open(path)}
-        onPlay={
-          project === null
-            ? null
-            : () => sendPreview((seq) => ({ seq, kind: "start" }))
-        }
-        onPlayHere={
-          project === null || currentFile === null ? null : playAtCursor
-        }
-        ai={aiIndicator}
-        onAi={() => selectScreen("preferences")}
-      />
-      {error !== null && (
-        <div className="error app-error" role="alert">
-          <p>{error}</p>
-          <button
-            type="button"
-            className="error-close"
-            aria-label="誤りの知らせを閉じる"
-            onClick={() => setError(null)}
-          >
-            閉じる
-          </button>
-        </div>
-      )}
-      <div className="body">
-        {project !== null && focusing && (
-          <button
-            type="button"
-            className="btn btn-sm focus-exit"
-            onClick={() => updateViewPrefs((p) => ({ ...p, focus: false }))}
-          >
-            集中モードを終える（{keyLabel("Mod-Shift-F", IS_MAC)}）
-          </button>
+    <StatusContext.Provider value={publishStatus}>
+      <div className={narrow ? "app is-narrow" : "app"} data-panel={panel}>
+        <TitleBar
+          title={project?.title ?? null}
+          branch={branch}
+          recent={recent}
+          onOpen={() => void openPicker()}
+          onCreate={() => void create()}
+          onOpenRecent={(path) => void open(path)}
+          onReveal={() => {
+            revealProject().catch((e: unknown) => setError(String(e)));
+          }}
+          onProjectSettings={() => selectScreen("preferences")}
+          onSearch={() => setPalette(true)}
+          ai={ai}
+          onOpenAi={() => selectScreen("ai")}
+          onPreferences={() => selectScreen("preferences")}
+          play={
+            play === null
+              ? null
+              : {
+                  ...play,
+                  fromStart: playStart,
+                  fromScene: sceneToPlay,
+                }
+          }
+          panel={{
+            shown: panel !== "hidden",
+            available: panelAvailable,
+            onToggle: () => setPanels((p) => togglePanel(p, screen, narrow)),
+          }}
+        />
+        {error !== null && (
+          <div className="error app-error" role="alert">
+            <p>{error}</p>
+            <button
+              type="button"
+              className="error-close"
+              aria-label="誤りの知らせを閉じる"
+              onClick={() => setError(null)}
+            >
+              閉じる
+            </button>
+          </div>
         )}
-        {project !== null && !focusing && (
-          <LeftBar
-            // プレビューは本文から開くので、本文を選んだ形にする（T4-13、U16）。
-            screen={screen === "preview" ? "text" : screen}
-            problems={counts.error + counts.warning}
-            onSelect={selectScreen}
-          />
-        )}
-        <main className="workspace">
-          {project === null ? (
-            <Welcome
-              recent={recent}
-              onOpen={() => void openPicker()}
-              onCreate={() => void create()}
-              onOpenRecent={(path) => void open(path)}
+        <div className="body">
+          {project !== null && focusing && (
+            <button
+              type="button"
+              className="btn btn-sm focus-exit"
+              onClick={() => updateViewPrefs((p) => ({ ...p, focus: false }))}
+            >
+              集中モードを終える（{keyLabel("Mod-Shift-F", IS_MAC)}）
+            </button>
+          )}
+          {project !== null && !focusing && (
+            <LeftBar
+              // プレビューは本文から開くので、本文を選んだ形にする（T4-13、U16）。
+              screen={screen === "preview" ? "text" : screen}
+              counts={counts}
+              aiRunning={aiActive > 0}
+              onSelect={selectScreen}
             />
-          ) : (
-            <>
-              <section
-                className="screen text-screen"
-                hidden={screen !== "text"}
-                aria-label="本文"
-              >
-                {!viewPrefs.focus && (
-                  <SceneList
-                    files={project.files}
-                    scenes={project.summary.scenes}
-                    currentFile={currentFile}
-                    currentScene={currentScene}
-                    dirty={dirty}
-                    onSelectScene={selectScene}
-                    onSelectFile={(file) => goTo(file, null)}
-                    onAddChapter={onAddChapter}
-                    onRenameChapter={onRenameChapter}
-                    onDeleteChapter={(file) => void onDeleteChapter(file)}
-                  />
-                )}
+          )}
+          <main className="workspace">
+            {project === null ? (
+              <Welcome
+                recent={recent}
+                onOpen={() => void openPicker()}
+                onCreate={() => void create()}
+                onOpenRecent={(path) => void open(path)}
+              />
+            ) : (
+              <>
                 <section
-                  className={
-                    viewPrefs.gothic ? "editor-pane font-gothic" : "editor-pane"
-                  }
-                  aria-label="エディタ"
+                  className="screen text-screen"
+                  hidden={screen !== "text"}
+                  aria-label="本文"
                 >
-                  {currentFile !== null && (
-                    <ModeBar
-                      file={currentFile}
-                      mode={mode}
-                      onSelect={(m) => selectMode(currentFile, m)}
-                    />
-                  )}
-                  {currentFile !== null && conflict !== undefined && (
-                    <ConflictBar
-                      file={currentFile}
-                      deleted={conflict.deleted}
-                      onReload={() => void resolveConflict(currentFile, true)}
-                      onKeep={() => void resolveConflict(currentFile, false)}
-                      onMerge={() => void startMerge(currentFile)}
-                    />
-                  )}
-                  {merge !== null && merge.file === currentFile && (
-                    <MergePanel
-                      key={merge.view.token}
-                      file={merge.file}
-                      view={merge.view}
-                      onApply={finishMerge}
-                      onCancel={() => setMerge(null)}
-                    />
-                  )}
-                  {currentFile !== null && mixedLineBreak !== null && (
-                    <LineBreakBar lineBreak={mixedLineBreak} />
-                  )}
-                  {currentFile !== null ? (
-                    <Editor
-                      key={openSeq}
-                      file={currentFile}
-                      text={buffers.current.get(currentFile) ?? ""}
-                      savedText={savedText}
-                      brackets={project.brackets}
-                      viewMode={mode}
-                      titles={titles}
-                      analysis={analysis}
-                      focus={focus}
-                      replace={replace}
-                      onIdle={onIdle}
-                      onComposingChange={onComposingChange}
-                      onDirty={onDirty}
-                      onSave={onSave}
-                      onReplaceSkipped={onReplaceSkipped}
-                      onToggleView={toggleMode}
-                      assist={assist}
-                      editorSettings={editorSettings}
-                      onCursor={onCursor}
-                      onDefinition={onDefinition}
-                      onQuickOpen={() => setQuickOpen(true)}
-                      onPlayHere={playHere}
-                      onRename={(file, offset, text) =>
-                        void onRename(file, offset, text)
-                      }
-                      typewriter={viewPrefs.typewriter}
-                      aiLines={aiLineMap}
-                      aiFindings={findingMap}
-                      previewLine={previewMarker}
-                    />
-                  ) : (
-                    <p className="placeholder">
-                      章がありません。左の「＋ 章」で足してください。
-                    </p>
-                  )}
-                </section>
-                {!viewPrefs.focus && (
-                  <ContextPanel
-                    scene={scene}
-                    diagnostics={allDiagnostics.filter(
-                      (d) => d.file === currentFile,
-                    )}
-                    files={project.files}
-                    textOf={(file) => buffers.current.get(file)}
-                    scenes={project.summary.scenes}
-                    onSelectDiagnostic={(d) => goTo(d.file, d.span[0])}
-                    onRegister={onRegister}
-                    onOpenCharacter={(id) =>
-                      requestBible((seq) => ({ kind: "character", id, seq }))
-                    }
-                    findings={findingsForScene(aiFindings, currentScene)}
-                    onGoToFinding={goToFinding}
-                    onDismissFinding={dismissFinding}
-                  />
-                )}
-              </section>
-              {(screen === "flow" || visited.has("flow")) && (
-                <section
-                  className="screen flow-screen"
-                  aria-label="フロー"
-                  hidden={screen !== "flow"}
-                >
-                  <KeepAlive active={screen === "flow"}>
-                    <SceneGraph
-                      summary={project.summary}
-                      checks={project.checks}
-                      level={flowLevel}
-                      onLevel={setFlowLevel}
-                      layoutVersion={layoutVersion}
-                      onOpen={selectScene}
-                      chapters={project.files}
-                      dirtyChapters={dirty}
-                      onStoryWritten={(result) => {
-                        onStoryWritten(result.file, result.text);
-                        showSummary(result.summary, result.checks);
-                      }}
-                      ai={{
-                        runner: runnerOf(branchTask),
-                        result:
-                          branchTask === null
-                            ? undefined
-                            : aiResults.get(branchTask.task.id),
-                        hidden: branchHidden,
-                        onAdopt: (proposal, key, model) =>
-                          adoptBranch(
-                            proposal,
-                            key,
-                            model,
-                            branchTask?.task.id ?? "branch_ideas",
-                          ),
-                        onReject: (key) =>
-                          setBranchHidden((h) => new Set(h).add(key)),
-                      }}
-                    />
-                  </KeepAlive>
-                </section>
-              )}
-              {(screen === "concept" || visited.has("concept")) && (
-                <section
-                  className="screen concept-screen"
-                  aria-label="企画"
-                  hidden={screen !== "concept"}
-                >
-                  <KeepAlive active={screen === "concept"}>
-                    <ConceptScreen
+                  {!viewPrefs.focus && (
+                    <SceneList
+                      files={project.files}
                       scenes={project.summary.scenes}
-                      chapters={project.files}
-                      dirtyChapters={dirty}
-                      settingsVersion={settingsVersion}
-                      ideasVersion={ideasVersion}
-                      aiFields={aiFieldMap}
-                      onWritten={onSettingsWritten}
-                      onStoryWritten={onStoryWritten}
-                      onOpenLocation={openFromSettings}
-                      onOpenEntry={openEntry}
-                      onUnsaved={onConceptDraft}
-                      ai={{
-                        questions: runnerOf(questionTask),
-                        sort: runnerOf(sortTask),
-                        findings:
-                          questionTask === null
-                            ? []
-                            : aiFindings.filter(
-                                (f) => f.task === questionTask.task.id,
-                              ),
-                        onDismissFinding: dismissFinding,
-                        suggestions: ideaSuggestions,
-                        onHideSuggestion: (key) =>
-                          setIdeaHidden((h) => new Set(h).add(key)),
-                        onSkeleton:
-                          skeletonTask === null
-                            ? null
-                            : () => {
-                                setAiScreenRequest((r) => ({
-                                  task: skeletonTask.task.id,
-                                  seq: (r?.seq ?? 0) + 1,
-                                }));
-                                selectScreen("ai");
-                              },
-                        draft: {
-                          runner: runnerOf(conceptDraftTask),
+                      currentFile={currentFile}
+                      currentScene={currentScene}
+                      dirty={dirty}
+                      onSelectScene={selectScene}
+                      onSelectFile={(file) => goTo(file, null)}
+                      onAddChapter={onAddChapter}
+                      onRenameChapter={onRenameChapter}
+                      onDeleteChapter={(file) => void onDeleteChapter(file)}
+                    />
+                  )}
+                  <section
+                    className={
+                      viewPrefs.gothic
+                        ? "editor-pane font-gothic"
+                        : "editor-pane"
+                    }
+                    aria-label="エディタ"
+                  >
+                    {currentFile !== null && (
+                      <ModeBar
+                        file={currentFile}
+                        mode={mode}
+                        onSelect={(m) => selectMode(currentFile, m)}
+                      />
+                    )}
+                    {currentFile !== null && conflict !== undefined && (
+                      <ConflictBar
+                        file={currentFile}
+                        deleted={conflict.deleted}
+                        onReload={() => void resolveConflict(currentFile, true)}
+                        onKeep={() => void resolveConflict(currentFile, false)}
+                        onMerge={() => void startMerge(currentFile)}
+                      />
+                    )}
+                    {merge !== null && merge.file === currentFile && (
+                      <MergePanel
+                        key={merge.view.token}
+                        file={merge.file}
+                        view={merge.view}
+                        onApply={finishMerge}
+                        onCancel={() => setMerge(null)}
+                      />
+                    )}
+                    {currentFile !== null && mixedLineBreak !== null && (
+                      <LineBreakBar lineBreak={mixedLineBreak} />
+                    )}
+                    {currentFile !== null ? (
+                      <Editor
+                        key={openSeq}
+                        file={currentFile}
+                        text={buffers.current.get(currentFile) ?? ""}
+                        savedText={savedText}
+                        brackets={project.brackets}
+                        viewMode={mode}
+                        titles={titles}
+                        analysis={analysis}
+                        focus={focus}
+                        replace={replace}
+                        onIdle={onIdle}
+                        onComposingChange={onComposingChange}
+                        onDirty={onDirty}
+                        onSave={onSave}
+                        onReplaceSkipped={onReplaceSkipped}
+                        onToggleView={toggleMode}
+                        assist={assist}
+                        editorSettings={editorSettings}
+                        onCursor={onCursor}
+                        onDefinition={onDefinition}
+                        onQuickOpen={() => setQuickOpen(true)}
+                        onPlayHere={playHere}
+                        onRename={(file, offset, text) =>
+                          void onRename(file, offset, text)
+                        }
+                        typewriter={viewPrefs.typewriter}
+                        aiLines={aiLineMap}
+                        aiFindings={findingMap}
+                        previewLine={previewMarker}
+                      />
+                    ) : (
+                      <p className="placeholder">
+                        章がありません。左の「＋ 章」で足してください。
+                      </p>
+                    )}
+                  </section>
+                  {!viewPrefs.focus && (
+                    <ContextPanel
+                      scene={scene}
+                      diagnostics={allDiagnostics.filter(
+                        (d) => d.file === currentFile,
+                      )}
+                      files={project.files}
+                      textOf={(file) => buffers.current.get(file)}
+                      scenes={project.summary.scenes}
+                      onSelectDiagnostic={(d) => goTo(d.file, d.span[0])}
+                      onRegister={onRegister}
+                      onOpenCharacter={(id) =>
+                        requestBible((seq) => ({ kind: "character", id, seq }))
+                      }
+                      findings={findingsForScene(aiFindings, currentScene)}
+                      onGoToFinding={goToFinding}
+                      onDismissFinding={dismissFinding}
+                    />
+                  )}
+                </section>
+                {(screen === "flow" || visited.has("flow")) && (
+                  <section
+                    className="screen flow-screen"
+                    aria-label="フロー"
+                    hidden={screen !== "flow"}
+                  >
+                    <KeepAlive active={screen === "flow"}>
+                      <SceneGraph
+                        summary={project.summary}
+                        checks={project.checks}
+                        level={flowLevel}
+                        onLevel={setFlowLevel}
+                        layoutVersion={layoutVersion}
+                        onSelectScene={setFlowScene}
+                        onOpen={selectScene}
+                        chapters={project.files}
+                        dirtyChapters={dirty}
+                        onStoryWritten={(result) => {
+                          onStoryWritten(result.file, result.text);
+                          showSummary(result.summary, result.checks);
+                        }}
+                        ai={{
+                          runner: runnerOf(branchTask),
                           result:
-                            conceptDraftResult?.kind === "ok"
-                              ? {
-                                  run: conceptDraftResult.run,
-                                  text: conceptDraftResult.written ?? "",
-                                  ok: conceptDraftResult.wroteOk,
-                                  fields: conceptDraftResult.fields[0] ?? null,
-                                }
-                              : conceptDraftResult?.kind === "failed"
+                            branchTask === null
+                              ? undefined
+                              : aiResults.get(branchTask.task.id),
+                          hidden: branchHidden,
+                          onAdopt: (proposal, key, model) =>
+                            adoptBranch(
+                              proposal,
+                              key,
+                              model,
+                              branchTask?.task.id ?? "branch_ideas",
+                            ),
+                          onReject: (key) =>
+                            setBranchHidden((h) => new Set(h).add(key)),
+                        }}
+                      />
+                    </KeepAlive>
+                  </section>
+                )}
+                {(screen === "concept" || visited.has("concept")) && (
+                  <section
+                    className="screen concept-screen"
+                    aria-label="企画"
+                    hidden={screen !== "concept"}
+                  >
+                    <KeepAlive active={screen === "concept"}>
+                      <ConceptScreen
+                        scenes={project.summary.scenes}
+                        chapters={project.files}
+                        dirtyChapters={dirty}
+                        settingsVersion={settingsVersion}
+                        ideasVersion={ideasVersion}
+                        aiFields={aiFieldMap}
+                        onWritten={onSettingsWritten}
+                        onStoryWritten={onStoryWritten}
+                        onOpenLocation={openFromSettings}
+                        onOpenEntry={openEntry}
+                        onUnsaved={onConceptDraft}
+                        ai={{
+                          questions: runnerOf(questionTask),
+                          sort: runnerOf(sortTask),
+                          findings:
+                            questionTask === null
+                              ? []
+                              : aiFindings.filter(
+                                  (f) => f.task === questionTask.task.id,
+                                ),
+                          onDismissFinding: dismissFinding,
+                          suggestions: ideaSuggestions,
+                          onHideSuggestion: (key) =>
+                            setIdeaHidden((h) => new Set(h).add(key)),
+                          onSkeleton:
+                            skeletonTask === null
+                              ? null
+                              : () => {
+                                  setAiScreenRequest((r) => ({
+                                    task: skeletonTask.task.id,
+                                    seq: (r?.seq ?? 0) + 1,
+                                  }));
+                                  selectScreen("ai");
+                                },
+                          draft: {
+                            runner: runnerOf(conceptDraftTask),
+                            result:
+                              conceptDraftResult?.kind === "ok"
                                 ? {
                                     run: conceptDraftResult.run,
-                                    text: conceptDraftResult.message,
+                                    text: conceptDraftResult.written ?? "",
+                                    ok: conceptDraftResult.wroteOk,
+                                    fields:
+                                      conceptDraftResult.fields[0] ?? null,
+                                  }
+                                : conceptDraftResult?.kind === "failed"
+                                  ? {
+                                      run: conceptDraftResult.run,
+                                      text: conceptDraftResult.message,
+                                      ok: false,
+                                      fields: null,
+                                    }
+                                  : null,
+                            decisions: fieldDecisions,
+                            onAdopt: (run, proposal, written) =>
+                              conceptDraftTask === null ||
+                              conceptDraftResult?.kind !== "ok"
+                                ? Promise.resolve(null)
+                                : adoptField(
+                                    run,
+                                    proposal,
+                                    written,
+                                    conceptDraftTask.task.id,
+                                    conceptDraftResult.model,
+                                  ),
+                            onReject: rejectField,
+                          },
+                        }}
+                      />
+                    </KeepAlive>
+                  </section>
+                )}
+                {(screen === "bible" || visited.has("bible")) && (
+                  <section
+                    className="screen bible-screen"
+                    aria-label="設定DB"
+                    hidden={screen !== "bible"}
+                  >
+                    <KeepAlive active={screen === "bible"}>
+                      <BibleScreen
+                        scenes={project.summary.scenes}
+                        diagnostics={allDiagnostics}
+                        settingsVersion={settingsVersion}
+                        request={bibleRequest}
+                        ai={{
+                          runner: entriesRunner,
+                          result:
+                            entriesResult?.kind === "ok"
+                              ? {
+                                  run: entriesResult.run,
+                                  text: entriesResult.written ?? "",
+                                  ok: entriesResult.wroteOk,
+                                  fields: entriesResult.fields,
+                                  notes: [
+                                    ...entriesResult.notes,
+                                    ...entriesResult.unread,
+                                  ],
+                                }
+                              : entriesResult?.kind === "failed"
+                                ? {
+                                    run: entriesResult.run,
+                                    text: entriesResult.message,
                                     ok: false,
-                                    fields: null,
+                                    fields: [],
+                                    notes: [],
                                   }
                                 : null,
                           decisions: fieldDecisions,
                           onAdopt: (run, proposal, written) =>
-                            conceptDraftTask === null ||
-                            conceptDraftResult?.kind !== "ok"
+                            entriesTask === null || entriesResult?.kind !== "ok"
                               ? Promise.resolve(null)
                               : adoptField(
                                   run,
                                   proposal,
                                   written,
-                                  conceptDraftTask.task.id,
-                                  conceptDraftResult.model,
+                                  entriesTask.task.id,
+                                  entriesResult.model,
                                 ),
                           onReject: rejectField,
-                        },
-                      }}
-                    />
-                  </KeepAlive>
-                </section>
-              )}
-              {(screen === "bible" || visited.has("bible")) && (
-                <section
-                  className="screen bible-screen"
-                  aria-label="設定DB"
-                  hidden={screen !== "bible"}
-                >
-                  <KeepAlive active={screen === "bible"}>
-                    <BibleScreen
-                      scenes={project.summary.scenes}
-                      diagnostics={allDiagnostics}
-                      settingsVersion={settingsVersion}
-                      request={bibleRequest}
-                      ai={{
-                        runner: entriesRunner,
-                        result:
-                          entriesResult?.kind === "ok"
-                            ? {
-                                run: entriesResult.run,
-                                text: entriesResult.written ?? "",
-                                ok: entriesResult.wroteOk,
-                                fields: entriesResult.fields,
-                                notes: [
-                                  ...entriesResult.notes,
-                                  ...entriesResult.unread,
-                                ],
-                              }
-                            : entriesResult?.kind === "failed"
-                              ? {
-                                  run: entriesResult.run,
-                                  text: entriesResult.message,
-                                  ok: false,
-                                  fields: [],
-                                  notes: [],
-                                }
-                              : null,
-                        decisions: fieldDecisions,
-                        onAdopt: (run, proposal, written) =>
-                          entriesTask === null || entriesResult?.kind !== "ok"
-                            ? Promise.resolve(null)
-                            : adoptField(
-                                run,
-                                proposal,
-                                written,
-                                entriesTask.task.id,
-                                entriesResult.model,
-                              ),
-                        onReject: rejectField,
-                      }}
-                      aiFields={aiFieldMap}
-                      onWritten={onSettingsWritten}
-                      onOpenLocation={openFromSettings}
-                      onUnsaved={onBibleDraft}
-                      onRequestHandled={onBibleRequestHandled}
-                      onRenameEntry={(typeId, id, name) =>
-                        setRenaming({
-                          target: { kind: "entry_id", type_id: typeId, id },
-                          current: id,
-                          label: `エントリのID（${name}）`,
-                        })
-                      }
-                    />
-                  </KeepAlive>
-                </section>
-              )}
-              {(screen === "assets" || visited.has("assets")) && (
-                <section
-                  className="screen assets-screen"
-                  aria-label="素材"
-                  hidden={screen !== "assets"}
-                >
-                  <KeepAlive active={screen === "assets"}>
-                    <AssetsScreen
-                      root={project.root}
-                      summary={project.summary}
-                      scenes={project.summary.scenes}
-                      settingsVersion={settingsVersion}
-                      shown={shownCount}
-                      onWritten={onSettingsWritten}
-                      onOpenLocation={openFromSettings}
-                    />
-                  </KeepAlive>
-                </section>
-              )}
-              {(screen === "variables" || visited.has("variables")) && (
-                <section
-                  className="screen variables-screen"
-                  aria-label="変数"
-                  hidden={screen !== "variables"}
-                >
-                  <KeepAlive active={screen === "variables"}>
-                    <VariablesScreen
-                      scenes={project.summary.scenes}
-                      diagnostics={allDiagnostics}
-                      characters={assist?.characters ?? []}
-                      settingsVersion={settingsVersion}
-                      onWritten={onSettingsWritten}
-                      onOpenLocation={openFromSettings}
-                      onUnsaved={onVariablesDraft}
-                    />
-                  </KeepAlive>
-                </section>
-              )}
-              {screen === "preview" && (
-                <section
-                  className="screen preview-screen"
-                  aria-label="プレビュー"
-                >
-                  <PreviewScreen
-                    data={preview}
-                    error={previewError}
-                    title={project.title}
-                    assetUrl={assetUrl}
-                    onShowInEditor={showPreviewLine}
-                    onLine={onPreviewLine}
-                    onClose={closePreview}
-                    request={previewRequest}
-                    onOpenWindow={openWindow}
-                  />
-                </section>
-              )}
-              {(screen === "export" || visited.has("export")) && (
-                <section
-                  className="screen export-screen"
-                  aria-label="出力"
-                  hidden={screen !== "export"}
-                >
-                  <KeepAlive active={screen === "export"}>
-                    <ExportScreen
-                      summary={project.summary}
-                      unsaved={dirty.size}
-                      load={scriptSheet}
-                      write={exportScript}
-                      writeRenpy={exportRenpy}
-                      writeTyrano={exportTyrano}
-                      writeUtage={exportUtage}
-                      writeBook={exportBook}
-                      loadBookSettings={loadBookSettings}
-                      loadPlugins={loadExportPlugins}
-                      runPlugin={exportPlugin}
-                      ask={confirm}
-                      loadChoices={readingChoices}
-                      writeText={exportText}
-                      loadProvenance={aiLines}
-                      writeProvenance={exportProvenance}
-                    />
-                  </KeepAlive>
-                </section>
-              )}
-              {(screen === "ai" || visited.has("ai")) && (
-                <section
-                  className="screen ai-screen"
-                  aria-label="AI実行"
-                  hidden={screen !== "ai"}
-                >
-                  <KeepAlive active={screen === "ai"}>
-                    <AiScreen
-                      tasks={aiTasks}
-                      tasksError={aiTasksError}
-                      connections={aiTaskConnections}
-                      onChooseConnection={(task, connection) =>
-                        setAiTaskConnection(task, connection).then(() =>
-                          setAiVersion((n) => n + 1),
-                        )
-                      }
-                      scenes={project.summary.scenes}
-                      currentScene={currentScene}
-                      running={aiRunState}
-                      results={aiResults}
-                      history={aiHistory}
-                      findings={aiFindings}
-                      onPrepare={prepareAiTask}
-                      onRun={runTask}
-                      onCancel={cancelTaskRun}
-                      onGoToFinding={goToFinding}
-                      onDismissFinding={dismissFinding}
-                      onOpenPreferences={() => selectScreen("preferences")}
-                      proposalFiles={aiProposalFiles}
-                      textVersion={savedVersion}
-                      onAdopt={adopt}
-                      onGoToProposal={goToProposal}
-                      rejected={rejectedProposals}
-                      onToggleReject={toggleReject}
-                      fieldDecisions={fieldDecisions}
-                      onAdoptField={adoptField}
-                      onRejectField={rejectField}
-                      autoRun={aiAutoRun}
-                      autoResult={aiAutoResult}
-                      autoError={aiAutoError}
-                      onRunAuto={runAuto}
-                      onCancelAuto={cancelAuto}
-                      branches={aiBranchState}
-                      onBranchDiff={aiBranchDiff}
-                      onBranchMerge={(name) =>
-                        aiBranchMerge(name).finally(() =>
-                          setBranchesVersion((n) => n + 1),
-                        )
-                      }
-                      onBranchDelete={async (name) => {
-                        const ok = await confirm(
-                          `AI のブランチ ${name} を、取り込まずに捨てます。元に戻せません。`,
-                          "AIのブランチを破棄",
-                        );
-                        if (!ok) return false;
-                        try {
-                          await aiBranchDelete(name);
-                        } finally {
-                          setBranchesVersion((n) => n + 1);
+                        }}
+                        aiFields={aiFieldMap}
+                        onWritten={onSettingsWritten}
+                        onOpenLocation={openFromSettings}
+                        onUnsaved={onBibleDraft}
+                        onRequestHandled={onBibleRequestHandled}
+                        onRenameEntry={(typeId, id, name) =>
+                          setRenaming({
+                            target: { kind: "entry_id", type_id: typeId, id },
+                            current: id,
+                            label: `エントリのID（${name}）`,
+                          })
                         }
-                        return true;
-                      }}
-                      request={aiScreenRequest}
-                      onRewriteSkeleton={(info, target) =>
-                        void rewriteSkeleton(info, target)
-                      }
-                      plot={{
-                        chapters: project.files,
-                        branchHidden,
-                        onAdoptBranch: adoptBranch,
-                        onRejectBranch: (key) =>
-                          setBranchHidden((h) => new Set(h).add(key)),
-                        drift,
-                        driftPending,
-                        driftError,
-                        driftHidden,
-                        onRejectDrift: (key) =>
-                          setDriftHidden((h) => new Set(h).add(key)),
-                        onAdoptDrift: adoptDrift,
-                        summarizeRun,
-                        summarizeResult,
-                        summarizeError,
-                        onSummarize: runSummarize,
-                        onCancelSummarize: cancelSummarize,
-                      }}
+                      />
+                    </KeepAlive>
+                  </section>
+                )}
+                {(screen === "assets" || visited.has("assets")) && (
+                  <section
+                    className="screen assets-screen"
+                    aria-label="素材"
+                    hidden={screen !== "assets"}
+                  >
+                    <KeepAlive active={screen === "assets"}>
+                      <AssetsScreen
+                        root={project.root}
+                        summary={project.summary}
+                        scenes={project.summary.scenes}
+                        settingsVersion={settingsVersion}
+                        shown={shownCount}
+                        onWritten={onSettingsWritten}
+                        onOpenLocation={openFromSettings}
+                      />
+                    </KeepAlive>
+                  </section>
+                )}
+                {(screen === "variables" || visited.has("variables")) && (
+                  <section
+                    className="screen variables-screen"
+                    aria-label="変数"
+                    hidden={screen !== "variables"}
+                  >
+                    <KeepAlive active={screen === "variables"}>
+                      <VariablesScreen
+                        scenes={project.summary.scenes}
+                        diagnostics={allDiagnostics}
+                        characters={assist?.characters ?? []}
+                        settingsVersion={settingsVersion}
+                        onWritten={onSettingsWritten}
+                        onOpenLocation={openFromSettings}
+                        onUnsaved={onVariablesDraft}
+                      />
+                    </KeepAlive>
+                  </section>
+                )}
+                {screen === "preview" && (
+                  <section
+                    className="screen preview-screen"
+                    aria-label="プレビュー"
+                  >
+                    <PreviewScreen
+                      data={preview}
+                      error={previewError}
+                      title={project.title}
+                      assetUrl={assetUrl}
+                      onShowInEditor={showPreviewLine}
+                      onLine={onPreviewLine}
+                      onClose={closePreview}
+                      request={previewRequest}
+                      onOpenWindow={openWindow}
                     />
-                  </KeepAlive>
-                </section>
-              )}
-              {(screen === "preferences" || visited.has("preferences")) && (
-                <section
-                  className="screen preferences-screen"
-                  aria-label="環境設定"
-                  hidden={screen !== "preferences"}
-                >
-                  <KeepAlive active={screen === "preferences"}>
-                    <PreferencesScreen
-                      data={aiState}
-                      error={aiError}
-                      tests={aiTests}
-                      onOverride={(
-                        name,
-                        baseUrl,
-                        model,
-                        contextTokens,
-                        outputTokens,
-                        structured,
-                      ) =>
-                        setAiOverride(
+                  </section>
+                )}
+                {(screen === "export" || visited.has("export")) && (
+                  <section
+                    className="screen export-screen"
+                    aria-label="出力"
+                    hidden={screen !== "export"}
+                  >
+                    <KeepAlive active={screen === "export"}>
+                      <ExportScreen
+                        summary={project.summary}
+                        unsaved={dirty.size}
+                        load={scriptSheet}
+                        write={exportScript}
+                        writeRenpy={exportRenpy}
+                        writeTyrano={exportTyrano}
+                        writeUtage={exportUtage}
+                        writeBook={exportBook}
+                        loadBookSettings={loadBookSettings}
+                        loadPlugins={loadExportPlugins}
+                        runPlugin={exportPlugin}
+                        ask={confirm}
+                        loadChoices={readingChoices}
+                        writeText={exportText}
+                        loadProvenance={aiLines}
+                        writeProvenance={exportProvenance}
+                      />
+                    </KeepAlive>
+                  </section>
+                )}
+                {(screen === "ai" || visited.has("ai")) && (
+                  <section
+                    className="screen ai-screen"
+                    aria-label="AI実行"
+                    hidden={screen !== "ai"}
+                  >
+                    <KeepAlive active={screen === "ai"}>
+                      <AiScreen
+                        tasks={aiTasks}
+                        tasksError={aiTasksError}
+                        connections={aiTaskConnections}
+                        onChooseConnection={(task, connection) =>
+                          setAiTaskConnection(task, connection).then(() =>
+                            setAiVersion((n) => n + 1),
+                          )
+                        }
+                        scenes={project.summary.scenes}
+                        currentScene={currentScene}
+                        running={aiRunState}
+                        results={aiResults}
+                        history={aiHistory}
+                        findings={aiFindings}
+                        onPrepare={prepareAiTask}
+                        onRun={runTask}
+                        onCancel={cancelTaskRun}
+                        onGoToFinding={goToFinding}
+                        onDismissFinding={dismissFinding}
+                        proposalFiles={aiProposalFiles}
+                        textVersion={savedVersion}
+                        onAdopt={adopt}
+                        onGoToProposal={goToProposal}
+                        rejected={rejectedProposals}
+                        onToggleReject={toggleReject}
+                        fieldDecisions={fieldDecisions}
+                        onAdoptField={adoptField}
+                        onRejectField={rejectField}
+                        autoRun={aiAutoRun}
+                        autoResult={aiAutoResult}
+                        autoError={aiAutoError}
+                        onRunAuto={runAuto}
+                        onCancelAuto={cancelAuto}
+                        branches={aiBranchState}
+                        onBranchDiff={aiBranchDiff}
+                        onBranchMerge={(name) =>
+                          aiBranchMerge(name).finally(() =>
+                            setBranchesVersion((n) => n + 1),
+                          )
+                        }
+                        onBranchDelete={async (name) => {
+                          const ok = await confirm(
+                            `AI のブランチ ${name} を、取り込まずに捨てます。元に戻せません。`,
+                            "AIのブランチを破棄",
+                          );
+                          if (!ok) return false;
+                          try {
+                            await aiBranchDelete(name);
+                          } finally {
+                            setBranchesVersion((n) => n + 1);
+                          }
+                          return true;
+                        }}
+                        request={aiScreenRequest}
+                        onRewriteSkeleton={(info, target) =>
+                          void rewriteSkeleton(info, target)
+                        }
+                        plot={{
+                          chapters: project.files,
+                          branchHidden,
+                          onAdoptBranch: adoptBranch,
+                          onRejectBranch: (key) =>
+                            setBranchHidden((h) => new Set(h).add(key)),
+                          drift,
+                          driftPending,
+                          driftError,
+                          driftHidden,
+                          onRejectDrift: (key) =>
+                            setDriftHidden((h) => new Set(h).add(key)),
+                          onAdoptDrift: adoptDrift,
+                          summarizeRun,
+                          summarizeResult,
+                          summarizeError,
+                          onSummarize: runSummarize,
+                          onCancelSummarize: cancelSummarize,
+                        }}
+                      />
+                    </KeepAlive>
+                  </section>
+                )}
+                {(screen === "preferences" || visited.has("preferences")) && (
+                  <section
+                    className="screen preferences-screen"
+                    aria-label="環境設定"
+                    hidden={screen !== "preferences"}
+                  >
+                    <KeepAlive active={screen === "preferences"}>
+                      <PreferencesScreen
+                        data={aiState}
+                        error={aiError}
+                        tests={aiTests}
+                        onOverride={(
                           name,
                           baseUrl,
                           model,
                           contextTokens,
                           outputTokens,
                           structured,
-                        ).finally(() => aiChanged([name]))
-                      }
-                      onAllow={(endpoint, allowed) =>
-                        setAiCloudAllowed(endpoint, allowed).finally(() =>
-                          aiChanged(namesOfEndpoint(endpoint)),
-                        )
-                      }
-                      onSaveKey={(endpoint, key) =>
-                        setAiKey(endpoint, key).finally(() =>
-                          aiChanged(namesOfEndpoint(endpoint)),
-                        )
-                      }
-                      onDeleteKey={(endpoint) =>
-                        deleteAiKey(endpoint).finally(() =>
-                          aiChanged(namesOfEndpoint(endpoint)),
-                        )
-                      }
-                      onTest={runAiTest}
-                      onCancel={cancelTest}
-                    />
-                  </KeepAlive>
-                </section>
-              )}
-              {(screen === "check" || visited.has("check")) && (
-                <section
-                  className="screen check-screen"
-                  aria-label="検証"
-                  hidden={screen !== "check"}
-                >
-                  <KeepAlive active={screen === "check"}>
-                    <PlaythroughPanel
-                      report={stage2}
-                      running={stage2Running}
-                      error={stage2Error}
-                      discarded={stage2Discarded}
-                      onRun={runStage2}
-                    />
-                    <CheckList
-                      heading="検証（プロジェクト全体）"
-                      diagnostics={checkDiagnostics}
-                      files={project.files}
-                      onSelect={onSelectDiagnostic}
-                      onRegister={onRegister}
-                      canOpen={isSettingsFile}
-                      textOf={(file) => buffers.current.get(file)}
-                      scenes={project.summary.scenes}
-                    />
-                  </KeepAlive>
-                </section>
-              )}
-            </>
-          )}
-        </main>
+                        ) =>
+                          setAiOverride(
+                            name,
+                            baseUrl,
+                            model,
+                            contextTokens,
+                            outputTokens,
+                            structured,
+                          ).finally(() => aiChanged([name]))
+                        }
+                        onAllow={(endpoint, allowed) =>
+                          setAiCloudAllowed(endpoint, allowed).finally(() =>
+                            aiChanged(namesOfEndpoint(endpoint)),
+                          )
+                        }
+                        onSaveKey={(endpoint, key) =>
+                          setAiKey(endpoint, key).finally(() =>
+                            aiChanged(namesOfEndpoint(endpoint)),
+                          )
+                        }
+                        onDeleteKey={(endpoint) =>
+                          deleteAiKey(endpoint).finally(() =>
+                            aiChanged(namesOfEndpoint(endpoint)),
+                          )
+                        }
+                        onTest={runAiTest}
+                        onCancel={cancelTest}
+                      />
+                    </KeepAlive>
+                  </section>
+                )}
+                {(screen === "check" || visited.has("check")) && (
+                  <section
+                    className="screen check-screen"
+                    aria-label="検証"
+                    hidden={screen !== "check"}
+                  >
+                    <KeepAlive active={screen === "check"}>
+                      <PlaythroughPanel
+                        report={stage2}
+                        running={stage2Running}
+                        error={stage2Error}
+                        discarded={stage2Discarded}
+                        onRun={runStage2}
+                      />
+                      <CheckList
+                        heading="検証（プロジェクト全体）"
+                        diagnostics={checkDiagnostics}
+                        files={project.files}
+                        onSelect={onSelectDiagnostic}
+                        onRegister={onRegister}
+                        canOpen={isSettingsFile}
+                        textOf={(file) => buffers.current.get(file)}
+                        scenes={project.summary.scenes}
+                      />
+                    </KeepAlive>
+                  </section>
+                )}
+              </>
+            )}
+          </main>
+        </div>
+        {palette && project !== null && (
+          <CommandPalette
+            commands={commands}
+            onClose={() => setPalette(false)}
+          />
+        )}
+        {renaming !== null && project !== null && (
+          <RenameDialog
+            symbol={renaming}
+            onApply={doRename}
+            onClose={() => setRenaming(null)}
+          />
+        )}
+        {quickOpen && project !== null && (
+          <QuickOpen
+            scenes={project.summary.scenes}
+            onSelect={(s) => leaveSettings(() => selectScene(s))}
+            onClose={() => setQuickOpen(false)}
+          />
+        )}
+        <StatusBar
+          items={statusItems}
+          extra={
+            screen === "text" && currentFile !== null ? (
+              <CursorPosition
+                key="cursor"
+                file={currentFile}
+                textOf={(file) => buffers.current.get(file)}
+              />
+            ) : undefined
+          }
+          // 行と列はシーンの後ろ（シーンが無ければ表示モードの後ろ）。
+          extraAt={currentSceneSummary === undefined ? 1 : 2}
+          notice={notice}
+          save={
+            project === null
+              ? null
+              : saveState(
+                  saving,
+                  // 失敗した章をまだ保存していないときだけ（読み込み直して捨てたら消す）。
+                  saveFailed !== null && dirty.has(saveFailed.file)
+                    ? saveFailed.message
+                    : null,
+                  // ソース表示（設定DB・変数・企画）の書きかけも、保存していない変更に数える。
+                  dirty.size + settingsDrafts.size,
+                )
+          }
+          onSaveProblem={(message) => setError(message)}
+          counts={counts}
+          onProblems={project === null ? null : () => selectScreen("check")}
+        />
       </div>
-      {palette && project !== null && (
-        <CommandPalette commands={commands} onClose={() => setPalette(false)} />
-      )}
-      {renaming !== null && project !== null && (
-        <RenameDialog
-          symbol={renaming}
-          onApply={doRename}
-          onClose={() => setRenaming(null)}
-        />
-      )}
-      {quickOpen && project !== null && (
-        <QuickOpen
-          scenes={project.summary.scenes}
-          onSelect={(s) => leaveSettings(() => selectScene(s))}
-          onClose={() => setQuickOpen(false)}
-        />
-      )}
-      <StatusBar
-        route={routeStat === null ? null : routeStatText(routeStat)}
-        mode={currentFile === null ? null : mode}
-        file={currentFile}
-        scene={
-          currentScene === null
-            ? null
-            : {
-                id: currentScene,
-                chars:
-                  project?.summary.scenes.find((s) => s.id === currentScene)
-                    ?.chars ?? 0,
-              }
-        }
-        fileChars={
-          project === null || currentFile === null
-            ? null
-            : fileChars(project.summary.scenes, currentFile)
-        }
-        unsaved={dirty.size}
-        counts={counts}
-        notice={notice}
-      />
-    </div>
+    </StatusContext.Provider>
   );
 }
 

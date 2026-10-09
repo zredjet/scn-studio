@@ -24,6 +24,8 @@ import type {
   VariablesData,
   VariablesWritten,
 } from "../core/types.ts";
+import { useScreenStatus } from "../shell/StatusBar.tsx";
+import { variablesStatus } from "../shell/status.ts";
 import {
   commitRange,
   declFields,
@@ -114,6 +116,19 @@ export function VariablesScreen({
     [data, query],
   );
   const row = data?.rows.find((r) => r.key === selected) ?? null;
+  const allRows = data?.rows ?? [];
+  useScreenStatus(
+    "variables",
+    variablesStatus({
+      count: allRows.length,
+      writtenNotRead: allRows.filter(
+        (r) => r.writes.length > 0 && r.reads.length === 0,
+      ).length,
+      unused: allRows.filter(
+        (r) => r.writes.length === 0 && r.reads.length === 0,
+      ).length,
+    }),
+  );
   /** フォームに出す行（列挙にするのを待っている間は、型を enum にして値の欄を出す）。 */
   const shownRow =
     row !== null && enumPending === row.key ? { ...row, type: "enum" } : row;
@@ -466,7 +481,7 @@ export function VariablesScreen({
           </div>
         )}
       </main>
-      <aside className="bible-usage" aria-label="選んだ変数">
+      <aside className="bible-usage ctx-column" aria-label="選んだ変数">
         {row === null ? (
           <>
             <h2 className="bible-usage-heading">選んだ変数</h2>

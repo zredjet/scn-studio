@@ -37,6 +37,8 @@ import type {
   Summary,
   TypeTemplate,
 } from "../core/types.ts";
+import { useScreenStatus } from "../shell/StatusBar.tsx";
+import { bibleStatus } from "../shell/status.ts";
 import { AiDraftResult, AiDraftRun, type BibleAi } from "./AiDraftPanel.tsx";
 import {
   FieldInput,
@@ -502,6 +504,18 @@ export function BibleScreen({
   const byKey = diagnosticsByKey(entry, fileDiagnostics);
   const brokenRefs = diagnostics.filter((d) => d.code === "W806").length;
   const entryCount = data?.files.filter((f) => f.entry !== null).length ?? 0;
+  useScreenStatus(
+    "bible",
+    bibleStatus({
+      type:
+        currentType === null
+          ? null
+          : { name: currentType.name, entries: files.length },
+      types: data?.types.length ?? 0,
+      entries: entryCount,
+      broken: brokenRefs,
+    }),
+  );
 
   if (data === null) {
     return (

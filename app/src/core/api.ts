@@ -1172,6 +1172,21 @@ export function closeThisWindow(): Promise<void> {
   return getCurrentWindow().close();
 }
 
+/** このウィンドウをしまう（Windows の自前のタイトルバー。T4-17）。 */
+export function minimizeThisWindow(): Promise<void> {
+  return getCurrentWindow().minimize();
+}
+
+/** このウィンドウを最大化する・元に戻す（Windows の自前のタイトルバー。T4-17）。 */
+export function toggleMaximizeThisWindow(): Promise<void> {
+  return getCurrentWindow().toggleMaximize();
+}
+
+/** 作品フォルダを OS のファイルの画面で見せる（作品メニューの「フォルダを表示」。T4-17）。 */
+export function revealProject(): Promise<void> {
+  return invoke<void>("reveal_project");
+}
+
 // ---- 通読（縦書きビュー）とプレーンテキスト（T2-5、D056） ----
 
 /** 通読の道の候補（共通、ルート、エンディング）。 */

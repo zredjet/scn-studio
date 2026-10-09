@@ -12,6 +12,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { routeAt, routeToScene } from "../core/api.ts";
 import type { IrInline, IrSpan, PreviewData } from "../core/ir.ts";
 import type { PreviewRequest, Route } from "../core/types.ts";
+import { ScreenStatus } from "../shell/StatusBar.tsx";
+import { previewStatus } from "../shell/status.ts";
 import { type ChoicePolicy, DebugPanel } from "./DebugPanel.tsx";
 import type { Value } from "./expr.ts";
 import {
@@ -640,6 +642,13 @@ export function PreviewScreen({
 
   return (
     <div className="preview-screen-body">
+      <ScreenStatus
+        screen="preview"
+        items={previewStatus({
+          position: position === "" ? null : position,
+          screen: `${d.screen.width}×${d.screen.height} · ウィンドウ ${d.message_window.lines}行×${d.message_window.chars_per_line}字`,
+        })}
+      />
       <header className="preview-header">
         <strong>プレビュー</strong>
         <span className="preview-header-title">{title}</span>
@@ -883,7 +892,7 @@ export function PreviewScreen({
           )}
         </div>
         {view === "adv" && (
-          <div ref={logRef} className="preview-debug-wrap">
+          <div ref={logRef} className="preview-debug-wrap ctx-column">
             <DebugPanel
               data={d}
               scene={scene}

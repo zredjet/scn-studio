@@ -53,6 +53,8 @@ import type {
   SettingsWrittenExtra,
   Summary,
 } from "../core/types.ts";
+import { useScreenStatus } from "../shell/StatusBar.tsx";
+import { conceptStatus } from "../shell/status.ts";
 import { AiAside, type ConceptDraftAi } from "./AiAside.tsx";
 import { IdeaCard } from "./IdeaCard.tsx";
 import {
@@ -475,6 +477,15 @@ export function ConceptScreen({
   );
   const missingEndings =
     concept?.endings.filter((e) => e.scenes.length === 0).length ?? 0;
+  useScreenStatus(
+    "concept",
+    conceptStatus({
+      ideas,
+      order: STATUSES,
+      endings: concept?.endings.length ?? null,
+      missingEndings,
+    }),
+  );
 
   const conceptNow = () => {
     const c = latest.current.concept;

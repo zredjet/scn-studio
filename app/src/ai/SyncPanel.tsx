@@ -8,9 +8,11 @@ import type {
   SummarizeResult,
   SummaryDrift,
 } from "../core/types.ts";
+import { AiMark } from "../shell/AiMark.tsx";
 import {
   blocker,
   cloudDestinations,
+  connectionBlocker,
   driftKey,
   type SummarizeRun,
 } from "./model.ts";
@@ -134,11 +136,13 @@ export function SyncPanel({
                 count === 0 ||
                 (cloud && !confirmed)
               }
+              title={blocked ?? undefined}
               onClick={() => {
                 onSummarize(file, confirmed ? destinations : []);
                 setConfirmedFor(null);
               }}
             >
+              <AiMark locked={connectionBlocker(info) !== null} />
               {count === 0
                 ? "作り直すシーンはありません"
                 : `作り直す（要約の無いシーンと本文が変わったシーン：${count}）`}

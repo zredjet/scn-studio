@@ -50,3 +50,28 @@ export function useOverlay<T extends HTMLElement>(
     },
   };
 }
+
+/**
+ * ポップオーバーとメニュー（作品メニュー、AI の様子、再生の始め方。T4-17）を、外を押したら閉じる。開いたボタン
+ * （`anchor`）を押したときは閉じない（ボタンが自分で開け閉めする）。
+ */
+export function useOutsideClose(
+  ref: RefObject<HTMLElement | null>,
+  anchor: RefObject<HTMLElement | null>,
+  onClose: () => void,
+): void {
+  const close = useRef(onClose);
+  close.current = onClose;
+  useEffect(() => {
+    const onDown = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (ref.current?.contains(target) || anchor.current?.contains(target))
+        return;
+      close.current();
+    };
+    // フローの図などが押した知らせを止めるので、捕捉の段階で受ける。
+    document.addEventListener("mousedown", onDown, true);
+    return () => document.removeEventListener("mousedown", onDown, true);
+  }, [ref, anchor]);
+}

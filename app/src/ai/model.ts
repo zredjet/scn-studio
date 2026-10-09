@@ -66,15 +66,29 @@ export function needsScene(task: AiTask): boolean {
   );
 }
 
-/** 実行できない理由（無ければ null）。 */
-export function blocker(info: AiTaskInfo): string | null {
+/** タスクの定義のせいで実行できない理由（注意の帯で示す）。無ければ null。 */
+export function taskBlocker(info: AiTaskInfo): string | null {
   if (info.unsupported !== null) return info.unsupported;
-  if (info.connection_problem !== null) return info.connection_problem;
   if (info.task.prompt === null)
     return `${info.task.path} に prompt がありません`;
-  if (info.connection?.cloud === true && !info.connection.allowed)
-    return "この端末からクラウドへ送ることを許可していません（環境設定）";
   return null;
+}
+
+/**
+ * 接続先のせいで実行できない理由。無ければ null。接続の様子はタイトルバーの AI の様子だけで言葉にするので、
+ * ほかの画面では帯を出さず、押せないボタンと鍵の印と、指を乗せたときのこの説明だけで示す（T4-17、U03）。
+ */
+export function connectionBlocker(info: AiTaskInfo): string | null {
+  if (info.connection_problem !== null)
+    return `${info.connection_problem}（タイトルバーのAIから）`;
+  if (info.connection?.cloud === true && !info.connection.allowed)
+    return "クラウドへ送ることを許可していません（タイトルバーのAIから）";
+  return null;
+}
+
+/** 実行できない理由（タスクの定義のものを先に。無ければ null）。 */
+export function blocker(info: AiTaskInfo): string | null {
+  return taskBlocker(info) ?? connectionBlocker(info);
 }
 
 /** タスクの一覧に見せる行き先（T4-1：この端末で選んだ接続先には「端末」を添える）。 */

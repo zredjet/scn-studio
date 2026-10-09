@@ -633,12 +633,6 @@
   box-shadow: inset 3px 0 0 var(--accent);
 }
 
-/* タイトルバーの「再生」。 */
-.chrome-button.play {
-  background: var(--accent);
-  color: #ffffff;
-}
-
 /* ---- 縦書きビュー（T2-5、D056。docs/ui/mockups/06b-preview-vertical.html） ---- */
 
 .preview-view-switch {

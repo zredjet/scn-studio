@@ -20,6 +20,7 @@ import {
   autoSceneText,
   autoStageText,
   cloudDestinations,
+  connectionBlocker,
   STAGE_LABEL,
 } from "./model.ts";
 
@@ -233,6 +234,7 @@ export function AutoPanel({
                 (stubs === 0 && !anyStage) ||
                 (cloud && !confirmed)
               }
+              title={blocked ?? undefined}
               onClick={() => {
                 onRun(
                   info,
@@ -245,7 +247,7 @@ export function AutoPanel({
                 setConfirmedFor(null);
               }}
             >
-              <AiMark />
+              <AiMark locked={connectionBlocker(info) !== null} />
               自律で実行
             </button>
           )}

@@ -43,6 +43,8 @@ import type {
   StoryWrittenResult,
   Summary,
 } from "../core/types.ts";
+import { useScreenStatus } from "../shell/StatusBar.tsx";
+import { flowStatus } from "../shell/status.ts";
 import { LabeledEdge } from "./edges.tsx";
 import { EdgeDialog, StubDialog } from "./FlowEditDialogs.tsx";
 import { FlowPanel } from "./FlowPanel.tsx";
@@ -77,6 +79,8 @@ interface Props {
   readonly onStoryWritten: (result: StoryWrittenResult) => void;
   /** AI の分岐案（提案ノード。T3-10）。 */
   readonly ai: FlowAi;
+  /** 選んでいるシーン（シーン表示で選んだときだけ。タイトルバーの再生が、そのシーンから始める。T4-17）。 */
+  readonly onSelectScene: (id: string | null) => void;
 }
 
 /** フロー図の AI の分岐案（T3-10）。 */
@@ -184,6 +188,7 @@ export function SceneGraph({
   dirtyChapters,
   onStoryWritten,
   ai,
+  onSelectScene,
 }: Props) {
   /** スタブを足す欄を開いているか、書き足す辺（T2-9）。 */
   const [stubOpen, setStubOpen] = useState(false);
@@ -416,6 +421,28 @@ export function SceneGraph({
   const scenesById = useMemo(
     () => new Map(summary.scenes.map((s) => [s.id, s])),
     [summary.scenes],
+  );
+  const selectedScene =
+    level === "scene" && selected !== null
+      ? (scenesById.get(selected) ?? null)
+      : null;
+  const selectedSceneId = selectedScene?.id ?? null;
+  useEffect(
+    () => onSelectScene(selectedSceneId),
+    [onSelectScene, selectedSceneId],
+  );
+  useScreenStatus(
+    "flow",
+    flowStatus({
+      level,
+      scenes: summary.scenes.length,
+      stubs: counts.stubs,
+      aiDrafts: counts.aiDrafts,
+      selected:
+        selectedScene !== null
+          ? `${selectedScene.id} ${selectedScene.title}`
+          : selected,
+    }),
   );
 
   return (

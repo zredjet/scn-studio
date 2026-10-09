@@ -92,7 +92,7 @@ function ExitItem({
 export function FlowPanel({ graph, scenes, selected, onOpen, ai }: Props) {
   if (selected === null) {
     return (
-      <aside className="flow-panel" aria-label="選択中のシーン">
+      <aside className="flow-panel ctx-column" aria-label="選択中のシーン">
         <p className="context-empty flow-panel-empty">
           ノードを選ぶと、ここに出口・入口・変数が出ます。ダブルクリックで本文を開きます。
         </p>
@@ -105,7 +105,7 @@ export function FlowPanel({ graph, scenes, selected, onOpen, ai }: Props) {
     );
     if (group === undefined) return null;
     return (
-      <aside className="flow-panel" aria-label="選択中のまとまり">
+      <aside className="flow-panel ctx-column" aria-label="選択中のまとまり">
         <div className="flow-panel-head">
           <span className="flow-panel-id">
             {graph.level === "chapter" ? "章" : "ルート"} ·{" "}
@@ -146,7 +146,7 @@ export function FlowPanel({ graph, scenes, selected, onOpen, ai }: Props) {
   if (group === undefined || scene === undefined) return null;
   const entries = entriesOf(graph, selected);
   return (
-    <aside className="flow-panel" aria-label="選択中のシーン">
+    <aside className="flow-panel ctx-column" aria-label="選択中のシーン">
       <div className="flow-panel-head">
         <span className="flow-panel-id">
           {scene.id} · {scene.file.replace(/^story\//, "")}

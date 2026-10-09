@@ -56,7 +56,7 @@ export function SceneList({
   };
 
   return (
-    <nav className="scene-list" aria-label="シーン">
+    <nav className="scene-list list-column" aria-label="シーン">
       <div className="panel-heading-row">
         <h2 className="panel-heading">ストーリー</h2>
         <button

@@ -4,12 +4,15 @@
 
 import { useState } from "react";
 import type { AiPrepared } from "../core/types.ts";
+import { AiMark } from "../shell/AiMark.tsx";
 import {
   blocker,
+  connectionBlocker,
   estimateText,
   progressText,
   STRUCTURED_NOTE,
   type TaskRunner,
+  taskBlocker,
   trimmedText,
 } from "./model.ts";
 
@@ -87,6 +90,7 @@ export function QuickRun({ runner, scene, label, disabledReason }: Props) {
             title={blocked ?? disabledReason ?? undefined}
             onClick={start}
           >
+            <AiMark locked={connectionBlocker(info) !== null} />
             {label}
           </button>
         )}
@@ -96,7 +100,9 @@ export function QuickRun({ runner, scene, label, disabledReason }: Props) {
             : `${info.connection.name}（${cloud ? "クラウド" : "ローカル"}）`}
         </span>
       </div>
-      {blocked !== null && <p className="notice notice-warn">{blocked}</p>}
+      {taskBlocker(info) !== null && (
+        <p className="notice notice-warn">{taskBlocker(info)}</p>
+      )}
       {error !== null && <p className="notice notice-warn">{error}</p>}
       {shown !== null && (
         <div className="ai-confirm">

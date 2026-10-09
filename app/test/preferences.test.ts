@@ -4,8 +4,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { AiConnection } from "../src/core/types.ts";
 import {
+  aiStatus,
+  connectionStatus,
   currentTest,
-  indicator,
   type OverrideDraft,
   outputTokensProblem,
   overrideOutputProblem,
@@ -75,15 +76,20 @@ test("使う前に足りないもの：設定の誤り、クラウドの許可�
   assert.equal(readiness({ ...cloud, allowed: true, has_key: true }), null);
 });
 
-test("タイトルバー：既定の接続先と、試した結果の印", () => {
+test("タイトルバーの AI の様子：接続先ごとの印と言葉（U03）", () => {
   const tests = new Map<string, TestRecord>();
-  assert.deepEqual(indicator([], tests), {
-    text: "AI：未設定",
-    state: "unusable",
-    detail: "project.toml に [ai.local] などの接続先がありません",
-  });
+  const none = aiStatus([], tests, 0);
+  assert.deepEqual(none.connections, []);
+  assert.match(none.title, /接続先がありません/);
   const list = [
-    connection({ name: "cloud", cloud: true, is_default: false }),
+    connection({
+      name: "cloud",
+      provider: "anthropic",
+      cloud: true,
+      allowed: false,
+      needs_key: true,
+      is_default: false,
+    }),
     connection({}),
   ];
   const record = (name: string, state: TestState): TestRecord => {
@@ -91,36 +97,59 @@ test("タイトルバー：既定の接続先と、試した結果の印", () =>
     assert.ok(c);
     return { target: testTarget(c), state };
   };
-  const shown = indicator(list, tests);
-  assert.equal(shown.text, "AI：qwen3（ローカル）");
-  assert.equal(shown.state, "unknown");
-  assert.match(shown.detail, /接続先 local（ローカル）/);
+  // 既定の接続先を先に並べる。クラウドで未許可は鍵の印。
+  const shown = aiStatus(list, tests, 0);
+  assert.deepEqual(
+    shown.connections.map((c) => [c.name, c.place, c.mark, c.state]),
+    [
+      ["local", "ローカル", "off", "まだ試していません"],
+      ["cloud", "クラウド", "lock", "送ることを未許可"],
+    ],
+  );
+  assert.equal(
+    shown.title,
+    "AIの接続：local まだ試していません・cloud 送ることを未許可",
+  );
   tests.set("local", record("local", { kind: "running" }));
-  assert.equal(indicator(list, tests).state, "running");
+  assert.equal(aiStatus(list, tests, 0).connections[0]?.state, "試しています");
   tests.set("local", record("local", { kind: "failed", message: "x" }));
-  assert.equal(indicator(list, tests).state, "failed");
+  assert.equal(aiStatus(list, tests, 0).connections[0]?.state, "つながらない");
   tests.set("local", record("local", { kind: "cancelled" }));
-  assert.equal(indicator(list, tests).state, "unknown");
-  // ほかの接続先の結果は見ない。使えない既定の接続先は、試した結果より先に知らせる。
+  assert.equal(aiStatus(list, tests, 0).connections[0]?.mark, "off");
   tests.set(
-    "cloud",
-    record("cloud", {
+    "local",
+    record("local", {
       kind: "ok",
       result: {
         text: "はい",
         usage: { input_tokens: 1, output_tokens: 1, estimated: false },
         stop_reason: "stop",
         thinking_chars: 0,
-        elapsed_ms: 10,
+        elapsed_ms: 120,
       },
     }),
   );
-  assert.equal(indicator(list, tests).state, "unknown");
-  const broken = [connection({ model: null, problem: "model がありません" })];
-  const unusable = indicator(broken, new Map());
-  assert.equal(unusable.text, "AI：local（ローカル）");
-  assert.equal(unusable.state, "unusable");
-  assert.match(unusable.detail, /model がありません/);
+  const ok = aiStatus(list, tests, 2);
+  assert.equal(ok.connections[0]?.mark, "on");
+  assert.equal(ok.connections[0]?.state, "接続中");
+  assert.equal(
+    ok.connections[0]?.detail,
+    "qwen3 · http://localhost:11434/v1 · 応答 0.12秒",
+  );
+  assert.match(ok.title, /。実行中 2$/);
+  // 許可したクラウドでキーが無ければ、輪の印とわけ。
+  const keyless = connectionStatus(
+    { ...list[0], allowed: true } as AiConnection,
+    tests,
+  );
+  assert.deepEqual([keyless.mark, keyless.state], ["off", "キーがありません"]);
+  // 設定の誤りは、試した結果より先に知らせる。
+  const broken = connectionStatus(
+    connection({ model: null, problem: "model がありません" }),
+    new Map(),
+  );
+  assert.deepEqual([broken.mark, broken.state], ["off", "使えません"]);
+  assert.match(broken.detail, /モデル未設定 · .* · model がありません/);
 });
 
 test("試した結果の文：トークン数と、見積もりかどうかと、時間", () => {
@@ -153,7 +182,7 @@ test("設定が変わった後は、前の設定で試した結果を見せな�
   // project.toml か上書きで、モデルや URL が変わった。
   const otherModel = connection({ model: "gemma" });
   assert.equal(currentTest(otherModel, tests), undefined);
-  assert.equal(indicator([otherModel], tests).state, "unknown");
+  assert.equal(connectionStatus(otherModel, tests).state, "まだ試していません");
   const otherUrl = connection({
     endpoint: "openai-compatible http://localhost:1234/v1",
   });

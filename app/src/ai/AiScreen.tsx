@@ -24,6 +24,7 @@ import { type FieldDecision, FieldProposals } from "./FieldProposals.tsx";
 import {
   type AutoRun,
   blocker,
+  connectionBlocker,
   connectionOptions,
   estimateText,
   type FindingRecord,
@@ -44,6 +45,7 @@ import {
   SEVERITY_LABEL,
   type SkeletonTarget,
   STRUCTURED_NOTE,
+  taskBlocker,
   trimmedText,
 } from "./model.ts";
 import { ProposalPanel } from "./ProposalPanel.tsx";
@@ -91,7 +93,6 @@ interface Props {
   readonly onCancel: () => void;
   readonly onGoToFinding: (record: FindingRecord) => void;
   readonly onDismissFinding: (id: string) => void;
-  readonly onOpenPreferences: () => void;
   /** 外部のAIエージェントが置いた提案（`ai/proposals/*.md`。T3-8）。 */
   readonly proposalFiles: readonly AiProposalFile[];
   /** 本文が変わった回数（提案を照らし直す）。 */
@@ -165,7 +166,6 @@ export function AiScreen({
   onCancel,
   onGoToFinding,
   onDismissFinding,
-  onOpenPreferences,
   proposalFiles,
   textVersion,
   onAdopt,
@@ -262,6 +262,9 @@ export function AiScreen({
   current.current = `${task.id}\n${target ?? ""}\n${skeletonTarget?.route ?? ""}`;
   const shown = preparedFor(prepared, task.id, target) ? prepared : null;
   const blocked = blocker(info);
+  /** タスクの定義のわけ（帯で示す）と、接続先のわけ（鍵の印と説明だけ。U03）。 */
+  const taskBlocked = taskBlocker(info);
+  const connectionBlocked = connectionBlocker(info);
   const isRunning = running !== null;
   const thisRunning = running?.task === task.id;
   const result = results.get(task.id);
@@ -291,7 +294,7 @@ export function AiScreen({
 
   return (
     <div className="ai-screen-body">
-      <aside className="ai-task-list" aria-label="AIタスク">
+      <aside className="ai-task-list list-column" aria-label="AIタスク">
         <h2 className="context-heading">AIタスク</h2>
         {groupTasks(tasks).map((group) => (
           <div key={group.level} className="ai-task-group">
@@ -424,23 +427,8 @@ export function AiScreen({
             {chooseError !== null && (
               <p className="notice notice-warn">{chooseError}</p>
             )}
-            {blocked !== null && (
-              <p className="notice notice-warn">
-                {blocked}
-                {(info.connection_problem !== null ||
-                  (cloud && info.connection?.allowed === false)) && (
-                  <>
-                    {" "}
-                    <button
-                      type="button"
-                      className="btn btn-sm"
-                      onClick={onOpenPreferences}
-                    >
-                      環境設定を開く
-                    </button>
-                  </>
-                )}
-              </p>
+            {taskBlocked !== null && (
+              <p className="notice notice-warn">{taskBlocked}</p>
             )}
             {task.level === "auto" ? (
               <AutoPanel
@@ -572,6 +560,7 @@ export function AiScreen({
                         skeletonMissing ||
                         shown?.assembled.problem != null
                       }
+                      title={blocked ?? undefined}
                       onClick={() => {
                         if (cloud) {
                           setConfirming(true);
@@ -579,7 +568,7 @@ export function AiScreen({
                         } else runNow();
                       }}
                     >
-                      <AiMark />
+                      <AiMark locked={connectionBlocked !== null} />
                       実行
                     </button>
                   )}
@@ -885,7 +874,7 @@ export function AiScreen({
               </>
             )}
           </main>
-          <aside className="ai-run-settings" aria-label="実行の設定">
+          <aside className="ai-run-settings ctx-column" aria-label="実行の設定">
             <h2 className="context-heading">実行の設定</h2>
             <dl className="ai-fields">
               <dt>関わり方</dt>
