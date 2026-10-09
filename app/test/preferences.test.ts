@@ -5,8 +5,13 @@ import { test } from "node:test";
 import type { AiConnection } from "../src/core/types.ts";
 import {
   aiStatus,
+  canListModels,
   connectionStatus,
+  currentModelList,
   currentTest,
+  modelListBusy,
+  modelListOf,
+  modelListText,
   type OverrideDraft,
   outputTokensProblem,
   overrideOutputProblem,
@@ -390,4 +395,77 @@ test("上書きの欄を離れたときに保存するか：最後に保存を�
       structured_output: null,
     },
   });
+});
+
+test("モデルの一覧（T4-23、N4）：ローカルの OpenAI 互換だけ読み、URL が変わったら前の一覧を見せない", () => {
+  assert.equal(canListModels(connection({})), true);
+  assert.equal(canListModels(connection({ cloud: true })), false);
+  assert.equal(canListModels(connection({ provider: "anthropic" })), false);
+  assert.equal(canListModels(connection({ base_url: null })), false);
+
+  // 一覧は、コアが頼んだ URL のもの。
+  const list = modelListOf({
+    base_url: "http://localhost:11434/v1",
+    names: ["gemma3:12b", "qwen3:8b"],
+    error: null,
+  });
+  assert.deepEqual(list, {
+    kind: "done",
+    base: "http://localhost:11434/v1",
+    names: ["gemma3:12b", "qwen3:8b"],
+  });
+  assert.equal(currentModelList(connection({}), list), list);
+  assert.equal(
+    currentModelList(
+      connection({ base_url: "http://127.0.0.1:1234/v1" }),
+      list,
+    ),
+    null,
+  );
+  assert.equal(currentModelList(connection({}), null), null);
+  // 読んでいる間は URL によらず見せ、押したときの URL のままなら読み直せない。失敗は頼んだ URL のときだけ見せる。
+  const loading = {
+    kind: "loading",
+    base: "http://localhost:11434/v1",
+  } as const;
+  assert.equal(
+    currentModelList(connection({ base_url: "x" }), loading),
+    loading,
+  );
+  assert.equal(modelListBusy(connection({}), loading), true);
+  assert.equal(modelListBusy(connection({ base_url: "x" }), loading), false);
+  assert.equal(modelListBusy(connection({}), list), false);
+  const failed = {
+    kind: "failed",
+    base: "http://localhost:11434/v1",
+    message: "m",
+  } as const;
+  assert.equal(currentModelList(connection({}), failed), failed);
+  assert.equal(currentModelList(connection({ base_url: "x" }), failed), null);
+  assert.deepEqual(
+    modelListOf({
+      base_url: "http://a/v1",
+      names: null,
+      error: "応答がありません",
+    }),
+    { kind: "failed", base: "http://a/v1", message: "応答がありません" },
+  );
+
+  assert.equal(modelListText(list), "この接続先に入っている 2 個から選べます");
+  assert.match(
+    modelListText({ kind: "done", base: "x", names: [] }),
+    /^接続先にモデルがありません/,
+  );
+  assert.equal(
+    modelListText({
+      kind: "failed",
+      base: "x",
+      message: "応答がありません（タイムアウト）",
+    }),
+    "モデルの一覧を読めません：応答がありません（タイムアウト）",
+  );
+  assert.equal(
+    modelListText({ kind: "loading", base: null }),
+    "モデルの一覧を読んでいます",
+  );
 });

@@ -2313,6 +2313,44 @@ fn delete_ai_key(
     SystemKeys.delete(&endpoint).map_err(|e| e.to_string())
 }
 
+/// 接続先に入っているモデルの一覧（ローカルの OpenAI 互換の接続先だけ。T4-23、N4）。この端末での上書きを当てた
+/// URL に頼み（model が無くてもよい）、頼んだ URL と一緒に返す（画面は、その URL の一覧として見せる）。読めなければ
+/// `error` に。呼び出しは別のスレッドで行う。
+#[tauri::command]
+async fn ai_models(
+    name: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<serde_json::Value, String> {
+    let decls = ai_decls(&state)?;
+    let (machine, _) = ai::read_machine_settings(&ai_settings_file(&app)?);
+    let decl = decls
+        .iter()
+        .find(|d| d.name == name)
+        .ok_or_else(|| format!("接続先「{name}」が project.toml にありません"))?;
+    let conn = ai::resolve_for_models(decl, &machine)?;
+    // クラウドの接続先は、コアが頼む前に断る（キーも読まない）。
+    let key = if conn.cloud || conn.provider != ai::Provider::OpenaiCompatible {
+        None
+    } else {
+        key_for(&conn)?
+    };
+    let base_url = conn.base_url.clone();
+    let options = ai::CallOptions {
+        connect_timeout: std::time::Duration::from_secs(5),
+        idle_timeout: std::time::Duration::from_secs(20),
+    };
+    let listed = tauri::async_runtime::spawn_blocking(move || {
+        ai::list_models(&conn, key.as_deref(), &options)
+    })
+    .await
+    .map_err(|e| format!("モデルの一覧を読めません：{e}"))?;
+    Ok(match listed {
+        Ok(names) => json!({ "base_url": base_url, "names": names, "error": null }),
+        Err(e) => json!({ "base_url": base_url, "names": null, "error": e.to_string() }),
+    })
+}
+
 /// 接続を試す：決まった短い問い（`ai::test_request`）を送り、応答とトークン数と時間を返す。
 /// 呼び出しは別のスレッドで行い、その間もほかのコマンドが動く。`run` は画面が付けた回の番号（取り消しに使う）。
 #[tauri::command]
@@ -3804,6 +3842,7 @@ pub fn run() {
             set_ai_key,
             delete_ai_key,
             ai_test,
+            ai_models,
             cancel_ai,
             ai_tasks,
             ai_prepare,

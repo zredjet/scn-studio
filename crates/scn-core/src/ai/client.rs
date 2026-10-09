@@ -23,6 +23,8 @@ pub const ANTHROPIC_VERSION: &str = "2023-06-01";
 const MAX_RESPONSE_BYTES: usize = 32 * 1024 * 1024;
 /// 誤りの応答から読む量の上限。
 const MAX_ERROR_BYTES: u64 = 64 * 1024;
+/// モデルの一覧の応答から読む量の上限。
+const MAX_LIST_BYTES: u64 = 4 * 1024 * 1024;
 
 /// 発言の役。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -438,6 +440,122 @@ pub fn complete(
         AiError::Protocol(m) => AiError::Protocol(redact(m)),
         other => other,
     })
+}
+
+/// 接続先に入っているモデルの一覧（OpenAI 互換の `<base_url>/models`。Ollama・LM Studio・llama.cpp のサーバー
+/// など。T4-23、N4）。ローカルの OpenAI 互換の接続先だけ（クラウドへは、送ることを確かめていない頼みを送らない）。
+/// 名前の順に、重ねずに返す。別の URL へ移るよう返されても、ついて行かない。
+pub fn list_models(
+    conn: &Connection,
+    key: Option<&str>,
+    options: &CallOptions,
+) -> Result<Vec<String>, AiError> {
+    if conn.cloud || conn.provider != Provider::OpenaiCompatible {
+        return Err(AiError::Protocol(
+            "モデルの一覧は、ローカルの OpenAI 互換の接続先だけで読めます".to_owned(),
+        ));
+    }
+    let key = key.map(str::trim).filter(|k| !k.is_empty());
+    let redact = |text: String| match key {
+        Some(key) => text.replace(key, "（キー）"),
+        None => text,
+    };
+    fetch_models(conn, key, options).map_err(|e| match e {
+        AiError::Connect(m) => AiError::Connect(redact(m)),
+        AiError::Auth { status, message } => AiError::Auth {
+            status,
+            message: redact(message),
+        },
+        AiError::Http { status, message } if status == 404 || status == 405 => {
+            let message = redact(message);
+            AiError::Http {
+                status,
+                message: match missing_path_hint(conn) {
+                    Some(hint) => format!("{message}。{hint}"),
+                    None => message,
+                },
+            }
+        }
+        AiError::Http { status, message } => AiError::Http {
+            status,
+            message: redact(message),
+        },
+        AiError::Protocol(m) => AiError::Protocol(redact(m)),
+        other => other,
+    })
+}
+
+fn fetch_models(
+    conn: &Connection,
+    key: Option<&str>,
+    options: &CallOptions,
+) -> Result<Vec<String>, AiError> {
+    let url = reqwest::Url::parse(&format!("{}/models", conn.base_url))
+        .map_err(|e| AiError::Connect(format!("URL を読めません：{e}")))?;
+    // ローカルの行き先は、OS のプロキシを通さない。
+    let client = reqwest::blocking::Client::builder()
+        .connect_timeout(options.connect_timeout)
+        .timeout(options.idle_timeout)
+        .redirect(reqwest::redirect::Policy::none())
+        .no_proxy()
+        .build()
+        .map_err(|e| AiError::Connect(error_text(&e)))?;
+    let mut http = client.get(url).header("accept", "application/json");
+    if let Some(key) = key {
+        http = http.bearer_auth(key);
+    }
+    let response = http.send().map_err(|e| {
+        if e.is_timeout() {
+            AiError::Timeout
+        } else {
+            AiError::Connect(error_text(&e))
+        }
+    })?;
+    let status = response.status();
+    if status.is_redirection() {
+        return Err(AiError::Http {
+            status: status.as_u16(),
+            message: "別の URL へ移るよう返されました。移り先へは頼みません。base_url を確かめます"
+                .to_owned(),
+        });
+    }
+    if !status.is_success() {
+        let mut text = String::new();
+        let _ = response.take(MAX_ERROR_BYTES).read_to_string(&mut text);
+        let message = error_message(&text);
+        let code = status.as_u16();
+        return Err(if code == 401 || code == 403 {
+            AiError::Auth {
+                status: code,
+                message,
+            }
+        } else {
+            AiError::Http {
+                status: code,
+                message,
+            }
+        });
+    }
+    let mut text = String::new();
+    response
+        .take(MAX_LIST_BYTES)
+        .read_to_string(&mut text)
+        .map_err(|e| io_error(&e))?;
+    let value: Value = serde_json::from_str(&text)
+        .map_err(|e| AiError::Protocol(format!("JSON ではありません（{e}）")))?;
+    let mut names: Vec<String> = value
+        .get("data")
+        .and_then(Value::as_array)
+        .ok_or_else(|| AiError::Protocol("モデルの一覧（data）がありません".to_owned()))?
+        .iter()
+        .filter_map(|m| m.get("id").and_then(Value::as_str))
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+        .map(str::to_owned)
+        .collect();
+    names.sort();
+    names.dedup();
+    Ok(names)
 }
 
 fn call(

@@ -1393,3 +1393,109 @@ fn structured_output_resolution() {
     assert_eq!(ai::read_machine_settings(&path), (machine, None));
     let _ = fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn list_models_reads_ids() {
+    // 名前の順に、重ねずに返す（T4-23）。
+    let mock = serve(json_reply(
+        "200 OK",
+        r#"{"object":"list","data":[{"id":"qwen3:8b","object":"model"},{"id":"gemma3:12b"},{"id":"qwen3:8b"},{"id":" "},{"name":"no-id"}]}"#,
+    ));
+    let conn = local(Provider::OpenaiCompatible, mock.base_url());
+    let names = ai::list_models(&conn, Some("lm-key"), &quick()).unwrap();
+    assert_eq!(names, ["gemma3:12b", "qwen3:8b"]);
+    let received = mock.received();
+    assert_eq!(received.line, "GET /v1/models HTTP/1.1");
+    assert_eq!(received.header("authorization"), Some("Bearer lm-key"));
+}
+
+#[test]
+fn list_models_only_for_local_openai() {
+    // クラウドの接続先と Messages API には頼まない。
+    let mock = serve(json_reply("200 OK", r#"{"data":[]}"#));
+    let mut cloud = local(Provider::OpenaiCompatible, mock.base_url());
+    cloud.cloud = true;
+    let anthropic = local(Provider::Anthropic, mock.base_url());
+    for conn in [cloud, anthropic] {
+        let error = ai::list_models(&conn, None, &quick()).unwrap_err();
+        assert!(matches!(error, AiError::Protocol(_)), "{error:?}");
+    }
+    assert!(mock.try_received(Duration::from_millis(200)).is_none());
+}
+
+#[test]
+fn list_models_errors() {
+    // パスの無い URL で「無い」と返されたら、/v1 の知らせを添える。
+    let mock = serve(json_reply("404 Not Found", r#"{"error":"not found"}"#));
+    let conn = local(Provider::OpenaiCompatible, format!("http://{}", mock.addr));
+    let error = ai::list_models(&conn, None, &quick()).unwrap_err();
+    assert!(
+        matches!(&error, AiError::Http { status: 404, message } if message.contains("/v1")),
+        "{error:?}"
+    );
+
+    // 認証の誤りの文にキーを含めない。
+    let mock = serve(json_reply(
+        "401 Unauthorized",
+        r#"{"error":{"message":"bad key lm-secret"}}"#,
+    ));
+    let conn = local(Provider::OpenaiCompatible, mock.base_url());
+    let error = ai::list_models(&conn, Some("lm-secret"), &quick()).unwrap_err();
+    assert!(
+        matches!(&error, AiError::Auth { status: 401, message } if !message.contains("lm-secret")),
+        "{error:?}"
+    );
+
+    // 一覧の形でない。
+    let mock = serve(json_reply("200 OK", r#"{"models":[]}"#));
+    let conn = local(Provider::OpenaiCompatible, mock.base_url());
+    let error = ai::list_models(&conn, None, &quick()).unwrap_err();
+    assert!(matches!(error, AiError::Protocol(_)), "{error:?}");
+
+    // 別の URL へ移るよう返されても、ついて行かない。
+    let target = serve(json_reply("200 OK", r#"{"data":[{"id":"x"}]}"#));
+    let text = format!(
+        "HTTP/1.1 302 Found\r\nLocation: {}/models\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+        target.base_url()
+    );
+    let mock = serve(Reply::Chunks(vec![text.into_bytes()], Duration::ZERO));
+    let conn = local(Provider::OpenaiCompatible, mock.base_url());
+    let error = ai::list_models(&conn, None, &quick()).unwrap_err();
+    assert!(
+        matches!(error, AiError::Http { status: 302, .. }),
+        "{error:?}"
+    );
+    assert!(target.try_received(Duration::from_millis(300)).is_none());
+
+    // 応答が無い。
+    let mock = serve(Reply::Silent(Duration::from_secs(3)));
+    let conn = local(Provider::OpenaiCompatible, mock.base_url());
+    let started = Instant::now();
+    assert_eq!(
+        ai::list_models(&conn, None, &quick()).unwrap_err(),
+        AiError::Timeout
+    );
+    assert!(started.elapsed() < Duration::from_secs(2));
+}
+
+#[test]
+fn resolve_for_models_needs_no_model() {
+    // model の無い接続先も、一覧を読むためには解決する（T4-23）。URL の書き方はそろえる。
+    let machine = MachineSettings::default();
+    let d = decl("local", None, Some("http://localhost:1234/v1/"), None);
+    assert!(ai::resolve(&d, &machine).unwrap_err().contains("model"));
+    let conn = ai::resolve_for_models(&d, &machine).unwrap();
+    assert_eq!(conn.base_url, "http://localhost:1234/v1");
+    assert_eq!(conn.model, "");
+    assert!(!conn.cloud);
+    // 状態の一覧も、整えた URL とローカルかどうかを返す（誤りは model が無いこと）。
+    let (statuses, _) =
+        ai::connection_statuses(std::slice::from_ref(&d), &machine, &MemoryKeys::default());
+    let status = statuses.first().unwrap();
+    assert_eq!(status.base_url.as_deref(), Some("http://localhost:1234/v1"));
+    assert!(!status.cloud);
+    assert!(status.problem.as_deref().unwrap().contains("model"));
+    // URL を読めなければ、どちらも誤り。
+    let bad = decl("local", None, Some("not a url"), None);
+    assert!(ai::resolve_for_models(&bad, &machine).is_err());
+}

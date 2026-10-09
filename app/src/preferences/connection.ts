@@ -1,6 +1,6 @@
 // AIの接続先の表示の判断（T3-5、D066）：使う前に足りないもの、タイトルバーの AI の様子（T4-17、U03）、試した結果の文。
 
-import type { AiConnection, AiTestResult } from "../core/types.ts";
+import type { AiConnection, AiModels, AiTestResult } from "../core/types.ts";
 
 /** 「接続を試す」の様子。 */
 export type TestState =
@@ -280,4 +280,64 @@ export function overrideSave(
     values.output_tokens === base.output_tokens &&
     values.structured_output === base.structured_output;
   return same ? { kind: "unchanged" } : { kind: "save", values };
+}
+
+/** 接続先に入っているモデルの一覧を読んだ様子（T4-23、N4）。`base` はコアが頼んだ URL（読んでいる間と、コアが
+ * 解決できなかった失敗は、押したときの URL）。 */
+export type ModelList =
+  | { readonly kind: "loading"; readonly base: string | null }
+  | {
+      readonly kind: "done";
+      readonly base: string;
+      readonly names: readonly string[];
+    }
+  | {
+      readonly kind: "failed";
+      readonly base: string | null;
+      readonly message: string;
+    };
+
+/** 一覧を読んでいて、読み直せないか（URL が変わったら、読み直せる。古い返事は捨てるので）。 */
+export function modelListBusy(
+  c: AiConnection,
+  list: ModelList | null,
+): boolean {
+  return list?.kind === "loading" && list.base === c.base_url;
+}
+
+/** コアの返事を一覧の様子にする。 */
+export function modelListOf(reply: AiModels): ModelList {
+  return reply.names !== null
+    ? { kind: "done", base: reply.base_url, names: reply.names }
+    : { kind: "failed", base: reply.base_url, message: reply.error ?? "" };
+}
+
+/** モデルの一覧を読める接続先か（ローカルの OpenAI 互換だけ。クラウドへは頼まない。コアと同じ。model が無くても読める）。 */
+export function canListModels(c: AiConnection): boolean {
+  return !c.cloud && c.provider === "openai-compatible" && c.base_url !== null;
+}
+
+/** 今の URL の一覧（頼んだ URL が今の URL と違う一覧と失敗は見せない。読んでいる間は見せる。押したときの URL を
+ * 保存してから頼むことがあるため）。 */
+export function currentModelList(
+  c: AiConnection,
+  list: ModelList | null,
+): ModelList | null {
+  if (list === null) return null;
+  if (list.kind === "loading") return list;
+  return list.base === c.base_url ? list : null;
+}
+
+/** 一覧の知らせ（読んでいる・何個から選べる・無い・読めない）。 */
+export function modelListText(list: ModelList): string {
+  switch (list.kind) {
+    case "loading":
+      return "モデルの一覧を読んでいます";
+    case "done":
+      return list.names.length === 0
+        ? "接続先にモデルがありません（Ollama は pull、LM Studio はダウンロードしてから読み直します）"
+        : `この接続先に入っている ${list.names.length} 個から選べます`;
+    case "failed":
+      return `モデルの一覧を読めません：${list.message}`;
+  }
 }

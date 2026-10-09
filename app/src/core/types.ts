@@ -574,6 +574,14 @@ export interface Coverage {
   readonly total: number;
 }
 
+/** 接続先に入っているモデルの一覧（`ai_models`。T4-23）。`base_url` は頼んだ URL。 */
+export interface AiModels {
+  readonly base_url: string;
+  /** 名前の順。読めなければ null。 */
+  readonly names: readonly string[] | null;
+  readonly error: string | null;
+}
+
 /** エンディングの到達条件（コアの `playthrough::EndingReach`）。 */
 export interface EndingReach {
   readonly id: string;

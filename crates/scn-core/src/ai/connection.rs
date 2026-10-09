@@ -252,6 +252,22 @@ impl Connection {
 
 /// 接続先の宣言に端末の上書きを重ね、呼び出せる形にする。足りない・誤った値は、知らせる文で返す。
 pub fn resolve(decl: &AiConnectionDecl, machine: &MachineSettings) -> Result<Connection, String> {
+    resolve_with(decl, machine, true)
+}
+
+/// モデルの一覧を読むための解決（T4-23、N4）：`resolve` と同じで、`model` が無くてもよい（無ければ空）。
+pub fn resolve_for_models(
+    decl: &AiConnectionDecl,
+    machine: &MachineSettings,
+) -> Result<Connection, String> {
+    resolve_with(decl, machine, false)
+}
+
+fn resolve_with(
+    decl: &AiConnectionDecl,
+    machine: &MachineSettings,
+    needs_model: bool,
+) -> Result<Connection, String> {
     let name = &decl.name;
     let over = machine.connections.get(name);
     let provider_name = decl.provider.as_deref().unwrap_or(OPENAI_COMPATIBLE);
@@ -279,8 +295,12 @@ pub fn resolve(decl: &AiConnectionDecl, machine: &MachineSettings) -> Result<Con
         .and_then(|o| o.model.clone())
         .or_else(|| decl.model.clone())
         .map(|m| m.trim().to_owned())
-        .filter(|m| !m.is_empty())
-        .ok_or_else(|| format!("[ai.{name}] に model がありません"))?;
+        .filter(|m| !m.is_empty());
+    let model = match model {
+        Some(model) => model,
+        None if needs_model => return Err(format!("[ai.{name}] に model がありません")),
+        None => String::new(),
+    };
     let cloud = provider == Provider::Anthropic || !url.host().is_some_and(|h| is_local_host(&h));
     let endpoint = format!("{} {base_url}", provider.name());
     let allowed = !cloud || machine.cloud.allowed.contains(&endpoint);
@@ -398,7 +418,8 @@ pub struct ConnectionStatus {
     pub name: String,
     /// 使う接続の種類（書かれていなければ `openai-compatible`）。
     pub provider: String,
-    /// 使う URL とモデル（上書きを重ねたもの）。解決できなければ書かれた値。
+    /// 使う URL とモデル（上書きを重ねたもの）。解決できなければ、URL は model を除いて解決した整えたもの（それも
+    /// できなければ書かれた値）、モデルは書かれた値。
     pub base_url: Option<String>,
     pub model: Option<String>,
     /// `project.toml` に書かれた値。
@@ -459,18 +480,24 @@ pub fn connection_statuses(
                     c.allowed,
                     c.provider.name().to_owned(),
                 ),
-                Err(_) => (
-                    over.and_then(|o| o.base_url.clone())
-                        .or_else(|| decl.base_url.clone()),
-                    over.and_then(|o| o.model.clone())
-                        .or_else(|| decl.model.clone()),
-                    false,
-                    None,
-                    false,
-                    decl.provider
-                        .clone()
-                        .unwrap_or_else(|| OPENAI_COMPATIBLE.to_owned()),
-                ),
+                Err(_) => {
+                    // model だけが無いときも、URL とローカルかどうかは求める（モデルの一覧を読むため。T4-23）。
+                    let place = resolve_for_models(decl, machine).ok();
+                    (
+                        place.as_ref().map(|c| c.base_url.clone()).or_else(|| {
+                            over.and_then(|o| o.base_url.clone())
+                                .or_else(|| decl.base_url.clone())
+                        }),
+                        over.and_then(|o| o.model.clone())
+                            .or_else(|| decl.model.clone()),
+                        place.as_ref().is_some_and(|c| c.cloud),
+                        None,
+                        false,
+                        decl.provider
+                            .clone()
+                            .unwrap_or_else(|| OPENAI_COMPATIBLE.to_owned()),
+                    )
+                }
             };
             let has_key = match &endpoint {
                 Some(endpoint) => match keys.get(endpoint) {

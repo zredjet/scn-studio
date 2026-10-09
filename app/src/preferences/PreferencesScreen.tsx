@@ -5,10 +5,16 @@
 
 import { type KeyboardEvent, useRef, useState } from "react";
 import { isComposingKey } from "../bible/fields.ts";
-import { confirm } from "../core/api.ts";
+import { aiModels, confirm } from "../core/api.ts";
 import type { AiConnection, AiConnections } from "../core/types.ts";
 import {
+  canListModels,
+  currentModelList,
   currentTest,
+  type ModelList,
+  modelListBusy,
+  modelListOf,
+  modelListText,
   type OverrideDraft,
   type OverrideValues,
   overrideOutputProblem,
@@ -183,6 +189,26 @@ function ConnectionCard({
   const [message, setMessage] = useState<string | null>(null);
   /** 最後に保存を頼んだ上書きの値（接続先を取り直す前の比べ先）。 */
   const sent = useRef<OverrideValues | null>(null);
+  // 接続先に入っているモデルの一覧（T4-23、N4）。URL が変わったら前の一覧は見せない。
+  // 一覧は、コアが頼んだ URL のものとして持つ（押したときに URL の欄から外れて上書きを保存しても、合う）。最後に
+  // 頼んだものの返事だけを使う。
+  const [modelList, setModelList] = useState<ModelList | null>(null);
+  const modelRequest = useRef(0);
+  const models = currentModelList(c, modelList);
+  const loadModels = () => {
+    const request = ++modelRequest.current;
+    const base = c.base_url;
+    setModelList({ kind: "loading", base });
+    aiModels(c.name)
+      .then((reply) => {
+        if (request === modelRequest.current) setModelList(modelListOf(reply));
+      })
+      .catch((e: unknown) => {
+        if (request === modelRequest.current)
+          setModelList({ kind: "failed", base, message: String(e) });
+      });
+  };
+
   const missing = readiness(c);
   const act = (work: () => Promise<void>, done: string) => {
     setBusy(true);
@@ -348,6 +374,47 @@ function ConnectionCard({
             onKeyDown={commitOnEnter}
           />
         </label>
+        {canListModels(c) && (
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={modelListBusy(c, models)}
+            onClick={loadModels}
+          >
+            {models === null ? "一覧を読む" : "一覧を読み直す"}
+          </button>
+        )}
+        {models?.kind === "done" && models.names.length > 0 && (
+          <label>
+            <span>入っているモデル</span>
+            <select
+              value={models.names.includes(model) ? model : ""}
+              onChange={(e) => {
+                const next = e.target.value;
+                if (next === "") return;
+                setModel(next);
+                commit({ ...draft, model: next });
+              }}
+            >
+              <option value="">一覧から選ぶ</option>
+              {models.names.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {models !== null && (
+          <span
+            className={
+              models.kind === "failed" ? "ai-field-problem" : "ai-field-note"
+            }
+            role={models.kind === "failed" ? "alert" : undefined}
+          >
+            {modelListText(models)}
+          </span>
+        )}
         <label>
           <span>文脈の長さ（トークン）</span>
           <input

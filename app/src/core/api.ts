@@ -13,6 +13,7 @@ import type {
   AiConnectionChoice,
   AiConnections,
   AiLines,
+  AiModels,
   AiPrepared,
   AiProposal,
   AiProposalFile,
@@ -653,6 +654,11 @@ export function testAiConnection(
   run: number,
 ): Promise<AiTestResult> {
   return invoke<AiTestResult>("ai_test", { name, run });
+}
+
+/** 接続先に入っているモデルの一覧（ローカルの OpenAI 互換の接続先だけ。名前の順と、頼んだ URL。T4-23）。 */
+export function aiModels(name: string): Promise<AiModels> {
+  return invoke<AiModels>("ai_models", { name });
 }
 
 /** 走っている回（「接続を試す」と AI タスクの実行）を取り消す。 */
