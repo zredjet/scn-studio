@@ -174,6 +174,8 @@ fn local(provider: Provider, base_url: String) -> Connection {
         context_tokens: ai::DEFAULT_CONTEXT_TOKENS,
         output_tokens: None,
         structured_output: false,
+        via: scn_core::ai::Via::Api,
+        cli: None,
     }
 }
 
@@ -547,6 +549,8 @@ fn over(base_url: Option<&str>, model: Option<&str>, context_tokens: Option<u64>
         context_tokens,
         output_tokens: None,
         structured_output: None,
+        via: None,
+        cli: None,
     }
 }
 

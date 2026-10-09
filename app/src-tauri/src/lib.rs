@@ -2338,9 +2338,49 @@ fn set_ai_override(
                 context_tokens,
                 output_tokens,
                 structured_output,
+                via: None,
+                cli: None,
             },
         );
     })
+}
+
+/// この端末での呼び方（API か Claude Code の CLI）と CLI の場所（T4-26、N3）。ほかの上書きは残す。
+#[tauri::command]
+fn set_ai_via(
+    name: String,
+    via: ai::Via,
+    cli: Option<String>,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<(), String> {
+    if !ai_decls(&state)?.iter().any(|d| d.name == name) {
+        return Err(format!("接続先「{name}」が project.toml にありません"));
+    }
+    update_ai_settings(&app, |m| m.set_via(&name, via, cli.as_deref()))
+}
+
+/// Claude Code の CLI を確かめる（見つかった場所と版と、ログインの様子。T4-26）。ログインの様子が分からない古い CLI
+/// では、「接続を試す」で確かめる。
+#[tauri::command]
+async fn ai_cli_check(cli: Option<String>) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let path = ai::find_cli(cli.as_deref()).ok_or_else(|| match cli.as_deref() {
+            Some(p) if !p.trim().is_empty() => format!("{} が見つかりません", p.trim()),
+            _ => "claude が見つかりません（インストールするか、場所を書きます）".to_owned(),
+        })?;
+        let version = ai::cli_version(&path, std::time::Duration::from_secs(15))
+            .map_err(|e| e.to_string())?;
+        // ログインしているか（LLM は呼ばない。分からなければ null で、「接続を試す」で確かめる）。
+        let logged_in = ai::cli_logged_in(&path, std::time::Duration::from_secs(15));
+        Ok(json!({
+            "path": path.display().to_string(),
+            "version": version,
+            "logged_in": logged_in,
+        }))
+    })
+    .await
+    .map_err(|e| format!("CLI を確かめられません：{e}"))?
 }
 
 /// この端末から、クラウドの行き先へ送ることを許可する・やめる。
@@ -2477,6 +2517,10 @@ fn register_ai_run(
 
 /// 接続先のキー。キーの要らないローカルの OpenAI 互換は、キーチェーンを読めなくても続ける。
 fn key_for(conn: &ai::Connection) -> Result<Option<String>, String> {
+    // Claude Code の CLI で呼ぶなら、キーは使わない（T4-26）。
+    if conn.via == ai::Via::ClaudeCode {
+        return Ok(None);
+    }
     match SystemKeys.get(&conn.endpoint) {
         Ok(key) => Ok(key),
         Err(_) if !conn.cloud && conn.provider == ai::Provider::OpenaiCompatible => Ok(None),
@@ -3907,6 +3951,8 @@ pub fn run() {
             delete_ai_key,
             ai_test,
             ai_models,
+            set_ai_via,
+            ai_cli_check,
             project_settings,
             set_project_settings,
             cancel_ai,

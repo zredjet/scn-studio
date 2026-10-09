@@ -411,16 +411,24 @@ pub fn chat_request(task: &AiTask, assembled: &Assembled) -> ChatRequest {
     }
 }
 
-/// 送る中身の要約値（行き先、モデル、指示と依頼の FNV-1a 64 ビットの16進）。クラウドへは、人が確かめた中身と
+/// 送る中身の要約値（行き先、モデル、指示と依頼、Claude Code で呼ぶか、の FNV-1a 64 ビットの16進）。クラウドへは、人が確かめた中身と
 /// 同じときだけ送る（[`run_task`] の `confirmed`）。
 pub fn content_digest(conn: &Connection, assembled: &Assembled) -> String {
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    // Claude Code で呼ぶなら、そう混ぜる（API で確かめた中身を、確かめ直さずに CLI で送らない。T4-26）。
+    let via = match conn.via {
+        super::connection::Via::Api => None,
+        super::connection::Via::ClaudeCode => Some("claude-code"),
+    };
     for part in [
         conn.endpoint.as_str(),
         conn.model.as_str(),
         assembled.system.as_str(),
         assembled.user.as_str(),
-    ] {
+    ]
+    .into_iter()
+    .chain(via)
+    {
         for b in part.bytes().chain(std::iter::once(0x1f)) {
             hash ^= u64::from(b);
             hash = hash.wrapping_mul(0x0100_0000_01b3);

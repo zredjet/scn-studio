@@ -201,6 +201,8 @@ fn connection(base_url: String) -> Connection {
         context_tokens: 8192,
         output_tokens: None,
         structured_output: false,
+        via: scn_core::ai::Via::Api,
+        cli: None,
     }
 }
 
@@ -503,6 +505,12 @@ fn cloud_runs_need_confirmed_content() {
         conn.context_tokens,
     );
     assert_ne!(ai::content_digest(&conn, &other), digest);
+    // Claude Code で呼ぶなら要約値が変わる（API で確かめた中身を、確かめ直さずに CLI で送らない。T4-26）。
+    let via_cli = Connection {
+        via: scn_core::ai::Via::ClaudeCode,
+        ..conn.clone()
+    };
+    assert_ne!(ai::content_digest(&via_cli, &assembled), digest);
     let outcome = ai::run_task(
         &project,
         &ir,

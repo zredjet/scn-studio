@@ -6,6 +6,7 @@
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { isComposingKey } from "../bible/fields.ts";
 import {
+  aiCliCheck,
   aiModels,
   confirm,
   projectSettings,
@@ -14,13 +15,16 @@ import {
 import type {
   AiConnection,
   AiConnections,
+  AiVia,
   ProjectSettings,
   ProjectSettingsWritten,
   SceneSummary,
   SettingEdit,
 } from "../core/types.ts";
 import {
+  type CliCheck,
   canListModels,
+  cliCheckText,
   currentModelList,
   currentTest,
   type ModelList,
@@ -64,6 +68,12 @@ interface Props {
   readonly onAllow: (endpoint: string, allowed: boolean) => Promise<void>;
   readonly onSaveKey: (endpoint: string, key: string) => Promise<void>;
   readonly onDeleteKey: (endpoint: string) => Promise<void>;
+  /** この端末での呼び方と CLI の場所（Messages API の接続先だけ。T4-26）。 */
+  readonly onVia: (
+    name: string,
+    via: AiVia,
+    cli: string | null,
+  ) => Promise<void>;
   readonly onTest: (name: string) => void;
   readonly onCancel: (name: string) => void;
   /** 表示の好み（文字と表示の頁。T4-25）。 */
@@ -107,6 +117,7 @@ export function PreferencesScreen({
   onAllow,
   onSaveKey,
   onDeleteKey,
+  onVia,
   onTest,
   onCancel,
   view,
@@ -251,6 +262,7 @@ model = "qwen3:8b"`}
               onAllow={onAllow}
               onSaveKey={onSaveKey}
               onDeleteKey={onDeleteKey}
+              onVia={onVia}
               onTest={onTest}
               onCancel={onCancel}
             />
@@ -269,6 +281,7 @@ function ConnectionCard({
   onAllow,
   onSaveKey,
   onDeleteKey,
+  onVia,
   onTest,
   onCancel,
 }: {
@@ -279,9 +292,43 @@ function ConnectionCard({
   readonly onAllow: Props["onAllow"];
   readonly onSaveKey: Props["onSaveKey"];
   readonly onDeleteKey: Props["onDeleteKey"];
+  readonly onVia: Props["onVia"];
   readonly onTest: Props["onTest"];
   readonly onCancel: Props["onCancel"];
 }) {
+  // Claude Code の CLI の場所と、確かめた様子（T4-26）。
+  const [cli, setCli] = useState(c.cli ?? "");
+  const [cliCheck, setCliCheck] = useState<CliCheck | null>(null);
+  const viaClaude = c.via === "claude-code";
+  const changeVia = (via: AiVia) => {
+    if (via === c.via) return;
+    setCliCheck(null);
+    onVia(c.name, via, via === "claude-code" ? cli.trim() || null : null)
+      .then(() =>
+        setMessage(
+          via === "claude-code"
+            ? "この端末では Claude Code の CLI で呼びます"
+            : "この端末では API キーで呼びます",
+        ),
+      )
+      .catch((e: unknown) => setMessage(String(e)));
+  };
+  const commitCli = () => {
+    const value = cli.trim();
+    if (value === (c.cli ?? "")) return;
+    setCliCheck(null);
+    onVia(c.name, "claude-code", value === "" ? null : value)
+      .then(() => setMessage("CLI の場所を保存しました"))
+      .catch((e: unknown) => setMessage(String(e)));
+  };
+  const checkCli = () => {
+    setCliCheck({ kind: "checking" });
+    aiCliCheck(cli.trim() === "" ? null : cli.trim())
+      .then((r) => setCliCheck({ kind: "found", ...r }))
+      .catch((e: unknown) =>
+        setCliCheck({ kind: "failed", message: String(e) }),
+      );
+  };
   const [url, setUrl] = useState(c.override_base_url ?? "");
   const [model, setModel] = useState(c.override_model ?? "");
   const [tokens, setTokens] = useState(
@@ -629,7 +676,75 @@ function ConnectionCard({
           </div>
         )}
       </fieldset>
-      {c.endpoint !== null && (
+      {c.claude_code && (
+        <fieldset className="ai-override ai-via">
+          <legend>使い方（この端末）</legend>
+          <div className="seg">
+            <button
+              type="button"
+              aria-pressed={!viaClaude}
+              onClick={() => changeVia("api")}
+            >
+              APIキー
+            </button>
+            <button
+              type="button"
+              aria-pressed={viaClaude}
+              onClick={() => changeVia("claude-code")}
+            >
+              Claude Code（CLI）
+            </button>
+          </div>
+          {viaClaude && (
+            <>
+              <label>
+                <span>CLI の場所</span>
+                <input
+                  type="text"
+                  className="mono"
+                  value={cli}
+                  placeholder="自動で探す（claude）"
+                  spellCheck={false}
+                  onChange={(e) => setCli(e.target.value)}
+                  onBlur={commitCli}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter" || isComposingKey(event)) return;
+                    event.preventDefault();
+                    commitCli();
+                  }}
+                />
+              </label>
+              <div className="ai-actions">
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  disabled={cliCheck?.kind === "checking"}
+                  onClick={checkCli}
+                >
+                  CLI を確かめる
+                </button>
+              </div>
+              {cliCheck !== null && (
+                <span
+                  className={
+                    cliCheck.kind === "failed"
+                      ? "ai-field-problem"
+                      : "ai-field-note"
+                  }
+                >
+                  {cliCheckText(cliCheck)}
+                </span>
+              )}
+            </>
+          )}
+          <span className="ai-field-note">
+            {viaClaude
+              ? "ログイン済みの Claude Code の CLI（claude -p）で呼びます。キーをこのアプリに保存しません。ツールは使わせません。送ることの許可と、送る中身の確かめは同じです"
+              : "キーを OS のキーチェーンに保存して、API で呼びます"}
+          </span>
+        </fieldset>
+      )}
+      {c.endpoint !== null && !viaClaude && (
         <fieldset className="ai-key">
           <legend>
             キー

@@ -114,6 +114,7 @@ import {
   setAiKey,
   setAiOverride,
   setAiTaskConnection,
+  setAiVia,
   setSceneSummary,
   setViewMode,
   storySearchRanges,
@@ -4276,6 +4277,11 @@ export function App() {
                           onDeleteKey={(endpoint) =>
                             deleteAiKey(endpoint).finally(() =>
                               aiChanged(namesOfEndpoint(endpoint)),
+                            )
+                          }
+                          onVia={(name, via, cli) =>
+                            setAiVia(name, via, cli).finally(() =>
+                              aiChanged([name]),
                             )
                           }
                           onTest={runAiTest}

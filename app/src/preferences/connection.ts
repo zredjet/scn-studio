@@ -341,3 +341,33 @@ export function modelListText(list: ModelList): string {
       return `モデルの一覧を読めません：${list.message}`;
   }
 }
+
+/** Claude Code の CLI を確かめた様子（T4-26）。 */
+export type CliCheck =
+  | { readonly kind: "checking" }
+  | {
+      readonly kind: "found";
+      readonly path: string;
+      readonly version: string;
+      readonly logged_in: boolean | null;
+    }
+  | { readonly kind: "failed"; readonly message: string };
+
+/** CLI を確かめた様子の文（ログインの様子が分からなければ「接続を試す」で確かめる）。 */
+export function cliCheckText(check: CliCheck): string {
+  switch (check.kind) {
+    case "checking":
+      return "CLI を確かめています";
+    case "found": {
+      const login =
+        check.logged_in === true
+          ? "ログイン済み"
+          : check.logged_in === false
+            ? "ログインしていません。ターミナルで claude を起動してログインします"
+            : "ログインは「接続を試す」で確かめます";
+      return `見つかりました：${check.path}（${check.version}）。${login}`;
+    }
+    case "failed":
+      return `CLI を確かめられません：${check.message}`;
+  }
+}

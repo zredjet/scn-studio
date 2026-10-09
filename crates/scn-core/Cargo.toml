@@ -32,3 +32,8 @@ proptest = "1.11.0"
 [[bench]]
 name = "analyze"
 harness = false
+
+# Claude Code（CLI）で呼ぶ（T4-26）：このテストの実行ファイルを模擬の CLI として起動するので、テストの枠を自前にする
+[[test]]
+name = "claude_code"
+harness = false

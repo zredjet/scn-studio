@@ -7,8 +7,10 @@
 //! 生成と自律（T3-9、D070）：スタブへの下書き、自律の反復、Git のブランチ。
 //! プロットとフローへの AI 支援（T3-10、D071）：提案ノード、ルートの骨格、構造の検証の結果、要約のずれ、メモの分類案。
 //! 企画書と設定DBの下書き（T4-4、D080）：空いている項目にだけ書き、値のある項目は提案にする。
+//! Claude Code（CLI）で呼ぶ（T4-26、N3）：Messages API の接続先を、この端末では `claude -p` で呼ぶ。
 
 mod auto;
+mod claude_code;
 mod client;
 mod connection;
 mod context;
@@ -21,6 +23,7 @@ mod run;
 mod task;
 
 pub use auto::*;
+pub use claude_code::{CLI_NAME, cli_args, cli_logged_in, cli_prompt, cli_version, find_cli};
 pub use client::*;
 pub use connection::*;
 pub use context::*;

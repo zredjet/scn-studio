@@ -54,6 +54,17 @@ impl Provider {
     }
 }
 
+/// この端末での呼び方（T4-26、N3）。Messages API の接続先だけが Claude Code を選べる。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Via {
+    /// API（キーで呼ぶ）。
+    #[default]
+    Api,
+    /// Claude Code の CLI（`claude -p`。CLI のログインを使い、キーをこのアプリに置かない）。
+    ClaudeCode,
+}
+
 /// 端末の設定（アプリの設定のフォルダの `ai.toml`）。チームで共有しないものだけを持つ。キーは持たない。
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MachineSettings {
@@ -83,6 +94,12 @@ pub struct Override {
     /// 構造化出力を使うか（T4-2）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub structured_output: Option<bool>,
+    /// 呼び方（無ければ API。T4-26）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub via: Option<Via>,
+    /// Claude Code の CLI の場所（無ければ探す。T4-26）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cli: Option<String>,
 }
 
 impl Override {
@@ -92,6 +109,8 @@ impl Override {
             && self.context_tokens.is_none()
             && self.output_tokens.is_none()
             && self.structured_output.is_none()
+            && self.via.is_none()
+            && self.cli.is_none()
     }
 }
 
@@ -127,13 +146,29 @@ impl MachineSettings {
     /// 接続先の上書きを置き換える。空の値と0の文脈の長さ・返す分の上限は上書きしない（すべて無ければ上書きを
     /// やめる）。
     pub fn set_override(&mut self, name: &str, value: Override) {
+        // 呼び方と CLI の場所は `set_via` で変える（ここでは今のまま残す）。
+        let kept = self.connections.get(name);
         let item = Override {
             base_url: non_empty(value.base_url.as_deref()),
             model: non_empty(value.model.as_deref()),
             context_tokens: value.context_tokens.filter(|&n| n > 0),
             output_tokens: value.output_tokens.filter(|&n| n > 0),
             structured_output: value.structured_output,
+            via: kept.and_then(|o| o.via),
+            cli: kept.and_then(|o| o.cli.clone()),
         };
+        if item.is_empty() {
+            self.connections.remove(name);
+        } else {
+            self.connections.insert(name.to_owned(), item);
+        }
+    }
+
+    /// 呼び方と Claude Code の CLI の場所を変える（T4-26）。API で CLI の場所も無ければ書かない。ほかの上書きは残す。
+    pub fn set_via(&mut self, name: &str, via: Via, cli: Option<&str>) {
+        let mut item = self.connections.get(name).cloned().unwrap_or_default();
+        item.via = (via != Via::Api).then_some(via);
+        item.cli = non_empty(cli);
         if item.is_empty() {
             self.connections.remove(name);
         } else {
@@ -233,6 +268,10 @@ pub struct Connection {
     pub output_tokens: Option<u64>,
     /// 構造化出力（`response_format`）を使う（OpenAI 互換だけ。T4-2）。
     pub structured_output: bool,
+    /// この端末での呼び方（Messages API の接続先だけが Claude Code を選べる。T4-26）。
+    pub via: Via,
+    /// Claude Code の CLI の場所（この端末で書いたもの。無ければ探す。T4-26）。
+    pub cli: Option<String>,
 }
 
 impl Connection {
@@ -244,9 +283,13 @@ impl Connection {
         }
     }
 
-    /// 送り先（行き先とモデル）。人がクラウドへ送ることを確かめた単位（自律と同期。T4-1）。
+    /// 送り先（行き先とモデル。Claude Code で呼ぶならそう添える）。人がクラウドへ送ることを確かめた単位（自律と
+    /// 同期。T4-1）。
     pub fn destination(&self) -> String {
-        format!("{}\n{}", self.endpoint, self.model)
+        match self.via {
+            Via::Api => format!("{}\n{}", self.endpoint, self.model),
+            Via::ClaudeCode => format!("{}\n{}\nclaude-code", self.endpoint, self.model),
+        }
     }
 }
 
@@ -321,6 +364,12 @@ fn resolve_with(
             .and_then(|o| o.structured_output)
             .or(decl.structured_output)
             .unwrap_or(false);
+    // Claude Code は、既定の URL の Messages API の接続先だけ（CLI は自分に設定された行き先へ送るので、送ることの
+    // 許可の行き先と合わせるため。ほかでは書いてあっても API で呼ぶ）。
+    let via = over
+        .and_then(|o| o.via)
+        .filter(|_| claude_code_capable(provider, &base_url))
+        .unwrap_or_default();
     Ok(Connection {
         name: name.clone(),
         provider,
@@ -332,7 +381,14 @@ fn resolve_with(
         context_tokens,
         output_tokens,
         structured_output,
+        via,
+        cli: over.and_then(|o| o.cli.clone()),
     })
+}
+
+/// Claude Code（CLI）で呼べる接続先か：Messages API で、URL が既定（`https://api.anthropic.com/v1`）のもの（T4-26）。
+pub fn claude_code_capable(provider: Provider, base_url: &str) -> bool {
+    provider == Provider::Anthropic && base_url.trim_end_matches('/') == ANTHROPIC_BASE_URL
 }
 
 /// 端末の外へ出ない行き先か（この端末と、LAN の中）。localhost、`*.localhost`、`*.local`、ループバック、
@@ -449,6 +505,11 @@ pub struct ConnectionStatus {
     pub structured_output: Option<bool>,
     pub project_structured_output: Option<bool>,
     pub override_structured_output: Option<bool>,
+    /// この端末での呼び方と、書いた CLI の場所（T4-26）。
+    pub via: Via,
+    pub cli: Option<String>,
+    /// Claude Code で呼べる接続先か（既定の URL の Messages API。[`claude_code_capable`]）。
+    pub claude_code: bool,
     /// 解決できない理由。
     pub problem: Option<String>,
     /// URL の書き方の知らせ（パスが無い。[`missing_path_hint`]）。
@@ -509,9 +570,11 @@ pub fn connection_statuses(
                 },
                 None => false,
             };
+            // Claude Code で呼ぶなら、キーは要らない（CLI のログインを使う。T4-26）。
             let needs_key = resolved
                 .as_ref()
-                .is_ok_and(|c| c.provider == Provider::Anthropic);
+                .is_ok_and(|c| c.provider == Provider::Anthropic && c.via == Via::Api);
+            let via = resolved.as_ref().map_or(Via::Api, |c| c.via);
             ConnectionStatus {
                 name: decl.name.clone(),
                 provider,
@@ -535,6 +598,11 @@ pub fn connection_statuses(
                 structured_output: resolved.as_ref().ok().map(|c| c.structured_output),
                 project_structured_output: decl.structured_output,
                 override_structured_output: over.and_then(|o| o.structured_output),
+                via,
+                cli: over.and_then(|o| o.cli.clone()),
+                claude_code: resolved
+                    .as_ref()
+                    .is_ok_and(|c| claude_code_capable(c.provider, &c.base_url)),
                 test_preview: resolved
                     .as_ref()
                     .ok()

@@ -10,6 +10,7 @@ import type {
   AddedChapter,
   AdoptResult,
   AiBranches,
+  AiCliCheck,
   AiConnectionChoice,
   AiConnections,
   AiLines,
@@ -21,6 +22,7 @@ import type {
   AiRunOutcome,
   AiTaskInfo,
   AiTestResult,
+  AiVia,
   AssetKey,
   AssetKind,
   AssetList,
@@ -674,6 +676,20 @@ export function testAiConnection(
 /** 接続先に入っているモデルの一覧（ローカルの OpenAI 互換の接続先だけ。名前の順と、頼んだ URL。T4-23）。 */
 export function aiModels(name: string): Promise<AiModels> {
   return invoke<AiModels>("ai_models", { name });
+}
+
+/** この端末での呼び方（API か Claude Code の CLI）と CLI の場所（T4-26）。 */
+export function setAiVia(
+  name: string,
+  via: AiVia,
+  cli: string | null,
+): Promise<void> {
+  return invoke<void>("set_ai_via", { name, via, cli });
+}
+
+/** Claude Code の CLI を確かめる（見つかった場所と版。`cli` が null なら探す。T4-26）。 */
+export function aiCliCheck(cli: string | null): Promise<AiCliCheck> {
+  return invoke<AiCliCheck>("ai_cli_check", { cli });
 }
 
 /** 走っている回（「接続を試す」と AI タスクの実行）を取り消す。 */

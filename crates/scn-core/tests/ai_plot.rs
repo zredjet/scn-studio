@@ -67,6 +67,8 @@ fn connection(base_url: String) -> Connection {
         context_tokens: 200_000,
         output_tokens: None,
         structured_output: false,
+        via: scn_core::ai::Via::Api,
+        cli: None,
     }
 }
 

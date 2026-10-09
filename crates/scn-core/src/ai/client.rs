@@ -13,7 +13,7 @@ use std::time::Duration;
 use serde::Serialize;
 use serde_json::{Value, json};
 
-use super::connection::{Connection, Provider};
+use super::connection::{Connection, Provider, Via};
 
 /// Messages API で `max_tokens` を書かないときの上限（Messages API では必須）。
 pub const ANTHROPIC_MAX_TOKENS: u32 = 4096;
@@ -350,6 +350,9 @@ pub fn request_body(conn: &Connection, request: &ChatRequest) -> Value {
 
 /// 送る中身を人が読める形で（URL、キー以外のヘッダー、本文）。
 pub fn request_preview(conn: &Connection, request: &ChatRequest) -> String {
+    if conn.via == Via::ClaudeCode {
+        return super::claude_code::preview(conn, request);
+    }
     let body = serde_json::to_string_pretty(&request_body(conn, request)).unwrap_or_default();
     let auth = match conn.provider {
         Provider::OpenaiCompatible => "Authorization: Bearer （キー。保存してあれば）",
@@ -571,6 +574,10 @@ fn call(
     }
     if conn.cloud && !conn.allowed {
         return Err(AiError::CloudNotAllowed(conn.name.clone()));
+    }
+    // この端末では Claude Code の CLI で呼ぶ（キーは使わない。T4-26）。
+    if conn.via == Via::ClaudeCode {
+        return super::claude_code::complete(conn, request, options, cancel, on_text);
     }
     if conn.provider == Provider::Anthropic && key.is_none() {
         return Err(AiError::NoKey(conn.name.clone()));

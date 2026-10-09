@@ -611,6 +611,17 @@ export interface Coverage {
   readonly total: number;
 }
 
+/** この端末での呼び方（コアの `ai::Via`。T4-26）。 */
+export type AiVia = "api" | "claude-code";
+
+/** Claude Code の CLI を確かめた結果（`ai_cli_check`。T4-26）。 */
+export interface AiCliCheck {
+  readonly path: string;
+  readonly version: string;
+  /** ログインしているか（`claude auth status`。分からなければ null）。 */
+  readonly logged_in: boolean | null;
+}
+
 /** 接続先に入っているモデルの一覧（`ai_models`。T4-23）。`base_url` は頼んだ URL。 */
 export interface AiModels {
   readonly base_url: string;
@@ -674,6 +685,11 @@ export interface AiConnection {
   readonly allowed: boolean;
   readonly has_key: boolean;
   readonly needs_key: boolean;
+  /** この端末での呼び方（Messages API の接続先だけが Claude Code を選べる）と、書いた CLI の場所（T4-26）。 */
+  readonly via: AiVia;
+  readonly cli: string | null;
+  /** Claude Code で呼べる接続先か（既定の URL の Messages API）。 */
+  readonly claude_code: boolean;
   /** 文脈の長さ（解決できたときだけ）、project.toml の値、この端末の上書き（T4-1）。 */
   readonly context_tokens: number | null;
   readonly project_context_tokens: number | null;

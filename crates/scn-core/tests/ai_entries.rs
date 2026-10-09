@@ -359,6 +359,8 @@ fn run_entries_task() {
         context_tokens: 32768,
         output_tokens: None,
         structured_output: true,
+        via: scn_core::ai::Via::Api,
+        cli: None,
     };
     let outcome = ai::run_task(
         &project,

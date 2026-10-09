@@ -5,8 +5,8 @@ Claude Codeは、作業を始めるときにこのファイルを読み、タス
 ## 現在の状態
 
 - フェーズ：4（ローカルのLLMと、企画・設定の生成）を、人の確認を除いて終えた（T4-7、2026-10-09、D081）。人の相談と判断（D080）で足したフェーズ。計画は `docs/plan/phase4.md`、残りは `docs/review-for-human.md` の3節（Y1〜Y9 と、画面の点検の Z1〜Z5）で人の判断を待っている。フェーズ3（支援と拡張）は、人の確認を除いて終えた（T3-17、2026-10-09）。設計検討書の範囲はそこまで。範囲の外の残り（X1〜X16）は推奨案のまま（D079）。フェーズ3の計画は `docs/plan/phase3.md`、設計検討書との突き合わせは `docs/plan/design-check.md`。フェーズ2のゲートは、条件1（書き出したRen'Pyを最後まで遊べる）を自動の範囲で満たし、人の確認（H9、2OSのIMEテスト、H1〜H17）は待ちのまま、人の指示に沿って先へ進めた（T2-11、D062）。フェーズ1のゲートも人の確認待ち（T1-13、D052）。フェーズ0のゲートは条件付きで通過した（T0-9、D040）
-- 作業中のタスク：なし（T4-25 は済）。人の追加の頼みの T4-8・T4-9（D082）、T4-10（D083）、T4-11（D084）、T4-12〜T4-15（D085）、T4-16〜T4-20（D086）は済
-- 次のタスク：T4-26（Claude Code（CLI）。N3）。人の判断（2026-10-10、D087）で足した。N7・N10・N11 は保留、N2・N5・N8 は作らない。人の確認（`docs/review-for-human.md` の2節）は、届いたら T3-1 で取り込む
+- 作業中のタスク：なし（T4-26 は済）。人の追加の頼みの T4-8・T4-9（D082）、T4-10（D083）、T4-11（D084）、T4-12〜T4-15（D085）、T4-16〜T4-20（D086）は済
+- 次のタスク：なし（人の判断（2026-10-10、D087）で足した T4-21〜T4-26 は済。N7・N10・N11 は保留、N2・N5・N8 は作らない）。人の確認（`docs/review-for-human.md` の2節。T4-22〜T4-26 は H46〜H50）は、届いたら T3-1 で取り込む
 - 2026-10-08 から、人の指示で、人に聞かずに設計検討書の範囲（フェーズ1の残り、フェーズ2、フェーズ3）を進めている。人に確認する判断は推奨案で決め、人の環境でしか確かめられないことと一緒に `docs/review-for-human.md` にまとめている
 - T1-1（Windowsでの確認）は、Windowsの環境を用意できたときに行う（`docs/review-for-human.md` の H1。フェーズ3の T3-1 で取り込む）。中身は、フェーズ0で別途対応にした3件（`scripts/check-all.ps1`、アプリの起動、IMEテストのW1）
 
@@ -43,6 +43,15 @@ T3-17 で `docs/review-for-human.md` の3節（X1〜X16）に、推奨案を付�
 - エディタのテーマの `&.cm-focused .cm-selectionBackground` は、CodeMirrorの基本テーマより詳細度が低く、フォーカス中の選択は基本テーマの色（`#d7d4f0`）になっている。`--accent-tint` を効かせるように直すときは、今の行の上で選択が見えにくくならないか確かめる（今の行の背景は60%に薄めている）。T0-8のレビューで気づいた（T1-7で直した。D046）
 
 ## 記録
+
+### 2026-10-10 T4-26 Claude Code（CLI）で使う（N3。人の追加の頼み。D087）
+
+- 仕様：端末の設定 `ai.toml` の `[connections.<名前>]` に `via`（`api`・`claude-code`）と `cli`（CLI の場所）を足した（`docs/spec/project-files.md`）。作品の `project.toml` は変えない
+- コア（`ai/claude_code.rs`）：`via = "claude-code"` の Messages API の接続先は、`complete` が `claude -p` を起動して呼ぶ（`--output-format stream-json --verbose --include-partial-messages --tools "" --strict-mcp-config --no-session-persistence --model`。指示は `--system-prompt-file`、依頼は標準入力。呼ぶたびに作る空のフォルダで動かし、終わったら消す）。届いた文字と考えた中身を順に渡し、取り消しと次のデータまでの時間の区切りで止める。終わりの行の誤り・ログインしていない・止まった・見つからないを知らせる。送ることの許可と送る中身の確かめ（`request_preview` は CLI の起動の仕方と指示と依頼）はそのまま。キーは要らない（`needs_key` は偽、Tauri の `key_for` も読まない）。CLI の場所は `find_cli`（書いた場所か、PATH とよく入る場所）、版は `cli_version`。`MachineSettings::set_via`（ほかの上書きは残し、`set_override` は呼び方と CLI の場所を残す）。Tauri の `set_ai_via`・`ai_cli_check`
+- 環境設定：Messages API の接続先のカードに「使い方」（APIキー・Claude Code（CLI））と、CLI の場所・「CLI を確かめる」。Claude Code ではキーの欄を出さない
+- plan-reviewer の指摘で直したこと：人の Claude Code の設定（`~/.claude/CLAUDE.md`・フック・プラグイン）が効いて、見せた中身のほかが送られうる（`--safe-mode` を足し、始まりの行にツール・MCP・プラグインがあれば止める）。Windows の `claude.cmd` で取り消しと時間切れが node を止めない（`taskkill /T`）。Finder から起動したアプリで npm の CLI が node を見つけられない（子の PATH の先に CLI のフォルダとよく入る場所）。AI実行の確かめの要約値に呼び方が入っていない（`content_digest` に混ぜる）。H50 の手順の誤り。確認の要るもののうち、Claude Code は既定の URL の接続先だけ（送ることの許可の行き先と合わせる）、ログインを `claude auth status --json` で確かめる、終わりの行の後に CLI が終わらなければ少し待って止める、決まった作業用のフォルダ（指示のファイルだけ呼ぶたびに作る）、Windows でコンソールの窓を出さない、標準エラーを UTF-8 でなくても読む、も直した。返す分の上限は渡さないまま（CLI に引数が無い）
+- テスト：`crates/scn-core/tests/claude_code.rs`（`harness = false`。テストの実行ファイルを `claude` の名前でつないで模擬の CLI にする。9件：ツールのある始まりで止めることと終わりの行の後に止めること、を足した。少しずつの文字と考えた中身、まとめての返事、ログインと止まったとき、時間の区切りと取り消し、見つからない・許可していない、版、送る中身と端末の設定、書いた場所）、`app/test/preferences.test.ts`（1件）
+- 画面の確認：実際の CLI では確かめていない（人の確認 H50。画面を操る許しも得られていない）
 
 ### 2026-10-10 T4-25 環境設定の頁（N6。人の追加の頼み。D087）
 

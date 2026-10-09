@@ -208,6 +208,8 @@ fn host(root: &Path, url: String, task: &str) -> TestHost {
             context_tokens: 200_000,
             output_tokens: None,
             structured_output: false,
+            via: scn_core::ai::Via::Api,
+            cli: None,
         },
         task: task.to_owned(),
         generator: LineIdGenerator::with_seed(3),

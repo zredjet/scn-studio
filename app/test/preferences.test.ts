@@ -6,6 +6,7 @@ import type { AiConnection } from "../src/core/types.ts";
 import {
   aiStatus,
   canListModels,
+  cliCheckText,
   connectionStatus,
   currentModelList,
   currentTest,
@@ -43,6 +44,9 @@ function connection(over: Partial<AiConnection>): AiConnection {
     allowed: true,
     has_key: false,
     needs_key: false,
+    via: "api",
+    cli: null,
+    claude_code: false,
     context_tokens: 8192,
     project_context_tokens: null,
     override_context_tokens: null,
@@ -467,5 +471,30 @@ test("モデルの一覧（T4-23、N4）：ローカルの OpenAI 互換だけ�
   assert.equal(
     modelListText({ kind: "loading", base: null }),
     "モデルの一覧を読んでいます",
+  );
+});
+
+test("Claude Code の CLI を確かめた文（T4-26）", () => {
+  assert.equal(cliCheckText({ kind: "checking" }), "CLI を確かめています");
+  const found = {
+    kind: "found",
+    path: "/usr/local/bin/claude",
+    version: "2.1.0 (Claude Code)",
+  } as const;
+  assert.equal(
+    cliCheckText({ ...found, logged_in: true }),
+    "見つかりました：/usr/local/bin/claude（2.1.0 (Claude Code)）。ログイン済み",
+  );
+  assert.match(
+    cliCheckText({ ...found, logged_in: false }),
+    /ログインしていません/,
+  );
+  assert.match(
+    cliCheckText({ ...found, logged_in: null }),
+    /「接続を試す」で確かめます$/,
+  );
+  assert.equal(
+    cliCheckText({ kind: "failed", message: "claude が見つかりません" }),
+    "CLI を確かめられません：claude が見つかりません",
   );
 });

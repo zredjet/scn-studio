@@ -2,7 +2,7 @@
 
 分岐する物語（ADV・ビジュアルノベル）のための執筆ツール。Tauri製のデスクトップアプリで、対象OSはWindowsとmacOS（Linuxは対象外）。シナリオは独自のテキスト形式 `.scn` で書き、設定DB・構造グラフ・プレビュー・エクスポート・AI支援を、同じテキストから導いたデータの上に載せる。
 
-現在は**フェーズ4（ローカルのLLMと、企画・設定の生成）を、人の確認を除いて終えたところ**（T4-7、D081。その後、人の追加の頼みで `scn` コマンドの説明（T4-8）と設定DBの既定の型とテンプレート集（T4-9）を足した。D082。返す分の上限の上書き（T4-10、D083）と、画面の見た目と操作感の点検（T4-11、D084。報告は `docs/ui/audit.md`）と、その直し（T4-12〜T4-14）と Claude Design への頼み（T4-15、`docs/ui/design-brief.md`。D085）も足した。届いた見本 v1 を取り込み、見た目の反映 T4-16〜T4-20 を済ませた（人の確認を除く）。D086。見本の新しい機能のうち人が選んだものと点検の直しを T4-21〜T4-26 で進めている。D087）。設計検討書の範囲はフェーズ3までで（人の確認を除いて完了。T3-17）、フェーズ4は人の相談と判断で足した（D080）。残りは `docs/review-for-human.md` の3節（Y1〜Y9 と、画面の点検の Z1〜Z5）で人の判断を待っている（人の判断が届くまで新しい作業を始めない）。計画は `docs/plan/phase4.md`、進捗は `docs/progress.md`。フェーズ3の人の確認は、届いたときに T3-1 で取り込む。フェーズ3（支援と拡張）の計画は `docs/plan/phase3.md`、設計検討書との突き合わせは `docs/plan/design-check.md`。フェーズ2（制作に使える）の計画は `docs/plan/phase2.md`、フェーズ1（執筆の核）の計画は `docs/plan/phase1.md`、フェーズ0（形式を固める）の計画と記録は `docs/plan/phase0.md` に残している。人の確認を待っていることは `docs/review-for-human.md` にまとめている。
+現在は**フェーズ4（ローカルのLLMと、企画・設定の生成）を、人の確認を除いて終えたところ**（T4-7、D081。その後、人の追加の頼みで `scn` コマンドの説明（T4-8）と設定DBの既定の型とテンプレート集（T4-9）を足した。D082。返す分の上限の上書き（T4-10、D083）と、画面の見た目と操作感の点検（T4-11、D084。報告は `docs/ui/audit.md`）と、その直し（T4-12〜T4-14）と Claude Design への頼み（T4-15、`docs/ui/design-brief.md`。D085）も足した。届いた見本 v1 を取り込み、見た目の反映 T4-16〜T4-20 を済ませた（人の確認を除く）。D086。見本の新しい機能のうち人が選んだもの（作品全体の検索、ローカルのモデルの一覧、変数の取りうる値、環境設定の頁、Claude Code（CLI））と点検の直しを T4-21〜T4-26 で済ませた（人の確認 H46〜H50 を除く）。D087）。設計検討書の範囲はフェーズ3までで（人の確認を除いて完了。T3-17）、フェーズ4は人の相談と判断で足した（D080）。残りは `docs/review-for-human.md` の3節（Y1〜Y9 と、画面の点検の Z1〜Z5）で人の判断を待っている（人の判断が届くまで新しい作業を始めない）。計画は `docs/plan/phase4.md`、進捗は `docs/progress.md`。フェーズ3の人の確認は、届いたときに T3-1 で取り込む。フェーズ3（支援と拡張）の計画は `docs/plan/phase3.md`、設計検討書との突き合わせは `docs/plan/design-check.md`。フェーズ2（制作に使える）の計画は `docs/plan/phase2.md`、フェーズ1（執筆の核）の計画は `docs/plan/phase1.md`、フェーズ0（形式を固める）の計画と記録は `docs/plan/phase0.md` に残している。人の確認を待っていることは `docs/review-for-human.md` にまとめている。
 
 ## 作業を始めるとき
 
@@ -57,7 +57,7 @@ app/                    Tauri＋React（src-tauri/ と src/）
 - パーサだけ：`cargo test -p scn-core`
   - スナップショット（`crates/scn-core/tests/snapshots/`）が合わないと、テストが失敗し、新しい結果が `*.snap.new` に出る。中身を読んで確かめてから、環境変数 `INSTA_UPDATE=always` を付けて `cargo test -p scn-core` を実行すると受け入れる（`*.snap.new` は消してから）
   - AIタスクの文脈（`tests/ai_context.rs`）は、サンプルの各タスクの組み立てた文脈をスナップショット（`ai_context__*.snap`）で確かめる
-  - AIの接続のテスト（`tests/ai.rs`）は、テストの中で立てる模擬のサーバー（OpenAI 互換と Messages API）で確かめ、実際の LLM もキーチェーンも使わない：`cargo test -p scn-core --test ai`。タスクの実行・提案・生成と自律・プロットとフローへの支援も同じく模擬のサーバーで（`--test ai_run`・`ai_proposal`・`ai_generate`・`ai_auto`・`ai_plot`）
+  - AIの接続のテスト（`tests/ai.rs`）は、テストの中で立てる模擬のサーバー（OpenAI 互換と Messages API）で確かめ、実際の LLM もキーチェーンも使わない：`cargo test -p scn-core --test ai`。タスクの実行・提案・生成と自律・プロットとフローへの支援も同じく模擬のサーバーで（`--test ai_run`・`ai_proposal`・`ai_generate`・`ai_auto`・`ai_plot`）。Claude Code（CLI）で呼ぶテストは模擬の CLI で（実際の CLI もログインも使わない）：`cargo test -p scn-core --test claude_code`
   - パニックしないことの検査（proptest）を多く試す：`PROPTEST_CASES=20000 cargo test -p scn-core --release --test robustness`
   - 解析の速さを測る（1万行と10万行の合成データ、`criterion`。10万行のIRのJSONを `target/tmp/ir-100k.json` に書き出す）：`cargo bench -p scn-core --bench analyze`
 - 開発用CLI `scn`（`crates/scn-cli`）：`cargo run -p scn-cli -- parse <file.scn>`（診断を `ファイル:行:列 コード メッセージ` で出す。`--json` でJSON）／`cargo run -p scn-cli -- ir <project-dir> [--compact]`（IRをJSONで出す。`--compact` は整形しない。例：`cargo run -p scn-cli -- ir samples/houkago`）
