@@ -254,7 +254,9 @@ pub struct Assembled {
     pub scene: Option<String>,
     /// 接続先の文脈の長さ。
     pub context_tokens: u64,
-    /// 文脈に使える上限（返す分を除いたもの。[`context_limit`]）。
+    /// 返す分の上限（`max_tokens`。[`TokenBudget::output`]。T4-10）。
+    pub output_tokens: u64,
+    /// 文脈に使える上限（文脈の長さから返す分を除いたもの）。
     pub limit: u64,
     /// 残した節（並べた順）。
     pub sections: Vec<Section>,
@@ -270,9 +272,40 @@ pub struct Assembled {
     pub problem: Option<String>,
 }
 
-/// 文脈に使える上限：文脈の長さから、返す分（4分の1、多くて4096）を除く。
+/// 文脈の長さと返す分の上限（接続先の `context_tokens`・`output_tokens`。T4-10）。文脈の長さだけからも作れる
+/// （返す分は既定）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TokenBudget {
+    pub context_tokens: u64,
+    /// 返す分の上限。無ければ [`default_output_tokens`]。
+    pub output_tokens: Option<u64>,
+}
+
+impl TokenBudget {
+    /// 返す分の上限。
+    pub fn output(&self) -> u64 {
+        self.output_tokens
+            .unwrap_or_else(|| default_output_tokens(self.context_tokens))
+    }
+}
+
+impl From<u64> for TokenBudget {
+    fn from(context_tokens: u64) -> Self {
+        Self {
+            context_tokens,
+            output_tokens: None,
+        }
+    }
+}
+
+/// 返す分の上限の既定：文脈の長さの4分の1、多くて4096。
+pub fn default_output_tokens(context_tokens: u64) -> u64 {
+    (context_tokens / 4).min(4096)
+}
+
+/// 返す分の上限が既定のときの、文脈に使える上限：文脈の長さから、返す分（4分の1、多くて4096）を除く。
 pub fn context_limit(context_tokens: u64) -> u64 {
-    context_tokens.saturating_sub((context_tokens / 4).min(4096))
+    context_tokens.saturating_sub(default_output_tokens(context_tokens))
 }
 
 /// 削る順番。`characters` は1度目で一人称と口調メモだけにし、2度目で節ごと削る。`style` は指摘と提案のタスクだけ。
@@ -929,20 +962,25 @@ fn user_text(sections: &[Section], prompt: &str, target: Option<&str>) -> String
 }
 
 /// タスクの文脈を組み立てる。`scene` は今のシーン（`context` に `scene`・`previous_summaries` があるタスクで使う）。
-/// `context_tokens` は接続先の文脈の長さ。
+/// `budget` は接続先の文脈の長さと返す分の上限（[`Connection::budget`](super::Connection::budget)。文脈の長さだけ
+/// なら返す分は既定）。返す分の上限が文脈の長さ以上なら、実行できない理由にする（T4-10）。
 pub fn assemble(
     project: &Project,
     ir: &Ir,
     sources: &ContextSources,
     task: &AiTask,
     scene: Option<&str>,
-    context_tokens: u64,
+    budget: impl Into<TokenBudget>,
 ) -> Assembled {
-    let limit = context_limit(context_tokens);
+    let budget = budget.into();
+    let context_tokens = budget.context_tokens;
+    let output_tokens = budget.output();
+    let limit = context_tokens.saturating_sub(output_tokens);
     let mut out = Assembled {
         task: task.id.clone(),
         scene: scene.map(str::to_owned),
         context_tokens,
+        output_tokens,
         limit,
         sections: Vec::new(),
         trimmed: Vec::new(),
@@ -956,6 +994,12 @@ pub fn assemble(
         out.problem = Some(format!("{} に prompt がありません", task.path));
         return out;
     };
+    if budget.output_tokens.is_some() && output_tokens >= context_tokens {
+        out.problem = Some(format!(
+            "返す分の上限（{output_tokens}）が文脈の長さ（{context_tokens}）以上で、文脈に使える分が残りません。接続先の返す分の上限を減らすか、文脈の長さを増やします"
+        ));
+        return out;
+    }
     let this = match scene {
         None => None,
         Some(id) => match ir.scenes.iter().find(|s| s.id == id) {
@@ -1064,14 +1108,20 @@ pub fn assemble(
         );
     } else if out.tokens > limit {
         let style_kept = writes_body(task) && sections.iter().any(|s| s.item == "style");
+        // 返す分の上限を書いていれば、減らしても入る（T4-10）。
+        let output_hint = if budget.output_tokens.is_some() {
+            format!("（返す分の上限 {output_tokens} を減らしても入ります）")
+        } else {
+            String::new()
+        };
         out.problem = Some(if style_kept {
             format!(
-                "文脈が上限（{limit}）に入りきりません（見積もり {}）。生成のタスクでは文体（文体見本）を削りません。接続先の context_tokens を増やすか、style.md を短くします",
+                "文脈が上限（{limit}）に入りきりません（見積もり {}）。生成のタスクでは文体（文体見本）を削りません。接続先の context_tokens を増やすか、style.md を短くします{output_hint}",
                 out.tokens
             )
         } else {
             format!(
-                "文脈が上限（{limit}）に入りきりません（見積もり {}）。接続先の context_tokens を増やすか、短いシーンで使います",
+                "文脈が上限（{limit}）に入りきりません（見積もり {}）。接続先の context_tokens を増やすか、短いシーンで使います{output_hint}",
                 out.tokens
             )
         });

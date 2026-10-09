@@ -63,7 +63,7 @@ paths:
 
 ## 環境設定（app/src/preferences/）
 
-- AI の接続先（T3-5、D066）：一覧と書き換えはコア（`ai_connections`・`set_ai_override`・`set_ai_cloud_allowed`・`set_ai_key`・`delete_ai_key`）。キーは入力をコアへ渡すだけで、画面は受け取らない（入力欄は保存したら空にする）。クラウドの「接続を試す」は、送る中身（コアの `test_preview`）を見せてから送る。使う前に足りないもの・タイトルバーの印の判断は `preferences/connection.ts` に置き、テストを付ける（`app/test/preferences.test.ts`）。印は色だけでなく形でも分ける。URL の書き方の知らせ（パスが無い。T3-1、R193）はコアが `url_hint` で渡し、画面は出すだけ。文脈の長さの上書きの欄の読み方は `parseContextTokens`（T4-1）、構造化出力の欄は `structuredChoice`・`structuredValue`、接続を試した結果の文（考えた中身を除いた・考える分で上限に達した）は `replyText`（T4-2）。
+- AI の接続先（T3-5、D066）：一覧と書き換えはコア（`ai_connections`・`set_ai_override`・`set_ai_cloud_allowed`・`set_ai_key`・`delete_ai_key`）。キーは入力をコアへ渡すだけで、画面は受け取らない（入力欄は保存したら空にする）。クラウドの「接続を試す」は、送る中身（コアの `test_preview`）を見せてから送る。使う前に足りないもの・タイトルバーの印の判断は `preferences/connection.ts` に置き、テストを付ける（`app/test/preferences.test.ts`）。印は色だけでなく形でも分ける。URL の書き方の知らせ（パスが無い。T3-1、R193）はコアが `url_hint` で渡し、画面は出すだけ。文脈の長さの上書きの欄の読み方は `parseContextTokens`（T4-1）、返す分の上限の欄は `parseOutputTokens` と、文脈の長さ以上のときの知らせ `outputTokensProblem`（T4-10）、構造化出力の欄は `structuredChoice`・`structuredValue`、接続を試した結果の文（考えた中身を除いた・考える分で上限に達した）は `replyText`（T4-2）。
 - 実行中の進み具合（T4-2）：コアが考えている間かを `ai-run-progress` の `thinking` で知らせ、文は `ai/model.ts` の `progressText`（「考えています」）。送る前の確かめに、構造化出力を付けるとき（`AiPrepared.connection.structured`）は `STRUCTURED_NOTE` を出す。
 - タスクの接続先の端末での選択（T4-1、R194）：AI実行の画面の見出しで選び、書くのはコア（`set_ai_task_connection`。決め方はコアの `ai::task_connection`）。選び直したら送る中身の確かめをやり直す。選択肢と一覧の行き先の文は `ai/model.ts` の `connectionOptions`・`placeText`（テストは `app/test/ai.test.ts`）。
 

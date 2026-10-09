@@ -261,6 +261,7 @@ test("履歴と数の文", () => {
       task: "t",
       scene: null,
       context_tokens: 8192,
+      output_tokens: 2048,
       limit: 6144,
       sections: [],
       trimmed: [],
@@ -270,7 +271,7 @@ test("履歴と数の文", () => {
       tokens: 826,
       problem: null,
     }),
-    "見積もり 826 / 上限 6,144 トークン（文脈の長さ 8,192）",
+    "見積もり 826 / 上限 6,144 トークン（文脈の長さ 8,192、返す分 2,048）",
   );
 });
 
@@ -300,6 +301,7 @@ test("見た送る中身は、同じタスクと対象のときだけ使う", ()
       task: "tone_check",
       scene: "s012",
       context_tokens: 8192,
+      output_tokens: 2048,
       limit: 6144,
       sections: [],
       trimmed: [],

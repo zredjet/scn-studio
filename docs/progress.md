@@ -5,8 +5,8 @@ Claude Codeは、作業を始めるときにこのファイルを読み、タス
 ## 現在の状態
 
 - フェーズ：4（ローカルのLLMと、企画・設定の生成）を、人の確認を除いて終えた（T4-7、2026-10-09、D081）。人の相談と判断（D080）で足したフェーズ。計画は `docs/plan/phase4.md`、残りは `docs/review-for-human.md` の3節（Y1〜Y8）で人の判断を待っている。フェーズ3（支援と拡張）は、人の確認を除いて終えた（T3-17、2026-10-09）。設計検討書の範囲はそこまで。範囲の外の残り（X1〜X16）は推奨案のまま（D079）。フェーズ3の計画は `docs/plan/phase3.md`、設計検討書との突き合わせは `docs/plan/design-check.md`。フェーズ2のゲートは、条件1（書き出したRen'Pyを最後まで遊べる）を自動の範囲で満たし、人の確認（H9、2OSのIMEテスト、H1〜H17）は待ちのまま、人の指示に沿って先へ進めた（T2-11、D062）。フェーズ1のゲートも人の確認待ち（T1-13、D052）。フェーズ0のゲートは条件付きで通過した（T0-9、D040）
-- 作業中のタスク：なし（人の追加の頼みの T4-8・T4-9 は済。D082）
-- 次のタスク：無し。人の確認（`docs/review-for-human.md` の2節。H32〜H39 はフェーズ4）と、3節の Y1〜Y8 の判断は待つ。人の確認（`docs/review-for-human.md` の2節）は、届いたら T3-1 で取り込む（T2-1 の H1〜H8 も。H18〜H31 も同じ形で）
+- 作業中のタスク：なし（人の追加の頼みの T4-8・T4-9（D082）、T4-10（D083）は済）
+- 次のタスク：無し。人の確認（`docs/review-for-human.md` の2節。H32〜H40 はフェーズ4）と、3節の Y1〜Y8 の判断は待つ。人の確認（`docs/review-for-human.md` の2節）は、届いたら T3-1 で取り込む（T2-1 の H1〜H8 も。H18〜H31 も同じ形で）
 - 2026-10-08 から、人の指示で、人に聞かずに設計検討書の範囲（フェーズ1の残り、フェーズ2、フェーズ3）を進めている。人に確認する判断は推奨案で決め、人の環境でしか確かめられないことと一緒に `docs/review-for-human.md` にまとめている
 - T1-1（Windowsでの確認）は、Windowsの環境を用意できたときに行う（`docs/review-for-human.md` の H1。フェーズ3の T3-1 で取り込む）。中身は、フェーズ0で別途対応にした3件（`scripts/check-all.ps1`、アプリの起動、IMEテストのW1）
 
@@ -43,6 +43,22 @@ T3-17 で `docs/review-for-human.md` の3節（X1〜X16）に、推奨案を付�
 - エディタのテーマの `&.cm-focused .cm-selectionBackground` は、CodeMirrorの基本テーマより詳細度が低く、フォーカス中の選択は基本テーマの色（`#d7d4f0`）になっている。`--accent-tint` を効かせるように直すときは、今の行の上で選択が見えにくくならないか確かめる（今の行の背景は60%に薄めている）。T0-8のレビューで気づいた（T1-7で直した。D046）
 
 ## 記録
+
+### 2026-10-09 T4-10 返す分の上限の上書き（人の追加の頼み。D083）
+
+- 人の報告：ローカルの考えるモデル（LM Studio、文脈の長さ 262144）で、生成がちょうど 4096 トークンで終わり（考える分だけ）、「考えるだけで長さの上限に達し、答えがありません」で止まった。返す分は `min(文脈の長さ / 4, 4096)` で固定で、文脈の長さを増やしても 4096 より増えなかった
+- 作ったもの
+  - 接続先の設定 `output_tokens`（`project.toml` の `[ai.<名前>]`、端末の `ai.toml` の `[connections.<名前>]`。端末 → project.toml → 既定。正の整数でなければ E802）。`Connection.output_tokens` と `Connection::budget`、`ConnectionStatus` の `output_tokens`（解決した値。書いていなければ既定から決めた値）・`project_output_tokens`・`override_output_tokens`
+  - `ai::TokenBudget`（文脈の長さと返す分の上限。`u64` からも作れるので、文脈の長さだけを渡す呼び出しは今までどおり）。`assemble` は返す分の上限を引いた残りを文脈の上限にし、`Assembled.output_tokens` に持つ。返す分の上限を書いて、それが文脈の長さ以上なら実行できない理由にする。`max_tokens` は今の計算（文脈の長さ − 文脈の上限）のままで、上書きした値になる
+  - 誤りの文：`AiError::ThinkingOnly { chars, max_tokens }`。「考えるだけで返す分の上限（N トークン）に達し、答えがありません（考えた分 X 字）。環境設定で接続先の「返す分の上限」を増やすか、考えない設定のモデルを使います」。`ensure_answer` に送った `max_tokens` を渡す
+  - 自律・要約・Tauri の文脈の組み立ては `conn.budget()` を渡す
+  - Tauri の `set_ai_override` に `output_tokens`。環境設定の接続先に「返す分の上限」の表示と上書きの欄（読み方は文脈の長さと同じ。文脈の長さ以上なら知らせて保存できない。`connection.ts` の `parseOutputTokens`・`outputTokensProblem`）。AI実行の画面の見積もりの文に「返す分」
+  - CLI `scn ai context --output-tokens N`（省くと接続先の `output_tokens`）。標準エラーの1行目に「返す分」
+  - 仕様（2節の `output_tokens`・端末の上書き・考えるモデルの誤り、9節の文脈の長さと `max_tokens`）、`docs/guide/scn.md`、用語集、`.claude/rules/*.md`、`CLAUDE.md`
+- テスト：`tests/ai.rs` の `output_tokens`（解決の順番、既定、0 は上書きにしない、接続先の様子）と端末の設定のファイルへの書き込み、`thinking_only_is_no_answer`（文に上限の数）、`tests/ai_run.rs`（上書きした値が `max_tokens` になる、文脈の長さ以上なら送らずに実行できない、考えるだけの誤りの文）、`tests/ai_context.rs` の `output_budget`（文脈の上限、既定は今と同じ、実行できない理由）、`analyze` の `toml_ai`（`output_tokens = -5` は E802。スナップショットは診断が1つ増え、`[ai.broken]` の行が 19 から 24 に移っただけ）、CLI の `ai_context`、`app/test/preferences.test.ts`（欄の読み方と知らせ）、`app/test/ai.test.ts`（見積もりの文）
+- レビュー（plan-reviewer）：正しさの誤りは無し。仕様9節の `scn ai context` の書式に `--output-tokens` を足し、`max_tokens` を u32 に収まらないときは u32 の最大に切り詰め（上限なしで送らない）、環境設定の比べ方を保存したときに効く値にし、どちらの欄も空なら比べない（`project.toml` だけの食い違いで、ほかの上書きを止めない）ようにした。返す分の上限を書いているときの「入りきりません」の文に、減らしても入ることを添えた。H33・H40 の文を今の画面に合わせた
+- `scripts/check-all`：成功（Rust 451件、拡張 26件、Lezer 43件、アプリ 207件）
+- 推奨案で決めたこと R221、人の確認 H40（`docs/review-for-human.md`）
 
 ### 2026-10-09 T4-9 設定DBの既定の型とテンプレート集（人の追加の頼み。D082）
 

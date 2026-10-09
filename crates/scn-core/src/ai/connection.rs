@@ -9,6 +9,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use super::client::{missing_path_hint, request_preview, test_request};
+use super::context::TokenBudget;
 use super::keys::KeyStore;
 use super::task::AiTask;
 use crate::project::AiConnectionDecl;
@@ -66,7 +67,7 @@ pub struct MachineSettings {
     pub tasks: BTreeMap<String, TaskOverride>,
 }
 
-/// この端末での、接続先の URL・モデル・文脈の長さの上書き。
+/// この端末での、接続先の URL・モデル・文脈の長さ・返す分の上限の上書き。
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Override {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -76,6 +77,9 @@ pub struct Override {
     /// 文脈の長さ（正の整数。T4-1）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context_tokens: Option<u64>,
+    /// 返す分の上限（正の整数。T4-10）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output_tokens: Option<u64>,
     /// 構造化出力を使うか（T4-2）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub structured_output: Option<bool>,
@@ -86,6 +90,7 @@ impl Override {
         self.base_url.is_none()
             && self.model.is_none()
             && self.context_tokens.is_none()
+            && self.output_tokens.is_none()
             && self.structured_output.is_none()
     }
 }
@@ -119,12 +124,14 @@ pub struct CloudSettings {
 }
 
 impl MachineSettings {
-    /// 接続先の上書きを置き換える。空の値と0の文脈の長さは上書きしない（すべて無ければ上書きをやめる）。
+    /// 接続先の上書きを置き換える。空の値と0の文脈の長さ・返す分の上限は上書きしない（すべて無ければ上書きを
+    /// やめる）。
     pub fn set_override(&mut self, name: &str, value: Override) {
         let item = Override {
             base_url: non_empty(value.base_url.as_deref()),
             model: non_empty(value.model.as_deref()),
             context_tokens: value.context_tokens.filter(|&n| n > 0),
+            output_tokens: value.output_tokens.filter(|&n| n > 0),
             structured_output: value.structured_output,
         };
         if item.is_empty() {
@@ -222,11 +229,21 @@ pub struct Connection {
     pub allowed: bool,
     /// 文脈の長さ（トークン数）。
     pub context_tokens: u64,
+    /// 返す分の上限（端末の上書きか `project.toml` の値。無ければ文脈の長さから決める。T4-10）。
+    pub output_tokens: Option<u64>,
     /// 構造化出力（`response_format`）を使う（OpenAI 互換だけ。T4-2）。
     pub structured_output: bool,
 }
 
 impl Connection {
+    /// 文脈の長さと返す分の上限（文脈の組み立てに渡す。T4-10）。
+    pub fn budget(&self) -> TokenBudget {
+        TokenBudget {
+            context_tokens: self.context_tokens,
+            output_tokens: self.output_tokens,
+        }
+    }
+
     /// 送り先（行き先とモデル）。人がクラウドへ送ることを確かめた単位（自律と同期。T4-1）。
     pub fn destination(&self) -> String {
         format!("{}\n{}", self.endpoint, self.model)
@@ -275,6 +292,10 @@ pub fn resolve(decl: &AiConnectionDecl, machine: &MachineSettings) -> Result<Con
             Provider::OpenaiCompatible => DEFAULT_CONTEXT_TOKENS,
             Provider::Anthropic => ANTHROPIC_CONTEXT_TOKENS,
         });
+    let output_tokens = over
+        .and_then(|o| o.output_tokens)
+        .filter(|&n| n > 0)
+        .or(decl.output_tokens);
     let structured_output = provider == Provider::OpenaiCompatible
         && over
             .and_then(|o| o.structured_output)
@@ -289,6 +310,7 @@ pub fn resolve(decl: &AiConnectionDecl, machine: &MachineSettings) -> Result<Con
         endpoint,
         allowed,
         context_tokens,
+        output_tokens,
         structured_output,
     })
 }
@@ -397,6 +419,11 @@ pub struct ConnectionStatus {
     pub context_tokens: Option<u64>,
     pub project_context_tokens: Option<u64>,
     pub override_context_tokens: Option<u64>,
+    /// 返す分の上限（解決できたときだけ。書いていなければ文脈の長さから決めた値）、`project.toml` の値、この端末の
+    /// 上書き（T4-10）。
+    pub output_tokens: Option<u64>,
+    pub project_output_tokens: Option<u64>,
+    pub override_output_tokens: Option<u64>,
     /// 構造化出力を使うか（解決できたときだけ）、`project.toml` の値、この端末の上書き（T4-2）。
     pub structured_output: Option<bool>,
     pub project_structured_output: Option<bool>,
@@ -475,6 +502,9 @@ pub fn connection_statuses(
                 context_tokens: resolved.as_ref().ok().map(|c| c.context_tokens),
                 project_context_tokens: decl.context_tokens,
                 override_context_tokens: over.and_then(|o| o.context_tokens),
+                output_tokens: resolved.as_ref().ok().map(|c| c.budget().output()),
+                project_output_tokens: decl.output_tokens,
+                override_output_tokens: over.and_then(|o| o.output_tokens),
                 structured_output: resolved.as_ref().ok().map(|c| c.structured_output),
                 project_structured_output: decl.structured_output,
                 override_structured_output: over.and_then(|o| o.structured_output),

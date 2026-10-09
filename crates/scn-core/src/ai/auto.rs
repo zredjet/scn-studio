@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use super::client::{AiError, ChatRequest, Completion, ensure_answer};
 use super::connection::Connection;
-use super::context::{ContextSources, assemble, preamble};
+use super::context::{ContextSources, TokenBudget, assemble, preamble};
 use super::fielddraft::{ConceptDraft, EntriesDraft, parse_concept_draft, parse_entries_draft};
 use super::generate::{
     draft_into_scene, generated_body, scene_range, stubs_in, with_line_ids, without_temp_ids,
@@ -272,14 +272,15 @@ impl Meter<'_> {
             .saturating_add(done.usage.output_tokens);
         self.host.event(AutoEvent::Tokens { used: self.used });
         // 考えるだけで上限に達し、答えが無ければ、呼び出しの失敗として止める（T4-2）。
-        ensure_answer(&done).map_err(|e| Halt::Error(e.to_string()))?;
+        ensure_answer(&done, request.max_tokens).map_err(|e| Halt::Error(e.to_string()))?;
         Ok(done)
     }
 
-    fn context_tokens(&mut self, task: &AiTask) -> Result<u64, Halt> {
+    /// タスクの接続先の文脈の長さと返す分の上限（T4-10）。
+    fn budget(&mut self, task: &AiTask) -> Result<TokenBudget, Halt> {
         self.host
             .connection(task)
-            .map(|(c, _)| c.context_tokens)
+            .map(|(c, _)| c.budget())
             .map_err(Halt::Error)
     }
 }
@@ -325,7 +326,7 @@ fn inspect(
         if check.level != TaskLevel::Review || check.output != TaskOutput::Findings {
             continue;
         }
-        let ctx = meter.context_tokens(check)?;
+        let ctx = meter.budget(check)?;
         let assembled = assemble(project, &ir, sources, check, Some(scene), ctx);
         if let Some(problem) = assembled.problem {
             issues.push(format!("（{} を実行できません：{problem}）", check.name));
@@ -419,7 +420,7 @@ fn run_stage(
     let (ctx, model) = match meter.host.connection(task) {
         Ok((c, _)) => {
             result.model = c.model.clone();
-            (c.context_tokens, c.model)
+            (c.budget(), c.model)
         }
         Err(e) => {
             result.status = "failed";
@@ -710,7 +711,7 @@ fn draft_scene(
                beats: bool|
      -> Result<String, Halt> {
         let t = scene_task(task, prompt);
-        let ctx = meter.context_tokens(&t)?;
+        let ctx = meter.budget(&t)?;
         let on_ir = crate::analyze(on);
         let mut assembled = assemble(on, &on_ir, sources, &t, Some(scene), ctx);
         if let Some(problem) = assembled.problem.take() {

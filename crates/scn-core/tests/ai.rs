@@ -172,6 +172,7 @@ fn local(provider: Provider, base_url: String) -> Connection {
         cloud: false,
         allowed: true,
         context_tokens: ai::DEFAULT_CONTEXT_TOKENS,
+        output_tokens: None,
         structured_output: false,
     }
 }
@@ -544,6 +545,7 @@ fn over(base_url: Option<&str>, model: Option<&str>, context_tokens: Option<u64>
         base_url: base_url.map(str::to_owned),
         model: model.map(str::to_owned),
         context_tokens,
+        output_tokens: None,
         structured_output: None,
     }
 }
@@ -560,6 +562,7 @@ fn decl(
         base_url: base_url.map(str::to_owned),
         model: model.map(str::to_owned),
         context_tokens: None,
+        output_tokens: None,
         structured_output: None,
     }
 }
@@ -671,6 +674,75 @@ fn context_tokens() {
     );
     assert_eq!(ai::context_limit(8192), 6144);
     assert_eq!(ai::context_limit(200_000), 195_904);
+}
+
+/// 返す分の上限（T4-10）：端末の上書き → `project.toml` → 既定（文脈の長さの4分の1、多くて4096）の順。0 は上書き
+/// しない。文脈の長さだけの組み立ては今までと同じ。
+#[test]
+fn output_tokens() {
+    let mut machine = MachineSettings::default();
+    let mut local = decl("local", None, Some("http://localhost:1234/v1"), Some("m"));
+    local.context_tokens = Some(262_144);
+    let conn = ai::resolve(&local, &machine).unwrap();
+    assert_eq!(conn.output_tokens, None);
+    assert_eq!(conn.budget().output(), 4096);
+    assert_eq!(ai::TokenBudget::from(8192).output(), 2048);
+    local.output_tokens = Some(8192);
+    assert_eq!(
+        ai::resolve(&local, &machine).unwrap().output_tokens,
+        Some(8192)
+    );
+    machine.set_override(
+        "local",
+        ai::Override {
+            output_tokens: Some(16384),
+            ..ai::Override::default()
+        },
+    );
+    let conn = ai::resolve(&local, &machine).unwrap();
+    assert_eq!(conn.budget().output(), 16384);
+    assert_eq!(
+        conn.budget(),
+        ai::TokenBudget {
+            context_tokens: 262_144,
+            output_tokens: Some(16384)
+        }
+    );
+    // 0 は上書きにしない（上書きが無くなる）。
+    machine.set_override(
+        "local",
+        ai::Override {
+            output_tokens: Some(0),
+            ..ai::Override::default()
+        },
+    );
+    assert!(machine.connections.is_empty());
+    assert_eq!(
+        ai::resolve(&local, &machine).unwrap().output_tokens,
+        Some(8192)
+    );
+    // 接続先の様子：解決した値（書かなければ既定から決めた値）、project.toml の値、端末の上書き。
+    let (statuses, _) = ai::connection_statuses(
+        std::slice::from_ref(&local),
+        &machine,
+        &ai::MemoryKeys::default(),
+    );
+    let s = statuses.first().unwrap();
+    assert_eq!(
+        (
+            s.output_tokens,
+            s.project_output_tokens,
+            s.override_output_tokens
+        ),
+        (Some(8192), Some(8192), None)
+    );
+    local.output_tokens = None;
+    let (statuses, _) = ai::connection_statuses(
+        std::slice::from_ref(&local),
+        &machine,
+        &ai::MemoryKeys::default(),
+    );
+    assert_eq!(statuses.first().unwrap().output_tokens, Some(4096));
 }
 
 #[test]
@@ -1018,14 +1090,22 @@ fn task_connection_order() {
     assert_eq!(lan_status.project_context_tokens, Some(4096));
     assert_eq!(lan_status.override_context_tokens, Some(16384));
 
-    // 端末の設定のファイルに書いて読み直す。
+    // 端末の設定のファイルに書いて読み直す（返す分の上限も。T4-10）。
     machine.set_task_connection("concept_questions", Some("lan"));
+    machine.set_override(
+        "lan",
+        ai::Override {
+            output_tokens: Some(8192),
+            ..over(None, Some("gemma3"), Some(16384))
+        },
+    );
     let settings_dir = temp_dir("task-connection-machine");
     let path = settings_dir.join(ai::MACHINE_SETTINGS_FILE);
     ai::write_machine_settings(&path, &machine).unwrap();
     let written = fs::read_to_string(&path).unwrap();
     assert!(written.contains("[tasks.concept_questions]"), "{written}");
     assert!(written.contains("context_tokens = 16384"), "{written}");
+    assert!(written.contains("output_tokens = 8192"), "{written}");
     assert_eq!(ai::read_machine_settings(&path), (machine, None));
     let _ = fs::remove_dir_all(&project);
     let _ = fs::remove_dir_all(&settings_dir);
@@ -1152,9 +1232,25 @@ fn thinking_only_is_no_answer() {
     let done = call(&conn, None, &request()).0.unwrap();
     assert_eq!(done.text, "");
     assert_eq!(done.stop_reason.as_deref(), Some("length"));
-    let error = ai::ensure_answer(&done).unwrap_err();
-    assert!(matches!(error, AiError::ThinkingOnly(6)), "{error:?}");
-    assert!(error.to_string().contains("文脈の長さ"), "{error}");
+    let error = ai::ensure_answer(&done, Some(4096)).unwrap_err();
+    assert!(
+        matches!(
+            error,
+            AiError::ThinkingOnly {
+                chars: 6,
+                max_tokens: Some(4096)
+            }
+        ),
+        "{error:?}"
+    );
+    assert!(
+        error
+            .to_string()
+            .contains("返す分の上限（4096 トークン）に達し"),
+        "{error}"
+    );
+    let error = ai::ensure_answer(&done, None).unwrap_err();
+    assert!(error.to_string().contains("返す分の上限に達し"), "{error}");
     // 答えがあれば、空の答えでも考えていなければ誤りにしない。
     let ok = Completion {
         text: "はい".to_owned(),
@@ -1162,8 +1258,8 @@ fn thinking_only_is_no_answer() {
         stop_reason: Some("length".to_owned()),
         ..Completion::default()
     };
-    assert!(ai::ensure_answer(&ok).is_ok());
-    assert!(ai::ensure_answer(&Completion::default()).is_ok());
+    assert!(ai::ensure_answer(&ok, None).is_ok());
+    assert!(ai::ensure_answer(&Completion::default(), None).is_ok());
 }
 
 fn schema_request() -> ChatRequest {

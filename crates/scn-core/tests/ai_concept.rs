@@ -364,6 +364,7 @@ fn run_concept_task() {
         cloud: false,
         allowed: true,
         context_tokens: 32768,
+        output_tokens: None,
         structured_output: true,
     };
     let outcome = ai::run_task(

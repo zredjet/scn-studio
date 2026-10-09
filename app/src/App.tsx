@@ -3449,6 +3449,7 @@ export function App() {
                       baseUrl,
                       model,
                       contextTokens,
+                      outputTokens,
                       structured,
                     ) =>
                       setAiOverride(
@@ -3456,6 +3457,7 @@ export function App() {
                         baseUrl,
                         model,
                         contextTokens,
+                        outputTokens,
                         structured,
                       ).finally(() => aiChanged([name]))
                     }

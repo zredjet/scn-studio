@@ -140,10 +140,16 @@ pub enum AiError {
     Server(String),
     #[error("応答を読めません：{0}")]
     Protocol(String),
-    #[error(
-        "考えるだけで長さの上限に達し、答えがありません（考えた分 {0} 字）。接続先の文脈の長さを増やす（返す分も増えます）か、考えない設定のモデルを使います"
-    )]
-    ThinkingOnly(u64),
+    /// 考えるだけで返す分の上限に達し、答えが無い（T4-2）。`max_tokens` は送った返す分の上限（T4-10）。
+    #[error("{}", thinking_only_message(*.chars, *.max_tokens))]
+    ThinkingOnly { chars: u64, max_tokens: Option<u32> },
+}
+
+fn thinking_only_message(chars: u64, max_tokens: Option<u32>) -> String {
+    let limit = max_tokens.map_or_else(String::new, |n| format!("（{n} トークン）"));
+    format!(
+        "考えるだけで返す分の上限{limit}に達し、答えがありません（考えた分 {chars} 字）。環境設定で接続先の「返す分の上限」を増やすか、考えない設定のモデルを使います"
+    )
 }
 
 /// 考えた中身の開きと閉じのタグ（T4-2）。
@@ -174,14 +180,17 @@ pub fn strip_thinking(text: &str) -> (String, u64) {
 }
 
 /// 答えがあるか（T4-2）：考えた中身を除くと空で、長さの上限で終わったら、答えの無い誤り。タスクの実行で使う
-/// （「接続を試す」では誤りにしない）。
-pub fn ensure_answer(completion: &Completion) -> Result<(), AiError> {
+/// （「接続を試す」では誤りにしない）。`max_tokens` は送った返す分の上限（誤りの文に添える。T4-10）。
+pub fn ensure_answer(completion: &Completion, max_tokens: Option<u32>) -> Result<(), AiError> {
     let ended_by_length = matches!(
         completion.stop_reason.as_deref(),
         Some("length" | "max_tokens")
     );
     if completion.text.trim().is_empty() && completion.thinking_chars > 0 && ended_by_length {
-        return Err(AiError::ThinkingOnly(completion.thinking_chars));
+        return Err(AiError::ThinkingOnly {
+            chars: completion.thinking_chars,
+            max_tokens,
+        });
     }
     Ok(())
 }

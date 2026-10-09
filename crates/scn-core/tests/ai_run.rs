@@ -199,6 +199,7 @@ fn connection(base_url: String) -> Connection {
         cloud: false,
         allowed: true,
         context_tokens: 8192,
+        output_tokens: None,
         structured_output: false,
     }
 }
@@ -260,6 +261,56 @@ fn run_review_task() {
     let user = sent["messages"][1]["content"].as_str().unwrap();
     assert!(user.contains("灯「やっと来た。遅いよ」 ^k3f9"), "{user}");
     assert_eq!(sent["max_tokens"], 2048);
+
+    // 返す分の上限を接続先で決めれば、それを送る（T4-10）。
+    let (url, received) = serve("[]");
+    let conn = Connection {
+        context_tokens: 32768,
+        output_tokens: Some(16384),
+        ..connection(url)
+    };
+    ai::run_task(
+        &project,
+        &ir,
+        &sources,
+        task,
+        Some("s012"),
+        &conn,
+        None,
+        None,
+        &options(),
+        &cancel,
+        &mut |_| {},
+    )
+    .unwrap();
+    let sent: serde_json::Value = serde_json::from_str(&received.lock().unwrap()).unwrap();
+    assert_eq!(sent["max_tokens"], 16384);
+    // 文脈の長さ以上なら、送らずに実行できない理由にする。
+    let (url, received) = serve("[]");
+    let conn = Connection {
+        context_tokens: 8192,
+        output_tokens: Some(8192),
+        ..connection(url)
+    };
+    let error = ai::run_task(
+        &project,
+        &ir,
+        &sources,
+        task,
+        Some("s012"),
+        &conn,
+        None,
+        None,
+        &options(),
+        &cancel,
+        &mut |_| {},
+    )
+    .unwrap_err();
+    assert!(
+        matches!(&error, RunError::Context(m) if m.contains("返す分の上限（8192）")),
+        "{error:?}"
+    );
+    assert!(received.lock().unwrap().is_empty());
 }
 
 #[test]
@@ -593,7 +644,19 @@ fn structured_findings_and_thinking() {
     )
     .unwrap_err();
     assert!(
-        matches!(error, RunError::Ai(ai::AiError::ThinkingOnly(_))),
+        matches!(
+            &error,
+            RunError::Ai(ai::AiError::ThinkingOnly {
+                max_tokens: Some(2048),
+                ..
+            })
+        ),
         "{error:?}"
+    );
+    // 誤りの文に、返す分の上限と直し方（返す分の上限を増やす）を書く（T4-10）。
+    let text = error.to_string();
+    assert!(
+        text.contains("返す分の上限（2048 トークン）") && text.contains("「返す分の上限」を増やす"),
+        "{text}"
     );
 }

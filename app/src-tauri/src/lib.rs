@@ -2187,13 +2187,16 @@ fn ai_connections(state: State<'_, AppState>, app: AppHandle) -> Result<Response
     }))
 }
 
-/// この端末での、接続先の URL・モデル・文脈の長さ（T4-1）・構造化出力（T4-2）の上書き。空なら上書きをやめる。
+/// この端末での、接続先の URL・モデル・文脈の長さ（T4-1）・返す分の上限（T4-10）・構造化出力（T4-2）の上書き。
+/// 空なら上書きをやめる。
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 fn set_ai_override(
     name: String,
     base_url: Option<String>,
     model: Option<String>,
     context_tokens: Option<u64>,
+    output_tokens: Option<u64>,
     structured_output: Option<bool>,
     state: State<'_, AppState>,
     app: AppHandle,
@@ -2208,6 +2211,7 @@ fn set_ai_override(
                 base_url,
                 model,
                 context_tokens,
+                output_tokens,
                 structured_output,
             },
         );
@@ -2457,7 +2461,7 @@ fn ai_prepare(
                     &sources,
                     definition,
                     scene.as_deref(),
-                    conn.context_tokens,
+                    conn.budget(),
                 )
             })
             .map_err(|e| format!("解析のスレッドを作れません：{e}"))?
@@ -2964,7 +2968,7 @@ async fn ai_summarize(
                         &sources,
                         &definition,
                         Some(scene),
-                        conn.context_tokens,
+                        conn.budget(),
                     );
                     let digest = ai::content_digest(&conn, &assembled);
                     match ai::run_task(

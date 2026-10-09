@@ -6,7 +6,9 @@ import type { AiConnection } from "../src/core/types.ts";
 import {
   currentTest,
   indicator,
+  outputTokensProblem,
   parseContextTokens,
+  parseOutputTokens,
   readiness,
   replyText,
   structuredChoice,
@@ -35,6 +37,9 @@ function connection(over: Partial<AiConnection>): AiConnection {
     context_tokens: 8192,
     project_context_tokens: null,
     override_context_tokens: null,
+    output_tokens: 2048,
+    project_output_tokens: null,
+    override_output_tokens: null,
     structured_output: false,
     project_structured_output: null,
     override_structured_output: null,
@@ -195,6 +200,19 @@ test("文脈の長さの上書きの欄（T4-1）：空は上書きなし、正�
   assert.equal(parseContextTokens("-1"), "invalid");
   assert.equal(parseContextTokens("8k"), "invalid");
   assert.equal(parseContextTokens("1.5"), "invalid");
+});
+
+test("返す分の上限の欄（T4-10）：読み方は文脈の長さと同じ。文脈の長さ以上なら知らせる", () => {
+  assert.equal(parseOutputTokens(""), null);
+  assert.equal(parseOutputTokens("16,384"), 16384);
+  assert.equal(parseOutputTokens("0"), "invalid");
+  assert.equal(outputTokensProblem(262144, 16384), null);
+  assert.equal(outputTokensProblem(null, 16384), null);
+  assert.equal(outputTokensProblem(8192, null), null);
+  assert.equal(
+    outputTokensProblem(8192, 8192),
+    "返す分の上限（8,192）が文脈の長さ（8,192）以上です。文脈に使える分が残らないので、タスクを実行できません",
+  );
 });
 
 test("構造化出力の欄（T4-2）：project.toml のまま・使う・使わない", () => {

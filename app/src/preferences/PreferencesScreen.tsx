@@ -1,13 +1,15 @@
 // 環境設定（左端のバーの「環境設定」。T3-5、D066）：AIの接続先。接続先は作品フォルダの project.toml の
-// [ai.<名前>] に書き、URL・モデル・文脈の長さ（T4-1）の上書き・クラウドへの送信の許可・キーは、この端末だけの
-// 設定にする。
+// [ai.<名前>] に書き、URL・モデル・文脈の長さ（T4-1）・返す分の上限（T4-10）の上書き・クラウドへの送信の許可・
+// キーは、この端末だけの設定にする。
 // キーは入力をコアへ渡すだけで、画面には戻ってこない。
 
 import { useState } from "react";
 import type { AiConnection, AiConnections } from "../core/types.ts";
 import {
   currentTest,
+  outputTokensProblem,
   parseContextTokens,
+  parseOutputTokens,
   placeLabel,
   readiness,
   replyText,
@@ -28,6 +30,7 @@ interface Props {
     baseUrl: string | null,
     model: string | null,
     contextTokens: number | null,
+    outputTokens: number | null,
     structuredOutput: boolean | null,
   ) => Promise<void>;
   readonly onAllow: (endpoint: string, allowed: boolean) => Promise<void>;
@@ -139,6 +142,27 @@ function ConnectionCard({
     c.override_context_tokens === null ? "" : String(c.override_context_tokens),
   );
   const parsedTokens = parseContextTokens(tokens);
+  const [output, setOutput] = useState(
+    c.override_output_tokens === null ? "" : String(c.override_output_tokens),
+  );
+  const parsedOutput = parseOutputTokens(output);
+  // 保存したときに効く文脈の長さと返す分の上限で比べる（欄が空なら project.toml の値。どちらも無ければ、今
+  // 上書きしていないときだけ今の値。分からなければ比べない。返す分の既定は文脈の長さから決まるので、返す分を書いた
+  // ときだけ比べる）。どちらの欄も空なら比べない（project.toml だけの食い違いで、ほかの上書きを止めない。実行は
+  // コアが断る）。
+  const outputProblem =
+    tokens.trim() === "" && output.trim() === ""
+      ? null
+      : outputTokensProblem(
+          parsedTokens === "invalid"
+            ? null
+            : (parsedTokens ??
+                c.project_context_tokens ??
+                (c.override_context_tokens === null ? c.context_tokens : null)),
+          parsedOutput === "invalid"
+            ? null
+            : (parsedOutput ?? c.project_output_tokens),
+        );
   const [structured, setStructured] = useState<StructuredChoice>(
     structuredChoice(c.override_structured_output),
   );
@@ -160,11 +184,13 @@ function ConnectionCard({
     c.override_base_url !== null ||
     c.override_model !== null ||
     c.override_context_tokens !== null ||
+    c.override_output_tokens !== null ||
     c.override_structured_output !== null;
   const changed =
     url.trim() !== (c.override_base_url ?? "") ||
     model.trim() !== (c.override_model ?? "") ||
     parsedTokens !== c.override_context_tokens ||
+    parsedOutput !== c.override_output_tokens ||
     structuredValue(structured) !== c.override_structured_output;
   const startTest = () => {
     setConfirming(false);
@@ -239,6 +265,26 @@ function ConnectionCard({
             </span>
           )}
         </dd>
+        <dt>返す分の上限</dt>
+        <dd>
+          <code>
+            {c.output_tokens === null
+              ? "（なし）"
+              : `${c.output_tokens.toLocaleString("ja-JP")} トークン`}
+          </code>
+          {c.override_output_tokens !== null ? (
+            <span className="ai-note">
+              この端末で上書き（project.toml：
+              {c.project_output_tokens?.toLocaleString("ja-JP") ?? "なし"}）
+            </span>
+          ) : (
+            c.project_output_tokens === null && (
+              <span className="ai-note">
+                既定（文脈の長さの4分の1、多くて4,096）
+              </span>
+            )
+          )}
+        </dd>
       </dl>
       {missing !== null && <p className="export-warning">{missing}</p>}
       <fieldset className="ai-override">
@@ -279,6 +325,22 @@ function ConnectionCard({
             onChange={(e) => setTokens(e.target.value)}
           />
         </label>
+        <label>
+          <span>返す分の上限（トークン。考えるモデルは考える分も含む）</span>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={output}
+            placeholder={
+              c.project_output_tokens === null
+                ? "既定"
+                : String(c.project_output_tokens)
+            }
+            spellCheck={false}
+            aria-invalid={parsedOutput === "invalid" || outputProblem !== null}
+            onChange={(e) => setOutput(e.target.value)}
+          />
+        </label>
         {canStructure && (
           <label>
             <span>構造化出力（JSON の形を指定）</span>
@@ -300,11 +362,25 @@ function ConnectionCard({
             などで読み込んだときの長さ）
           </span>
         )}
+        {parsedOutput === "invalid" && (
+          <span className="ai-field-problem">
+            返す分の上限は正の整数で書きます（考えるモデルでは 16384 など）
+          </span>
+        )}
+        {outputProblem !== null && (
+          <span className="ai-field-problem">{outputProblem}</span>
+        )}
         <div className="ai-actions">
           <button
             type="button"
             className="small-button"
-            disabled={busy || !changed || parsedTokens === "invalid"}
+            disabled={
+              busy ||
+              !changed ||
+              parsedTokens === "invalid" ||
+              parsedOutput === "invalid" ||
+              outputProblem !== null
+            }
             onClick={() =>
               act(
                 () =>
@@ -313,6 +389,7 @@ function ConnectionCard({
                     url.trim() === "" ? null : url.trim(),
                     model.trim() === "" ? null : model.trim(),
                     parsedTokens === "invalid" ? null : parsedTokens,
+                    parsedOutput === "invalid" ? null : parsedOutput,
                     structuredValue(structured),
                   ),
                 "上書きを保存しました",
@@ -330,9 +407,10 @@ function ConnectionCard({
                 setUrl("");
                 setModel("");
                 setTokens("");
+                setOutput("");
                 setStructured("project");
                 act(
-                  () => onOverride(c.name, null, null, null, null),
+                  () => onOverride(c.name, null, null, null, null, null),
                   "上書きをやめました",
                 );
               }}

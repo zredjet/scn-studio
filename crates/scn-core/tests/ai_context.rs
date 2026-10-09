@@ -337,6 +337,50 @@ fn needs_scene_and_prompt() {
     assert!(a.notes.iter().any(|n| n.contains("前のシーンまでの要約")));
 }
 
+/// 返す分の上限（T4-10）：書けば、文脈の上限は「文脈の長さ − 返す分の上限」。文脈の長さ以上なら実行できない。
+/// 書かなければ今までと同じ（4分の1、多くて4096）。
+#[test]
+fn output_budget() {
+    let (project, sources) = houkago();
+    let ir = analyze(&project);
+    let tone = project
+        .ai_tasks
+        .iter()
+        .find(|t| t.id == "tone_check")
+        .unwrap();
+    let budget = |context_tokens, output_tokens| ai::TokenBudget {
+        context_tokens,
+        output_tokens,
+    };
+    let a = ai::assemble(&project, &ir, &sources, tone, Some("s012"), 8192);
+    assert_eq!((a.output_tokens, a.limit), (2048, 6144));
+    let a = ai::assemble(&project, &ir, &sources, tone, Some("s012"), 262_144);
+    assert_eq!((a.output_tokens, a.limit), (4096, 258_048));
+    let a = ai::assemble(
+        &project,
+        &ir,
+        &sources,
+        tone,
+        Some("s012"),
+        budget(262_144, Some(16384)),
+    );
+    assert_eq!((a.output_tokens, a.limit), (16384, 245_760));
+    assert_eq!(a.problem, None);
+    for output in [8192, 9000] {
+        let a = ai::assemble(
+            &project,
+            &ir,
+            &sources,
+            tone,
+            Some("s012"),
+            budget(8192, Some(output)),
+        );
+        let problem = a.problem.unwrap();
+        assert!(problem.contains("文脈に使える分が残りません"), "{problem}");
+        assert!(a.sections.is_empty());
+    }
+}
+
 /// シーンの要約は、キャッシュ（本文のハッシュが合うとき）→ メタ情報の summary → 題名の順に使う。
 #[test]
 fn summary_cache() {

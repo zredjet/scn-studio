@@ -616,6 +616,13 @@ export interface AiConnection {
   readonly context_tokens: number | null;
   readonly project_context_tokens: number | null;
   readonly override_context_tokens: number | null;
+  /**
+   * 返す分の上限（解決できたときだけ。書いていなければ文脈の長さから決めた値）、project.toml の値、この端末の
+   * 上書き（T4-10）。
+   */
+  readonly output_tokens: number | null;
+  readonly project_output_tokens: number | null;
+  readonly override_output_tokens: number | null;
   /** 構造化出力を使うか（解決できたときだけ）、project.toml の値、この端末の上書き（T4-2）。 */
   readonly structured_output: boolean | null;
   readonly project_structured_output: boolean | null;
@@ -713,6 +720,8 @@ export interface AiAssembled {
   readonly task: string;
   readonly scene: string | null;
   readonly context_tokens: number;
+  /** 返す分の上限（`max_tokens`。T4-10）。 */
+  readonly output_tokens: number;
   readonly limit: number;
   readonly sections: readonly {
     readonly item: string;

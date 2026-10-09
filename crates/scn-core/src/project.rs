@@ -80,6 +80,8 @@ pub struct AiConnectionDecl {
     pub model: Option<String>,
     /// 文脈の長さ（トークン数。T3-6）。無ければ接続の種類の既定。
     pub context_tokens: Option<u64>,
+    /// 返す分の上限（トークン数。T4-10）。無ければ文脈の長さの4分の1（多くて4096）。
+    pub output_tokens: Option<u64>,
     /// 構造化出力（`response_format`）を使う（OpenAI 互換だけ。T4-2）。無ければ使わない。
     pub structured_output: Option<bool>,
 }
@@ -991,21 +993,26 @@ impl Loader<'_> {
                     }
                 }
             }
-            match conn.get("context_tokens") {
-                None => {}
-                Some(toml::Value::Integer(n)) if *n > 0 => {
-                    decl.context_tokens = u64::try_from(*n).ok();
-                }
-                Some(_) => {
-                    self.diag(
-                        file,
-                        Code::E802,
-                        key_span(text, header, "context_tokens"),
-                        format!(
-                            "[ai.{name}] の context_tokens は正の整数で書きます。この接続先を読み飛ばします"
-                        ),
-                    );
-                    ok = false;
+            for (key, slot) in [
+                ("context_tokens", &mut decl.context_tokens),
+                ("output_tokens", &mut decl.output_tokens),
+            ] {
+                match conn.get(key) {
+                    None => {}
+                    Some(toml::Value::Integer(n)) if *n > 0 => {
+                        *slot = u64::try_from(*n).ok();
+                    }
+                    Some(_) => {
+                        self.diag(
+                            file,
+                            Code::E802,
+                            key_span(text, header, key),
+                            format!(
+                                "[ai.{name}] の {key} は正の整数で書きます。この接続先を読み飛ばします"
+                            ),
+                        );
+                        ok = false;
+                    }
                 }
             }
             match conn.get("structured_output") {

@@ -185,7 +185,7 @@ export function findingLines(
 
 /** 見積もりと上限の文。 */
 export function estimateText(a: AiAssembled): string {
-  return `見積もり ${a.tokens.toLocaleString("ja-JP")} / 上限 ${a.limit.toLocaleString("ja-JP")} トークン（文脈の長さ ${a.context_tokens.toLocaleString("ja-JP")}）`;
+  return `見積もり ${a.tokens.toLocaleString("ja-JP")} / 上限 ${a.limit.toLocaleString("ja-JP")} トークン（文脈の長さ ${a.context_tokens.toLocaleString("ja-JP")}、返す分 ${a.output_tokens.toLocaleString("ja-JP")}）`;
 }
 
 /** 削った節の文。 */

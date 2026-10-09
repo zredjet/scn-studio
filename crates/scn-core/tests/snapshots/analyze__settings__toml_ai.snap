@@ -2,7 +2,8 @@
 source: crates/scn-core/tests/analyze.rs
 expression: "dump_with_disk(&ir, &dir)"
 ---
-project.toml:19:1-19:7 E802 [ai.broken] は表で書きます。この接続先を読み飛ばします
+project.toml:24:1-24:7 E802 [ai.broken] は表で書きます。この接続先を読み飛ばします
 project.toml:11:1-11:15 E802 [ai.cloud] の context_tokens は正の整数で書きます。この接続先を読み飛ばします
 project.toml:16:1-16:18 E802 [ai.lan] の structured_output は true か false で書きます。この接続先を読み飛ばします
 project.toml:6:1-6:6 E802 [ai.local] の model は文字列で書きます。この接続先を読み飛ばします
+project.toml:21:1-21:14 E802 [ai.thinking] の output_tokens は正の整数で書きます。この接続先を読み飛ばします

@@ -536,12 +536,13 @@ export function aiConnections(): Promise<AiConnections> {
   return invoke<AiConnections>("ai_connections");
 }
 
-/** この端末での、接続先の URL・モデル・文脈の長さの上書き（空ならやめる。T4-1）。 */
+/** この端末での、接続先の URL・モデル・文脈の長さ・返す分の上限の上書き（空ならやめる。T4-1、T4-10）。 */
 export function setAiOverride(
   name: string,
   baseUrl: string | null,
   model: string | null,
   contextTokens: number | null,
+  outputTokens: number | null,
   structuredOutput: boolean | null,
 ): Promise<void> {
   return invoke<void>("set_ai_override", {
@@ -549,6 +550,7 @@ export function setAiOverride(
     baseUrl,
     model,
     contextTokens,
+    outputTokens,
     structuredOutput,
   });
 }

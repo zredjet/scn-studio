@@ -198,6 +198,10 @@ enum AiCommand {
         /// 文脈の長さ（トークン数）。省くと、タスクの接続先の context_tokens
         #[arg(long)]
         tokens: Option<u64>,
+        /// 返す分の上限（トークン数）。省くと、タスクの接続先の output_tokens（無ければ文脈の長さの4分の1、多くて
+        /// 4096）
+        #[arg(long, value_parser = clap::value_parser!(u64).range(1..))]
+        output_tokens: Option<u64>,
         /// 対象のルート（ルートの骨格を作るタスクで。依頼に書き足す）
         #[arg(long)]
         route: Option<String>,
@@ -455,6 +459,7 @@ fn run(command: Command) -> Result<u8, CliError> {
                     project,
                     scene,
                     tokens,
+                    output_tokens,
                     route,
                     json,
                 },
@@ -464,6 +469,7 @@ fn run(command: Command) -> Result<u8, CliError> {
             scene.as_deref(),
             route.as_deref(),
             tokens,
+            output_tokens,
             json,
         ),
         Command::Export {
@@ -1498,12 +1504,14 @@ struct CliProvenance<'a> {
 
 /// `scn ai context`：タスクの文脈を組み立てて出す。あらまし（節、削った節、知らせ）は標準エラーに、指示と依頼は
 /// 標準出力に。実行できない（入りきらない、シーンが要る）ときは終了コード1。
+/// `tokens`・`output_tokens` は `--tokens`・`--output-tokens`（省くと接続先の値）。
 fn run_ai_context(
     dir: &Path,
     task_id: &str,
     scene: Option<&str>,
     route: Option<&str>,
     tokens: Option<u64>,
+    output_tokens: Option<u64>,
     json: bool,
 ) -> Result<u8, CliError> {
     use scn_core::ai;
@@ -1519,40 +1527,47 @@ fn run_ai_context(
             }
         )));
     };
-    let context_tokens = match tokens {
-        Some(n) => n,
-        None => {
-            let machine = ai::MachineSettings::default();
-            let name = task.model.clone().or_else(|| {
-                ai::default_connection(&project.settings.ai, &machine).map(str::to_owned)
-            });
-            let resolved = name.as_deref().and_then(|name| {
-                project
-                    .settings
-                    .ai
-                    .iter()
-                    .find(|d| d.name == name)
-                    .map(|d| ai::resolve(d, &machine))
-            });
-            match resolved {
-                Some(Ok(conn)) => conn.context_tokens,
-                Some(Err(problem)) => {
-                    eprintln!(
-                        "{problem}。文脈の長さを {} とします",
-                        ai::DEFAULT_CONTEXT_TOKENS
-                    );
+    // 接続先の値（CLI は端末の上書き `ai.toml` を読まない）。`--tokens` と `--output-tokens` がそれぞれ上書きする。
+    let machine = ai::MachineSettings::default();
+    let name = task
+        .model
+        .clone()
+        .or_else(|| ai::default_connection(&project.settings.ai, &machine).map(str::to_owned));
+    let resolved = name.as_deref().and_then(|name| {
+        project
+            .settings
+            .ai
+            .iter()
+            .find(|d| d.name == name)
+            .map(|d| ai::resolve(d, &machine))
+    });
+    let connection = match resolved {
+        Some(Ok(conn)) => Some(conn.budget()),
+        Some(Err(problem)) => {
+            if tokens.is_none() {
+                eprintln!(
+                    "{problem}。文脈の長さを {} とします",
                     ai::DEFAULT_CONTEXT_TOKENS
-                }
-                None => {
-                    eprintln!(
-                        "接続先「{}」が project.toml にありません。文脈の長さを {} とします",
-                        name.as_deref().unwrap_or("（なし）"),
-                        ai::DEFAULT_CONTEXT_TOKENS
-                    );
-                    ai::DEFAULT_CONTEXT_TOKENS
-                }
+                );
             }
+            None
         }
+        None => {
+            if tokens.is_none() {
+                eprintln!(
+                    "接続先「{}」が project.toml にありません。文脈の長さを {} とします",
+                    name.as_deref().unwrap_or("（なし）"),
+                    ai::DEFAULT_CONTEXT_TOKENS
+                );
+            }
+            None
+        }
+    };
+    let budget = ai::TokenBudget {
+        context_tokens: tokens
+            .or(connection.map(|c| c.context_tokens))
+            .unwrap_or(ai::DEFAULT_CONTEXT_TOKENS),
+        output_tokens: output_tokens.or(connection.and_then(|c| c.output_tokens)),
     };
     let ir = analyze(&project);
     let sources = ai::read_sources(dir);
@@ -1567,7 +1582,7 @@ fn run_ai_context(
         }
         None => task.clone(),
     };
-    let assembled = ai::assemble(&project, &ir, &sources, task, scene, context_tokens);
+    let assembled = ai::assemble(&project, &ir, &sources, task, scene, budget);
     let code = if assembled.problem.is_some() {
         HAS_ERRORS
     } else {
@@ -1580,8 +1595,13 @@ fn run_ai_context(
         return finish(writeln!(out, "{text}"), code);
     }
     eprintln!(
-        "タスク {}（{}）、文脈の長さ {}、上限 {}、見積もり {}",
-        task.id, task.name, assembled.context_tokens, assembled.limit, assembled.tokens
+        "タスク {}（{}）、文脈の長さ {}、返す分 {}、上限 {}、見積もり {}",
+        task.id,
+        task.name,
+        assembled.context_tokens,
+        assembled.output_tokens,
+        assembled.limit,
+        assembled.tokens
     );
     for s in &assembled.sections {
         eprintln!("  入れた：{}（{}）{}", s.title, s.item, s.tokens);

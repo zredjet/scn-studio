@@ -400,8 +400,12 @@ pub fn chat_request(task: &AiTask, assembled: &Assembled) -> ChatRequest {
             role: Role::User,
             content: assembled.user.clone(),
         }],
-        // 返す分（文脈の長さから文脈の上限を除いたもの）。
-        max_tokens: u32::try_from(assembled.context_tokens.saturating_sub(assembled.limit)).ok(),
+        // 返す分（文脈の長さから文脈の上限を除いたもの）。u32 に収まらなければ u32 の最大に切り詰める（上限なしで
+        // 送らない。T4-10）。
+        max_tokens: Some(
+            u32::try_from(assembled.context_tokens.saturating_sub(assembled.limit))
+                .unwrap_or(u32::MAX),
+        ),
         temperature: None,
         schema: output_schema(task.output),
     }
@@ -442,22 +446,16 @@ pub fn run_task(
     on_text: &mut dyn FnMut(Received<'_>),
 ) -> Result<RunOutcome, RunError> {
     runnable(task).map_err(RunError::Unsupported)?;
-    let assembled = assemble(project, ir, sources, task, scene, conn.context_tokens);
+    let assembled = assemble(project, ir, sources, task, scene, conn.budget());
     if let Some(problem) = assembled.problem {
         return Err(RunError::Context(problem));
     }
     if conn.cloud && confirmed != Some(content_digest(conn, &assembled).as_str()) {
         return Err(RunError::Unconfirmed);
     }
-    let completion = complete(
-        conn,
-        key,
-        &chat_request(task, &assembled),
-        options,
-        cancel,
-        on_text,
-    )?;
-    ensure_answer(&completion)?;
+    let request = chat_request(task, &assembled);
+    let completion = complete(conn, key, &request, options, cancel, on_text)?;
+    ensure_answer(&completion, request.max_tokens)?;
     let text = completion.text.clone();
     let mut proposals = Vec::new();
     let mut draft = Vec::new();

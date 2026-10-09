@@ -1662,7 +1662,56 @@ fn ai_context() {
         "{}",
         out.stdout
     );
-    assert!(out.stderr.contains("文脈の長さ 8192"), "{}", out.stderr);
+    assert!(
+        out.stderr
+            .contains("文脈の長さ 8192、返す分 2048、上限 6144"),
+        "{}",
+        out.stderr
+    );
+
+    // 返す分の上限（T4-10）：`--output-tokens` で上書きする。文脈の長さ以上なら実行できない（1）。
+    let out = scn(
+        &[
+            "ai",
+            "context",
+            "tone_check",
+            ".",
+            "--scene",
+            "s012",
+            "--tokens",
+            "32768",
+            "--output-tokens",
+            "16384",
+        ],
+        &dir,
+    );
+    assert_eq!(out.code, SUCCESS, "{}", out.stderr);
+    assert!(
+        out.stderr
+            .contains("文脈の長さ 32768、返す分 16384、上限 16384"),
+        "{}",
+        out.stderr
+    );
+    let out = scn(
+        &[
+            "ai",
+            "context",
+            "tone_check",
+            ".",
+            "--scene",
+            "s012",
+            "--output-tokens",
+            "8192",
+        ],
+        &dir,
+    );
+    assert_eq!(out.code, HAS_ERRORS, "{}", out.stderr);
+    assert!(
+        out.stderr.contains("文脈に使える分が残りません"),
+        "{}",
+        out.stderr
+    );
+    assert_eq!(out.stdout, "");
 
     let out = scn(&["ai", "context", "tone_check", "."], &dir);
     assert_eq!(out.code, HAS_ERRORS);

@@ -146,3 +146,20 @@ export function parseContextTokens(text: string): number | null | "invalid" {
   const n = Number(plain);
   return Number.isSafeInteger(n) && n > 0 ? n : "invalid";
 }
+
+/** 返す分の上限の上書きの欄（T4-10）を読む。読み方は文脈の長さの欄と同じ。 */
+export const parseOutputTokens = parseContextTokens;
+
+/**
+ * 返す分の上限が、文脈の長さ以上で文脈に使える分が残らないときの知らせ（T4-10）。どちらかが分からなければ
+ * `null`。
+ */
+export function outputTokensProblem(
+  contextTokens: number | null,
+  outputTokens: number | null,
+): string | null {
+  if (contextTokens === null || outputTokens === null) return null;
+  return outputTokens >= contextTokens
+    ? `返す分の上限（${outputTokens.toLocaleString("ja-JP")}）が文脈の長さ（${contextTokens.toLocaleString("ja-JP")}）以上です。文脈に使える分が残らないので、タスクを実行できません`
+    : null;
+}

@@ -924,3 +924,9 @@
 - 理由：人の頼み（2026-10-09）。scn コマンドを実行する場面が多いので説明が欲しい。設定DBの型を常に一から作るのが面倒なので、過剰でもよいから既定を充実させ、要らなければ消したい。抽象的な型のテンプレートを複製して別の型にしたい。選択肢（複製か継承か、既定の置き方、説明の置き場所）は人が推奨案を選んだ。
 - 影響：`docs/plan/phase4.md`（T4-8・T4-9）、`docs/guide/scn.md`（新規）、`crates/scn-core/templates/`、`scaffold`、`workspace` の型を作る処理、設定DBの画面、仕様の5節。
 
+## D083 返す分の上限を接続先ごとに上書きできるようにする（2026-10-09）
+
+- 決定：フェーズ4に T4-10 を足す。接続先の設定に返す分の上限 `output_tokens` を足す（`project.toml` の `[ai.<名前>]` と端末の `ai.toml` の `[connections.<名前>]`。決め方は `context_tokens` と同じ）。書けば、文脈に使う上限を「文脈の長さ − 返す分の上限」にし、`max_tokens` を返す分の上限にする。書かなければ今と同じ（文脈の長さの4分の1、多くて4096）。返す分の上限が文脈の長さ以上なら実行しない。環境設定に欄を、`scn ai context` に `--output-tokens` を足す。
+- 理由：人の報告（2026-10-09）。ローカルの考えるモデル（LM Studio、文脈の長さ 262144）で、考える分だけで返す分の 4096 トークンを使い切り、答えの無い誤りで止まった。文脈の長さを増やしても返す分は 4096 より増えず、誤りの文の直し方（文脈の長さを増やす）も当てはまらなかった。
+- 影響：`ai::connection`（`Override`・`Connection`・`ConnectionStatus`）、`ai::context`（`TokenBudget`・`assemble`）、`ai::client`（誤りの文）、`project`（`[ai.<名前>]` の読み方）、Tauri の `set_ai_override` と文脈の組み立て、環境設定の画面、CLI の `ai context`、仕様の2節、`docs/guide/scn.md`。
+
