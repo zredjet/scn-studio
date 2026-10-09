@@ -5,3 +5,4 @@ expression: "dump(&diagnostics, &report, &dir)"
 story/a.scn:12:1-12:12 W508 条件のせいで、選べる選択肢が1つも無くなる道があります（そこで止まります）
 調べきった：true　状態 2　周回の始め方 1　シーン 3/3　選べた選択肢 3/3
 エンディング end1（s3）：着く true　状態 1　選択肢 「取る」 → 「開ける」　flag.鍵=[true]
+変数 flag.鍵：[false,true]

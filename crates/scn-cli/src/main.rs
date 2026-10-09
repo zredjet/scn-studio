@@ -1893,7 +1893,7 @@ fn run_check(dir: &Path, stage: u8, json: bool) -> Result<u8, CliError> {
     finish(written, code)
 }
 
-/// 自動巡回の結果（カバレッジ、エンディングごとの到達条件）を標準エラーに出す。
+/// 自動巡回の結果（カバレッジ、エンディングごとの到達条件、変数ごとの出た値）を標準エラーに出す。
 fn print_playthrough(report: &scn_core::playthrough::Playthrough) {
     eprintln!(
         "自動巡回：状態 {}、周回の始め方 {}、シーン {}/{}、選べた選択肢 {}/{}",
@@ -1942,6 +1942,25 @@ fn print_playthrough(report: &scn_core::playthrough::Playthrough) {
                 String::new()
             } else {
                 format!("　{}", values.join("、"))
+            }
+        );
+    }
+    for (var, seen) in &report.variables {
+        let mut shown: Vec<String> = seen
+            .values
+            .iter()
+            .map(|v| serde_json::to_string(v).unwrap_or_default())
+            .collect();
+        if seen.more {
+            shown.push("…".to_owned());
+        }
+        eprintln!(
+            "変数 {var}：{}{}",
+            shown.join(" | "),
+            if seen.flow {
+                ""
+            } else {
+                "（流れに関わらないので、まとめた道の先の値は数えていません）"
             }
         );
     }

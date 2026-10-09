@@ -363,6 +363,12 @@ fn check_stage2() {
         "{}",
         out.stderr
     );
+    // 変数ごとの、調べた道で出た値（T4-24）。
+    assert!(
+        out.stderr.contains("変数 akari.好感度：0 | 1 | 2 | 3\n"),
+        "{}",
+        out.stderr
+    );
     let out = scn(
         &["check", "samples/houkago", "--stage", "2", "--json"],
         &repo_root(),
@@ -380,6 +386,10 @@ fn check_stage2() {
     );
     assert_eq!(value["playthrough"]["complete"], true);
     assert_eq!(value["playthrough"]["endings"][0]["id"], "akari_end");
+    assert_eq!(
+        value["playthrough"]["variables"]["akari.好感度"],
+        serde_json::json!({ "values": [0, 1, 2, 3], "more": false, "flow": true })
+    );
     assert_eq!(
         scn(&["check", "samples/houkago", "--stage", "3"], &repo_root()).code,
         2

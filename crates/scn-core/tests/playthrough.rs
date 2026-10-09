@@ -105,6 +105,19 @@ fn dump(diagnostics: &[IrDiagnostic], report: &Playthrough, dir: &Path) -> Strin
             values.join(" ")
         ));
     }
+    // 変数ごとの、調べた道で出た値（T4-24）。流れに関わらない変数には印。
+    for (var, seen) in &report.variables {
+        out.push_str(&format!(
+            "変数 {var}：{}{}{}\n",
+            serde_json::to_string(&seen.values).unwrap(),
+            if seen.more { " …" } else { "" },
+            if seen.flow {
+                ""
+            } else {
+                "　流れに関わらない"
+            }
+        ));
+    }
     out
 }
 
@@ -291,6 +304,12 @@ fn hub_counting_stops_quickly() {
     // 値は20個まで書き、書ききれなかった変数を知らせる。
     assert_eq!(good.values["akari.好感度"].len(), 20);
     assert_eq!(good.more, ["akari.好感度"]);
+    // 変数ごとの出た値は50個まで（T4-24）。
+    let seen = &report.variables["akari.好感度"];
+    assert!(
+        seen.values.len() == 50 && seen.more && seen.flow,
+        "{seen:?}"
+    );
     assert!(
         started.elapsed() < std::time::Duration::from_secs(20),
         "{:?}",
@@ -312,4 +331,22 @@ fn call_recursion_stops() {
         "{report:?}"
     );
     assert!(report.endings.iter().any(|e| e.id == "end1" && e.reached));
+}
+
+/// 周回では、流れに関わらない永続の変数も次の周へ持ち越す（T4-24）。変数ごとの出た値に、実際には出ない値
+/// （初期値に戻した周の値）を入れない。
+#[test]
+fn replay_carries_every_persistent_variable() {
+    let report = temp_playthrough(
+        "carry",
+        "周回.解放:\n  type: bool\n  default: false\n  scope: persistent\n周回.回数:\n  type: int\n  default: 0\n  scope: persistent\nflag.x:\n  type: int\n  default: -1\n",
+        "## 始まり #s1\n@if 周回.解放\n  @設定 flag.x = 周回.回数\n@end\n@設定 周回.回数 += 1\n@設定 周回.解放 = true\n@エンディング e1\n",
+    );
+    assert!(report.complete, "{:?}", report.limit);
+    let values = |key: &str| serde_json::to_string(&report.variables[key].values).unwrap();
+    // 1周目は x = -1、2周目は 回数 = 1 から始まるので x = 1（初期値の 0 に戻した x = 0 は出ない）。
+    assert_eq!(values("flag.x"), "[-1,1]");
+    assert_eq!(values("周回.回数"), "[0,1,2]");
+    assert!(!report.variables["周回.回数"].flow);
+    assert!(report.variables["周回.解放"].flow);
 }

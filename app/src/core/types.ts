@@ -1077,6 +1077,16 @@ export interface AiBranches {
   readonly branches: readonly string[];
 }
 
+/** 変数ごとの、調べた道で出た値（コアの `playthrough::VariableValues`。T4-24）。 */
+export interface VariableValues {
+  /** 値の順。多ければ先に出たものだけ。 */
+  readonly values: readonly (boolean | number | string)[];
+  /** 値が多くて、書ききれなかった。 */
+  readonly more: boolean;
+  /** 流れに関わる変数か（関わらない変数は、まとめた道の先で出る値を数えないことがある）。 */
+  readonly flow: boolean;
+}
+
 /** 自動巡回の結果（検証の段階2。コアの `playthrough::Playthrough`、T3-2）。 */
 export interface Playthrough {
   readonly complete: boolean;
@@ -1086,6 +1096,8 @@ export interface Playthrough {
   readonly scenes: Coverage;
   readonly options: Coverage;
   readonly endings: readonly EndingReach[];
+  /** 変数ごとの、調べた道で出た値（名前の順。T4-24）。 */
+  readonly variables: Readonly<Record<string, VariableValues>>;
   readonly diagnostics: readonly IrDiagnostic[];
 }
 

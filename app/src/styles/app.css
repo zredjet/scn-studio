@@ -4246,6 +4246,18 @@ button.sb-btn:hover {
   font-size: var(--fs-small);
 }
 
+/* 取りうる値（検証の段階2。見本 08。T4-24） */
+.variables-values {
+  margin: 0;
+  font-size: var(--fs-small);
+  overflow-wrap: anywhere;
+}
+
+.variables-check-link {
+  align-self: flex-start;
+  padding-left: 0;
+}
+
 .variables-undeclared {
   display: flex;
   flex-wrap: wrap;

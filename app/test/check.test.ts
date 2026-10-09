@@ -9,9 +9,11 @@ import {
 } from "../src/check/group.ts";
 import {
   exampleText,
+  possibleValues,
   quote,
   sortedEndings,
   summaryText,
+  valueRangeText,
   valuesText,
 } from "../src/check/playthrough.ts";
 import type {
@@ -111,6 +113,7 @@ test("自動巡回：道の例は「」で囲み（台詞の形はそのまま�
         more: [],
       },
     ],
+    variables: {},
     diagnostics: [],
   };
   assert.deepEqual(
@@ -178,4 +181,67 @@ test("診断の位置（T4-13、U17）：行はバイト位置までの改行の
     ),
     [{ line: 2, scene: null }],
   );
+});
+
+test("変数の取りうる値（T4-24、N9）：段階2の結果から、値の並びと知らせ", () => {
+  // 整数が3つ以上切れ目なく続くなら範囲、そうでなければ並べる。
+  assert.equal(valueRangeText([2, 0, 1, 3], false), "0〜3");
+  assert.equal(valueRangeText([0, 1], false), "0 | 1");
+  assert.equal(valueRangeText([0, 2, 3], false), "0 | 2 | 3");
+  assert.equal(valueRangeText([0, 1, 2], true), "0 | 1 | 2 | …");
+  assert.equal(valueRangeText(["共通", "灯"], false), '"共通" | "灯"');
+  assert.equal(valueRangeText([false, true], false), "false | true");
+
+  const report: Playthrough = {
+    complete: true,
+    limit: null,
+    states: 3,
+    starts: 1,
+    scenes: { reached: 1, total: 1 },
+    options: { reached: 0, total: 0 },
+    endings: [],
+    variables: {
+      "akari.好感度": { values: [0, 1, 2, 3], more: false, flow: true },
+      "flag.ルート": { values: ["共通", "灯"], more: false, flow: false },
+    },
+    diagnostics: [],
+  };
+  const done = { report, running: false, discarded: false, error: null };
+  assert.deepEqual(possibleValues(done, "akari.好感度"), {
+    text: "0〜3",
+    notes: [],
+    openCheck: false,
+  });
+  const route = possibleValues(done, "flag.ルート");
+  assert.equal(route.text, '"共通" | "灯"');
+  assert.match(route.notes[0] ?? "", /^流れ（条件）に関わらない変数/);
+  assert.deepEqual(possibleValues(done, "flag.無い").notes, [
+    "調べた道では値が出ませんでした",
+  ]);
+  // 調べきれなかった。
+  const partial = possibleValues(
+    { ...done, report: { ...report, complete: false } },
+    "akari.好感度",
+  );
+  assert.deepEqual(partial.notes, [
+    "調べきれなかったので、出ない値があるかもしれません",
+  ]);
+
+  // 調べていない・捨てた・誤り・調べている。
+  const none = { report: null, running: false, discarded: false, error: null };
+  assert.equal(possibleValues(none, "x").openCheck, true);
+  assert.match(possibleValues(none, "x").notes[0] ?? "", /段階2を調べる/);
+  assert.match(
+    possibleValues({ ...none, discarded: true }, "x").notes[0] ?? "",
+    /^本文が変わったので/,
+  );
+  assert.equal(
+    possibleValues({ ...none, error: "E" }, "x").notes[0],
+    "段階2を調べられませんでした：E",
+  );
+  assert.deepEqual(possibleValues({ ...none, running: true }, "x"), {
+    text: null,
+    notes: ["段階2を調べています"],
+    openCheck: false,
+  });
 });

@@ -409,6 +409,8 @@ pub(crate) trait Observer<'a> {
     fn entered(&mut self, _scene: &'a str) {}
     /// `@if`・`@elif` の条件を評価した（真になるまで、上から順に）。
     fn branch(&mut self, _scene: &'a str, _branch: &'a IrBranch, _value: bool) {}
+    /// `@設定` で変数に値を入れた（`value` は入れた後の値。T4-24）。
+    fn assigned(&mut self, _var: &str, _value: &Value) {}
     /// `@エンディング` に着いた（`vars` は着いたときの変数）。
     fn ending(&mut self, _scene: &'a str, _id: Option<&'a str>, _vars: &Variables) {}
     /// 選択肢に着いたが、選べる選択肢が1つも無かった。
@@ -503,7 +505,12 @@ impl<'a> Searcher<'a> {
             }
             top.index += 1;
             match op {
-                Op::Set { var, op, value, .. } => self.set(&mut m.vars, var, op, value),
+                Op::Set { var, op, value, .. } => {
+                    self.set(&mut m.vars, var, op, value);
+                    if let Some(now) = m.vars.get(var) {
+                        obs.assigned(var, now);
+                    }
+                }
                 Op::Choice { span, options, .. } => {
                     let any = options
                         .iter()

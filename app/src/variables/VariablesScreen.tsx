@@ -8,6 +8,7 @@ import { FieldInput } from "../bible/FieldInput.tsx";
 import { type FieldChange, isComposingKey } from "../bible/fields.ts";
 import { SourceView } from "../bible/SourceView.tsx";
 import { useSourceGuard } from "../bible/useSourceGuard.ts";
+import { possibleValues, type Stage2State } from "../check/playthrough.ts";
 import {
   addVariable,
   readVariables,
@@ -79,6 +80,10 @@ interface Props {
   readonly textOf: (file: string) => string | undefined;
   /** 紐づくキャラクターを設定DBで開く。 */
   readonly onOpenCharacter: (id: string) => void;
+  /** 検証の段階2の様子（取りうる値を出す。T4-24、N9）。 */
+  readonly stage2: Stage2State;
+  /** 検証の画面を開く（段階2を調べる・道を見る）。 */
+  readonly onOpenCheck: () => void;
 }
 
 const FILE = "variables.yaml";
@@ -93,6 +98,8 @@ export function VariablesScreen({
   onUnsaved,
   textOf,
   onOpenCharacter,
+  stage2,
+  onOpenCheck,
 }: Props) {
   const [data, setData] = useState<VariablesData | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -755,9 +762,49 @@ export function VariablesScreen({
                 )}
               </section>
             ))}
+            <PossibleValuesSection
+              stage2={stage2}
+              varKey={row.key}
+              onOpenCheck={onOpenCheck}
+            />
           </>
         )}
       </aside>
     </div>
+  );
+}
+
+/** 取りうる値（検証の段階2。見本 08。T4-24、N9）。 */
+function PossibleValuesSection({
+  stage2,
+  varKey,
+  onOpenCheck,
+}: {
+  readonly stage2: Stage2State;
+  readonly varKey: string;
+  readonly onOpenCheck: () => void;
+}) {
+  const possible = possibleValues(stage2, varKey);
+  return (
+    <section className="section" aria-label="取りうる値">
+      <h3 className="h-label">取りうる値（検証の段階2）</h3>
+      {possible.text !== null && (
+        <p className="mono variables-values">{possible.text}</p>
+      )}
+      {possible.notes.map((note) => (
+        <p key={note} className="variables-note">
+          {note}
+        </p>
+      ))}
+      {!stage2.running && (
+        <button
+          type="button"
+          className="btn btn-link variables-check-link"
+          onClick={onOpenCheck}
+        >
+          {possible.openCheck ? "検証で調べる" : "検証で道を見る"}
+        </button>
+      )}
+    </section>
   );
 }

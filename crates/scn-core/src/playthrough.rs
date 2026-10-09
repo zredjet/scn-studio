@@ -37,6 +37,8 @@ const MAX_STARTS: usize = 16;
 const MAX_EXAMPLE: usize = 12;
 /// エンディングごとに書く、変数の値の数の上限。
 const MAX_VALUES: usize = 20;
+/// 変数ごとに書く、調べた道で出た値の数の上限（T4-24）。
+const MAX_VARIABLE_VALUES: usize = 50;
 /// 道の例で、前の周回のエンディングからもう一度始めたところの印。
 pub const REPLAY_MARK: &str = "〔周回〕";
 
@@ -65,6 +67,18 @@ pub struct EndingReach {
     pub more: Vec<String>,
 }
 
+/// 変数ごとの、調べた道で出た値（T4-24、N9。始めの値と、`@設定` で入れた値）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct VariableValues {
+    /// 出た値（値の順。多ければ先に出たものだけ）。
+    pub values: Vec<Value>,
+    /// 値が多くて、`values` に書ききれなかった。
+    pub more: bool,
+    /// 流れに関わる変数か。関わらない変数は、流れに関わる変数が同じ道を1つにまとめて調べるので、まとめた道の
+    /// 先で出る値を数えないことがある。
+    pub flow: bool,
+}
+
 /// 自動巡回の結果。
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Playthrough {
@@ -79,6 +93,8 @@ pub struct Playthrough {
     pub scenes: Coverage,
     pub options: Coverage,
     pub endings: Vec<EndingReach>,
+    /// 変数ごとの、調べた道で出た値（名前の順。T4-24）。
+    pub variables: BTreeMap<String, VariableValues>,
     /// 段階2の診断（ファイルと位置の順）。
     pub diagnostics: Vec<IrDiagnostic>,
 }
@@ -95,10 +111,34 @@ struct Segment<'a> {
     to: Option<usize>,
 }
 
+/// 変数ごとの出た値の記録。
+#[derive(Default)]
+struct Seen {
+    values: BTreeSet<Value>,
+    more: bool,
+}
+
+/// 出た値を覚える（上限を超えたら、書ききれなかった印だけ）。
+fn note(seen: &mut BTreeMap<String, Seen>, var: &str, value: &Value) {
+    let entry = match seen.get_mut(var) {
+        Some(entry) => entry,
+        None => seen.entry(var.to_owned()).or_default(),
+    };
+    if entry.values.contains(value) {
+        return;
+    }
+    if entry.values.len() < MAX_VARIABLE_VALUES {
+        entry.values.insert(value.clone());
+    } else {
+        entry.more = true;
+    }
+}
+
 /// 1つの区間の実行を見る。
 struct Recorder<'a, 'r> {
     scenes: Vec<&'a str>,
     branches: &'r mut BTreeMap<usize, (&'a str, &'a IrBranch, bool)>,
+    seen: &'r mut BTreeMap<String, Seen>,
     endings: Vec<(&'a str, String, Variables)>,
     stuck: Vec<(&'a str, Span, &'a [IrOption])>,
 }
@@ -114,6 +154,10 @@ impl<'a> Observer<'a> for Recorder<'a, '_> {
             .entry(std::ptr::from_ref(branch) as usize)
             .or_insert((scene, branch, false));
         entry.2 |= value;
+    }
+
+    fn assigned(&mut self, var: &str, value: &Value) {
+        note(self.seen, var, value);
     }
 
     fn ending(&mut self, scene: &'a str, id: Option<&'a str>, vars: &Variables) {
@@ -160,7 +204,10 @@ struct Explorer<'a> {
     ir: &'a Ir,
     searcher: Searcher<'a>,
     relevant: BTreeSet<String>,
+    /// 流れに関わる永続の変数（周回の始め方を見分ける）。
     persistent: BTreeSet<String>,
+    /// 永続の変数すべて（次の周へ持ち越す）。
+    persistent_all: BTreeSet<String>,
     states: BTreeMap<Key, usize>,
     /// 状態を最初に見つけた区間（道の例を作る）。
     found_by: Vec<usize>,
@@ -170,6 +217,8 @@ struct Explorer<'a> {
     branches: BTreeMap<usize, (&'a str, &'a IrBranch, bool)>,
     choices: BTreeMap<(String, usize), ChoiceStat<'a>>,
     endings: BTreeMap<String, EndingStat>,
+    /// 変数ごとの出た値。
+    seen: BTreeMap<String, Seen>,
     entered: BTreeSet<&'a str>,
     limit: Option<String>,
     starts: Vec<Start>,
@@ -230,6 +279,9 @@ impl<'a> Explorer<'a> {
         let Some(Start { vars, origin, .. }) = self.starts.get(index) else {
             return;
         };
+        for (var, value) in vars {
+            note(&mut self.seen, var, value);
+        }
         let mut first = Machine {
             scene: "",
             frames: Vec::new(),
@@ -261,6 +313,7 @@ impl<'a> Explorer<'a> {
                     Vec::new()
                 },
                 branches: &mut self.branches,
+                seen: &mut self.seen,
                 endings: Vec::new(),
                 stuck: Vec::new(),
             };
@@ -412,11 +465,17 @@ impl<'a> Explorer<'a> {
         let Some(base) = self.starts.first() else {
             return;
         };
-        let mut vars = base.vars.clone();
-        vars.extend(kept.iter().cloned());
+        // 次の周は、着いたときの永続の変数をすべて持ち越す（流れに関わらない永続の変数も。T4-24 の変数の値で、
+        // 実際には出ない値を出さないため）。始め方を見分けるのは、流れに関わる永続の変数だけ。
+        let mut next = base.vars.clone();
+        next.extend(
+            vars.iter()
+                .filter(|(k, _)| self.persistent_all.contains(*k))
+                .map(|(k, v)| (k.clone(), v.clone())),
+        );
         let index = self.starts.len();
         self.starts.push(Start {
-            vars,
+            vars: next,
             origin: Some(segment),
             root: None,
         });
@@ -579,11 +638,16 @@ pub fn playthrough(project: &Project, ir: &Ir) -> Playthrough {
         .filter(|s| scene_ids_all.contains(s))
         .or_else(|| ir.scenes.first().map(|s| s.id.as_str()));
     let relevant = relevant_variables(ir);
-    let persistent: BTreeSet<String> = project
+    let persistent_all: BTreeSet<String> = project
         .variables
         .iter()
-        .filter(|v| v.scope.as_deref() == Some("persistent") && relevant.contains(&v.key))
+        .filter(|v| v.scope.as_deref() == Some("persistent"))
         .map(|v| v.key.clone())
+        .collect();
+    let persistent: BTreeSet<String> = persistent_all
+        .iter()
+        .filter(|k| relevant.contains(*k))
+        .cloned()
         .collect();
     let mut explorer = Explorer {
         ir,
@@ -594,6 +658,7 @@ pub fn playthrough(project: &Project, ir: &Ir) -> Playthrough {
         },
         relevant,
         persistent,
+        persistent_all,
         states: BTreeMap::new(),
         found_by: Vec::new(),
         segments: Vec::new(),
@@ -601,6 +666,7 @@ pub fn playthrough(project: &Project, ir: &Ir) -> Playthrough {
         branches: BTreeMap::new(),
         choices: BTreeMap::new(),
         endings: BTreeMap::new(),
+        seen: BTreeMap::new(),
         entered: BTreeSet::new(),
         limit: None,
         starts: vec![Start {
@@ -808,6 +874,20 @@ pub fn playthrough(project: &Project, ir: &Ir) -> Playthrough {
             total: total_options,
         },
         endings,
+        variables: explorer
+            .seen
+            .iter()
+            .map(|(var, seen)| {
+                (
+                    var.clone(),
+                    VariableValues {
+                        values: seen.values.iter().cloned().collect(),
+                        more: seen.more,
+                        flow: explorer.relevant.contains(var),
+                    },
+                )
+            })
+            .collect(),
         diagnostics,
     }
 }

@@ -2201,6 +2201,16 @@ export function App() {
     () => [...allDiagnostics, ...(stage2?.diagnostics ?? [])],
     [allDiagnostics, stage2],
   );
+  // 変数の画面の取りうる値（T4-24、N9）。
+  const variablesStage2 = useMemo(
+    () => ({
+      report: stage2,
+      running: stage2Running,
+      discarded: stage2Discarded,
+      error: stage2Error,
+    }),
+    [stage2, stage2Running, stage2Discarded, stage2Error],
+  );
   const counts = countBySeverity(allDiagnostics);
   const conflict =
     currentFile === null ? undefined : conflicts.get(currentFile);
@@ -4064,6 +4074,8 @@ export function App() {
                               seq,
                             }))
                           }
+                          stage2={variablesStage2}
+                          onOpenCheck={() => selectScreen("check")}
                         />
                       </KeepAlive>
                     </section>
