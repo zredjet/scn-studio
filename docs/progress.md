@@ -5,8 +5,8 @@ Claude Codeは、作業を始めるときにこのファイルを読み、タス
 ## 現在の状態
 
 - フェーズ：4（ローカルのLLMと、企画・設定の生成）を、人の確認を除いて終えた（T4-7、2026-10-09、D081）。人の相談と判断（D080）で足したフェーズ。計画は `docs/plan/phase4.md`、残りは `docs/review-for-human.md` の3節（Y1〜Y8）で人の判断を待っている。フェーズ3（支援と拡張）は、人の確認を除いて終えた（T3-17、2026-10-09）。設計検討書の範囲はそこまで。範囲の外の残り（X1〜X16）は推奨案のまま（D079）。フェーズ3の計画は `docs/plan/phase3.md`、設計検討書との突き合わせは `docs/plan/design-check.md`。フェーズ2のゲートは、条件1（書き出したRen'Pyを最後まで遊べる）を自動の範囲で満たし、人の確認（H9、2OSのIMEテスト、H1〜H17）は待ちのまま、人の指示に沿って先へ進めた（T2-11、D062）。フェーズ1のゲートも人の確認待ち（T1-13、D052）。フェーズ0のゲートは条件付きで通過した（T0-9、D040）
-- 作業中のタスク：なし
-- 次のタスク：無し。人の確認（`docs/review-for-human.md` の2節。H32〜H37 はフェーズ4）と、3節の Y1〜Y8 の判断を待つ。人の確認（`docs/review-for-human.md` の2節）は、届いたら T3-1 で取り込む（T2-1 の H1〜H8 も。H18〜H31 も同じ形で）
+- 作業中のタスク：T4-9（設定DBの既定の型とテンプレート集）。人の追加の頼み（2026-10-09、D082）。T4-8（scn コマンドの使い方の説明）は済
+- 次のタスク：T4-9。人の確認（`docs/review-for-human.md` の2節。H32〜H37 はフェーズ4）と、3節の Y1〜Y8 の判断は待つ。人の確認（`docs/review-for-human.md` の2節）は、届いたら T3-1 で取り込む（T2-1 の H1〜H8 も。H18〜H31 も同じ形で）
 - 2026-10-08 から、人の指示で、人に聞かずに設計検討書の範囲（フェーズ1の残り、フェーズ2、フェーズ3）を進めている。人に確認する判断は推奨案で決め、人の環境でしか確かめられないことと一緒に `docs/review-for-human.md` にまとめている
 - T1-1（Windowsでの確認）は、Windowsの環境を用意できたときに行う（`docs/review-for-human.md` の H1。フェーズ3の T3-1 で取り込む）。中身は、フェーズ0で別途対応にした3件（`scripts/check-all.ps1`、アプリの起動、IMEテストのW1）
 
@@ -43,6 +43,19 @@ T3-17 で `docs/review-for-human.md` の3節（X1〜X16）に、推奨案を付�
 - エディタのテーマの `&.cm-focused .cm-selectionBackground` は、CodeMirrorの基本テーマより詳細度が低く、フォーカス中の選択は基本テーマの色（`#d7d4f0`）になっている。`--accent-tint` を効かせるように直すときは、今の行の上で選択が見えにくくならないか確かめる（今の行の背景は60%に薄めている）。T0-8のレビューで気づいた（T1-7で直した。D046）
 
 ## 記録
+
+### 2026-10-09 T4-8 scn コマンドの使い方の説明（人の追加の頼み。D082）
+
+- 作ったもの
+  - `docs/guide/scn.md`：入れ方、早見表（したいこと → コマンド）、共通のきまり（作品フォルダの指し方、標準出力と標準エラー、`--json`、`-o`、診断の形、終了コード）、コマンドごとの使い方と例（new・format-doc・fmt・check・parse・graph・ir・provenance・ai context・export の各種とプラグイン・lsp）、よくある流れ（外部のエディタと AI エージェント、収録、通読と書き出し、Git）、つまずいたとき。出力の例はサンプルで実際に出したもの
+  - `scaffold`：`scn new` が作品フォルダに `SCN.md`（説明の見出しを替え、書いた版を添える）を置き、`scn format-doc` が `FORMAT.md` と一緒に書き直す（`GENERATED_DOCS`・`stale_docs`・`write_generated_docs`。`format_doc_is_stale`・`write_format_doc` は置き換えた）。`--check` はどちらかが古ければ1で、ファイルごとに知らせる
+  - 作品フォルダの `CLAUDE.md` のひな形の「最初に読むもの」と「進め方」に `SCN.md` を足した（サンプルの `CLAUDE.template.md` も同じ頭に直した。共通のひな形とそろっていることをテストが見る）
+  - `scn --help` の説明の1行を「開発用CLI（フェーズ0）」から直し、説明の場所を添えた
+  - 仕様（`docs/spec/project-files.md` の1節と10節）、`README.md`、`CLAUDE.md`、`.claude/rules/rust.md`
+- テスト：`scn-cli` の `guide_covers_every_command_and_option`（clap の定義をたどり、すべてのコマンドと長いオプションが説明にあること。プラグインの引数も）、`format_doc`（`SCN.md` の書き直しと `--check`）、`scn-core` の `graph.rs`（`scn new` が `SCN.md` を書く、片方だけ古い・無いときの `stale_docs`）と `scaffold::tests::scn_doc_has_the_guide`
+- レビュー（plan-reviewer）：コードの誤りは無し。説明の食い違い（上限で止まったときに出さない診断は W506・W507・W509 だけ、`-o -` で標準出力に書けるのはファイル1つを書くものだけ、エンディングの注記の形、縦書きの既定、エラーの数を知らせる書き出し、CLI は端末の文脈の長さの上書きを読まない、Ren'Py などの書き出しを断るわけ、`parse` には行IDが付かない、段階1の W806）を直した
+- `scripts/check-all`：成功（Rust 446件、拡張 26件、Lezer 43件、アプリ 204件。レビューの後の説明の直しの後は、説明を読むテスト `cargo test -p scn-cli --bin scn` と `scaffold` のテストを走らせた）
+- 推奨案で決めたこと R217、人の確認 H38（`docs/review-for-human.md`）
 
 ### 2026-10-09 T4-2 の直し（H33 の報告：接続を試す上限）
 

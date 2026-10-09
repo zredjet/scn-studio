@@ -2,6 +2,7 @@
 //!
 //! 新しい作品フォルダに置くファイルは `templates/` にあり、ビルドのときに埋め込む。
 //! `FORMAT.md` は、`.scn` の仕様書（1〜16節）と作品フォルダの規約から作る。
+//! `SCN.md` は、`scn` コマンドの使い方の説明（`docs/guide/scn.md`。T4-8、D082）から作る。
 
 use std::fs;
 use std::io;
@@ -13,6 +14,11 @@ use crate::project::{ProjectError, write_source};
 const SPEC: &str = include_str!("../../../docs/spec/scn-format-v0.md");
 /// 作品フォルダの規約。
 const PROJECT_FILES: &str = include_str!("../../../docs/spec/project-files.md");
+/// `scn` コマンドの使い方の説明（T4-8、D082）。
+const GUIDE: &str = include_str!("../../../docs/guide/scn.md");
+
+/// ツールが書く説明のファイル（`scn new` が置き、`scn format-doc` が今の版で書き直す。手で直さない）。
+pub const GENERATED_DOCS: [&str; 2] = ["FORMAT.md", "SCN.md"];
 
 /// 作品フォルダの中に置くファイル（パスと中身）。`{{title}}` は作品名にする。
 const TEMPLATES: [(&str, &str); 24] = [
@@ -130,6 +136,29 @@ pub fn format_doc() -> String {
     )
 }
 
+/// `SCN.md` の中身：説明の初めの見出しを、作品フォルダのファイルの見出しと、書いた版の知らせにする。
+pub fn scn_doc() -> String {
+    let body = GUIDE
+        .split_once('\n')
+        .map_or(GUIDE, |(_, rest)| rest)
+        .trim_start();
+    format!(
+        "# scn コマンドの使い方（SCN.md）\n\n\
+         このファイルは scn {version} が書いた。手で直さず、ツールの版が上がったら `scn format-doc` で書き直す。\n\
+         中身は、scn-studio の `docs/guide/scn.md`。\n\n{body}",
+        version = env!("CARGO_PKG_VERSION"),
+    )
+}
+
+/// ツールが書く説明のファイルの、今の版の中身（`GENERATED_DOCS` の名前で）。
+fn generated_doc(name: &str) -> Option<String> {
+    match name {
+        "FORMAT.md" => Some(format_doc()),
+        "SCN.md" => Some(scn_doc()),
+        _ => None,
+    }
+}
+
 /// 作品名を1行にする（改行や制御文字を空白にする）。
 fn one_line(title: &str) -> String {
     title
@@ -175,22 +204,37 @@ pub fn create_project(dir: &Path, title: &str) -> Result<(), ProjectError> {
         let full = dir.join(path);
         fs::create_dir_all(&full).map_err(|e| error(&full, e))?;
     }
-    write_source(dir, "FORMAT.md", &format_doc())
-}
-
-/// `FORMAT.md` を、今のツールの版で書き直す。書き直したら `true`（同じなら書かずに `false`）。
-pub fn write_format_doc(dir: &Path) -> Result<bool, ProjectError> {
-    if !format_doc_is_stale(dir) {
-        return Ok(false);
+    for name in GENERATED_DOCS {
+        if let Some(text) = generated_doc(name) {
+            write_source(dir, name, &text)?;
+        }
     }
-    write_source(dir, "FORMAT.md", &format_doc())?;
-    Ok(true)
+    Ok(())
 }
 
-/// `FORMAT.md` が無いか、今のツールの版と違うか。改行の違い（Gitが `\r\n` にして取り出したときなど）は見ない。
-pub fn format_doc_is_stale(dir: &Path) -> bool {
-    fs::read_to_string(dir.join("FORMAT.md"))
-        .map_or(true, |text| text.replace("\r\n", "\n") != format_doc())
+/// `FORMAT.md` と `SCN.md` を、今のツールの版で書き直す。書き直したファイルの名前を返す（同じなら書かない）。
+pub fn write_generated_docs(dir: &Path) -> Result<Vec<&'static str>, ProjectError> {
+    let mut written = Vec::new();
+    for name in stale_docs(dir) {
+        if let Some(text) = generated_doc(name) {
+            write_source(dir, name, &text)?;
+            written.push(name);
+        }
+    }
+    Ok(written)
+}
+
+/// `FORMAT.md`・`SCN.md` のうち、無いか今のツールの版と違うもの。改行の違い（Gitが `\r\n` にして取り出した
+/// ときなど）は見ない。
+pub fn stale_docs(dir: &Path) -> Vec<&'static str> {
+    GENERATED_DOCS
+        .into_iter()
+        .filter(|name| {
+            fs::read_to_string(dir.join(name)).map_or(true, |text| {
+                Some(text.replace("\r\n", "\n")) != generated_doc(name)
+            })
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -206,6 +250,17 @@ mod tests {
         assert!(!doc.contains("\n## 18. "));
         assert!(doc.contains("# 作品フォルダの規約"));
         assert!(doc.contains(env!("CARGO_PKG_VERSION")));
+    }
+
+    #[test]
+    fn scn_doc_has_the_guide() {
+        let doc = scn_doc();
+        assert!(doc.starts_with("# scn コマンドの使い方（SCN.md）\n"));
+        assert!(doc.contains(env!("CARGO_PKG_VERSION")));
+        assert!(doc.contains("\n## 1. 入れ方"));
+        assert!(doc.contains("\n## 12. つまずいたとき"));
+        // 説明の初めの見出しは、作品フォルダのファイルの見出しに替える。
+        assert!(!doc.contains("\n# scn コマンドの使い方\n"));
     }
 
     #[test]

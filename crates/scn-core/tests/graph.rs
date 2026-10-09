@@ -7,7 +7,8 @@ use scn_core::check::check;
 use scn_core::graph::{Level, build_graph};
 use scn_core::index::build_index;
 use scn_core::scaffold::{
-    claude_md, create_project, format_doc, format_doc_is_stale, write_format_doc,
+    GENERATED_DOCS, claude_md, create_project, format_doc, scn_doc, stale_docs,
+    write_generated_docs,
 };
 use scn_core::{ProjectError, analyze, load_project};
 
@@ -58,6 +59,7 @@ fn new_project_checks_clean() {
         fs::read_to_string(dir.join("FORMAT.md")).unwrap(),
         format_doc()
     );
+    assert_eq!(fs::read_to_string(dir.join("SCN.md")).unwrap(), scn_doc());
     assert_eq!(
         fs::read_to_string(dir.join("CLAUDE.md")).unwrap(),
         claude_md("テスト\"作品\"")
@@ -93,23 +95,29 @@ fn new_project_needs_empty_dir() {
     let _ = fs::remove_dir_all(&dir);
 }
 
-/// `FORMAT.md` が古ければ書き直し、同じなら書かない。
+/// `FORMAT.md` と `SCN.md` が古ければ書き直し、同じなら書かない（T4-8 で `SCN.md` を足した）。
 #[test]
 fn format_doc_rewrite() {
     let dir = temp_dir("format");
     create_project(&dir, "x").unwrap();
-    assert!(!format_doc_is_stale(&dir));
-    assert!(!write_format_doc(&dir).unwrap());
+    assert_eq!(GENERATED_DOCS, ["FORMAT.md", "SCN.md"]);
+    assert!(stale_docs(&dir).is_empty());
+    assert!(write_generated_docs(&dir).unwrap().is_empty());
     // 改行が `\r\n` になっただけなら、古くない。
     fs::write(dir.join("FORMAT.md"), format_doc().replace('\n', "\r\n")).unwrap();
-    assert!(!format_doc_is_stale(&dir));
+    fs::write(dir.join("SCN.md"), scn_doc().replace('\n', "\r\n")).unwrap();
+    assert!(stale_docs(&dir).is_empty());
     fs::write(dir.join("FORMAT.md"), "古い").unwrap();
-    assert!(format_doc_is_stale(&dir));
-    assert!(write_format_doc(&dir).unwrap());
+    assert_eq!(stale_docs(&dir), ["FORMAT.md"]);
+    fs::remove_file(dir.join("SCN.md")).unwrap();
+    assert_eq!(stale_docs(&dir), ["FORMAT.md", "SCN.md"]);
+    assert_eq!(write_generated_docs(&dir).unwrap(), ["FORMAT.md", "SCN.md"]);
     assert_eq!(
         fs::read_to_string(dir.join("FORMAT.md")).unwrap(),
         format_doc()
     );
+    assert_eq!(fs::read_to_string(dir.join("SCN.md")).unwrap(), scn_doc());
+    assert!(stale_docs(&dir).is_empty());
     let _ = fs::remove_dir_all(&dir);
 }
 

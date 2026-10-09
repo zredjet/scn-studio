@@ -10,7 +10,8 @@
 //! - `scn graph [project-dir] [--level scene|chapter|route] [--json]`：シーン、辺、条件、変数の読み書きを、
 //!   粒度ごとに一覧で出す（D044）。
 //! - `scn new <dir> [--title 作品名]`：新しい作品フォルダを作る（D044）。
-//! - `scn format-doc [project-dir] [--check]`：`FORMAT.md` を、今のツールの版で書き直す（D044）。
+//! - `scn format-doc [project-dir] [--check]`：`FORMAT.md` と `SCN.md`（コマンドの使い方。T4-8、D082）を、今の
+//!   ツールの版で書き直す（D044）。
 //! - `scn export script [project-dir] [--format csv|xlsx] [--baseline] [-o file]`：台本を CSV か Excel 形式で
 //!   書き出す（D051、D061）。収録の基準（`export/script-baseline.json`）があれば、変わった台詞を再収録候補にする。
 //! - `scn export renpy [project-dir] [-o dir]`：Ren'Py のスクリプトを書き出す（D053）。
@@ -53,14 +54,20 @@ use scn_core::index::build_index;
 use scn_core::ir::IrDiagnostic;
 use scn_core::line_id::{LineIdGenerator, assign_line_ids};
 use scn_core::project::SourceFile;
-use scn_core::scaffold::{create_project, format_doc_is_stale, write_format_doc};
+use scn_core::scaffold::{create_project, stale_docs, write_generated_docs};
 use scn_core::{
     LineIndex, ParseOptions, ProjectError, Severity, analyze, load_project, parse, write_source,
 };
 use serde::Serialize;
 
 #[derive(Parser)]
-#[command(name = "scn", version, about = ".scn の開発用CLI（フェーズ0）")]
+#[command(
+    name = "scn",
+    version,
+    about = "scn-studio のコマンド：作品フォルダの .scn と設定を解析・検証し、行IDを付け、書き出す",
+    after_help = "使い方の説明：作品フォルダの SCN.md（scn-studio のリポジトリでは docs/guide/scn.md）。\n\
+                  コマンドごとの説明は scn <コマンド> --help。"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -117,12 +124,12 @@ enum Command {
         #[arg(long)]
         title: Option<String>,
     },
-    /// FORMAT.md（形式の仕様と作品フォルダの規約）を、今のツールの版で書き直す
+    /// FORMAT.md（形式の仕様と作品フォルダの規約）と SCN.md（コマンドの使い方）を、今のツールの版で書き直す
     FormatDoc {
         /// プロジェクトのフォルダ（project.toml のあるところ）。省くと今のフォルダ
         #[arg(default_value = ".")]
         project: PathBuf,
-        /// 書き直さずに、古いか（無いか）だけを確かめる。古ければ終了コード1
+        /// 書き直さずに、古いか（無いか）だけを確かめる。どちらかが古ければ終了コード1
         #[arg(long)]
         check: bool,
     },
@@ -2073,19 +2080,87 @@ fn run_new(dir: &Path, title: Option<&str>) -> Result<u8, CliError> {
 fn run_format_doc(dir: &Path, check: bool) -> Result<u8, CliError> {
     // 作品フォルダでなければ（`project.toml` が無ければ）書かない。
     load_project(dir).map_err(CliError::Project)?;
-    let shown = display_path(dir, "FORMAT.md");
+    let shown = |name: &str| display_path(dir, name);
     if check {
-        if format_doc_is_stale(dir) {
-            eprintln!("{shown} は、今のツールの版と違います（scn format-doc で書き直します）");
-            return Ok(HAS_ERRORS);
+        let stale = stale_docs(dir);
+        for name in scn_core::scaffold::GENERATED_DOCS {
+            if stale.contains(&name) {
+                eprintln!(
+                    "{} は、今のツールの版と違います（scn format-doc で書き直します）",
+                    shown(name)
+                );
+            } else {
+                eprintln!("{} は、今のツールの版と同じです", shown(name));
+            }
         }
-        eprintln!("{shown} は、今のツールの版と同じです");
-        return Ok(SUCCESS);
+        return Ok(if stale.is_empty() {
+            SUCCESS
+        } else {
+            HAS_ERRORS
+        });
     }
-    if write_format_doc(dir).map_err(CliError::Project)? {
-        eprintln!("{shown} を書き直しました");
-    } else {
-        eprintln!("{shown} は、今のツールの版と同じです（書き直していません）");
+    let written = write_generated_docs(dir).map_err(CliError::Project)?;
+    for name in scn_core::scaffold::GENERATED_DOCS {
+        if written.contains(&name) {
+            eprintln!("{} を書き直しました", shown(name));
+        } else {
+            eprintln!(
+                "{} は、今のツールの版と同じです（書き直していません）",
+                shown(name)
+            );
+        }
     }
     Ok(SUCCESS)
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::CommandFactory;
+
+    use super::*;
+
+    /// コマンドの使い方の説明（`docs/guide/scn.md`。作品フォルダの `SCN.md`。T4-8、D082）。
+    const GUIDE: &str = include_str!("../../../docs/guide/scn.md");
+
+    /// 完了条件：すべてのコマンドと長いオプションが、使い方の説明にある（コマンドやオプションを足したら説明も直す）。
+    #[test]
+    fn guide_covers_every_command_and_option() {
+        fn walk(command: &clap::Command, path: &str, missing: &mut Vec<String>) {
+            for sub in command.get_subcommands() {
+                let name = sub.get_name();
+                if name == "help" {
+                    continue;
+                }
+                let full = format!("{path} {name}");
+                // `scn export epub|pdf` のようにまとめて書いたものも数える。
+                let written = GUIDE.contains(&format!("`{full}"))
+                    || GUIDE.contains(&format!("{path} {name}|"))
+                    || GUIDE.contains(&format!("|{name} ["));
+                if !written {
+                    missing.push(full.clone());
+                }
+                for arg in sub.get_arguments() {
+                    if let Some(long) = arg.get_long()
+                        && long != "help"
+                        && !GUIDE.contains(&format!("--{long}"))
+                    {
+                        missing.push(format!("{full} --{long}"));
+                    }
+                }
+                walk(sub, &full, missing);
+            }
+        }
+        let mut missing = Vec::new();
+        walk(&Cli::command(), "scn", &mut missing);
+        for arg in PluginArgs::command().get_arguments() {
+            if let Some(long) = arg.get_long()
+                && long != "help"
+                && !GUIDE.contains(&format!("--{long}"))
+            {
+                missing.push(format!("scn export <プロファイル名> --{long}"));
+            }
+        }
+        assert!(GUIDE.contains("`scn export <プロファイル名>"));
+        assert!(missing.is_empty(), "説明に無い：{missing:?}");
+    }
 }

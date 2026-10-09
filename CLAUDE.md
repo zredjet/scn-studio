@@ -17,6 +17,7 @@
 | なぜそう決めたか | `docs/decisions.md` |
 | 全体設計（データモデル、検証、AI、エクスポート） | `docs/design.md` |
 | 画面の構成と見た目 | `docs/ui/README.md`、`docs/ui/mockups/*.html` |
+| `scn` コマンドの使い方（人と AI エージェント向けの説明。作品フォルダの `SCN.md` の元） | `docs/guide/scn.md` |
 | 実データの例（パーサの主要なテスト入力） | `samples/houkago/` |
 
 ## 設計の原則
@@ -67,8 +68,9 @@ app/                    Tauri＋React（src-tauri/ と src/）
   - `cargo run -p scn-cli -- provenance [project-dir] [--json] [-o 書き出し先]`：AI が書いた行（出自の記録で `ai`・`ai-edited` の行）と、企画書と設定DBの AI の項目（T4-3）の一覧と数を出す。`-o` で CSV（UTF-8 の BOM 付き、CRLF）に書く。終了コードは0（作品フォルダでなければ2）
   - `cargo run -p scn-cli -- ai context <タスク> [project-dir] [--scene ID] [--route 名前] [--tokens N]`：AIタスクの定義（`ai/<タスク>.yaml`）から組み立てた文脈（LLM に渡す指示と依頼）を出す（`--route` はルートの骨格の対象のルート）。LLM は呼ばない。入れた節・削った節・知らせは標準エラーに出す（`--json` でJSON）。`--tokens` は文脈の長さ（省くとタスクの接続先の `context_tokens`）。実行できない（シーンが要る、入りきらない）ときは終了コード1、無いタスクは2
   - `cargo run -p scn-cli -- graph [project-dir] [--level scene|chapter|route]`：シーン、辺、条件、変数の読み書きを、粒度ごとに一覧で出す（`--json` でJSON）。辺の文脈は、いちばん内側のもの（選択肢、条件、`@else` の枝）だけ。診断は出さず、終了コードは0（作品フォルダでなければ2）
-  - `cargo run -p scn-cli -- new <dir> [--title 作品名]`：新しい作品フォルダを作る（無いフォルダか空のフォルダに。`project.toml`、スタブの章、`CLAUDE.md`、`FORMAT.md` など）。ひな形は `crates/scn-core/templates/`
-  - `cargo run -p scn-cli -- format-doc [project-dir]`：作品フォルダの `FORMAT.md`（仕様書の1〜16節と作品フォルダの規約）を、今のツールの版で書き直す。`--check` は書き直さずに、古ければ終了コード1
+  - `cargo run -p scn-cli -- new <dir> [--title 作品名]`：新しい作品フォルダを作る（無いフォルダか空のフォルダに。`project.toml`、スタブの章、`CLAUDE.md`、`FORMAT.md`、`SCN.md` など）。ひな形は `crates/scn-core/templates/`
+  - `cargo run -p scn-cli -- format-doc [project-dir]`：作品フォルダの `FORMAT.md`（仕様書の1〜16節と作品フォルダの規約）と `SCN.md`（`docs/guide/scn.md` のコマンドの使い方）を、今のツールの版で書き直す。`--check` は書き直さずに、どちらかが古ければ終了コード1
+  - コマンドやオプションを足したら、`docs/guide/scn.md` にも書く（`cargo test -p scn-cli` が、すべてのコマンドと長いオプションが説明にあることを確かめる）
   - `cargo run -p scn-cli -- export script [project-dir] [--format csv|xlsx] [--baseline] [--no-ai-drafts] [-o 書き出し先]`（`--no-ai-drafts` は AI下書きのシーンの台詞と地の文を省く。`export text`・`export renpy`・`export tyrano`・`export utage` にもある）：台本（行ID、シーン、キャラ、台詞、直前の地の文、ボイスファイル名、備考）を CSV（UTF-8 の BOM 付き、CRLF）か Excel 形式（`--format xlsx`。欄はすべて文字列）で書き出す。既定の書き出し先は作品フォルダの `export/script.csv`（Excel 形式は `export/script.xlsx`）、`-o -` で標準出力。`--baseline` で書き出した台本を収録の基準（`export/script-baseline.json`）として記録し、基準があれば、変わった台詞の備考に「再収録候補」と書いて数を標準エラーに出す。行IDの無い台詞の数も標準エラーに出す。終了コードは `ir` と同じ（エラーの診断があれば1）
   - `cargo run -p scn-cli -- export orders [project-dir] [-o 書き出し先]`：発注リスト（まだファイルの無い素材の表。種別、名前、キャラ、差分、使用回数、初出、使用シーン、備考）を CSV（UTF-8 の BOM 付き、CRLF）で書き出す。既定の書き出し先は作品フォルダの `export/orders.csv`、`-o -` で標準出力。終了コードは `export script` と同じ
   - `cargo run -p scn-cli -- export text [project-dir] [--route 名前 | --ending ID] [--no-notes] [-o 書き出し先]`：道（共通・ルート・エンディング）を一本道にした通読用のテキスト（話者名なし、ルビは `｜親文字《読み》`）を書き出す。`--route` も `--ending` も無ければ、共通とすべてのルートを作品フォルダの `export/text/<道の名前>.txt` に書く。`-o -` で標準出力（1つの道のときだけ）。ルートの無い作品は「通し」として書く。まとめて書くとき、着けない道は標準エラーに知らせて書かない。終了コードは `export script` と同じで、加えて `--route`・`--ending` で指定した道が無い・着けないときは2

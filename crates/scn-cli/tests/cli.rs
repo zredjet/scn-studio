@@ -638,9 +638,28 @@ fn format_doc() {
     assert!(!dir.join("FORMAT.md").exists());
     assert_eq!(scn(&["format-doc"], &dir).code, SUCCESS);
     assert_eq!(fs::read_to_string(dir.join("FORMAT.md")).unwrap(), original);
+    // `SCN.md`（コマンドの使い方。T4-8）も同じく書き直す。
+    let guide = fs::read_to_string(dir.join("SCN.md")).unwrap();
+    assert!(guide.starts_with("# scn コマンドの使い方（SCN.md）"));
+    assert!(guide.contains("## 2. 早見表"));
+    fs::write(dir.join("SCN.md"), "古い").unwrap();
+    let out = scn(&["format-doc", "--check"], &dir);
+    assert_eq!(out.code, HAS_ERRORS);
+    assert!(
+        out.stderr.contains("SCN.md は、今のツールの版と違います")
+            && out
+                .stderr
+                .contains("FORMAT.md は、今のツールの版と同じです"),
+        "{}",
+        out.stderr
+    );
+    assert_eq!(scn(&["format-doc"], &dir).code, SUCCESS);
+    assert_eq!(fs::read_to_string(dir.join("SCN.md")).unwrap(), guide);
+    assert_eq!(scn(&["format-doc", "--check"], &dir).code, SUCCESS);
     // 作品フォルダでなければ書かない。
     assert_eq!(scn(&["format-doc", "."], &base).code, FAILURE);
     assert!(!base.join("FORMAT.md").exists());
+    assert!(!base.join("SCN.md").exists());
     let _ = fs::remove_dir_all(&base);
 }
 
