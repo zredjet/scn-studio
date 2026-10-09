@@ -58,7 +58,7 @@ T3-17 で `docs/review-for-human.md` の3節（X1〜X16）に、推奨案を付�
 - テスト：`tests/ai.rs` の `output_tokens`（解決の順番、既定、0 は上書きにしない、接続先の様子）と端末の設定のファイルへの書き込み、`thinking_only_is_no_answer`（文に上限の数）、`tests/ai_run.rs`（上書きした値が `max_tokens` になる、文脈の長さ以上なら送らずに実行できない、考えるだけの誤りの文）、`tests/ai_context.rs` の `output_budget`（文脈の上限、既定は今と同じ、実行できない理由）、`analyze` の `toml_ai`（`output_tokens = -5` は E802。スナップショットは診断が1つ増え、`[ai.broken]` の行が 19 から 24 に移っただけ）、CLI の `ai_context`、`app/test/preferences.test.ts`（欄の読み方と知らせ）、`app/test/ai.test.ts`（見積もりの文）
 - レビュー（plan-reviewer）：正しさの誤りは無し。仕様9節の `scn ai context` の書式に `--output-tokens` を足し、`max_tokens` を u32 に収まらないときは u32 の最大に切り詰め（上限なしで送らない）、環境設定の比べ方を保存したときに効く値にし、どちらの欄も空なら比べない（`project.toml` だけの食い違いで、ほかの上書きを止めない）ようにした。返す分の上限を書いているときの「入りきりません」の文に、減らしても入ることを添えた。H33・H40 の文を今の画面に合わせた
 - `scripts/check-all`：成功（Rust 451件、拡張 26件、Lezer 43件、アプリ 207件）
-- 推奨案で決めたこと R221、人の確認 H40（`docs/review-for-human.md`）
+- 推奨案で決めたこと R221、人の確認 H40（`docs/review-for-human.md`）。H40 は済（2026-10-09。人が、上限が反映されて問題無いことを確かめた）
 
 ### 2026-10-09 T4-9 設定DBの既定の型とテンプレート集（人の追加の頼み。D082）
 
