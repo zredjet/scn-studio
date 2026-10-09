@@ -205,6 +205,8 @@
 | 行き先 | endpoint | `<provider> <base_url>`。キーとクラウドへの送信の許可の単位 |
 | 端末の設定 | machine settings | アプリの設定のフォルダの `ai.toml`（`ai::MachineSettings`）。接続先ごとの URL・モデル・文脈の長さの上書き（`ai::Override`）、クラウドの許可、タスクの接続先の上書き（`ai::TaskOverride`。T4-1） |
 | タスクの接続先 | task connection | タスクに使う接続先（`ai::task_connection`）。端末の上書き、定義の `model`、既定の接続先の順に決める。どこで決めたか（`ai::TaskConnectionSource`：`machine`・`task`・`default`） |
+| 考えた中身 | thinking | 考えるモデルが答えの前に書く中身（`<think>…</think>`、`reasoning_content`）。本文から除き、字数だけを数える（`Completion::thinking_chars`、`ai::strip_thinking`。進み具合は `ai::Received::Thinking`。T4-2） |
+| 構造化出力 | structured output | OpenAI 互換の `response_format`（`json_schema`）で返す形を指定して頼むこと（接続先の `structured_output`、形は `ai::output_schema`。T4-2） |
 | 送り先 | destination | 行き先とモデル（`Connection::destination`）。自律と同期で、人がクラウドへ送ることを確かめる単位（T4-1） |
 | 既定の接続先 | default connection | `[ai.local]`。無ければ最初のローカルの接続先 |
 | キー | api key | OS のキーチェーンに置く（`ai::KeyStore`） |

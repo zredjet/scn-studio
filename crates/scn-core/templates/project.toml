@@ -26,8 +26,10 @@ indent_narration = true     # 地の文の段落頭に全角空白を入れる�
 # キーはここに書かず、アプリの環境設定で OS のキーチェーンに保存する。
 # [ai.local]
 # provider = "openai-compatible"
-# base_url = "http://localhost:11434/v1"   # Ollama の例
+# base_url = "http://localhost:11434/v1"   # Ollama の例（LM Studio は http://127.0.0.1:1234/v1。/v1 まで書く）
 # model = "[ローカルモデル名]"
+# context_tokens = 8192                    # モデルの文脈の長さ（端末ごとに違えば、アプリの環境設定で上書きする）
+# structured_output = true                 # 返す JSON の形を指定して頼む（対応していないサーバーなら消す）
 #
 # [ai.cloud]
 # provider = "anthropic"

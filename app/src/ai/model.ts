@@ -197,8 +197,22 @@ export interface RunState {
   readonly run: number;
   readonly task: string;
   readonly scene: string | null;
-  /** 届いた文字の数。 */
+  /** 届いた文字の数（考えた中身も含む）。 */
   readonly chars: number;
+  /** 考えている間（考えるモデルの考えた中身が届いている。T4-2）。 */
+  readonly thinking: boolean;
+}
+
+/** 送る中身に構造化出力を付けるときの知らせ（T4-2）。 */
+export const STRUCTURED_NOTE =
+  "構造化出力：返す形（JSON Schema）を response_format で付けて送ります（環境設定で切れます）";
+
+/** 実行中の進み具合の文（T4-2：考えている間は「考えています」）。 */
+export function progressText(state: RunState): string {
+  const chars = state.chars.toLocaleString("ja-JP");
+  return state.thinking
+    ? `考えています · 受け取った文字 ${chars}`
+    : `受け取った文字 ${chars}`;
 }
 
 /** 実行の結果（タスクごとに最後のもの）。 */

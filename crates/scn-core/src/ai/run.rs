@@ -8,9 +8,12 @@
 use std::sync::atomic::AtomicBool;
 
 use serde::Serialize;
-use serde_json::Value;
+use serde_json::{Value, json};
 
-use super::client::{AiError, CallOptions, ChatMessage, ChatRequest, Completion, Role, complete};
+use super::client::{
+    AiError, CallOptions, ChatMessage, ChatRequest, Completion, OutputSchema, Received, Role,
+    complete, ensure_answer,
+};
 use super::connection::Connection;
 use super::context::{Assembled, ContextSources, assemble};
 use super::generate::generated_body;
@@ -321,8 +324,64 @@ pub fn is_skeleton(task: &AiTask) -> bool {
     task.level == TaskLevel::Generate && !task.context.contains(&ContextItem::Scene)
 }
 
-/// 組み立てた文脈を、LLM への頼みにする。
-pub fn chat_request(assembled: &Assembled) -> ChatRequest {
+/// 出力の形ごとの、返す形の JSON Schema（構造化出力。接続先で有効にしたときだけ送る。T4-2）。JSON で返す形
+/// （指摘・提案・メモの分類案）だけ。読み方（[`parse_json_items`]）は `{"<名前>": [...]}` も読む。
+pub fn output_schema(output: TaskOutput) -> Option<OutputSchema> {
+    let text = || json!({"type": "string"});
+    let (name, item) = match output {
+        TaskOutput::Findings => (
+            "findings",
+            json!({
+                "type": "object",
+                "properties": {
+                    "line": text(),
+                    "scene": text(),
+                    "severity": {"type": "string", "enum": ["error", "warning", "info"]},
+                    "message": text(),
+                },
+                "required": ["severity", "message"],
+            }),
+        ),
+        TaskOutput::Diff => (
+            "proposals",
+            json!({
+                "type": "object",
+                "properties": {
+                    "line": text(),
+                    "before": text(),
+                    "after": text(),
+                    "reason": text(),
+                },
+                "required": ["line", "after"],
+            }),
+        ),
+        TaskOutput::Ideas => (
+            "ideas",
+            json!({
+                "type": "object",
+                "properties": {
+                    "file": text(),
+                    "status": {"type": "string", "enum": ["未整理", "採用", "保留", "没"]},
+                    "tags": {"type": "array", "items": text()},
+                    "reason": text(),
+                },
+                "required": ["file"],
+            }),
+        ),
+        TaskOutput::Summary | TaskOutput::Proposals | TaskOutput::Draft => return None,
+    };
+    Some(OutputSchema {
+        name: name.to_owned(),
+        schema: json!({
+            "type": "object",
+            "properties": {name: {"type": "array", "items": item}},
+            "required": [name],
+        }),
+    })
+}
+
+/// 組み立てた文脈を、LLM への頼みにする（返す形があれば添える。T4-2）。
+pub fn chat_request(task: &AiTask, assembled: &Assembled) -> ChatRequest {
     ChatRequest {
         system: Some(assembled.system.clone()),
         messages: vec![ChatMessage {
@@ -332,6 +391,7 @@ pub fn chat_request(assembled: &Assembled) -> ChatRequest {
         // 返す分（文脈の長さから文脈の上限を除いたもの）。
         max_tokens: u32::try_from(assembled.context_tokens.saturating_sub(assembled.limit)).ok(),
         temperature: None,
+        schema: output_schema(task.output),
     }
 }
 
@@ -367,7 +427,7 @@ pub fn run_task(
     confirmed: Option<&str>,
     options: &CallOptions,
     cancel: &AtomicBool,
-    on_text: &mut dyn FnMut(&str),
+    on_text: &mut dyn FnMut(Received<'_>),
 ) -> Result<RunOutcome, RunError> {
     runnable(task).map_err(RunError::Unsupported)?;
     let assembled = assemble(project, ir, sources, task, scene, conn.context_tokens);
@@ -380,11 +440,12 @@ pub fn run_task(
     let completion = complete(
         conn,
         key,
-        &chat_request(&assembled),
+        &chat_request(task, &assembled),
         options,
         cancel,
         on_text,
     )?;
+    ensure_answer(&completion)?;
     let text = completion.text.clone();
     let mut proposals = Vec::new();
     let mut draft = Vec::new();

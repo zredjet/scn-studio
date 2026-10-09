@@ -522,6 +522,10 @@ export interface AiConnection {
   readonly context_tokens: number | null;
   readonly project_context_tokens: number | null;
   readonly override_context_tokens: number | null;
+  /** 構造化出力を使うか（解決できたときだけ）、project.toml の値、この端末の上書き（T4-2）。 */
+  readonly structured_output: boolean | null;
+  readonly project_structured_output: boolean | null;
+  readonly override_structured_output: boolean | null;
   /** 解決できない理由。 */
   readonly problem: string | null;
   /** URL の書き方の知らせ（パスが無い。コアの `missing_path_hint`、T3-1）。 */
@@ -549,6 +553,8 @@ export interface AiTestResult {
     readonly estimated: boolean;
   };
   readonly stop_reason: string | null;
+  /** 考えた中身の字数（本文から除いたもの。T4-2）。 */
+  readonly thinking_chars: number;
   readonly elapsed_ms: number;
 }
 
@@ -641,6 +647,8 @@ export interface AiPrepared {
     readonly model: string;
     readonly cloud: boolean;
     readonly allowed: boolean;
+    /** 構造化出力（返す形の JSON Schema）を付けて送る（T4-2）。 */
+    readonly structured: boolean;
   };
 }
 

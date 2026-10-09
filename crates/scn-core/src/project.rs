@@ -80,6 +80,8 @@ pub struct AiConnectionDecl {
     pub model: Option<String>,
     /// 文脈の長さ（トークン数。T3-6）。無ければ接続の種類の既定。
     pub context_tokens: Option<u64>,
+    /// 構造化出力（`response_format`）を使う（OpenAI 互換だけ。T4-2）。無ければ使わない。
+    pub structured_output: Option<bool>,
 }
 
 /// エディタの入力補助の設定（`project.toml` の `[editor]`）。キーが無ければ切（D047）。
@@ -989,6 +991,21 @@ impl Loader<'_> {
                         key_span(text, header, "context_tokens"),
                         format!(
                             "[ai.{name}] の context_tokens は正の整数で書きます。この接続先を読み飛ばします"
+                        ),
+                    );
+                    ok = false;
+                }
+            }
+            match conn.get("structured_output") {
+                None => {}
+                Some(toml::Value::Boolean(b)) => decl.structured_output = Some(*b),
+                Some(_) => {
+                    self.diag(
+                        file,
+                        Code::E802,
+                        key_span(text, header, "structured_output"),
+                        format!(
+                            "[ai.{name}] の structured_output は true か false で書きます。この接続先を読み飛ばします"
                         ),
                     );
                     ok = false;

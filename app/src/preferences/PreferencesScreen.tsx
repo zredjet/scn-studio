@@ -11,6 +11,9 @@ import {
   placeLabel,
   readiness,
   replyText,
+  type StructuredChoice,
+  structuredChoice,
+  structuredValue,
   type TestRecord,
   type TestState,
   usageText,
@@ -25,6 +28,7 @@ interface Props {
     baseUrl: string | null,
     model: string | null,
     contextTokens: number | null,
+    structuredOutput: boolean | null,
   ) => Promise<void>;
   readonly onAllow: (endpoint: string, allowed: boolean) => Promise<void>;
   readonly onSaveKey: (endpoint: string, key: string) => Promise<void>;
@@ -135,6 +139,11 @@ function ConnectionCard({
     c.override_context_tokens === null ? "" : String(c.override_context_tokens),
   );
   const parsedTokens = parseContextTokens(tokens);
+  const [structured, setStructured] = useState<StructuredChoice>(
+    structuredChoice(c.override_structured_output),
+  );
+  // 構造化出力は OpenAI 互換だけ（T4-2）。
+  const canStructure = c.provider === "openai-compatible";
   const [key, setKey] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -150,11 +159,13 @@ function ConnectionCard({
   const overridden =
     c.override_base_url !== null ||
     c.override_model !== null ||
-    c.override_context_tokens !== null;
+    c.override_context_tokens !== null ||
+    c.override_structured_output !== null;
   const changed =
     url.trim() !== (c.override_base_url ?? "") ||
     model.trim() !== (c.override_model ?? "") ||
-    parsedTokens !== c.override_context_tokens;
+    parsedTokens !== c.override_context_tokens ||
+    structuredValue(structured) !== c.override_structured_output;
   const startTest = () => {
     setConfirming(false);
     setMessage(null);
@@ -195,6 +206,25 @@ function ConnectionCard({
             </span>
           )}
         </dd>
+        {canStructure && (
+          <>
+            <dt>構造化出力</dt>
+            <dd>
+              <code>{c.structured_output === true ? "使う" : "使わない"}</code>
+              {c.override_structured_output !== null && (
+                <span className="ai-note">
+                  この端末で上書き（project.toml：
+                  {c.project_structured_output === null
+                    ? "なし"
+                    : c.project_structured_output
+                      ? "使う"
+                      : "使わない"}
+                  ）
+                </span>
+              )}
+            </dd>
+          </>
+        )}
         <dt>文脈の長さ</dt>
         <dd>
           <code>
@@ -249,6 +279,21 @@ function ConnectionCard({
             onChange={(e) => setTokens(e.target.value)}
           />
         </label>
+        {canStructure && (
+          <label>
+            <span>構造化出力（JSON の形を指定）</span>
+            <select
+              value={structured}
+              onChange={(e) =>
+                setStructured(e.target.value as StructuredChoice)
+              }
+            >
+              <option value="project">project.toml のまま</option>
+              <option value="on">使う</option>
+              <option value="off">使わない</option>
+            </select>
+          </label>
+        )}
         {parsedTokens === "invalid" && (
           <span className="ai-field-problem">
             文脈の長さは正の整数で書きます（LM Studio
@@ -268,6 +313,7 @@ function ConnectionCard({
                     url.trim() === "" ? null : url.trim(),
                     model.trim() === "" ? null : model.trim(),
                     parsedTokens === "invalid" ? null : parsedTokens,
+                    structuredValue(structured),
                   ),
                 "上書きを保存しました",
               )
@@ -284,8 +330,9 @@ function ConnectionCard({
                 setUrl("");
                 setModel("");
                 setTokens("");
+                setStructured("project");
                 act(
-                  () => onOverride(c.name, null, null, null),
+                  () => onOverride(c.name, null, null, null, null),
                   "上書きをやめました",
                 );
               }}

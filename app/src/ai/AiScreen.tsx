@@ -32,11 +32,13 @@ import {
   type ProposalSet,
   placeText,
   preparedFor,
+  progressText,
   type RunResult,
   type RunState,
   routeNames,
   SEVERITY_LABEL,
   type SkeletonTarget,
+  STRUCTURED_NOTE,
   trimmedText,
 } from "./model.ts";
 import { ProposalPanel } from "./ProposalPanel.tsx";
@@ -509,8 +511,7 @@ export function AiScreen({
                   {thisRunning ? (
                     <>
                       <span className="ai-test-state" role="status">
-                        実行中 · 受け取った文字{" "}
-                        {running.chars.toLocaleString("ja-JP")}
+                        実行中 · {progressText(running)}
                       </span>
                       <button
                         type="button"
@@ -579,6 +580,11 @@ export function AiScreen({
                         {n}
                       </p>
                     ))}
+                    {shown.connection.structured && (
+                      <p className="context-faint ai-prepared-note">
+                        {STRUCTURED_NOTE}
+                      </p>
+                    )}
                     {confirming && shown.assembled.problem === null && (
                       <div className="ai-confirm">
                         <p>

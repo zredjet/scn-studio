@@ -147,6 +147,12 @@ fn resolve_by_line_id() {
 
 /// 模擬の OpenAI 互換サーバー：頼みを1つ受け取り、決めた本文をまとめて返す。
 fn serve(body: &str) -> (String, Arc<Mutex<String>>) {
+    serve_ending(body, "stop")
+}
+
+/// 終わった理由も決めて返す（T4-2）。
+fn serve_ending(body: &str, finish: &str) -> (String, Arc<Mutex<String>>) {
+    let finish = finish.to_owned();
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
     let received = Arc::new(Mutex::new(String::new()));
@@ -170,7 +176,7 @@ fn serve(body: &str) -> (String, Arc<Mutex<String>>) {
         reader.read_exact(&mut request).unwrap();
         *slot.lock().unwrap() = String::from_utf8(request).unwrap();
         let reply = serde_json::json!({
-            "choices": [{"message": {"content": body}, "finish_reason": "stop"}],
+            "choices": [{"message": {"content": body}, "finish_reason": finish}],
             "usage": {"prompt_tokens": 900, "completion_tokens": 40}
         })
         .to_string();
@@ -193,6 +199,7 @@ fn connection(base_url: String) -> Connection {
         cloud: false,
         allowed: true,
         context_tokens: 8192,
+        structured_output: false,
     }
 }
 
@@ -529,4 +536,64 @@ fn run_generate_task() {
     assert_eq!(outcome.draft, ["灯「……」", "　風が止んだ。"]);
     // 生成のタスクの文脈には文体（文体見本）が入っている。
     assert!(received.lock().unwrap().contains("文体見本"));
+}
+
+/// 構造化出力（T4-2）：接続先で有効にすると、指摘のタスクは返す形（`{"findings": [...]}`）を付けて頼み、考えた中身
+/// （`<think>`）を除いて読む。考えるだけで長さの上限に達したら、答えの無い誤りにする。
+#[test]
+fn structured_findings_and_thinking() {
+    let project = houkago();
+    let ir = analyze(&project);
+    let sources =
+        ai::read_sources(&PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../samples/houkago"));
+    let task = project
+        .ai_tasks
+        .iter()
+        .find(|t| t.id == "tone_check")
+        .unwrap();
+    let (url, received) = serve(
+        "<think>口調を見る。</think>{\"findings\": [{\"line\": \"k3fg\", \"severity\": \"warning\", \"message\": \"硬い\"}]}",
+    );
+    let mut conn = connection(url);
+    conn.structured_output = true;
+    let cancel = AtomicBool::new(false);
+    let outcome = ai::run_task(
+        &project,
+        &ir,
+        &sources,
+        task,
+        Some("s012"),
+        &conn,
+        None,
+        None,
+        &options(),
+        &cancel,
+        &mut |_| {},
+    )
+    .unwrap();
+    assert_eq!(outcome.findings.len(), 1);
+    assert!(outcome.unread.is_empty(), "{:?}", outcome.unread);
+    assert_eq!(outcome.completion.thinking_chars, 6);
+    let sent: serde_json::Value = serde_json::from_str(&received.lock().unwrap()).unwrap();
+    assert_eq!(sent["response_format"]["json_schema"]["name"], "findings");
+
+    let (url, _) = serve_ending("<think>ずっと考えている", "length");
+    let error = ai::run_task(
+        &project,
+        &ir,
+        &sources,
+        task,
+        Some("s012"),
+        &connection(url),
+        None,
+        None,
+        &options(),
+        &cancel,
+        &mut |_| {},
+    )
+    .unwrap_err();
+    assert!(
+        matches!(error, RunError::Ai(ai::AiError::ThinkingOnly(_))),
+        "{error:?}"
+    );
 }

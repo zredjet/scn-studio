@@ -528,12 +528,14 @@ export function setAiOverride(
   baseUrl: string | null,
   model: string | null,
   contextTokens: number | null,
+  structuredOutput: boolean | null,
 ): Promise<void> {
   return invoke<void>("set_ai_override", {
     name,
     baseUrl,
     model,
     contextTokens,
+    structuredOutput,
   });
 }
 
@@ -835,10 +837,16 @@ export function aiBranchDelete(name: string): Promise<void> {
 
 /** AIタスクの実行の進み具合（届いた文字の数）。 */
 export function onAiRunProgress(
-  handler: (progress: { readonly run: number; readonly chars: number }) => void,
+  handler: (progress: {
+    readonly run: number;
+    readonly chars: number;
+    /** 考えている間（T4-2）。 */
+    readonly thinking: boolean;
+  }) => void,
 ): Promise<UnlistenFn> {
-  return listen<{ run: number; chars: number }>("ai-run-progress", (event) =>
-    handler(event.payload),
+  return listen<{ run: number; chars: number; thinking: boolean }>(
+    "ai-run-progress",
+    (event) => handler(event.payload),
   );
 }
 

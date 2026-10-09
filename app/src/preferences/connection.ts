@@ -96,13 +96,33 @@ export function indicator(
   };
 }
 
-/** 試した応答の文。空なら、終わった理由を添える（考えるモデルが上限に達したときなど）。 */
+/**
+ * 試した応答の文。空なら、終わった理由を添える。考えるモデル（T4-2）は、考えた中身を除いたことと、考える分で
+ * 上限に達しても、つながっていることを添える。
+ */
 export function replyText(result: AiTestResult): string {
   const text = result.text.trim();
-  if (text !== "") return `応答「${text}」`;
+  const thought = result.thinking_chars.toLocaleString("ja-JP");
+  if (text !== "")
+    return result.thinking_chars > 0
+      ? `応答「${text}」（考えた中身 ${thought} 字は除きました）`
+      : `応答「${text}」`;
+  if (result.thinking_chars > 0)
+    return `応答（考えた中身 ${thought} 字だけで、答えの前に上限（${result.stop_reason ?? "なし"}）に達しました。つながっています。作品のタスクでは、文脈の長さを十分に取ります）`;
   return result.stop_reason === null
     ? "応答（空）"
     : `応答（空。終わった理由：${result.stop_reason}）`;
+}
+
+/** 構造化出力の欄（T4-2）：project.toml のまま（null）・使う・使わない。 */
+export type StructuredChoice = "project" | "on" | "off";
+
+export function structuredChoice(value: boolean | null): StructuredChoice {
+  return value === null ? "project" : value ? "on" : "off";
+}
+
+export function structuredValue(choice: StructuredChoice): boolean | null {
+  return choice === "project" ? null : choice === "on";
 }
 
 /** 試した結果の数（トークン数と時間）。 */

@@ -28,6 +28,7 @@ import {
   placeText,
   plotWrittenText,
   preparedFor,
+  progressText,
   proposalLetter,
   proposalStatusText,
   proposalsByFile,
@@ -297,7 +298,13 @@ test("見た送る中身は、同じタスクと対象のときだけ使う", ()
       tokens: 1,
       problem: null,
     },
-    connection: { name: "cloud", model: "c", cloud: true, allowed: true },
+    connection: {
+      name: "cloud",
+      model: "c",
+      cloud: true,
+      allowed: true,
+      structured: false,
+    },
   };
   assert.equal(preparedFor(prepared, "tone_check", "s012"), true);
   assert.equal(preparedFor(prepared, "tone_check", "s013a"), false);
@@ -643,4 +650,19 @@ test("クラウドへ送ることを確かめる送り先（T4-1）：クラウ�
     ],
   );
   assert.deepEqual(cloudDestinations([info({})]), []);
+});
+
+test("実行中の進み具合の文（T4-2）：考えている間は「考えています」", () => {
+  const state = {
+    run: 1,
+    task: "t",
+    scene: null,
+    chars: 1234,
+    thinking: false,
+  };
+  assert.equal(progressText(state), "受け取った文字 1,234");
+  assert.equal(
+    progressText({ ...state, thinking: true }),
+    "考えています · 受け取った文字 1,234",
+  );
 });

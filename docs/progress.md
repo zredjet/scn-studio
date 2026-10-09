@@ -6,7 +6,7 @@ Claude Codeは、作業を始めるときにこのファイルを読み、タス
 
 - フェーズ：4（ローカルのLLMと、企画・設定の生成）。人の相談と判断（2026-10-09、D080）で足した。計画は `docs/plan/phase4.md`。フェーズ3（支援と拡張）は、人の確認を除いて終えた（T3-17、2026-10-09）。設計検討書の範囲はそこまで。範囲の外の残り（X1〜X16）は推奨案のまま（D079）。フェーズ3の計画は `docs/plan/phase3.md`、設計検討書との突き合わせは `docs/plan/design-check.md`。フェーズ2のゲートは、条件1（書き出したRen'Pyを最後まで遊べる）を自動の範囲で満たし、人の確認（H9、2OSのIMEテスト、H1〜H17）は待ちのまま、人の指示に沿って先へ進めた（T2-11、D062）。フェーズ1のゲートも人の確認待ち（T1-13、D052）。フェーズ0のゲートは条件付きで通過した（T0-9、D040）
 - 作業中のタスク：なし
-- 次のタスク：T4-2（考えるモデルと構造化出力）。人の確認（`docs/review-for-human.md` の2節）は、届いたら T3-1 で取り込む（T2-1 の H1〜H8 も。H18〜H31 も同じ形で）
+- 次のタスク：T4-3（企画書と設定の出自）。人の確認（`docs/review-for-human.md` の2節）は、届いたら T3-1 で取り込む（T2-1 の H1〜H8 も。H18〜H31 も同じ形で）
 - 2026-10-08 から、人の指示で、人に聞かずに設計検討書の範囲（フェーズ1の残り、フェーズ2、フェーズ3）を進めている。人に確認する判断は推奨案で決め、人の環境でしか確かめられないことと一緒に `docs/review-for-human.md` にまとめている
 - T1-1（Windowsでの確認）は、Windowsの環境を用意できたときに行う（`docs/review-for-human.md` の H1。フェーズ3の T3-1 で取り込む）。中身は、フェーズ0で別途対応にした3件（`scripts/check-all.ps1`、アプリの起動、IMEテストのW1）
 
@@ -43,6 +43,19 @@ T3-17 で `docs/review-for-human.md` の3節（X1〜X16）に、推奨案を付�
 - エディタのテーマの `&.cm-focused .cm-selectionBackground` は、CodeMirrorの基本テーマより詳細度が低く、フォーカス中の選択は基本テーマの色（`#d7d4f0`）になっている。`--accent-tint` を効かせるように直すときは、今の行の上で選択が見えにくくならないか確かめる（今の行の背景は60%に薄めている）。T0-8のレビューで気づいた（T1-7で直した。D046）
 
 ## 記録
+
+### 2026-10-09 T4-2 考えるモデルと構造化出力
+
+- 作ったこと
+  - 考えた中身：応答の本文の初めの `<think>…</think>`（`<thinking>` も、閉じが無ければ終わりまで、閉じだけのときはその前まで）を除いて読む（`ai::strip_thinking`）。OpenAI 互換の `reasoning_content`・`reasoning` と Messages API の `thinking_delta` は本文に入れない。字数を `Completion::thinking_chars` に数え、進み具合の差分は `ai::Received`（`Text`・`Thinking`）で渡す（ストリームの途中で、考えている間かを `ThinkTracker` で見分ける。タグが分かれて届いても）。タスクの実行と自律の各段は、考えるだけで上限に達して答えが無ければ誤り（`ensure_answer`、`AiError::ThinkingOnly`）。「接続を試す」は誤りにせず、結果の文に出す
+  - 構造化出力：接続先の `structured_output`（`project.toml` の `[ai.<名前>]` と端末の上書き。OpenAI 互換だけ。既定は使わない）。真なら、指摘・提案（差分）・メモの分類案の頼みに `response_format`（`json_schema`。`ai::output_schema`）を付ける（`ChatRequest::schema`。`chat_request` はタスクを受け取る）。断られたら（400・422）誤りの文に知らせを添える。環境設定に「構造化出力（JSON の形を指定）」の欄、送る前の確かめに知らせ
+  - 進み具合：「考えています · 受け取った文字 N」（`ai-run-progress` の `thinking`、`progressText`）
+  - ひな形の `project.toml` のコメントに、LM Studio の URL、`context_tokens`、`structured_output` を足した
+  - 端末の上書きの書き方を `MachineSettings::set_override(name, Override)` にまとめた（項目が増えたため）
+  - 推奨案で決めた（R197〜R200）。依存は足していない
+- 確かめたこと：`scripts/check-all` 成功（Rust 421件、拡張 26件、Lezer 43件、アプリ 200件）。`tests/ai.rs`（`<think>` がストリームの途中で分かれる・考えた中身の無い応答はそのまま・閉じだけ・`<thinking>`・閉じない・`reasoning_content` のストリームとまとめての応答・考えるだけで上限・構造化出力を付ける条件と送る中身の見せ方・断られたときの知らせ）、`tests/ai_run.rs`（構造化出力の指摘のタスクで、考えた中身を除いて `{"findings": [...]}` を読む、考えるだけで上限なら誤り）、`app/test/preferences.test.ts`（接続を試した結果の文、構造化出力の欄）、`app/test/ai.test.ts`（進み具合の文）
+- レビュー（`plan-reviewer`）で直したこと：`structured_output` の読み込み（E802。fixture `settings/toml_ai` に足した）と決め方（端末の上書き → `project.toml` → 使わない、`anthropic` は使わない）のテストが無かった。あわせて、`reasoning_content` と `reasoning` の両方があるとき二重に数えていた（先にあるものだけ）、考えを止めたモデルの空の `<think></think>` を数えていた（前後の空白を除いて数える）、仕様の閉じのタグの書き方、構造化出力の知らせを出す確かめの範囲（自律と同期には出さない）を直した
+- 人の確認：H33
 
 ### 2026-10-09 T4-1 タスクの接続先と文脈の長さを端末で選ぶ
 

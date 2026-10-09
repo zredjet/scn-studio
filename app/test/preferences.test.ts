@@ -9,6 +9,8 @@ import {
   parseContextTokens,
   readiness,
   replyText,
+  structuredChoice,
+  structuredValue,
   type TestRecord,
   type TestState,
   testTarget,
@@ -33,6 +35,9 @@ function connection(over: Partial<AiConnection>): AiConnection {
     context_tokens: 8192,
     project_context_tokens: null,
     override_context_tokens: null,
+    structured_output: false,
+    project_structured_output: null,
+    override_structured_output: null,
     problem: null,
     url_hint: null,
     is_default: true,
@@ -97,6 +102,7 @@ test("タイトルバー：既定の接続先と、試した結果の印", () =>
         text: "はい",
         usage: { input_tokens: 1, output_tokens: 1, estimated: false },
         stop_reason: "stop",
+        thinking_chars: 0,
         elapsed_ms: 10,
       },
     }),
@@ -114,6 +120,7 @@ test("試した結果の文：トークン数と、見積もりかどうかと�
     text: "はい",
     usage: { input_tokens: 23, output_tokens: 2, estimated: true },
     stop_reason: null,
+    thinking_chars: 0,
     elapsed_ms: 1234,
   };
   assert.equal(
@@ -150,9 +157,24 @@ test("応答の文：空なら終わった理由を添える", () => {
     text: " はい\n",
     usage: { input_tokens: 1, output_tokens: 1, estimated: false },
     stop_reason: "stop",
+    thinking_chars: 0,
     elapsed_ms: 1,
   };
   assert.equal(replyText(result), "応答「はい」");
+  // 考えるモデル（T4-2）：除いた考えた中身と、考える分で上限に達してもつながっていること。
+  assert.equal(
+    replyText({ ...result, thinking_chars: 1200 }),
+    "応答「はい」（考えた中身 1,200 字は除きました）",
+  );
+  assert.match(
+    replyText({
+      ...result,
+      text: "",
+      stop_reason: "length",
+      thinking_chars: 80,
+    }),
+    /考えた中身 80 字だけで、答えの前に上限（length）に達しました。つながっています/,
+  );
   assert.equal(
     replyText({ ...result, text: "", stop_reason: "length" }),
     "応答（空。終わった理由：length）",
@@ -173,4 +195,13 @@ test("文脈の長さの上書きの欄（T4-1）：空は上書きなし、正�
   assert.equal(parseContextTokens("-1"), "invalid");
   assert.equal(parseContextTokens("8k"), "invalid");
   assert.equal(parseContextTokens("1.5"), "invalid");
+});
+
+test("構造化出力の欄（T4-2）：project.toml のまま・使う・使わない", () => {
+  assert.equal(structuredChoice(null), "project");
+  assert.equal(structuredChoice(true), "on");
+  assert.equal(structuredChoice(false), "off");
+  for (const choice of ["project", "on", "off"] as const) {
+    assert.equal(structuredChoice(structuredValue(choice)), choice);
+  }
 });

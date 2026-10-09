@@ -76,11 +76,17 @@ pub struct Override {
     /// 文脈の長さ（正の整数。T4-1）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context_tokens: Option<u64>,
+    /// 構造化出力を使うか（T4-2）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub structured_output: Option<bool>,
 }
 
 impl Override {
     fn is_empty(&self) -> bool {
-        self.base_url.is_none() && self.model.is_none() && self.context_tokens.is_none()
+        self.base_url.is_none()
+            && self.model.is_none()
+            && self.context_tokens.is_none()
+            && self.structured_output.is_none()
     }
 }
 
@@ -114,17 +120,12 @@ pub struct CloudSettings {
 
 impl MachineSettings {
     /// 接続先の上書きを置き換える。空の値と0の文脈の長さは上書きしない（すべて無ければ上書きをやめる）。
-    pub fn set_override(
-        &mut self,
-        name: &str,
-        base_url: Option<&str>,
-        model: Option<&str>,
-        context_tokens: Option<u64>,
-    ) {
+    pub fn set_override(&mut self, name: &str, value: Override) {
         let item = Override {
-            base_url: non_empty(base_url),
-            model: non_empty(model),
-            context_tokens: context_tokens.filter(|&n| n > 0),
+            base_url: non_empty(value.base_url.as_deref()),
+            model: non_empty(value.model.as_deref()),
+            context_tokens: value.context_tokens.filter(|&n| n > 0),
+            structured_output: value.structured_output,
         };
         if item.is_empty() {
             self.connections.remove(name);
@@ -221,6 +222,8 @@ pub struct Connection {
     pub allowed: bool,
     /// 文脈の長さ（トークン数）。
     pub context_tokens: u64,
+    /// 構造化出力（`response_format`）を使う（OpenAI 互換だけ。T4-2）。
+    pub structured_output: bool,
 }
 
 impl Connection {
@@ -272,6 +275,11 @@ pub fn resolve(decl: &AiConnectionDecl, machine: &MachineSettings) -> Result<Con
             Provider::OpenaiCompatible => DEFAULT_CONTEXT_TOKENS,
             Provider::Anthropic => ANTHROPIC_CONTEXT_TOKENS,
         });
+    let structured_output = provider == Provider::OpenaiCompatible
+        && over
+            .and_then(|o| o.structured_output)
+            .or(decl.structured_output)
+            .unwrap_or(false);
     Ok(Connection {
         name: name.clone(),
         provider,
@@ -281,6 +289,7 @@ pub fn resolve(decl: &AiConnectionDecl, machine: &MachineSettings) -> Result<Con
         endpoint,
         allowed,
         context_tokens,
+        structured_output,
     })
 }
 
@@ -388,6 +397,10 @@ pub struct ConnectionStatus {
     pub context_tokens: Option<u64>,
     pub project_context_tokens: Option<u64>,
     pub override_context_tokens: Option<u64>,
+    /// 構造化出力を使うか（解決できたときだけ）、`project.toml` の値、この端末の上書き（T4-2）。
+    pub structured_output: Option<bool>,
+    pub project_structured_output: Option<bool>,
+    pub override_structured_output: Option<bool>,
     /// 解決できない理由。
     pub problem: Option<String>,
     /// URL の書き方の知らせ（パスが無い。[`missing_path_hint`]）。
@@ -462,6 +475,9 @@ pub fn connection_statuses(
                 context_tokens: resolved.as_ref().ok().map(|c| c.context_tokens),
                 project_context_tokens: decl.context_tokens,
                 override_context_tokens: over.and_then(|o| o.context_tokens),
+                structured_output: resolved.as_ref().ok().map(|c| c.structured_output),
+                project_structured_output: decl.structured_output,
+                override_structured_output: over.and_then(|o| o.structured_output),
                 test_preview: resolved
                     .as_ref()
                     .ok()

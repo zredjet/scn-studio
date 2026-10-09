@@ -2064,13 +2064,14 @@ fn ai_connections(state: State<'_, AppState>, app: AppHandle) -> Result<Response
     }))
 }
 
-/// この端末での、接続先の URL・モデル・文脈の長さ（T4-1）の上書き。空なら上書きをやめる。
+/// この端末での、接続先の URL・モデル・文脈の長さ（T4-1）・構造化出力（T4-2）の上書き。空なら上書きをやめる。
 #[tauri::command]
 fn set_ai_override(
     name: String,
     base_url: Option<String>,
     model: Option<String>,
     context_tokens: Option<u64>,
+    structured_output: Option<bool>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
@@ -2078,7 +2079,15 @@ fn set_ai_override(
         return Err(format!("接続先「{name}」が project.toml にありません"));
     }
     update_ai_settings(&app, |m| {
-        m.set_override(&name, base_url.as_deref(), model.as_deref(), context_tokens);
+        m.set_override(
+            &name,
+            ai::Override {
+                base_url,
+                model,
+                context_tokens,
+                structured_output,
+            },
+        );
     })
 }
 
@@ -2156,6 +2165,7 @@ async fn ai_test(
         "text": done.text,
         "usage": to_json(&done.usage, "トークン数")?,
         "stop_reason": done.stop_reason,
+        "thinking_chars": done.thinking_chars,
         "elapsed_ms": u64::try_from(elapsed.as_millis()).unwrap_or(u64::MAX),
     }))
 }
@@ -2330,7 +2340,14 @@ fn ai_prepare(
     json_response(&json!({
         "digest": ai::content_digest(&conn, &assembled),
         "assembled": to_json(&assembled, "文脈")?,
-        "connection": { "name": conn.name, "model": conn.model, "cloud": conn.cloud, "allowed": conn.allowed },
+        "connection": {
+            "name": conn.name,
+            "model": conn.model,
+            "cloud": conn.cloud,
+            "allowed": conn.allowed,
+            // 構造化出力（返す形）を付けて送るか（T4-2）。
+            "structured": conn.structured_output && ai::output_schema(definition.output).is_some(),
+        },
     }))
 }
 
@@ -2367,6 +2384,7 @@ async fn ai_run(
                 let sources = ai::read_sources(&root);
                 let mut received = 0usize;
                 let mut last = std::time::Instant::now();
+                let mut thinking = false;
                 let outcome = ai::run_task(
                     &project,
                     &ir,
@@ -2378,14 +2396,17 @@ async fn ai_run(
                     digest.as_deref(),
                     &ai::CallOptions::default(),
                     &cancel,
-                    &mut |text| {
-                        received += text.chars().count();
-                        if last.elapsed() >= Duration::from_millis(200) {
+                    &mut |r| {
+                        received += r.text().chars().count();
+                        // 考えている間か（T4-2）。変わったときはすぐ知らせる。
+                        let changed = thinking != r.thinking();
+                        thinking = r.thinking();
+                        if changed || last.elapsed() >= Duration::from_millis(200) {
                             last = std::time::Instant::now();
                             let _ = emitter.emit_to(
                                 "main",
                                 "ai-run-progress",
-                                json!({ "run": run, "chars": received }),
+                                json!({ "run": run, "chars": received, "thinking": thinking }),
                             );
                         }
                     },

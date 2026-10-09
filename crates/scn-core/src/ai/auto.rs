@@ -10,7 +10,7 @@
 
 use serde::Serialize;
 
-use super::client::{AiError, ChatRequest, Completion};
+use super::client::{AiError, ChatRequest, Completion, ensure_answer};
 use super::connection::Connection;
 use super::context::{ContextSources, assemble, preamble};
 use super::generate::{
@@ -211,6 +211,8 @@ impl Meter<'_> {
             .saturating_add(done.usage.input_tokens)
             .saturating_add(done.usage.output_tokens);
         self.host.event(AutoEvent::Tokens { used: self.used });
+        // 考えるだけで上限に達し、答えが無ければ、呼び出しの失敗として止める（T4-2）。
+        ensure_answer(&done).map_err(|e| Halt::Error(e.to_string()))?;
         Ok(done)
     }
 
@@ -266,7 +268,7 @@ fn inspect(
             issues.push(format!("（{} を実行できません：{problem}）", check.name));
             continue;
         }
-        let done = meter.call(check, &chat_request(&assembled))?;
+        let done = meter.call(check, &chat_request(check, &assembled))?;
         let (raw, _) = parse_findings(&done.text);
         for f in resolve_findings(project, &ir, raw, Some(scene)) {
             if let Some(line) = f.line.as_ref().filter(|l| candidate.temp_ids.contains(l)) {
@@ -475,7 +477,7 @@ fn draft_scene(
                 preamble()
             );
         }
-        Ok(meter.call(&t, &chat_request(&assembled))?.text)
+        Ok(meter.call(&t, &chat_request(&t, &assembled))?.text)
     };
     let _ = ir;
     let mut draft = Draft::default();

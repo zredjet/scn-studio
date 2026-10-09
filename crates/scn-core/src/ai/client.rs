@@ -47,6 +47,34 @@ pub struct ChatRequest {
     /// 返す長さの上限。Messages API では無ければ [`ANTHROPIC_MAX_TOKENS`]。
     pub max_tokens: Option<u32>,
     pub temperature: Option<f64>,
+    /// 返す形（構造化出力。接続先で有効にしたときだけ送る。T4-2）。
+    pub schema: Option<OutputSchema>,
+}
+
+/// 返す形の JSON Schema（OpenAI 互換の `response_format` の `json_schema`。T4-2）。
+#[derive(Debug, Clone, PartialEq)]
+pub struct OutputSchema {
+    pub name: String,
+    pub schema: Value,
+}
+
+/// 届いた文字（進み具合に使う）。考えた中身（`<think>` の中、`reasoning_content`）は本文に入れない（T4-2）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Received<'a> {
+    Text(&'a str),
+    Thinking(&'a str),
+}
+
+impl<'a> Received<'a> {
+    pub fn text(&self) -> &'a str {
+        match self {
+            Self::Text(t) | Self::Thinking(t) => t,
+        }
+    }
+
+    pub fn thinking(&self) -> bool {
+        matches!(self, Self::Thinking(_))
+    }
 }
 
 /// タイムアウト。
@@ -83,6 +111,8 @@ pub struct Completion {
     pub usage: Usage,
     /// 終わった理由（`stop`、`length`、`end_turn`、`max_tokens` など。サーバーの書いたまま）。
     pub stop_reason: Option<String>,
+    /// 考えた中身の字数（本文から除いたもの。T4-2）。
+    pub thinking_chars: u64,
 }
 
 /// 呼び出しの誤り。文にキーを含めない。
@@ -110,6 +140,124 @@ pub enum AiError {
     Server(String),
     #[error("応答を読めません：{0}")]
     Protocol(String),
+    #[error(
+        "考えるだけで長さの上限に達し、答えがありません（考えた分 {0} 字）。接続先の文脈の長さを増やす（返す分も増えます）か、考えない設定のモデルを使います"
+    )]
+    ThinkingOnly(u64),
+}
+
+/// 考えた中身の開きと閉じのタグ（T4-2）。
+const THINK_TAGS: [(&str, &str); 2] = [("<think>", "</think>"), ("<thinking>", "</thinking>")];
+
+/// 本文から考えた中身を除く（T4-2）：初めの `<think>…</think>`（閉じが無ければ終わりまで）か、開きが無く閉じだけが
+/// あるときはその前まで。除いた字数（前後の空白を除いて数える。考えを止めたモデルの空の `<think></think>` は0）も
+/// 返す。
+pub fn strip_thinking(text: &str) -> (String, u64) {
+    let count = |t: &str| chars_of(t.trim());
+    let lead = text.trim_start();
+    for (open, close) in THINK_TAGS {
+        if let Some(rest) = lead.strip_prefix(open) {
+            return match rest.split_once(close) {
+                Some((thought, answer)) => (answer.trim_start().to_owned(), count(thought)),
+                None => (String::new(), count(rest)),
+            };
+        }
+    }
+    for (open, close) in THINK_TAGS {
+        if let Some((thought, answer)) = text.split_once(close)
+            && !thought.contains(open)
+        {
+            return (answer.trim_start().to_owned(), count(thought));
+        }
+    }
+    (text.to_owned(), 0)
+}
+
+/// 答えがあるか（T4-2）：考えた中身を除くと空で、長さの上限で終わったら、答えの無い誤り。タスクの実行で使う
+/// （「接続を試す」では誤りにしない）。
+pub fn ensure_answer(completion: &Completion) -> Result<(), AiError> {
+    let ended_by_length = matches!(
+        completion.stop_reason.as_deref(),
+        Some("length" | "max_tokens")
+    );
+    if completion.text.trim().is_empty() && completion.thinking_chars > 0 && ended_by_length {
+        return Err(AiError::ThinkingOnly(completion.thinking_chars));
+    }
+    Ok(())
+}
+
+/// ストリームの途中で、考えている間かを見分ける（進み具合の見せ方だけ。本文は終わってから [`strip_thinking`]）。
+#[derive(Debug, Default)]
+struct ThinkTracker {
+    state: ThinkState,
+    /// 見分けるまでの文字（初めの空白とタグ）か、考えている間の後ろの数文字（閉じのタグが分かれても見つける）。
+    buffer: String,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+enum ThinkState {
+    #[default]
+    Undecided,
+    Thinking,
+    Answer,
+}
+
+impl ThinkTracker {
+    /// この差分は考えている間のものか。
+    fn thinking(&mut self, delta: &str) -> bool {
+        match self.state {
+            ThinkState::Answer => false,
+            ThinkState::Undecided => {
+                self.buffer.push_str(delta);
+                let lead = self.buffer.trim_start();
+                if lead.is_empty() {
+                    return false;
+                }
+                if let Some(rest) = THINK_TAGS
+                    .iter()
+                    .find_map(|(open, _)| lead.strip_prefix(open))
+                {
+                    let rest = rest.to_owned();
+                    self.state = ThinkState::Thinking;
+                    self.buffer.clear();
+                    self.after_thought(&rest);
+                    return true;
+                }
+                if THINK_TAGS.iter().any(|(open, _)| open.starts_with(lead)) {
+                    return true;
+                }
+                self.state = ThinkState::Answer;
+                self.buffer.clear();
+                false
+            }
+            ThinkState::Thinking => {
+                self.after_thought(delta);
+                true
+            }
+        }
+    }
+
+    /// 考えている間の文字を足し、閉じのタグがあれば答えへ移る。
+    fn after_thought(&mut self, delta: &str) {
+        self.buffer.push_str(delta);
+        if THINK_TAGS
+            .iter()
+            .any(|(_, close)| self.buffer.contains(close))
+        {
+            self.state = ThinkState::Answer;
+            self.buffer.clear();
+            return;
+        }
+        // 閉じのタグ（12バイトまで）が分かれて届いても見つけられるだけ、後ろを残す。
+        let keep = self
+            .buffer
+            .char_indices()
+            .rev()
+            .map(|(i, _)| i)
+            .find(|&i| self.buffer.len() - i >= 12)
+            .unwrap_or(0);
+        self.buffer.drain(..keep);
+    }
 }
 
 /// URL にパス（`/v1` など）が無いときの知らせ（T3-1）。LM Studio の「Reachable at」のようなサーバーの根を貼ると、
@@ -130,7 +278,8 @@ pub fn request_url(conn: &Connection) -> String {
     }
 }
 
-/// 送る本文（JSON）。送る前に画面で見せるのにも使う。
+/// 送る本文（JSON）。送る前に画面で見せるのにも使う。構造化出力は OpenAI 互換で、接続先で有効にし、頼みに返す形
+/// があるときだけ付ける（T4-2）。
 pub fn request_body(conn: &Connection, request: &ChatRequest) -> Value {
     match conn.provider {
         Provider::OpenaiCompatible => {
@@ -153,6 +302,17 @@ pub fn request_body(conn: &Connection, request: &ChatRequest) -> Value {
                 }
                 if let Some(t) = request.temperature {
                     object.insert("temperature".to_owned(), json!(t));
+                }
+                if conn.structured_output
+                    && let Some(schema) = &request.schema
+                {
+                    object.insert(
+                        "response_format".to_owned(),
+                        json!({
+                            "type": "json_schema",
+                            "json_schema": {"name": schema.name, "schema": schema.schema},
+                        }),
+                    );
                 }
             }
             body
@@ -197,6 +357,7 @@ pub fn test_request() -> ChatRequest {
         }],
         max_tokens: Some(32),
         temperature: None,
+        schema: None,
     }
 }
 
@@ -221,7 +382,7 @@ pub fn complete(
     request: &ChatRequest,
     options: &CallOptions,
     cancel: &AtomicBool,
-    on_text: &mut dyn FnMut(&str),
+    on_text: &mut dyn FnMut(Received<'_>),
 ) -> Result<Completion, AiError> {
     let key = key.map(str::trim).filter(|k| !k.is_empty());
     let redact = |text: String| match key {
@@ -233,6 +394,10 @@ pub fn complete(
         Some(hint) => format!("{text}。{hint}"),
         None => text,
     };
+    // 構造化出力を付けて送り、断られたとき（T4-2）。
+    let structured = conn.provider == Provider::OpenaiCompatible
+        && conn.structured_output
+        && request.schema.is_some();
     result.map_err(|e| match e {
         AiError::Connect(m) => AiError::Connect(redact(m)),
         AiError::Auth { status, message } => AiError::Auth {
@@ -243,6 +408,15 @@ pub fn complete(
             status,
             message: hint(redact(message)),
         },
+        AiError::Http { status, message } if structured && (status == 400 || status == 422) => {
+            AiError::Http {
+                status,
+                message: format!(
+                    "{}。接続先が構造化出力（response_format）に対応していないかもしれません。環境設定で、この接続先の「構造化出力」を切ります",
+                    redact(message)
+                ),
+            }
+        }
         AiError::Http { status, message } => AiError::Http {
             status,
             message: redact(message),
@@ -259,7 +433,7 @@ fn call(
     request: &ChatRequest,
     options: &CallOptions,
     cancel: &AtomicBool,
-    on_text: &mut dyn FnMut(&str),
+    on_text: &mut dyn FnMut(Received<'_>),
 ) -> Result<Completion, AiError> {
     if cancel.load(Ordering::Relaxed) {
         return Err(AiError::Cancelled);
@@ -364,14 +538,10 @@ fn call(
             .map_err(|e| io_error(&e))?;
         let value: Value = serde_json::from_str(&text)
             .map_err(|e| AiError::Protocol(format!("JSON ではありません（{e}）")))?;
-        let completion = match conn.provider {
+        match conn.provider {
             Provider::OpenaiCompatible => openai_whole(&value)?,
             Provider::Anthropic => anthropic_whole(&value)?,
-        };
-        if !completion.text.is_empty() {
-            on_text(&completion.text);
         }
-        completion
     };
     if completion.usage == Usage::default() {
         let mut sent = request.system.clone().unwrap_or_default();
@@ -383,6 +553,13 @@ fn call(
             output_tokens: estimate_tokens(&completion.text),
             estimated: true,
         };
+    }
+    // 考えた中身を除く（T4-2）。
+    let (text, thought) = strip_thinking(&completion.text);
+    completion.text = text;
+    completion.thinking_chars = completion.thinking_chars.saturating_add(thought);
+    if !streaming && !completion.text.is_empty() {
+        on_text(Received::Text(&completion.text));
     }
     Ok(completion)
 }
@@ -498,6 +675,17 @@ impl<R: BufRead> SseReader<R> {
     }
 }
 
+/// OpenAI 互換の考えた中身（`reasoning_content`、無ければ `reasoning`）。
+fn reasoning_of(value: Option<&Value>) -> Option<&str> {
+    ["reasoning_content", "reasoning"]
+        .iter()
+        .find_map(|key| value.and_then(|v| v.get(*key)).and_then(Value::as_str))
+}
+
+fn chars_of(text: &str) -> u64 {
+    u64::try_from(text.chars().count()).unwrap_or(u64::MAX)
+}
+
 fn json_data(data: &str) -> Result<Value, AiError> {
     serde_json::from_str(data).map_err(|e| AiError::Protocol(format!("JSON ではありません（{e}）")))
 }
@@ -534,10 +722,11 @@ fn openai_error(value: &Value) -> Option<String> {
 fn openai_stream<R: BufRead>(
     reader: &mut SseReader<R>,
     cancel: &AtomicBool,
-    on_text: &mut dyn FnMut(&str),
+    on_text: &mut dyn FnMut(Received<'_>),
 ) -> Result<Completion, AiError> {
     let mut out = Completion::default();
     let mut done = false;
+    let mut tracker = ThinkTracker::default();
     while let Some(event) = reader.next(cancel)? {
         let data = event.data.trim();
         if data == "[DONE]" {
@@ -559,14 +748,24 @@ fn openai_stream<R: BufRead>(
             .and_then(Value::as_array)
             .and_then(|c| c.first())
         {
-            if let Some(text) = choice
-                .get("delta")
-                .and_then(|d| d.get("content"))
-                .and_then(Value::as_str)
+            let delta = choice.get("delta");
+            // 考えた中身（`reasoning_content`、無ければ `reasoning`）は本文に入れない（T4-2。両方に同じ中身を
+            // 入れるサーバーで二重に数えない）。
+            if let Some(thought) = reasoning_of(delta)
+                && !thought.is_empty()
+            {
+                out.thinking_chars = out.thinking_chars.saturating_add(chars_of(thought));
+                on_text(Received::Thinking(thought));
+            }
+            if let Some(text) = delta.and_then(|d| d.get("content")).and_then(Value::as_str)
                 && !text.is_empty()
             {
                 out.text.push_str(text);
-                on_text(text);
+                on_text(if tracker.thinking(text) {
+                    Received::Thinking(text)
+                } else {
+                    Received::Text(text)
+                });
             }
             if let Some(reason) = choice.get("finish_reason").and_then(Value::as_str) {
                 out.stop_reason = Some(reason.to_owned());
@@ -588,9 +787,10 @@ fn openai_whole(value: &Value) -> Result<Completion, AiError> {
         .and_then(Value::as_array)
         .and_then(|c| c.first())
         .ok_or_else(|| AiError::Protocol("choices がありません".to_owned()))?;
+    let message = choice.get("message");
+    let thinking_chars = reasoning_of(message).map_or(0, chars_of);
     Ok(Completion {
-        text: choice
-            .get("message")
+        text: message
             .and_then(|m| m.get("content"))
             .and_then(Value::as_str)
             .unwrap_or_default()
@@ -600,6 +800,7 @@ fn openai_whole(value: &Value) -> Result<Completion, AiError> {
             .get("finish_reason")
             .and_then(Value::as_str)
             .map(str::to_owned),
+        thinking_chars,
     })
 }
 
@@ -620,7 +821,7 @@ fn anthropic_error(value: &Value) -> Option<String> {
 fn anthropic_stream<R: BufRead>(
     reader: &mut SseReader<R>,
     cancel: &AtomicBool,
-    on_text: &mut dyn FnMut(&str),
+    on_text: &mut dyn FnMut(Received<'_>),
 ) -> Result<Completion, AiError> {
     let mut out = Completion::default();
     let mut done = false;
@@ -642,12 +843,29 @@ fn anthropic_stream<R: BufRead>(
             }
             Some("content_block_delta") => {
                 let delta = value.get("delta");
-                if delta.and_then(|d| d.get("type")).and_then(Value::as_str) == Some("text_delta")
-                    && let Some(text) = delta.and_then(|d| d.get("text")).and_then(Value::as_str)
-                    && !text.is_empty()
-                {
-                    out.text.push_str(text);
-                    on_text(text);
+                match delta.and_then(|d| d.get("type")).and_then(Value::as_str) {
+                    Some("text_delta") => {
+                        if let Some(text) =
+                            delta.and_then(|d| d.get("text")).and_then(Value::as_str)
+                            && !text.is_empty()
+                        {
+                            out.text.push_str(text);
+                            on_text(Received::Text(text));
+                        }
+                    }
+                    // 考えた中身は本文に入れない（T4-2）。
+                    Some("thinking_delta") => {
+                        if let Some(thought) = delta
+                            .and_then(|d| d.get("thinking"))
+                            .and_then(Value::as_str)
+                            && !thought.is_empty()
+                        {
+                            out.thinking_chars =
+                                out.thinking_chars.saturating_add(chars_of(thought));
+                            on_text(Received::Thinking(thought));
+                        }
+                    }
+                    _ => {}
                 }
             }
             Some("message_delta") => {
@@ -703,6 +921,7 @@ fn anthropic_whole(value: &Value) -> Result<Completion, AiError> {
             .get("stop_reason")
             .and_then(Value::as_str)
             .map(str::to_owned),
+        thinking_chars: 0,
     })
 }
 

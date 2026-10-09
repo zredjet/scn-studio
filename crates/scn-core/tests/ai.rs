@@ -172,6 +172,7 @@ fn local(provider: Provider, base_url: String) -> Connection {
         cloud: false,
         allowed: true,
         context_tokens: ai::DEFAULT_CONTEXT_TOKENS,
+        structured_output: false,
     }
 }
 
@@ -191,12 +192,32 @@ fn call(
     key: Option<&str>,
     req: &ChatRequest,
 ) -> (Result<Completion, AiError>, Vec<String>) {
-    let cancel = AtomicBool::new(false);
-    let mut deltas = Vec::new();
-    let result = ai::complete(conn, key, req, &quick(), &cancel, &mut |t| {
-        deltas.push(t.to_owned());
-    });
+    let (result, received) = call_all(conn, key, req);
+    let deltas = received
+        .into_iter()
+        .filter(|(_, thinking)| !thinking)
+        .map(|(text, _)| text)
+        .collect();
     (result, deltas)
+}
+
+/// 届いた文字と、考えた中身か（T4-2）。
+fn call_all(
+    conn: &Connection,
+    key: Option<&str>,
+    req: &ChatRequest,
+) -> (Result<Completion, AiError>, Vec<(String, bool)>) {
+    let cancel = AtomicBool::new(false);
+    let mut received = Vec::new();
+    let result = ai::complete(conn, key, req, &quick(), &cancel, &mut |r| {
+        received.push((r.text().to_owned(), r.thinking()));
+    });
+    (result, received)
+}
+
+/// OpenAI 互換の SSE の差分（`delta` の中身）。
+fn delta_event(delta: &str) -> String {
+    format!("data: {{\"choices\":[{{\"delta\":{delta}}}]}}\n\n")
 }
 
 #[test]
@@ -503,8 +524,8 @@ fn cancel_between_data() {
         connect_timeout: Duration::from_secs(2),
         idle_timeout: Duration::from_secs(5),
     };
-    let result = ai::complete(&conn, None, &request(), &options, &cancel, &mut |t| {
-        deltas.push(t.to_owned());
+    let result = ai::complete(&conn, None, &request(), &options, &cancel, &mut |r| {
+        deltas.push(r.text().to_owned());
         cancel.store(true, Ordering::Relaxed);
     });
     assert_eq!(result.unwrap_err(), AiError::Cancelled);
@@ -514,6 +535,16 @@ fn cancel_between_data() {
     let cancel = AtomicBool::new(true);
     let result = ai::complete(&conn, None, &request(), &options, &cancel, &mut |_| {});
     assert_eq!(result.unwrap_err(), AiError::Cancelled);
+}
+
+/// 端末の上書き（URL・モデル・文脈の長さ）。
+fn over(base_url: Option<&str>, model: Option<&str>, context_tokens: Option<u64>) -> ai::Override {
+    ai::Override {
+        base_url: base_url.map(str::to_owned),
+        model: model.map(str::to_owned),
+        context_tokens,
+        structured_output: None,
+    }
 }
 
 fn decl(
@@ -528,6 +559,7 @@ fn decl(
         base_url: base_url.map(str::to_owned),
         model: model.map(str::to_owned),
         context_tokens: None,
+        structured_output: None,
     }
 }
 
@@ -590,9 +622,7 @@ fn resolve_connections() {
     let mut machine = MachineSettings::default();
     machine.set_override(
         "local",
-        Some(" http://localhost:1234/v1 "),
-        Some("gemma"),
-        None,
+        over(Some(" http://localhost:1234/v1 "), Some("gemma"), None),
     );
     machine.set_cloud_allowed("anthropic https://api.anthropic.com/v1", true);
     let conn = ai::resolve(
@@ -615,7 +645,7 @@ fn resolve_connections() {
     )
     .unwrap();
     assert!(conn.allowed);
-    machine.set_override("local", Some(""), None, None);
+    machine.set_override("local", over(Some(""), None, None));
     assert!(machine.connections.is_empty());
 }
 
@@ -785,7 +815,7 @@ fn keys_stay_in_keystore() {
     keys.set(&endpoint, &format!("  {key}\n")).unwrap();
     assert_eq!(keys.get(&endpoint).unwrap().as_deref(), Some(key));
     machine.set_cloud_allowed(&endpoint, true);
-    machine.set_override("local", None, Some("gemma"), None);
+    machine.set_override("local", over(None, Some("gemma"), None));
 
     let (statuses, problem) = ai::connection_statuses(decls, &machine, &keys);
     assert_eq!(problem, None);
@@ -799,7 +829,7 @@ fn keys_stay_in_keystore() {
     assert_eq!(local.url_hint, None);
     // 端末の上書きで、パスの無い URL（LM Studio の「Reachable at」）にすると知らせる（T3-1）。
     let mut root_url = machine.clone();
-    root_url.set_override("local", Some("http://127.0.0.1:1234/"), None, None);
+    root_url.set_override("local", over(Some("http://127.0.0.1:1234/"), None, None));
     let (statuses, _) = ai::connection_statuses(decls, &root_url, &keys);
     let local = statuses.iter().find(|s| s.name == "local").unwrap();
     assert!(local.url_hint.as_deref().unwrap().contains("/v1 まで"));
@@ -945,8 +975,8 @@ fn task_connection_order() {
         ai::resolve(local, &machine).unwrap().context_tokens,
         ai::DEFAULT_CONTEXT_TOKENS
     );
-    machine.set_override("local", None, None, Some(32768));
-    machine.set_override("lan", None, Some("gemma3"), Some(16384));
+    machine.set_override("local", over(None, None, Some(32768)));
+    machine.set_override("lan", over(None, Some("gemma3"), Some(16384)));
     assert_eq!(ai::resolve(local, &machine).unwrap().context_tokens, 32768);
     let lan_conn = ai::resolve(lan, &machine).unwrap();
     assert_eq!(
@@ -962,7 +992,7 @@ fn task_connection_order() {
     assert_eq!(assembled.context_tokens, 32768);
     assert_eq!(assembled.limit, ai::context_limit(32768));
     assert_eq!(assembled.problem, None);
-    machine.set_override("local", None, None, Some(8));
+    machine.set_override("local", over(None, None, Some(8)));
     let conn = ai::task_connection(decls, &machine, questions).unwrap();
     let assembled = ai::assemble(&loaded, &ir, &sources, questions, None, conn.context_tokens);
     assert_eq!(assembled.context_tokens, 8);
@@ -977,7 +1007,7 @@ fn task_connection_order() {
     );
     machine.set_task_connection("concept_questions", None);
     // 0 は上書きにしない。
-    machine.set_override("local", None, None, Some(0));
+    machine.set_override("local", over(None, None, Some(0)));
     assert!(!machine.connections.contains_key("local"));
 
     let keys = MemoryKeys::default();
@@ -998,4 +1028,271 @@ fn task_connection_order() {
     assert_eq!(ai::read_machine_settings(&path), (machine, None));
     let _ = fs::remove_dir_all(&project);
     let _ = fs::remove_dir_all(&settings_dir);
+}
+
+/// 考えるモデル（T4-2）：本文の初めの `<think>…</think>` を除いて読む（書き込みの途中でタグが分かれても）。
+/// 進み具合では、考えている間の文字を「考えた中身」として知らせる。
+#[test]
+fn thinking_removed_from_stream() {
+    let mut events: Vec<String> = ["<thi", "nk>\n考え", "中</th", "ink>\n\nはい"]
+        .iter()
+        .map(|t| delta_event(&format!("{{\"content\":{}}}", serde_json::json!(t))))
+        .collect();
+    events.push(
+        "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"
+            .to_owned(),
+    );
+    let events: Vec<&str> = events.iter().map(String::as_str).collect();
+    let mock = serve(sse(&events, Duration::from_millis(5)));
+    let conn = local(Provider::OpenaiCompatible, mock.base_url());
+    let (result, received) = call_all(&conn, None, &request());
+    let done = result.unwrap();
+    assert_eq!(done.text, "はい");
+    // 前後の空白（改行）は数えない。
+    assert_eq!(done.thinking_chars, 3);
+    let labels: Vec<bool> = received.iter().map(|(_, t)| *t).collect();
+    assert_eq!(
+        labels.get(..3),
+        Some(&[true, true, true][..]),
+        "{received:?}"
+    );
+
+    // 考えた中身の無い応答は、そのまま（`<` で始まっても）。
+    let events = [
+        delta_event("{\"content\":\"<b>はい</b>\"}"),
+        "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"
+            .to_owned(),
+    ];
+    let events: Vec<&str> = events.iter().map(String::as_str).collect();
+    let mock = serve(sse(&events, Duration::ZERO));
+    let conn = local(Provider::OpenaiCompatible, mock.base_url());
+    let (result, received) = call_all(&conn, None, &request());
+    let done = result.unwrap();
+    assert_eq!(
+        (done.text.as_str(), done.thinking_chars),
+        ("<b>はい</b>", 0)
+    );
+    assert!(received.iter().all(|(_, t)| !t), "{received:?}");
+}
+
+/// 開きが無く `</think>` だけがある応答（テンプレートが `<think>` を足すモデル）と、`<thinking>`、まとめての応答。
+#[test]
+fn thinking_close_only_and_whole() {
+    for (content, text, thinking) in [
+        ("考えた\n</think>\n\nはい", "はい", 3),
+        ("  <thinking>うーん</thinking>はい", "はい", 3),
+        ("<think>閉じない", "", 4),
+        // 考えを止めたモデルの空の考え（数えない）。
+        ("<think>\n\n</think>\n\nはい", "はい", 0),
+        // 閉じだけの `</thinking>`。
+        ("うーん</thinking>はい", "はい", 3),
+    ] {
+        let body = serde_json::json!({
+            "choices": [{"message": {"content": content}, "finish_reason": "stop"}]
+        })
+        .to_string();
+        let mock = serve(json_reply("200 OK", &body));
+        let conn = local(Provider::OpenaiCompatible, mock.base_url());
+        let done = call(&conn, None, &request()).0.unwrap();
+        assert_eq!(
+            (done.text.as_str(), done.thinking_chars),
+            (text, thinking),
+            "{content}"
+        );
+    }
+}
+
+/// `reasoning_content`・`reasoning`（OpenAI 互換の拡張）は本文に入れず、考えた中身として数える。
+#[test]
+fn reasoning_content_is_not_text() {
+    let events = [
+        delta_event("{\"reasoning_content\":\"考え\"}"),
+        delta_event("{\"reasoning\":\"中\"}"),
+        delta_event("{\"content\":\"はい\"}"),
+        "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"
+            .to_owned(),
+    ];
+    let events: Vec<&str> = events.iter().map(String::as_str).collect();
+    let mock = serve(sse(&events, Duration::ZERO));
+    let conn = local(Provider::OpenaiCompatible, mock.base_url());
+    let (result, received) = call_all(&conn, None, &request());
+    let done = result.unwrap();
+    assert_eq!((done.text.as_str(), done.thinking_chars), ("はい", 3));
+    assert_eq!(
+        received,
+        [
+            ("考え".to_owned(), true),
+            ("中".to_owned(), true),
+            ("はい".to_owned(), false)
+        ]
+    );
+    // まとめての応答の `reasoning_content` も本文に入れない（`reasoning` と両方あっても二重に数えない）。
+    let body = serde_json::json!({
+        "choices": [{"message": {"content": "はい", "reasoning_content": "考えた", "reasoning": "考えた"}, "finish_reason": "stop"}]
+    })
+    .to_string();
+    let mock = serve(json_reply("200 OK", &body));
+    let conn = local(Provider::OpenaiCompatible, mock.base_url());
+    let done = call(&conn, None, &request()).0.unwrap();
+    assert_eq!((done.text.as_str(), done.thinking_chars), ("はい", 3));
+}
+
+/// 考えるだけで長さの上限に達し、答えが空なら、タスクの実行では誤り（`ensure_answer`）。
+#[test]
+fn thinking_only_is_no_answer() {
+    let events = [
+        delta_event("{\"content\":\"<think>ずっと考える\"}"),
+        "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"length\"}]}\n\ndata: [DONE]\n\n"
+            .to_owned(),
+    ];
+    let events: Vec<&str> = events.iter().map(String::as_str).collect();
+    let mock = serve(sse(&events, Duration::ZERO));
+    let conn = local(Provider::OpenaiCompatible, mock.base_url());
+    let done = call(&conn, None, &request()).0.unwrap();
+    assert_eq!(done.text, "");
+    assert_eq!(done.stop_reason.as_deref(), Some("length"));
+    let error = ai::ensure_answer(&done).unwrap_err();
+    assert!(matches!(error, AiError::ThinkingOnly(6)), "{error:?}");
+    assert!(error.to_string().contains("文脈の長さ"), "{error}");
+    // 答えがあれば、空の答えでも考えていなければ誤りにしない。
+    let ok = Completion {
+        text: "はい".to_owned(),
+        thinking_chars: 10,
+        stop_reason: Some("length".to_owned()),
+        ..Completion::default()
+    };
+    assert!(ai::ensure_answer(&ok).is_ok());
+    assert!(ai::ensure_answer(&Completion::default()).is_ok());
+}
+
+fn schema_request() -> ChatRequest {
+    ChatRequest {
+        schema: ai::output_schema(ai::TaskOutput::Findings),
+        ..request()
+    }
+}
+
+/// 構造化出力（T4-2）：接続先で有効にし、返す形のあるタスクの頼みにだけ `response_format` を付ける（OpenAI 互換だけ）。
+#[test]
+fn structured_output_request() {
+    let reply = || {
+        json_reply(
+            "200 OK",
+            r#"{"choices":[{"message":{"content":"{\"findings\":[]}"},"finish_reason":"stop"}]}"#,
+        )
+    };
+    let mock = serve(reply());
+    let mut conn = local(Provider::OpenaiCompatible, mock.base_url());
+    conn.structured_output = true;
+    call(&conn, None, &schema_request()).0.unwrap();
+    let body = mock.received().json();
+    let format = &body["response_format"];
+    assert_eq!(format["type"], "json_schema");
+    assert_eq!(format["json_schema"]["name"], "findings");
+    assert_eq!(
+        format["json_schema"]["schema"]["properties"]["findings"]["type"],
+        "array"
+    );
+    // 返す形の無い頼み（接続を試す、下書き）には付けない。
+    let mock = serve(reply());
+    let mut conn = local(Provider::OpenaiCompatible, mock.base_url());
+    conn.structured_output = true;
+    call(&conn, None, &request()).0.unwrap();
+    assert!(mock.received().json().get("response_format").is_none());
+    // 接続先で有効にしていなければ付けない。
+    let mock = serve(reply());
+    let conn = local(Provider::OpenaiCompatible, mock.base_url());
+    call(&conn, None, &schema_request()).0.unwrap();
+    assert!(mock.received().json().get("response_format").is_none());
+    // 送る中身の見せ方にも出る。
+    let mut shown = local(
+        Provider::OpenaiCompatible,
+        "http://localhost:1/v1".to_owned(),
+    );
+    shown.structured_output = true;
+    assert!(ai::request_preview(&shown, &schema_request()).contains("response_format"));
+    // Messages API には付けない。
+    let mut anthropic = local(Provider::Anthropic, "http://localhost:1/v1".to_owned());
+    anthropic.structured_output = true;
+    assert!(!ai::request_preview(&anthropic, &schema_request()).contains("response_format"));
+    // 返す形：指摘・提案・メモの分類案だけ。
+    for output in [
+        ai::TaskOutput::Findings,
+        ai::TaskOutput::Diff,
+        ai::TaskOutput::Ideas,
+    ] {
+        assert!(ai::output_schema(output).is_some(), "{output:?}");
+    }
+    for output in [
+        ai::TaskOutput::Summary,
+        ai::TaskOutput::Draft,
+        ai::TaskOutput::Proposals,
+    ] {
+        assert!(ai::output_schema(output).is_none(), "{output:?}");
+    }
+}
+
+/// 構造化出力を断られたら（400・422）、切るよう知らせる。有効にしていなければ知らせない。
+#[test]
+fn structured_output_refused() {
+    let refused =
+        r#"{"error":{"message":"'response_format.type' must be 'json_schema' or 'text'"}}"#;
+    for status in ["400 Bad Request", "422 Unprocessable Entity"] {
+        let mock = serve(json_reply(status, refused));
+        let mut conn = local(Provider::OpenaiCompatible, mock.base_url());
+        conn.structured_output = true;
+        let error = call(&conn, None, &schema_request()).0.unwrap_err();
+        assert!(error.to_string().contains("構造化出力"), "{error}");
+    }
+    let mock = serve(json_reply("400 Bad Request", refused));
+    let conn = local(Provider::OpenaiCompatible, mock.base_url());
+    let error = call(&conn, None, &schema_request()).0.unwrap_err();
+    assert!(!error.to_string().contains("構造化出力"), "{error}");
+}
+
+/// 構造化出力の決め方（T4-2）：端末の上書き、`project.toml`、使わない（既定）の順。`anthropic` ではいつも使わない。
+#[test]
+fn structured_output_resolution() {
+    let mut machine = MachineSettings::default();
+    let mut local = decl("local", None, Some("http://localhost:1234/v1"), Some("m"));
+    assert!(!ai::resolve(&local, &machine).unwrap().structured_output);
+    local.structured_output = Some(true);
+    assert!(ai::resolve(&local, &machine).unwrap().structured_output);
+    machine.set_override(
+        "local",
+        ai::Override {
+            structured_output: Some(false),
+            ..ai::Override::default()
+        },
+    );
+    assert!(!ai::resolve(&local, &machine).unwrap().structured_output);
+    let mut cloud = decl("cloud", Some("anthropic"), None, Some("c"));
+    cloud.structured_output = Some(true);
+    assert!(!ai::resolve(&cloud, &machine).unwrap().structured_output);
+
+    let keys = MemoryKeys::default();
+    let (statuses, _) = ai::connection_statuses(&[local, cloud], &machine, &keys);
+    let local = statuses.iter().find(|s| s.name == "local").unwrap();
+    assert_eq!(
+        (
+            local.structured_output,
+            local.project_structured_output,
+            local.override_structured_output
+        ),
+        (Some(false), Some(true), Some(false))
+    );
+    let cloud = statuses.iter().find(|s| s.name == "cloud").unwrap();
+    assert_eq!(cloud.structured_output, Some(false));
+
+    // 端末の設定のファイルに書いて読み直す（偽の上書きも残る）。
+    let dir = temp_dir("structured-machine");
+    let path = dir.join(ai::MACHINE_SETTINGS_FILE);
+    ai::write_machine_settings(&path, &machine).unwrap();
+    assert!(
+        fs::read_to_string(&path)
+            .unwrap()
+            .contains("structured_output = false")
+    );
+    assert_eq!(ai::read_machine_settings(&path), (machine, None));
+    let _ = fs::remove_dir_all(&dir);
 }

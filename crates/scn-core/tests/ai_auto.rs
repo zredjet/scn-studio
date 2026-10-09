@@ -186,6 +186,7 @@ fn host(root: &Path, url: String, task: &str) -> TestHost {
             cloud: false,
             allowed: true,
             context_tokens: 200_000,
+            structured_output: false,
         },
         task: task.to_owned(),
         generator: LineIdGenerator::with_seed(3),

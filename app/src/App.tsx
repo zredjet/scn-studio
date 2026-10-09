@@ -1824,7 +1824,9 @@ export function App() {
     let live = true;
     void onAiRunProgress((p) => {
       setAiRunState((r) =>
-        r !== null && r.run === p.run ? { ...r, chars: p.chars } : r,
+        r !== null && r.run === p.run
+          ? { ...r, chars: p.chars, thinking: p.thinking }
+          : r,
       );
     }).then((u) => {
       if (live) unlisten = u;
@@ -2046,7 +2048,7 @@ export function App() {
         hour: "2-digit",
         minute: "2-digit",
       });
-      setAiRunState({ run, task: task.id, scene, chars: 0 });
+      setAiRunState({ run, task: task.id, scene, chars: 0, thinking: false });
       setAiHistory((h) => [
         { run, taskName: task.name, at, status: "実行中" },
         ...h,
@@ -3159,12 +3161,19 @@ export function App() {
                     data={aiState}
                     error={aiError}
                     tests={aiTests}
-                    onOverride={(name, baseUrl, model, contextTokens) =>
+                    onOverride={(
+                      name,
+                      baseUrl,
+                      model,
+                      contextTokens,
+                      structured,
+                    ) =>
                       setAiOverride(
                         name,
                         baseUrl,
                         model,
                         contextTokens,
+                        structured,
                       ).finally(() => aiChanged([name]))
                     }
                     onAllow={(endpoint, allowed) =>

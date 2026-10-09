@@ -7,6 +7,8 @@ import type { AiPrepared } from "../core/types.ts";
 import {
   blocker,
   estimateText,
+  progressText,
+  STRUCTURED_NOTE,
   type TaskRunner,
   trimmedText,
 } from "./model.ts";
@@ -61,8 +63,7 @@ export function QuickRun({ runner, scene, label, disabledReason }: Props) {
         {thisRunning ? (
           <>
             <span className="ai-test-state" role="status">
-              {info.task.name}を実行中 · 受け取った文字{" "}
-              {running.chars.toLocaleString("ja-JP")}
+              {info.task.name}を実行中 · {progressText(running)}
             </span>
             <button
               type="button"
@@ -110,6 +111,9 @@ export function QuickRun({ runner, scene, label, disabledReason }: Props) {
               {t}
             </p>
           ))}
+          {shown.connection.structured && (
+            <p className="context-faint ai-prepared-note">{STRUCTURED_NOTE}</p>
+          )}
           {shown.assembled.problem !== null && (
             <p className="export-warning">{shown.assembled.problem}</p>
           )}
