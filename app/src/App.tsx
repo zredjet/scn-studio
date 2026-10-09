@@ -135,6 +135,7 @@ import type {
   AiTaskInfo,
   AssistData,
   AutoResult,
+  AutoStages,
   Bracket,
   BranchProposal,
   ConceptDraft,
@@ -445,7 +446,9 @@ export function App() {
   const [proposalsVersion, setProposalsVersion] = useState(0);
   /** 自律の実行（T3-9）：走っている回、最後の結果、AI のブランチ。 */
   const [aiAutoRun, setAiAutoRun] = useState<AutoRun | null>(null);
-  const [aiAutoResult, setAiAutoResult] = useState<AutoResult | null>(null);
+  const [aiAutoResult, setAiAutoResult] = useState<
+    (AutoResult & { readonly run: number }) | null
+  >(null);
   const [aiAutoError, setAiAutoError] = useState<string | null>(null);
   const [aiBranchState, setAiBranchState] = useState<AiBranches | null>(null);
   const [branchesVersion, setBranchesVersion] = useState(0);
@@ -1959,7 +1962,7 @@ export function App() {
   /** 案を採用する（人の操作。T4-4）。誤りの文を返す。 */
   const adoptField = useCallback(
     async (
-      run: number,
+      run: number | string,
       proposal: FieldProposal,
       written: FieldsWritten,
       task: string,
@@ -1993,11 +1996,14 @@ export function App() {
     },
     [onSettingsWritten],
   );
-  const rejectField = useCallback((run: number, proposal: FieldProposal) => {
-    setFieldDecisions((m) =>
-      new Map(m).set(fieldProposalKey(run, proposal), "rejected"),
-    );
-  }, []);
+  const rejectField = useCallback(
+    (run: number | string, proposal: FieldProposal) => {
+      setFieldDecisions((m) =>
+        new Map(m).set(fieldProposalKey(run, proposal), "rejected"),
+      );
+    },
+    [],
+  );
   /** 生成の下書きをスタブのシーンに書き込む（T3-9）。結果の文と、書けたかを返す。 */
   const writeDraft = useCallback(
     async (
@@ -2495,6 +2501,7 @@ export function App() {
       file: string,
       branch: boolean,
       confirmed: readonly string[],
+      stages: AutoStages,
     ) => {
       if (latest.current.dirty.size > 0) {
         setAiAutoError(
@@ -2517,6 +2524,8 @@ export function App() {
         done: [],
         tokens: 0,
         budget: task.budget_tokens,
+        stage: null,
+        stagesDone: [],
       });
       const at = new Date().toLocaleTimeString("ja-JP", {
         hour: "2-digit",
@@ -2530,10 +2539,15 @@ export function App() {
         setAiHistory((h) =>
           h.map((e) => (e.run === run ? { ...e, status } : e)),
         );
-      runAiAuto(task.id, file, run, branch, confirmed)
+      runAiAuto(task.id, file, run, branch, confirmed, stages)
         .then((result) => {
           autoRunning.current = null;
-          setAiAutoResult(result);
+          setAiAutoResult({ ...result, run });
+          // 企画と設定の段で書いたら、設定を読み直す（T4-6）。
+          if (result.settings !== null) {
+            onSettingsWritten(result.settings);
+            setSettingsVersion((n) => n + 1);
+          }
           setAiAutoRun(null);
           setBranchesVersion((n) => n + 1);
           const written = result.outcome.scenes.filter(
@@ -2552,7 +2566,7 @@ export function App() {
           settle("失敗");
         });
     },
-    [],
+    [onSettingsWritten],
   );
   const cancelAuto = useCallback(() => {
     // 次の段の合間で止まる（結果は届いたときに見せる）。

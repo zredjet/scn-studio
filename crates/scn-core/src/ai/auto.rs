@@ -8,11 +8,12 @@
 //! - 取り消しとトークン数の上限は、段（呼び出し）の合間ごとに見る。取り消したら、できている下書きも書かない。上限に
 //!   達したら、できている下書きは書き込み（点検の残りを知らせる）、次の段を始めない。
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use super::client::{AiError, ChatRequest, Completion, ensure_answer};
 use super::connection::Connection;
 use super::context::{ContextSources, assemble, preamble};
+use super::fielddraft::{ConceptDraft, EntriesDraft, parse_concept_draft, parse_entries_draft};
 use super::generate::{
     draft_into_scene, generated_body, scene_range, stubs_in, with_line_ids, without_temp_ids,
 };
@@ -22,6 +23,7 @@ use crate::index::build_index;
 use crate::ir::Ir;
 use crate::line_id::LineIdGenerator;
 use crate::project::Project;
+use crate::workspace::{EntriesWritten, FieldsWritten};
 
 /// 反復の上限を書かないときの既定。
 pub const DEFAULT_MAX_ITERATIONS: u32 = 3;
@@ -42,6 +44,46 @@ pub enum AutoEvent {
     SceneDone { scene: AutoScene },
     /// 使ったトークン数。
     Tokens { used: u64 },
+    /// 企画と設定の段を始めた（`concept`・`entries`・`entries_after`。T4-6）。
+    Stage { stage: &'static str },
+    /// 企画と設定の段が終わった（T4-6）。
+    StageDone { stage: AutoStage },
+}
+
+/// 自律の企画と設定の段（T4-6）：前段の企画書の空欄、前段の足りない設定、章の後の設定。既定はどれも行わない。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AutoStages {
+    #[serde(default)]
+    pub concept: bool,
+    #[serde(default)]
+    pub entries: bool,
+    #[serde(default)]
+    pub entries_after: bool,
+}
+
+/// 企画と設定の段で使う組み込みのタスク。
+pub const CONCEPT_STAGE_TASK: &str = "draft_concept";
+pub const ENTRIES_STAGE_TASK: &str = "draft_entries";
+
+/// 企画と設定の段の結果（T4-6）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct AutoStage {
+    /// `concept`・`entries`・`entries_after`。
+    pub stage: &'static str,
+    pub task: String,
+    /// 使ったモデル（案を採用したときの出自に記録する）。
+    pub model: String,
+    /// `written`（下書きを書いた）・`skipped`（行わなかった）・`failed`（呼び出しや書き込みに失敗した）。
+    pub status: &'static str,
+    pub message: Option<String>,
+    /// 作ったエントリ。
+    pub created: Vec<String>,
+    /// ファイルごとの書いた項目と案。
+    pub files: Vec<FieldsWritten>,
+    /// 読まなかった・書かなかったもののわけ。
+    pub notes: Vec<String>,
+    /// 段の後の検証の結果（企画書：W701・W702、設定：W805・W806・W202）。
+    pub issues: Vec<String>,
 }
 
 /// シーンの結果。
@@ -73,6 +115,8 @@ pub struct AutoOutcome {
     pub budget: Option<u64>,
     /// 途中で止めたわけ（上限、取り消し、呼び出しの失敗）。
     pub stopped: Option<String>,
+    /// 企画と設定の段の結果（行った順。T4-6）。
+    pub stages: Vec<AutoStage>,
 }
 
 /// 自律の実行を支えるもの。
@@ -90,6 +134,20 @@ pub trait AutoHost {
     ) -> Result<Completion, AiError>;
     /// スタブに書き込む（書き込んだ行の行ID。書き込まなかったらわけ）。
     fn write(&mut self, file: &str, scene: &str, body: &[String]) -> Result<Vec<String>, String>;
+    /// 企画書の下書きを書く（T4-6。`Workspace::write_concept_draft`）。
+    fn write_concept(
+        &mut self,
+        draft: &ConceptDraft,
+        task: &str,
+        model: &str,
+    ) -> Result<FieldsWritten, String>;
+    /// 設定の下書きを書く（T4-6。`Workspace::write_entries_draft`）。
+    fn write_entries(
+        &mut self,
+        draft: &EntriesDraft,
+        task: &str,
+        model: &str,
+    ) -> Result<EntriesWritten, String>;
     fn event(&mut self, event: AutoEvent);
     fn cancelled(&self) -> bool;
 }
@@ -174,6 +232,8 @@ struct Meter<'a> {
     host: &'a mut dyn AutoHost,
     used: u64,
     budget: Option<u64>,
+    /// 章の点検で数えない診断（章の後に設定を作る段があれば、未登録の話者 W202 はその段で拾う。T4-6）。
+    skip_codes: &'static [&'static str],
 }
 
 impl Meter<'_> {
@@ -245,7 +305,10 @@ fn inspect(
         let mut diags = ir.diagnostics.clone();
         diags.extend(crate::check::check(project, &ir, &index));
         diags.extend(crate::wording::wording(project, &ir));
-        for d in diags {
+        for d in diags
+            .into_iter()
+            .filter(|d| !meter.skip_codes.contains(&d.code))
+        {
             let inside = d.file == file && d.span.start >= start && d.span.start < end;
             let counted = matches!(d.code.chars().next(), Some('E' | 'W'))
                 || matches!(d.code, "I204" | "I205" | "I206");
@@ -296,8 +359,157 @@ fn rename_ids(issues: &[String], temp: &[String], written: &[String]) -> Vec<Str
         .collect()
 }
 
-/// 自律で、章（`file`）のスタブのシーンを下書きにする。`all` は作品のすべてのタスク（`checks` が指す）。
-pub fn run_auto(host: &mut dyn AutoHost, task: &AiTask, file: &str, all: &[AiTask]) -> AutoOutcome {
+/// 出自を書けなかったわけを、段の知らせにする。
+fn provenance_note(problem: Option<&str>) -> Vec<String> {
+    problem
+        .map(|p| vec![format!("出自を記録できませんでした：{p}")])
+        .unwrap_or_default()
+}
+
+/// 企画と設定の段を1つ行う（T4-6）：組み込みのタスクで下書きを頼み、書き、段の後の検証の結果を数える。止めたら
+/// そのわけも返す（取り消したら、その段の下書きは書かない）。
+fn run_stage(
+    meter: &mut Meter<'_>,
+    stage: &'static str,
+    id: &str,
+    all: &[AiTask],
+) -> (AutoStage, Option<Halt>) {
+    let mut result = AutoStage {
+        stage,
+        task: id.to_owned(),
+        model: String::new(),
+        status: "skipped",
+        message: None,
+        created: Vec::new(),
+        files: Vec::new(),
+        notes: Vec::new(),
+        issues: Vec::new(),
+    };
+    meter.host.event(AutoEvent::Stage { stage });
+    let concept = stage == "concept";
+    let expected = if concept {
+        TaskOutput::Concept
+    } else {
+        TaskOutput::Entries
+    };
+    let Some(task) = all
+        .iter()
+        .find(|t| t.id == id && t.level == TaskLevel::Generate && t.output == expected)
+    else {
+        result.message = Some(format!(
+            "ai/{id}.yaml（生成の段階で output: {}）が無いので、この段は行いませんでした",
+            if concept { "concept" } else { "entries" }
+        ));
+        return (result, None);
+    };
+    if let Some(halt) = meter.over() {
+        result.message = Some(halt.message());
+        return (result, Some(halt));
+    }
+    let project = match meter.host.project() {
+        Ok(p) => p,
+        Err(e) => {
+            result.status = "failed";
+            result.message = Some(e.clone());
+            return (result, Some(Halt::Error(e)));
+        }
+    };
+    let ir = crate::analyze(&project);
+    let sources = meter.host.sources();
+    let (ctx, model) = match meter.host.connection(task) {
+        Ok((c, _)) => {
+            result.model = c.model.clone();
+            (c.context_tokens, c.model)
+        }
+        Err(e) => {
+            result.status = "failed";
+            result.message = Some(e.clone());
+            return (result, Some(Halt::Error(e)));
+        }
+    };
+    let assembled = assemble(&project, &ir, &sources, task, None, ctx);
+    if let Some(problem) = assembled.problem {
+        result.status = "failed";
+        result.message = Some(problem);
+        return (result, None);
+    }
+    let done = match meter.call(task, &chat_request(task, &assembled)) {
+        Ok(done) => done,
+        Err(halt) => {
+            if halt != Halt::Cancelled {
+                result.status = "failed";
+            }
+            result.message = Some(halt.message());
+            return (result, Some(halt));
+        }
+    };
+    if meter.host.cancelled() {
+        result.message = Some("取り消したので書き込みませんでした".to_owned());
+        return (result, Some(Halt::Cancelled));
+    }
+    let written = if concept {
+        let (draft, unread) = parse_concept_draft(&done.text);
+        result.notes = unread;
+        match draft {
+            None => Err("応答から企画書の下書きを読めませんでした".to_owned()),
+            Some(draft) => meter.host.write_concept(&draft, &task.id, &model).map(|w| {
+                let notes = provenance_note(w.provenance_problem.as_deref());
+                (Vec::new(), vec![w], notes)
+            }),
+        }
+    } else {
+        let (draft, unread) = parse_entries_draft(&done.text, &project);
+        result.notes = unread;
+        match draft {
+            None => Err("応答から設定の下書きを読めませんでした".to_owned()),
+            Some(draft) => meter.host.write_entries(&draft, &task.id, &model).map(|w| {
+                let mut notes = w.notes;
+                notes.extend(provenance_note(w.provenance_problem.as_deref()));
+                (w.created, w.files, notes)
+            }),
+        }
+    };
+    match written {
+        Ok((created, files, notes)) => {
+            result.status = "written";
+            result.created = created;
+            result.files = files;
+            result.notes.extend(notes);
+        }
+        Err(e) => {
+            result.status = "failed";
+            result.message = Some(e);
+        }
+    }
+    // 段の後の検証（企画書：本文と照らしたエンディング、設定：項目の値と参照、未登録の話者）。
+    if let Ok(project) = meter.host.project() {
+        let ir = crate::analyze(&project);
+        let index = build_index(&project, &ir);
+        let codes: &[&str] = if concept {
+            &["W701", "W702"]
+        } else {
+            &["W805", "W806", "W202"]
+        };
+        let mut diags = ir.diagnostics.clone();
+        diags.extend(crate::check::check(&project, &ir, &index));
+        result.issues = diags
+            .iter()
+            .filter(|d| codes.contains(&d.code))
+            .map(|d| format!("{} {}", d.code, d.message))
+            .collect();
+    }
+    (result, None)
+}
+
+/// 自律で、章（`file`）のスタブのシーンを下書きにする。`all` は作品のすべてのタスク（`checks` が指す）。`stages` は
+/// 企画と設定の段（前段は章のスタブより前、`entries_after` は章の後。T4-6）。
+pub fn run_auto(
+    host: &mut dyn AutoHost,
+    task: &AiTask,
+    file: &str,
+    all: &[AiTask],
+    stages: &AutoStages,
+) -> AutoOutcome {
     let max_iterations = task.max_iterations.unwrap_or(DEFAULT_MAX_ITERATIONS);
     let mut outcome = AutoOutcome {
         task: task.id.clone(),
@@ -306,11 +518,38 @@ pub fn run_auto(host: &mut dyn AutoHost, task: &AiTask, file: &str, all: &[AiTas
         tokens: 0,
         budget: task.budget_tokens,
         stopped: None,
+        stages: Vec::new(),
     };
+    let mut meter = Meter {
+        host,
+        used: 0,
+        budget: task.budget_tokens,
+        skip_codes: if stages.entries_after { &["W202"] } else { &[] },
+    };
+    // 前段（T4-6）：企画書の空欄 → 足りない設定。上から下へ降りる。
+    let before = [
+        (stages.concept, "concept", CONCEPT_STAGE_TASK),
+        (stages.entries, "entries", ENTRIES_STAGE_TASK),
+    ];
+    for (_, stage, id) in before.into_iter().filter(|(on, _, _)| *on) {
+        let (result, halt) = run_stage(&mut meter, stage, id, all);
+        // 段がどこで終わっても、終わったことを知らせる（進み具合に「実行中」を残さない）。
+        meter.host.event(AutoEvent::StageDone {
+            stage: result.clone(),
+        });
+        outcome.stages.push(result);
+        if let Some(halt) = halt {
+            outcome.stopped = Some(halt.message());
+            outcome.tokens = meter.used;
+            return outcome;
+        }
+    }
+    let host = &mut *meter.host;
     let project = match host.project() {
         Ok(p) => p,
         Err(e) => {
             outcome.stopped = Some(e);
+            outcome.tokens = meter.used;
             return outcome;
         }
     };
@@ -319,11 +558,6 @@ pub fn run_auto(host: &mut dyn AutoHost, task: &AiTask, file: &str, all: &[AiTas
     host.event(AutoEvent::Planned {
         scenes: scenes.clone(),
     });
-    let mut meter = Meter {
-        host,
-        used: 0,
-        budget: task.budget_tokens,
-    };
     let base_prompt = task.prompt.clone().unwrap_or_default();
     for scene in scenes {
         if let Some(halt) = meter.over() {
@@ -412,6 +646,17 @@ pub fn run_auto(host: &mut dyn AutoHost, task: &AiTask, file: &str, all: &[AiTas
         if let Some(halt) = halt {
             outcome.stopped = Some(halt.message());
             break;
+        }
+    }
+    // 章の後（T4-6）：下書きで新しく出た話者などの設定。
+    if outcome.stopped.is_none() && stages.entries_after {
+        let (result, halt) = run_stage(&mut meter, "entries_after", ENTRIES_STAGE_TASK, all);
+        meter.host.event(AutoEvent::StageDone {
+            stage: result.clone(),
+        });
+        outcome.stages.push(result);
+        if let Some(halt) = halt {
+            outcome.stopped = Some(halt.message());
         }
     }
     // 最後のシーンで上限に達していたら、それも知らせる。

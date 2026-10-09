@@ -16,8 +16,10 @@ export type FieldDecision = "adopted" | "rejected";
 interface Props {
   /** 下書きを書いた結果（案と、案を見せたときの中身）。 */
   readonly written: FieldsWritten;
-  /** 実行の回（案を見分けるため）。 */
-  readonly run: number;
+  /** 実行の回（案を見分けるため。自律の段では回と段の名前）。 */
+  readonly run: number | string;
+  /** 採用・却下を出さないわけ（自律を AI のブランチで実行したとき。T4-6）。 */
+  readonly readOnly?: string;
   readonly labels?: Readonly<Record<string, string>>;
   readonly decisions: ReadonlyMap<string, FieldDecision>;
   /** 採用する（誤りの文を返す）。 */
@@ -32,6 +34,7 @@ export function FieldProposals({
   decisions,
   onAdopt,
   onReject,
+  readOnly,
 }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const [problems, setProblems] = useState<ReadonlyMap<string, string>>(
@@ -68,7 +71,9 @@ export function FieldProposals({
             {problem !== undefined && (
               <p className="export-warning">{problem}</p>
             )}
-            {decision === undefined ? (
+            {readOnly !== undefined ? (
+              <p className="context-faint">{readOnly}</p>
+            ) : decision === undefined ? (
               <div className="ai-actions">
                 <button
                   type="button"

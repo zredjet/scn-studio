@@ -209,6 +209,17 @@ fn write_entries() {
         .write_entries_draft(&draft.unwrap(), "draft_entries", "m", None)
         .unwrap();
     assert_eq!(done.provenance_problem, None);
+    // 自律のブランチにコミットするファイル（T4-6）：作ったエントリ、書いたエントリ、出自の記録。
+    assert_eq!(
+        done.written_paths(),
+        [
+            "ai/provenance.jsonl",
+            AKARI,
+            "bible/entries/character/sora.md",
+            "bible/entries/character/tenin.md",
+            "bible/entries/place/rooftop_club.md"
+        ]
+    );
     assert_eq!(
         done.created,
         [

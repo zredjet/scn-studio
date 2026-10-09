@@ -15,6 +15,7 @@ import {
   applyAutoEvent,
   autoBranchText,
   autoSceneText,
+  autoStageText,
   blocker,
   cloudDestinations,
   connectionOptions,
@@ -587,6 +588,8 @@ test("自律の進み具合：計画、段、終わったシーン、トーク�
     done: [],
     tokens: 0,
     budget: 1000,
+    stage: null,
+    stagesDone: [],
   };
   run = applyAutoEvent(run, { kind: "planned", scenes: ["s1", "s2"] });
   assert.deepEqual(run.planned, ["s1", "s2"]);
@@ -836,4 +839,73 @@ test("設定の下書きの結果の文（T4-5）：作ったエントリ、空�
     "書くものはありませんでした",
   );
   assert.equal(fieldLabel("name", {}), "名前");
+});
+
+test("自律の企画と設定の段（T4-6）：進み具合と結果の文", () => {
+  let run: AutoRun = {
+    run: 1,
+    task: "draft_chapter",
+    file: "story/ch.scn",
+    planned: [],
+    current: null,
+    done: [],
+    tokens: 0,
+    budget: null,
+    stage: null,
+    stagesDone: [],
+  };
+  run = applyAutoEvent(run, { kind: "stage", stage: "concept" });
+  assert.equal(run.stage, "concept");
+  const stage = {
+    stage: "concept" as const,
+    task: "draft_concept",
+    model: "m",
+    status: "written" as const,
+    message: null,
+    created: [],
+    files: [
+      {
+        file: "concept.md",
+        text: "",
+        written: ["theme", "tone"],
+        proposals: [
+          { file: "concept.md", key: "logline", current: "a", proposed: "b" },
+        ],
+        notes: [],
+        provenance_problem: null,
+      },
+    ],
+    notes: [],
+    issues: ["W701 x"],
+  };
+  run = applyAutoEvent(run, { kind: "stage_done", stage });
+  assert.equal(run.stage, null);
+  assert.equal(run.stagesDone.length, 1);
+  assert.equal(
+    autoStageText(stage),
+    "concept.md の空いている項目に書きました：テーマ、トーン。値のある項目への案 1 件（採用を選べます）（検証 1件）",
+  );
+  assert.equal(
+    autoStageText({
+      ...stage,
+      stage: "entries",
+      created: ["bible/entries/character/x.md"],
+      files: [
+        {
+          file: "bible/entries/character/x.md",
+          text: "",
+          written: ["name"],
+          proposals: [],
+          notes: [],
+          provenance_problem: null,
+        },
+      ],
+      issues: [],
+    }),
+    "設定DBにエントリを作りました（status: ai-draft）：character/x（検証 問題なし）",
+  );
+  assert.equal(
+    autoStageText({ ...stage, status: "skipped", message: "無い" }),
+    "無い",
+  );
 });

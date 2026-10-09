@@ -12,6 +12,7 @@ import type {
   AiProposalView,
   AiTaskInfo,
   AutoResult,
+  AutoStages,
   FieldProposal,
   FieldsWritten,
   SceneSummary,
@@ -106,22 +107,26 @@ interface Props {
   /** 企画書・エントリの下書きの案（T4-4）：決め方、採用、却下。 */
   readonly fieldDecisions: ReadonlyMap<string, FieldDecision>;
   readonly onAdoptField: (
-    run: number,
+    run: number | string,
     proposal: FieldProposal,
     written: FieldsWritten,
     task: string,
     model: string,
   ) => Promise<string | null>;
-  readonly onRejectField: (run: number, proposal: FieldProposal) => void;
+  readonly onRejectField: (
+    run: number | string,
+    proposal: FieldProposal,
+  ) => void;
   /** 自律（T3-9）：走っている回、最後の結果、誤り、実行と取り消し。 */
   readonly autoRun: AutoRun | null;
-  readonly autoResult: AutoResult | null;
+  readonly autoResult: (AutoResult & { readonly run: number }) | null;
   readonly autoError: string | null;
   readonly onRunAuto: (
     info: AiTaskInfo,
     file: string,
     branch: boolean,
     confirmedCloud: readonly string[],
+    stages: AutoStages,
   ) => void;
   readonly onCancelAuto: () => void;
   /** AI のブランチ（Git）と、差分・取り込み・破棄。 */
@@ -453,6 +458,23 @@ export function AiScreen({
                 onDiff={onBranchDiff}
                 onMerge={onBranchMerge}
                 onDelete={onBranchDelete}
+                stageTasks={{
+                  concept:
+                    tasks.find(
+                      (t) =>
+                        t.task.id === "draft_concept" &&
+                        t.task.output === "concept",
+                    ) ?? null,
+                  entries:
+                    tasks.find(
+                      (t) =>
+                        t.task.id === "draft_entries" &&
+                        t.task.output === "entries",
+                    ) ?? null,
+                }}
+                fieldDecisions={fieldDecisions}
+                onAdoptField={onAdoptField}
+                onRejectField={onRejectField}
               />
             ) : (
               <>

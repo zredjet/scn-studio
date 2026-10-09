@@ -620,11 +620,27 @@ pub struct EntriesDraft {
 }
 
 /// 応答の文から、エントリのリスト（`{"entries": [...]}`、リスト、1行に1つの JSON）を読む（指摘と同じ読み方）。
+/// 空のリスト（足すものが無い）も読める応答。
 fn entry_items(text: &str) -> Option<Vec<Value>> {
+    if let Some(map) = object_of(text)
+        && let Some(Value::Array(items)) = map.get("entries")
+    {
+        return Some(items.clone());
+    }
     let (items, _) = parse_json_items(text, "entries", &|v: &Value| {
         v.is_object().then(|| v.clone())
     });
-    (!items.is_empty()).then_some(items)
+    if !items.is_empty() {
+        return Some(items);
+    }
+    let body: Vec<&str> = text
+        .lines()
+        .filter(|l| !l.trim_start().starts_with("```"))
+        .collect();
+    match serde_json::from_str::<Value>(body.join("\n").trim()) {
+        Ok(Value::Array(items)) if items.is_empty() => Some(Vec::new()),
+        _ => None,
+    }
 }
 
 /// 応答の文から設定の下書きを読む（T4-5）。読まないもの（型の無い型、IDの形、名前、同じ型とIDの2つ目、型に無い

@@ -959,7 +959,32 @@ export type AutoEvent =
       readonly iteration: number;
     }
   | { readonly kind: "scene_done"; readonly scene: AutoScene }
-  | { readonly kind: "tokens"; readonly used: number };
+  | { readonly kind: "tokens"; readonly used: number }
+  | { readonly kind: "stage"; readonly stage: AutoStageName }
+  | { readonly kind: "stage_done"; readonly stage: AutoStage };
+
+/** 自律の企画と設定の段（コアの `ai::AutoStages`。T4-6）。 */
+export interface AutoStages {
+  readonly concept: boolean;
+  readonly entries: boolean;
+  readonly entries_after: boolean;
+}
+
+/** 段の名前（前段の企画書・前段の設定・章の後の設定）。 */
+export type AutoStageName = "concept" | "entries" | "entries_after";
+
+/** 段の結果（コアの `ai::AutoStage`。T4-6）。 */
+export interface AutoStage {
+  readonly stage: AutoStageName;
+  readonly task: string;
+  readonly model: string;
+  readonly status: "written" | "skipped" | "failed";
+  readonly message: string | null;
+  readonly created: readonly string[];
+  readonly files: readonly FieldsWritten[];
+  readonly notes: readonly string[];
+  readonly issues: readonly string[];
+}
 
 /** 自律の結果（`ai_auto`）。 */
 export interface AutoResult {
@@ -970,7 +995,17 @@ export interface AutoResult {
     readonly tokens: number;
     readonly budget: number | null;
     readonly stopped: string | null;
+    /** 企画と設定の段の結果（行った順。T4-6）。 */
+    readonly stages: readonly AutoStage[];
   };
+  /** 企画と設定の段で書いたとき、読み直した設定から作ったもの（T4-6）。 */
+  readonly settings:
+    | ({
+        readonly assist: AssistData;
+        readonly summary: Summary;
+        readonly checks: readonly IrDiagnostic[];
+      } & SettingsWrittenExtra)
+    | null;
   /** ブランチで実行したとき。 */
   readonly branch: {
     readonly name: string;

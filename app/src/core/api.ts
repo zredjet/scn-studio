@@ -25,6 +25,7 @@ import type {
   AssetList,
   AutoEvent,
   AutoResult,
+  AutoStages,
   BibleData,
   BibleWritten,
   BranchProposal,
@@ -816,6 +817,7 @@ export function runAiAuto(
   run: number,
   branch: boolean,
   confirmedCloud: readonly string[],
+  stages: AutoStages,
 ): Promise<AutoResult> {
   return invoke<AutoResult>("ai_auto", {
     task,
@@ -823,6 +825,7 @@ export function runAiAuto(
     run,
     branch,
     confirmedCloud,
+    stages,
   });
 }
 

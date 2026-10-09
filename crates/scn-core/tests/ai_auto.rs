@@ -165,6 +165,26 @@ impl AutoHost for TestHost {
             None => Ok(written.ids),
         }
     }
+    fn write_concept(
+        &mut self,
+        draft: &ai::ConceptDraft,
+        task: &str,
+        model: &str,
+    ) -> Result<scn_core::workspace::FieldsWritten, String> {
+        self.ws
+            .write_concept_draft(draft, task, model)
+            .map_err(|e| e.to_string())
+    }
+    fn write_entries(
+        &mut self,
+        draft: &ai::EntriesDraft,
+        task: &str,
+        model: &str,
+    ) -> Result<scn_core::workspace::EntriesWritten, String> {
+        self.ws
+            .write_entries_draft(draft, task, model, None)
+            .map_err(|e| e.to_string())
+    }
     fn event(&mut self, event: AutoEvent) {
         self.events.push(event);
     }
@@ -225,7 +245,7 @@ fn auto_drafts_and_fixes() {
     ]);
     let (task, all) = draft_chapter(&root);
     let mut h = host(&root, url, "draft_chapter");
-    let outcome = ai::run_auto(&mut h, &task, file, &all);
+    let outcome = ai::run_auto(&mut h, &task, file, &all, &ai::AutoStages::default());
     assert_eq!(outcome.stopped, None, "{outcome:?}");
     assert_eq!(outcome.scenes.len(), 1);
     let s022 = outcome.scenes.first().unwrap();
@@ -310,7 +330,7 @@ fn auto_stops_at_iteration_limit() {
     let (mut task, all) = draft_chapter(&root);
     task.max_iterations = Some(1);
     let mut h = host(&root, url, "draft_chapter");
-    let outcome = ai::run_auto(&mut h, &task, file, &all);
+    let outcome = ai::run_auto(&mut h, &task, file, &all, &ai::AutoStages::default());
     let s022 = outcome.scenes.first().unwrap();
     assert_eq!((s022.status, s022.iterations), ("written", 1));
     assert!(
@@ -355,7 +375,13 @@ fn auto_budget_and_cancel() {
     let (url, received) =
         serve_sequence(vec!["- メモ", "　雨が降っていた。", "- メモ", "　晴れた。"]);
     let mut h = host(&root, url.clone(), "auto");
-    let outcome = ai::run_auto(&mut h, &task, "story/ch.scn", std::slice::from_ref(&task));
+    let outcome = ai::run_auto(
+        &mut h,
+        &task,
+        "story/ch.scn",
+        std::slice::from_ref(&task),
+        &ai::AutoStages::default(),
+    );
     assert_eq!(outcome.scenes.len(), 1, "{outcome:?}");
     assert_eq!(outcome.scenes.first().unwrap().status, "written");
     assert!(outcome.stopped.unwrap().contains("上限"));
@@ -380,7 +406,13 @@ fn auto_budget_and_cancel() {
 
     let mut h = host(&root, url, "auto");
     h.cancel = true;
-    let outcome = ai::run_auto(&mut h, &task, "story/ch.scn", std::slice::from_ref(&task));
+    let outcome = ai::run_auto(
+        &mut h,
+        &task,
+        "story/ch.scn",
+        std::slice::from_ref(&task),
+        &ai::AutoStages::default(),
+    );
     assert!(outcome.scenes.is_empty());
     assert_eq!(outcome.stopped.as_deref(), Some("取り消しました"));
     let _ = fs::remove_dir_all(&root);
@@ -396,7 +428,7 @@ fn auto_cancel_after_draft_does_not_write() {
     let (task, all) = draft_chapter(&root);
     let mut h = host(&root, url, "draft_chapter");
     h.cancel_after = Some(2);
-    let outcome = ai::run_auto(&mut h, &task, file, &all);
+    let outcome = ai::run_auto(&mut h, &task, file, &all, &ai::AutoStages::default());
     assert_eq!(outcome.stopped.as_deref(), Some("取り消しました"));
     let s022 = outcome.scenes.first().unwrap();
     assert_eq!(s022.status, "skipped");
@@ -418,7 +450,7 @@ fn auto_inspects_wording() {
     let (mut task, all) = draft_chapter(&root);
     task.max_iterations = Some(0);
     let mut h = host(&root, url, "draft_chapter");
-    let outcome = ai::run_auto(&mut h, &task, file, &all);
+    let outcome = ai::run_auto(&mut h, &task, file, &all, &ai::AutoStages::default());
     let s022 = outcome.scenes.first().unwrap();
     assert_eq!(s022.status, "written", "{outcome:?}");
     assert!(
@@ -455,7 +487,7 @@ fn auto_fix_reply_with_temp_ids() {
     ]);
     let (task, all) = draft_chapter(&root);
     let mut h = host(&root, url, "draft_chapter");
-    let outcome = ai::run_auto(&mut h, &task, file, &all);
+    let outcome = ai::run_auto(&mut h, &task, file, &all, &ai::AutoStages::default());
     let s022 = outcome.scenes.first().unwrap();
     assert_eq!(
         (s022.status, s022.iterations),
@@ -470,5 +502,182 @@ fn auto_fix_reply_with_temp_ids() {
         "{after}"
     );
     assert!(!after.contains("謎の人"));
+    let _ = fs::remove_dir_all(&root);
+}
+
+/// 企画と設定の段（T4-6）：前段で企画書の空欄と足りない設定、章のスタブ、章の後に設定。段の後の検証を数え、
+/// 人の値は変えずに案にする。
+#[test]
+fn auto_with_stages() {
+    let root = houkago_copy("stages");
+    let concept = fs::read_to_string(root.join("concept.md")).unwrap();
+    fs::write(
+        root.join("concept.md"),
+        concept.replace("theme: 言わないことは優しさか", "theme: \"\""),
+    )
+    .unwrap();
+    let file = "story/chapter02.scn";
+    let (url, received) = serve_sequence(vec![
+        // 前段：企画書（空いている theme に書き、人の tone は案）。
+        "{\"theme\": \"AIの主題\", \"tone\": \"AIのトーン\"}",
+        // 前段：設定（何も足さない）。
+        "{\"entries\": []}",
+        // 章：展開メモ → 本文（新しい話者「店員」。章の後の段があるので W202 は点検に数えない）→ 点検（2つの
+        // タスク）。
+        "- 雨で屋上に行けない",
+        "店員「いらっしゃい」\n灯「雨、やまないね」\n　図書室は静かだった。",
+        "",
+        "",
+        // 章の後：設定（新しい話者のエントリと、miura の空いている欲求）。
+        "{\"entries\": [{\"type\": \"character\", \"id\": \"tenin\", \"name\": \"店員\"}, {\"type\": \"character\", \"id\": \"miura\", \"name\": \"三浦先生\", \"fields\": {\"want\": \"生徒を見守る\"}}]}",
+    ]);
+    let (task, all) = draft_chapter(&root);
+    let mut h = host(&root, url, "draft_chapter");
+    let stages = ai::AutoStages {
+        concept: true,
+        entries: true,
+        entries_after: true,
+    };
+    let outcome = ai::run_auto(&mut h, &task, file, &all, &stages);
+    assert_eq!(outcome.stopped, None, "{outcome:?}");
+    let names: Vec<(&str, &str)> = outcome.stages.iter().map(|s| (s.stage, s.status)).collect();
+    assert_eq!(
+        names,
+        [
+            ("concept", "written"),
+            ("entries", "written"),
+            ("entries_after", "written")
+        ]
+    );
+    let concept = &outcome.stages[0];
+    assert_eq!(concept.files[0].written, ["theme"]);
+    assert_eq!(concept.files[0].proposals[0].key, "tone");
+    // 段の後の検証：サンプルにもともとある、本文に無いエンディング（W701）を数える。
+    assert_eq!(
+        concept.issues,
+        ["W701 企画書のエンディング true_end が、本文の @エンディング にありません"]
+    );
+    assert_eq!(outcome.scenes.len(), 1);
+    assert_eq!(outcome.scenes[0].status, "written");
+    assert_eq!(outcome.scenes[0].iterations, 0, "{:?}", outcome.scenes[0]);
+    let after = &outcome.stages[2];
+    assert_eq!(after.created, ["bible/entries/character/tenin.md"]);
+    let miura = after
+        .files
+        .iter()
+        .find(|f| f.file == "bible/entries/character/miura.md")
+        .unwrap();
+    assert_eq!(miura.written, ["want"]);
+    // 新しい話者のエントリを作ったので、W202 は残らない。
+    assert!(
+        after.issues.iter().all(|i| !i.starts_with("W202")),
+        "{:?}",
+        after.issues
+    );
+    assert!(
+        fs::read_to_string(root.join("concept.md"))
+            .unwrap()
+            .contains("theme: AIの主題")
+    );
+    assert!(
+        fs::read_to_string(root.join("bible/entries/character/miura.md"))
+            .unwrap()
+            .contains("want: 生徒を見守る")
+    );
+    // 頼みの順：企画書・設定・章（3回）・設定。
+    let sent = received.lock().unwrap();
+    assert_eq!(sent.len(), 7);
+    assert!(sent[0].contains("logline"), "{}", sent[0]);
+    assert!(sent[1].contains("entries"), "{}", sent[1]);
+    // 章の後の依頼の足りない設定に、章で出た話者が入っている。
+    assert!(sent[6].contains("「店員」"), "{}", sent[6]);
+    drop(sent);
+    let stage_events = h
+        .events
+        .iter()
+        .filter(|e| matches!(e, AutoEvent::Stage { .. }))
+        .count();
+    assert_eq!(stage_events, 3);
+    let done_events = h
+        .events
+        .iter()
+        .filter(|e| matches!(e, AutoEvent::StageDone { .. }))
+        .count();
+    assert_eq!(done_events, 3);
+    let provenance = read_provenance(&root).unwrap();
+    let fields = provenance.latest_fields();
+    assert_eq!(fields[&("concept.md", "theme")].task, "draft_concept");
+    assert_eq!(
+        fields[&("bible/entries/character/miura.md", "want")].task,
+        "draft_entries"
+    );
+    let _ = fs::remove_dir_all(&root);
+}
+
+/// 段のタスクが無ければ、その段は行わずに続ける。取り消したら、その段の下書きは書かずに止める。
+#[test]
+fn stage_missing_and_cancel() {
+    let root = houkago_copy("stage-missing");
+    fs::remove_file(root.join("ai/draft_concept.yaml")).unwrap();
+    let (url, _) = serve_sequence(vec![
+        "{\"entries\": [{\"type\": \"character\", \"id\": \"tenin\", \"name\": \"店員\"}]}",
+    ]);
+    let (task, all) = draft_chapter(&root);
+    let mut h = host(&root, url, "draft_chapter");
+    // 1回呼んだら取り消す（設定の段の応答の後）。
+    h.cancel_after = Some(1);
+    let stages = ai::AutoStages {
+        concept: true,
+        entries: true,
+        entries_after: false,
+    };
+    let outcome = ai::run_auto(&mut h, &task, "story/chapter02.scn", &all, &stages);
+    assert_eq!(outcome.stages.len(), 2);
+    assert_eq!(outcome.stages[0].status, "skipped");
+    assert!(
+        outcome.stages[0]
+            .message
+            .as_deref()
+            .unwrap()
+            .contains("draft_concept"),
+        "{:?}",
+        outcome.stages[0]
+    );
+    assert_eq!(outcome.stages[1].status, "skipped");
+    assert_eq!(outcome.stopped.as_deref(), Some("取り消しました"));
+    assert!(outcome.scenes.is_empty());
+    assert!(!root.join("bible/entries/character/tenin.md").exists());
+    let _ = fs::remove_dir_all(&root);
+}
+
+/// トークン数の上限：前段で上限に達したら、次の段も章も始めない（段の終わりは知らせる）。
+#[test]
+fn stage_budget() {
+    let root = houkago_copy("stage-budget");
+    let (url, received) = serve_sequence(vec!["{\"theme\": \"AIの主題\"}"]);
+    let (mut task, all) = draft_chapter(&root);
+    task.budget_tokens = Some(100);
+    let mut h = host(&root, url, "draft_chapter");
+    let stages = ai::AutoStages {
+        concept: true,
+        entries: true,
+        entries_after: true,
+    };
+    let outcome = ai::run_auto(&mut h, &task, "story/chapter02.scn", &all, &stages);
+    assert!(
+        outcome.stopped.as_deref().unwrap().contains("上限"),
+        "{outcome:?}"
+    );
+    let names: Vec<(&str, &str)> = outcome.stages.iter().map(|s| (s.stage, s.status)).collect();
+    assert_eq!(names, [("concept", "written"), ("entries", "skipped")]);
+    assert!(outcome.scenes.is_empty());
+    assert_eq!(outcome.tokens, 110);
+    assert_eq!(received.lock().unwrap().len(), 1);
+    let done_events = h
+        .events
+        .iter()
+        .filter(|e| matches!(e, AutoEvent::StageDone { .. }))
+        .count();
+    assert_eq!(done_events, 2);
     let _ = fs::remove_dir_all(&root);
 }

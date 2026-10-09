@@ -3510,6 +3510,35 @@ body {
   border-style: dotted;
 }
 
+/* 自律の企画と設定の段（T4-6） */
+.ai-auto-stages {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 6px 10px 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-item);
+  font-size: 12.5px;
+}
+
+.ai-auto-stages legend {
+  padding: 0 4px;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.ai-auto-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.ai-auto-stage > p {
+  margin: 0;
+}
+
 /* 設定DBの画面の「AIで下書き」（T4-5） */
 .bible-ai {
   display: flex;

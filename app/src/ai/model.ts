@@ -13,6 +13,8 @@ import type {
   AutoEvent,
   AutoResult,
   AutoScene,
+  AutoStage,
+  AutoStageName,
   BranchProposal,
   FieldsWritten,
   IdeaSuggestion,
@@ -23,6 +25,7 @@ import type {
   SummaryDrift,
 } from "../core/types.ts";
 import { locateLine } from "../preview/locate.ts";
+import { entriesWrittenText, fieldsWrittenText } from "./fields.ts";
 
 /** 段階の名前（モックの並び：自律、生成、提案、指摘）。 */
 export const LEVEL_LABEL: Readonly<Record<AiTask["level"], string>> = {
@@ -447,6 +450,38 @@ export interface AutoRun {
   readonly done: readonly AutoScene[];
   readonly tokens: number;
   readonly budget: number | null;
+  /** 今の企画と設定の段と、終わった段（T4-6）。 */
+  readonly stage: AutoStageName | null;
+  readonly stagesDone: readonly AutoStage[];
+}
+
+/** 企画と設定の段の名前（T4-6）。 */
+export const STAGE_LABEL: Readonly<Record<AutoStageName, string>> = {
+  concept: "企画書の空欄を埋める",
+  entries: "足りない設定を作る",
+  entries_after: "章の後に設定を作る",
+};
+
+/** 段の結果の文（T4-6）：作ったエントリと書いた項目（名前つき）、案、検証。 */
+export function autoStageText(stage: AutoStage): string {
+  if (stage.status !== "written")
+    return (
+      stage.message ?? (stage.status === "failed" ? "失敗" : "行いませんでした")
+    );
+  const body =
+    stage.stage === "concept"
+      ? stage.files.map((f) => fieldsWrittenText(f)).join("。")
+      : entriesWrittenText({
+          created: stage.created,
+          files: stage.files,
+          notes: stage.notes,
+          provenance_problem: null,
+        });
+  const checked =
+    stage.issues.length === 0
+      ? "検証 問題なし"
+      : `検証 ${stage.issues.length}件`;
+  return `${body === "" ? "書くものはありませんでした" : body}（${checked}）`;
 }
 
 /** 進み具合の知らせを当てる。 */
@@ -467,6 +502,14 @@ export function applyAutoEvent(run: AutoRun, event: AutoEvent): AutoRun {
       return { ...run, current: null, done: [...run.done, event.scene] };
     case "tokens":
       return { ...run, tokens: event.used };
+    case "stage":
+      return { ...run, stage: event.stage };
+    case "stage_done":
+      return {
+        ...run,
+        stage: null,
+        stagesDone: [...run.stagesDone, event.stage],
+      };
   }
 }
 

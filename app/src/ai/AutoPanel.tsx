@@ -7,13 +7,19 @@ import type {
   AiBranches,
   AiTaskInfo,
   AutoResult,
+  AutoStages,
+  FieldProposal,
+  FieldsWritten,
   SceneSummary,
 } from "../core/types.ts";
+import { type FieldDecision, FieldProposals } from "./FieldProposals.tsx";
 import {
   type AutoRun,
   autoBranchText,
   autoSceneText,
+  autoStageText,
   cloudDestinations,
+  STAGE_LABEL,
 } from "./model.ts";
 
 interface Props {
@@ -22,7 +28,26 @@ interface Props {
   readonly checks: readonly AiTaskInfo[];
   readonly scenes: readonly SceneSummary[];
   readonly run: AutoRun | null;
-  readonly result: AutoResult | null;
+  /** 最後の回の結果と、その回の番号（案を見分ける）。 */
+  readonly result: (AutoResult & { readonly run: number }) | null;
+  /** 企画と設定の段のタスク（T4-6。無ければ null）。 */
+  readonly stageTasks: {
+    readonly concept: AiTaskInfo | null;
+    readonly entries: AiTaskInfo | null;
+  };
+  /** 段の案の決め方と、採用・却下（T4-6）。 */
+  readonly fieldDecisions: ReadonlyMap<string, FieldDecision>;
+  readonly onAdoptField: (
+    run: number | string,
+    proposal: FieldProposal,
+    written: FieldsWritten,
+    task: string,
+    model: string,
+  ) => Promise<string | null>;
+  readonly onRejectField: (
+    run: number | string,
+    proposal: FieldProposal,
+  ) => void;
   readonly error: string | null;
   /** ほかの実行（自律を含む）が走っている。 */
   readonly busy: boolean;
@@ -34,6 +59,7 @@ interface Props {
     file: string,
     branch: boolean,
     confirmedCloud: readonly string[],
+    stages: AutoStages,
   ) => void;
   readonly onCancel: () => void;
   readonly onDiff: (
@@ -59,6 +85,10 @@ export function AutoPanel({
   onDiff,
   onMerge,
   onDelete,
+  stageTasks,
+  fieldDecisions,
+  onAdoptField,
+  onRejectField,
 }: Props) {
   // スタブのある章（スタブの数）。
   const chapters = [...new Set(scenes.map((s) => s.file))].map((file) => ({
@@ -70,14 +100,29 @@ export function AutoPanel({
   );
   const repo = branches?.repo === true;
   const [branch, setBranch] = useState(true);
-  // クラウドへ送るタスク（自律と、点検のタスク）。
-  const cloudTasks = [info, ...checks].filter(
+  // 企画と設定の段（T4-6。既定はどれも行わない）。
+  const [stages, setStages] = useState<AutoStages>({
+    concept: false,
+    entries: false,
+    entries_after: false,
+  });
+  const stageInfos = [
+    stages.concept ? stageTasks.concept : null,
+    stages.entries || stages.entries_after ? stageTasks.entries : null,
+  ].filter((t): t is AiTaskInfo => t !== null);
+  const anyStage = stages.concept || stages.entries || stages.entries_after;
+  // クラウドへ送るタスク（自律と、点検のタスクと、段のタスク）。
+  const cloudTasks = [info, ...checks, ...stageInfos].filter(
     (t) => t.connection?.cloud === true,
   );
   const cloud = cloudTasks.length > 0;
   // 確かめた送り先。接続先を選び直して送り先が変われば、確かめは外れる（T4-1）。
   const destinations = cloudDestinations(cloudTasks);
-  const signature = destinations.join("\u0000");
+  // 選んだ段も印に入れる（確かめた後に段を足したら、送る中身が変わるので確かめ直す。T4-6）。
+  const signature = [
+    ...destinations,
+    `stages:${stages.concept}:${stages.entries}:${stages.entries_after}`,
+  ].join("\u0000");
   const [confirmedFor, setConfirmedFor] = useState<string | null>(null);
   const confirmed = cloud && confirmedFor === signature;
   const stubs = chapters.find((c) => c.file === file)?.stubs ?? 0;
@@ -113,6 +158,33 @@ export function AutoPanel({
               "（作品フォルダが Git の作業ツリーではないので、作品フォルダに直接書きます）"}
           </span>
         </label>
+        <fieldset className="ai-auto-stages">
+          <legend>企画と設定の段</legend>
+          {(
+            [
+              ["concept", stageTasks.concept, "前段"],
+              ["entries", stageTasks.entries, "前段"],
+              ["entries_after", stageTasks.entries, "章の後"],
+            ] as const
+          ).map(([key, task, when]) => (
+            <label key={key} className="ai-allow">
+              <input
+                type="checkbox"
+                checked={stages[key]}
+                disabled={running || task === null}
+                onChange={(e) =>
+                  setStages((s) => ({ ...s, [key]: e.target.checked }))
+                }
+              />
+              <span>
+                {when}：{STAGE_LABEL[key]}
+                {task === null
+                  ? `（ai/${key === "concept" ? "draft_concept" : "draft_entries"}.yaml がありません）`
+                  : `（${task.task.name}。空いている項目と AI が作るエントリにだけ書き、人の値は案にします）`}
+              </span>
+            </label>
+          ))}
+        </fieldset>
         {cloud && (
           <label className="ai-allow">
             <input
@@ -132,7 +204,9 @@ export function AutoPanel({
                   {t.task.context.map((c) => c.kind).join("、")}
                   {t.task.id === info.task.id
                     ? "と今のシーン、前のシーンまでの要約"
-                    : "と下書きを入れた今のシーン"}
+                    : stageInfos.includes(t)
+                      ? "（企画と設定の段で、段ごとに1回）"
+                      : "と下書きを入れた今のシーン"}
                 </span>
               ))}
             </span>
@@ -153,7 +227,10 @@ export function AutoPanel({
               type="button"
               className="primary-small ai-run-button"
               disabled={
-                busy || blocked !== null || stubs === 0 || (cloud && !confirmed)
+                busy ||
+                blocked !== null ||
+                (stubs === 0 && !anyStage) ||
+                (cloud && !confirmed)
               }
               onClick={() => {
                 onRun(
@@ -161,6 +238,7 @@ export function AutoPanel({
                   file,
                   repo && branch,
                   confirmed ? destinations : [],
+                  stages,
                 );
                 // 確かめたのはこの回だけ。
                 setConfirmedFor(null);
@@ -199,6 +277,22 @@ export function AutoPanel({
               />
             </div>
           )}
+          {(run.stage !== null || run.stagesDone.length > 0) && (
+            <ul className="ai-auto-scenes">
+              {run.stagesDone.map((s) => (
+                <li key={s.stage}>
+                  {STAGE_LABEL[s.stage]}
+                  <span className="context-faint"> · {autoStageText(s)}</span>
+                </li>
+              ))}
+              {run.stage !== null && (
+                <li>
+                  {STAGE_LABEL[run.stage]}
+                  <span className="context-faint"> · 実行中</span>
+                </li>
+              )}
+            </ul>
+          )}
           <ol className="ai-auto-scenes">
             {run.planned.map((scene) => (
               <li key={scene}>
@@ -215,6 +309,50 @@ export function AutoPanel({
       )}
       {result !== null && result.outcome.task === info.task.id && !running && (
         <div className="ai-auto-result">
+          {result.outcome.stages.length > 0 && (
+            <>
+              <h2 className="context-heading">企画と設定の段</h2>
+              {result.outcome.stages.map((s) => (
+                <div key={s.stage} className="ai-auto-stage">
+                  <p>
+                    {STAGE_LABEL[s.stage]}
+                    <span className="context-faint"> · {autoStageText(s)}</span>
+                  </p>
+                  {[...s.notes, ...s.issues].map((n) => (
+                    <p key={n} className="context-faint ai-prepared-note">
+                      {n}
+                    </p>
+                  ))}
+                  {s.files.map((written) => (
+                    <FieldProposals
+                      key={written.file}
+                      written={written}
+                      run={`${result.run}:${s.stage}`}
+                      labels={s.stage === "concept" ? undefined : {}}
+                      decisions={fieldDecisions}
+                      readOnly={
+                        result.branch?.kept === true
+                          ? "AIのブランチに書いた案です。ブランチを取り込んでから、企画書・設定の下書きをやり直して採用します"
+                          : undefined
+                      }
+                      onAdopt={(p) =>
+                        onAdoptField(
+                          `${result.run}:${s.stage}`,
+                          p,
+                          written,
+                          s.task,
+                          s.model,
+                        )
+                      }
+                      onReject={(p) =>
+                        onRejectField(`${result.run}:${s.stage}`, p)
+                      }
+                    />
+                  ))}
+                </div>
+              ))}
+            </>
+          )}
           <h2 className="context-heading">生成したシーン</h2>
           {result.outcome.stopped !== null && (
             <p className="export-warning">

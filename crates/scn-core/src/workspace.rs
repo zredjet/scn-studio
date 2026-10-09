@@ -208,6 +208,17 @@ pub struct FieldsWritten {
     pub provenance_problem: Option<String>,
 }
 
+impl FieldsWritten {
+    /// 書いたファイル（書いた項目があれば、そのファイルと出自の記録。自律のブランチにコミットする。T4-6）。
+    pub fn written_paths(&self) -> Vec<String> {
+        if self.written.is_empty() {
+            Vec::new()
+        } else {
+            vec![self.file.clone(), PROVENANCE_FILE.to_owned()]
+        }
+    }
+}
+
 /// 設定の下書き（T4-5）を書いた結果。
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 pub struct EntriesWritten {
@@ -219,6 +230,17 @@ pub struct EntriesWritten {
     pub notes: Vec<String>,
     /// 出自を書けなかったわけ。
     pub provenance_problem: Option<String>,
+}
+
+impl EntriesWritten {
+    /// 書いたファイル（作ったエントリ、項目を書いたエントリと、出自の記録。自律のブランチにコミットする。T4-6）。
+    pub fn written_paths(&self) -> Vec<String> {
+        let mut paths: BTreeSet<String> = self.created.iter().cloned().collect();
+        for file in &self.files {
+            paths.extend(file.written_paths());
+        }
+        paths.into_iter().collect()
+    }
 }
 
 /// アイデアメモを昇格した結果（T2-6、D057）。
@@ -1530,7 +1552,11 @@ impl Workspace {
                 let text = if plan.written.is_empty() {
                     current
                 } else {
-                    self.write_settings_file(&path, &plan.text)?;
+                    // 書けなければ、そのエントリだけ飛ばして続ける（作ったエントリを失わない）。
+                    if let Err(e) = self.write_settings_file(&path, &plan.text) {
+                        out.notes.push(format!("{label} に書けませんでした：{e}"));
+                        continue;
+                    }
                     if let Err(e) = self.record_ai_fields(&path, &plan.written, task, model) {
                         problems.push(e);
                     }
@@ -1568,11 +1594,16 @@ impl Workspace {
                 }
             };
             let folder = self.root.join(format!("bible/entries/{}", entry.type_id));
-            fs::create_dir_all(&folder).map_err(|source| ProjectError::Write {
-                path: folder,
-                source,
-            })?;
-            self.write_settings_file(&file, &text)?;
+            let made = fs::create_dir_all(&folder)
+                .map_err(|e| format!("{}：{e}", folder.display()))
+                .and_then(|()| {
+                    self.write_settings_file(&file, &text)
+                        .map_err(|e| e.to_string())
+                });
+            if let Err(e) = made {
+                out.notes.push(format!("{label} を作れませんでした：{e}"));
+                continue;
+            }
             self.reset_stale_fields(&file);
             if let Some(problem) = self.field_provenance_problem.take() {
                 problems.push(problem);

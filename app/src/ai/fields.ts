@@ -125,7 +125,13 @@ export function entryName(path: string): string {
   return path.replace(/^bible\/entries\//, "").replace(/\.md$/, "");
 }
 
-/** 案を画面の中で見分けるキー（採用・却下を覚える）。 */
-export function fieldProposalKey(run: number, p: FieldProposal): string {
+/**
+ * 案を画面の中で見分けるキー（採用・却下を覚える）。`run` は実行の回（自律の段では、回と段の名前。同じ回の2つの
+ * 段が同じ項目に案を出しても混ざらない）。
+ */
+export function fieldProposalKey(
+  run: number | string,
+  p: FieldProposal,
+): string {
   return `${run}\u0000${p.file}\u0000${p.key}`;
 }

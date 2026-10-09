@@ -180,6 +180,28 @@ struct AutoTarget {
     file: String,
     /// Git のブランチで書いている（作業ツリーが AI のブランチなので、本文を保存しない）。
     branch: bool,
+    /// 企画と設定の段がある（企画書と設定DBも書くので、人の書き換えを止める。T4-6）。
+    settings: bool,
+}
+
+/// 企画と設定の段のある自律の実行中に、企画書と設定DBのエントリを書き換える操作を止める（T4-6）。`path` が
+/// アイデアメモなら止めない（段はメモを書かない）。
+fn refuse_settings_during_auto(
+    state: &AppState,
+    root: &Path,
+    path: Option<&str>,
+) -> Result<(), String> {
+    if path.is_some_and(|p| !scn_core::provenance::is_field_file(p)) {
+        return Ok(());
+    }
+    let auto = locked(&state.auto)?;
+    if auto.as_ref().is_some_and(|t| t.root == root && t.settings) {
+        return Err(
+            "自律で実行しています（企画書と設定DBにも書いています）。終わってから書き換えます"
+                .to_owned(),
+        );
+    }
+    Ok(())
 }
 
 /// 自律の実行中に、本文を書き換える操作を止める（T3-9）。`file` は書き換える章（`None` は、どの章も書き換えうる
@@ -582,6 +604,7 @@ fn write_concept_draft(
 ) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
+    refuse_settings_during_auto(&state, workspace.root(), None)?;
     let written = workspace
         .write_concept_draft(&draft, &task, &model)
         .map_err(|e| e.to_string())?;
@@ -600,6 +623,7 @@ fn write_entries_draft(
 ) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
+    refuse_settings_during_auto(&state, workspace.root(), None)?;
     let written = workspace
         .write_entries_draft(&draft, &task, &model, only.as_deref())
         .map_err(|e| e.to_string())?;
@@ -619,6 +643,7 @@ fn adopt_field_proposal(
 ) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
+    refuse_settings_during_auto(&state, workspace.root(), Some(&file))?;
     let edit = workspace
         .adopt_field_proposal(&file, &key, &value, &seen, &task, &model)
         .map_err(|e| e.to_string())?;
@@ -663,6 +688,7 @@ fn set_entry_field(
 ) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
+    refuse_settings_during_auto(&state, workspace.root(), Some(&path))?;
     let edit = workspace
         .set_entry_field(&path, &key, &value, &seen)
         .map_err(|e| e.to_string())?;
@@ -679,6 +705,7 @@ fn set_entry_body(
 ) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
+    refuse_settings_during_auto(&state, workspace.root(), Some(&path))?;
     let edit = workspace
         .set_entry_body(&path, &body, &seen)
         .map_err(|e| e.to_string())?;
@@ -695,6 +722,7 @@ fn write_entry_source(
 ) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
+    refuse_settings_during_auto(&state, workspace.root(), Some(&path))?;
     let edit = workspace
         .write_entry_source(&path, &text, seen.as_deref())
         .map_err(|e| e.to_string())?;
@@ -711,6 +739,7 @@ fn create_entry(
 ) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
+    refuse_settings_during_auto(&state, workspace.root(), None)?;
     let file = workspace
         .create_entry(&type_id, &id, &name)
         .map_err(|e| e.to_string())?;
@@ -756,6 +785,7 @@ fn promote_idea(
 ) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
+    refuse_settings_during_auto(&state, workspace.root(), None)?;
     if let Promotion::Scene { file, .. } = &promotion {
         refuse_during_auto(&state, workspace.root(), Some(file))?;
     }
@@ -783,6 +813,7 @@ fn read_concept(state: State<'_, AppState>) -> Result<Response, String> {
 fn create_concept(state: State<'_, AppState>) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
+    refuse_settings_during_auto(&state, workspace.root(), None)?;
     let text = workspace.create_concept().map_err(|e| e.to_string())?;
     after_settings_write(workspace, json!({ "kind": "saved", "text": text }))
 }
@@ -3110,6 +3141,36 @@ impl ai::AutoHost for AppAutoHost<'_> {
         Ok(written.ids)
     }
 
+    fn write_concept(
+        &mut self,
+        draft: &ai::ConceptDraft,
+        task: &str,
+        model: &str,
+    ) -> Result<scn_core::workspace::FieldsWritten, String> {
+        let mut guard = locked(&self.state.workspace)?;
+        let workspace = self.workspace(&mut guard)?;
+        let written = workspace
+            .write_concept_draft(draft, task, model)
+            .map_err(|e| e.to_string())?;
+        self.written.extend(written.written_paths());
+        Ok(written)
+    }
+
+    fn write_entries(
+        &mut self,
+        draft: &ai::EntriesDraft,
+        task: &str,
+        model: &str,
+    ) -> Result<scn_core::workspace::EntriesWritten, String> {
+        let mut guard = locked(&self.state.workspace)?;
+        let workspace = self.workspace(&mut guard)?;
+        let written = workspace
+            .write_entries_draft(draft, task, model, None)
+            .map_err(|e| e.to_string())?;
+        self.written.extend(written.written_paths());
+        Ok(written)
+    }
+
     fn event(&mut self, event: ai::AutoEvent) {
         let _ = self.app.emit_to(
             "main",
@@ -3127,12 +3188,14 @@ impl ai::AutoHost for AppAutoHost<'_> {
 /// コミットして基のブランチへ戻る（人が差分を見て取り込む）。保存していない変更、コミットしていない変更があれば
 /// 始めない。クラウドの接続先を使うときは、`confirmed_cloud`（人が送る中身を確かめた送り先）に、その送り先が要る。
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 async fn ai_auto(
     task: String,
     file: String,
     run: u64,
     branch: bool,
     confirmed_cloud: Vec<String>,
+    stages: Option<ai::AutoStages>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<Response, String> {
@@ -3173,13 +3236,26 @@ async fn ai_auto(
         return Err(format!("{} は自律のタスクではありません", definition.name));
     }
     let conn = task_connection(&project, &machine, &definition)?;
-    // クラウドへ送るタスク（自律と、点検のタスク）は、人が確かめてから。
+    // 企画と設定の段（T4-6）。
+    let stages = stages.unwrap_or_default();
+    let stage_tasks: Vec<&str> = [
+        (stages.concept, ai::CONCEPT_STAGE_TASK),
+        (
+            stages.entries || stages.entries_after,
+            ai::ENTRIES_STAGE_TASK,
+        ),
+    ]
+    .into_iter()
+    .filter(|(on, _)| *on)
+    .map(|(_, id)| id)
+    .collect();
+    // クラウドへ送るタスク（自律と、点検のタスクと、段のタスク）は、人が確かめてから。
     let mut involved = vec![&definition];
     involved.extend(
         project
             .ai_tasks
             .iter()
-            .filter(|t| definition.checks.contains(&t.id)),
+            .filter(|t| definition.checks.contains(&t.id) || stage_tasks.contains(&t.id.as_str())),
     );
     for t in involved {
         let c = task_connection(&project, &machine, t)?;
@@ -3234,6 +3310,7 @@ async fn ai_auto(
             root: root.clone(),
             file: file.clone(),
             branch: branch_info.is_some(),
+            settings: !stage_tasks.is_empty(),
         });
     }
     let _auto = AutoGuard { state: &state };
@@ -3261,7 +3338,7 @@ async fn ai_auto(
             written: BTreeSet::new(),
             confirmed_cloud,
         };
-        let outcome = ai::run_auto(&mut host, &definition, &file, &all);
+        let outcome = ai::run_auto(&mut host, &definition, &file, &all, &stages);
         (outcome, host.written)
     })
     .await
@@ -3270,9 +3347,30 @@ async fn ai_auto(
     if let Some((base, name)) = branch_info {
         branch_json = finish_branch(&root, &base, &name, &outcome, &written);
     }
+    // 企画と設定の段で書いたら、設定を読み直して、補完の材料・表示に要る分・診断・AI の項目を返す（T4-6）。
+    // 読み直せなくても、実行の結果は返す（設定は null。外部の変更の知らせか、次の操作で読み直す）。
+    let mut settings_json = Value::Null;
+    if outcome.stages.iter().any(|s| s.status == "written") {
+        let refreshed = (|| -> Result<Value, String> {
+            let mut guard = locked(&state.workspace)?;
+            let workspace = open_workspace(&mut guard)?;
+            let _ = workspace.reload_settings();
+            let Analyzed {
+                summary, checks, ..
+            } = analyze_summary(workspace.project(), true, None)?;
+            Ok(json!({
+                "assist": completion_data(workspace.project()),
+                "summary": summary,
+                "checks": checks,
+                "ai_fields": ai_field_list(workspace),
+            }))
+        })();
+        settings_json = refreshed.unwrap_or(Value::Null);
+    }
     json_response(&json!({
         "outcome": to_json(&outcome, "自律の結果")?,
         "branch": branch_json,
+        "settings": settings_json,
     }))
 }
 
