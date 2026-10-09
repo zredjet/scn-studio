@@ -6,6 +6,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AiScreen } from "./ai/AiScreen.tsx";
+import type { FieldDecision } from "./ai/FieldProposals.tsx";
+import { fieldProposalKey, fieldsWrittenText } from "./ai/fields.ts";
 import {
   type AutoRun,
   applyAutoEvent,
@@ -39,6 +41,7 @@ import { ConceptScreen } from "./concept/ConceptScreen.tsx";
 import {
   addChapter,
   adoptBranchProposal,
+  adoptFieldProposal,
   adoptProposals,
   aiBranchDelete,
   aiBranchDiff,
@@ -114,6 +117,7 @@ import {
   viewModes,
   writeAiDraft,
   writeAiSkeleton,
+  writeConceptDraft,
 } from "./core/api.ts";
 import type { PreviewData } from "./core/ir.ts";
 import { PositionMap } from "./core/position.ts";
@@ -128,7 +132,10 @@ import type {
   AutoResult,
   Bracket,
   BranchProposal,
+  ConceptDraft,
   EditorSettings,
+  FieldProposal,
+  FieldsWritten,
   GraphLevel,
   IrDiagnostic,
   MergeChoice,
@@ -155,6 +162,8 @@ import type {
 interface Written {
   readonly text: string;
   readonly ok: boolean;
+  /** 企画書の下書きを書いた結果（T4-4）。 */
+  readonly fields?: FieldsWritten;
 }
 
 import { ConflictBar } from "./editor/ConflictBar.tsx";
@@ -1883,6 +1892,76 @@ export function App() {
     },
     [replaceText, showSummary],
   );
+  /** 企画書の下書きを書く（T4-4）。空いている項目にだけ書き、値のある項目は案として返す。 */
+  const writeConcept = useCallback(
+    async (
+      draft: ConceptDraft | null,
+      task: string,
+      model: string,
+    ): Promise<Written> => {
+      if (draft === null)
+        return { text: "応答から企画書の下書きを読めませんでした", ok: false };
+      try {
+        const result = await writeConceptDraft(draft, task, model);
+        onSettingsWritten(result);
+        setSettingsVersion((n) => n + 1);
+        return {
+          text: fieldsWrittenText(result.edit),
+          ok: result.edit.provenance_problem === null,
+          fields: result.edit,
+        };
+      } catch (e) {
+        return { text: String(e), ok: false };
+      }
+    },
+    [onSettingsWritten],
+  );
+  /** 企画書・エントリの下書きの案の決め方（採用・却下。画面の中だけ。T4-4）。 */
+  const [fieldDecisions, setFieldDecisions] = useState<
+    ReadonlyMap<string, FieldDecision>
+  >(() => new Map());
+  /** 案を採用する（人の操作。T4-4）。誤りの文を返す。 */
+  const adoptField = useCallback(
+    async (
+      run: number,
+      proposal: FieldProposal,
+      written: FieldsWritten,
+      task: string,
+      model: string,
+    ): Promise<string | null> => {
+      try {
+        const result = await adoptFieldProposal(
+          proposal,
+          written.text,
+          task,
+          model,
+        );
+        switch (result.edit.kind) {
+          case "saved":
+            onSettingsWritten(result);
+            setSettingsVersion((n) => n + 1);
+            setFieldDecisions((m) =>
+              new Map(m).set(fieldProposalKey(run, proposal), "adopted"),
+            );
+            return null;
+          case "conflict":
+            return "外でこの項目が変わっていたので、書きませんでした（今の中身を見てから、もう一度下書きを作ります）";
+          case "unsupported":
+            return result.edit.message;
+          default:
+            return null;
+        }
+      } catch (e) {
+        return String(e);
+      }
+    },
+    [onSettingsWritten],
+  );
+  const rejectField = useCallback((run: number, proposal: FieldProposal) => {
+    setFieldDecisions((m) =>
+      new Map(m).set(fieldProposalKey(run, proposal), "rejected"),
+    );
+  }, []);
   /** 生成の下書きをスタブのシーンに書き込む（T3-9）。結果の文と、書けたかを返す。 */
   const writeDraft = useCallback(
     async (
@@ -2089,17 +2168,26 @@ export function App() {
       runAiTask(task.id, scene, run, digest, target?.route ?? null)
         .then(async (outcome) => {
           if (taskRun.current !== run) return;
-          // 生成は、下書きをスタブに書き込む・ルートの骨格のスタブを足す（人が書いた行は変えない）。
-          const written = isSkeleton(task)
-            ? await writeSkeleton(
-                outcome.skeleton,
-                outcome.model,
-                task.id,
-                target,
-              )
-            : task.level === "generate" && scene !== null
-              ? await writeDraft(scene, outcome.draft, task.id, outcome.model)
-              : null;
+          // 生成は、下書きをスタブに書き込む・ルートの骨格のスタブを足す（人が書いた行は変えない）。企画書の下書きは
+          // 空いている項目にだけ書き、値のある項目は案にする（T4-4）。
+          const written =
+            task.output === "concept"
+              ? await writeConcept(outcome.concept, task.id, outcome.model)
+              : isSkeleton(task)
+                ? await writeSkeleton(
+                    outcome.skeleton,
+                    outcome.model,
+                    task.id,
+                    target,
+                  )
+                : task.level === "generate" && scene !== null
+                  ? await writeDraft(
+                      scene,
+                      outcome.draft,
+                      task.id,
+                      outcome.model,
+                    )
+                  : null;
           if (taskRun.current !== run) return;
           taskRun.current = null;
           setAiRunState(null);
@@ -2133,6 +2221,7 @@ export function App() {
               branches: outcome.branches,
               skeleton: outcome.skeleton,
               ideas: outcome.ideas,
+              fields: written?.fields ?? null,
               unread: outcome.unread,
               tokens: tokensText(outcome.completion.usage),
             },
@@ -2146,7 +2235,7 @@ export function App() {
           finish({ kind: "failed", run, scene, message: String(e) }, 0);
         });
     },
-    [whenIdle, writeDraft, writeSkeleton, skeletonProblem],
+    [whenIdle, writeDraft, writeSkeleton, writeConcept, skeletonProblem],
   );
   /** 骨格を書き直している（二度押しで同じ骨格を2回書かない）。 */
   const rewriting = useRef(false);
@@ -2755,6 +2844,15 @@ export function App() {
   const questionTask = findTask(aiTasks, "concept_questions", () => false);
   const sortTask = findTask(aiTasks, "idea_sort", (t) => t.output === "ideas");
   const skeletonTask = findTask(aiTasks, "route_skeleton", isSkeleton);
+  const conceptDraftTask = findTask(
+    aiTasks,
+    "draft_concept",
+    (t) => t.output === "concept",
+  );
+  const conceptDraftResult =
+    conceptDraftTask === null
+      ? undefined
+      : aiResults.get(conceptDraftTask.task.id);
   /** ほかの画面から1つのタスクを実行する（実行はAI実行の画面と同じ）。 */
   const runnerOf = (info: AiTaskInfo | null): TaskRunner => ({
     info,
@@ -3006,6 +3104,38 @@ export function App() {
                               }));
                               selectScreen("ai");
                             },
+                      draft: {
+                        runner: runnerOf(conceptDraftTask),
+                        result:
+                          conceptDraftResult?.kind === "ok"
+                            ? {
+                                run: conceptDraftResult.run,
+                                text: conceptDraftResult.written ?? "",
+                                ok: conceptDraftResult.wroteOk,
+                                fields: conceptDraftResult.fields,
+                              }
+                            : conceptDraftResult?.kind === "failed"
+                              ? {
+                                  run: conceptDraftResult.run,
+                                  text: conceptDraftResult.message,
+                                  ok: false,
+                                  fields: null,
+                                }
+                              : null,
+                        decisions: fieldDecisions,
+                        onAdopt: (run, proposal, written) =>
+                          conceptDraftTask === null ||
+                          conceptDraftResult?.kind !== "ok"
+                            ? Promise.resolve(null)
+                            : adoptField(
+                                run,
+                                proposal,
+                                written,
+                                conceptDraftTask.task.id,
+                                conceptDraftResult.model,
+                              ),
+                        onReject: rejectField,
+                      },
                     }}
                   />
                 </section>
@@ -3126,6 +3256,9 @@ export function App() {
                     onGoToProposal={goToProposal}
                     rejected={rejectedProposals}
                     onToggleReject={toggleReject}
+                    fieldDecisions={fieldDecisions}
+                    onAdoptField={adoptField}
+                    onRejectField={rejectField}
                     autoRun={aiAutoRun}
                     autoResult={aiAutoResult}
                     autoError={aiAutoError}

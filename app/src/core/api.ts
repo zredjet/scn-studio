@@ -30,9 +30,12 @@ import type {
   BranchProposal,
   CatalogWritten,
   ConceptData,
+  ConceptDraft,
   DevSettings,
   DraftWriteResult,
   EntryUsage,
+  FieldProposal,
+  FieldsWrittenResult,
   FlowEdge,
   GraphLevel,
   Idea,
@@ -536,6 +539,36 @@ export function setAiOverride(
     model,
     contextTokens,
     structuredOutput,
+  });
+}
+
+/** 企画書の下書きを書く（空いている項目にだけ。値のある項目は提案。T4-4）。 */
+export function writeConceptDraft(
+  draft: ConceptDraft,
+  task: string,
+  model: string,
+): Promise<FieldsWrittenResult> {
+  return invoke<FieldsWrittenResult>("write_concept_draft", {
+    draft,
+    task,
+    model,
+  });
+}
+
+/** AI の下書きの項目の案を採用する（人の操作。T4-4）。`seen` は案を見せたときの中身。 */
+export function adoptFieldProposal(
+  proposal: FieldProposal,
+  seen: string,
+  task: string,
+  model: string,
+): Promise<BibleWritten> {
+  return invoke<BibleWritten>("adopt_field_proposal", {
+    file: proposal.file,
+    key: proposal.key,
+    value: proposal.proposed,
+    seen,
+    task,
+    model,
   });
 }
 

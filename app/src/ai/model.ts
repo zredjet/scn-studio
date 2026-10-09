@@ -14,6 +14,7 @@ import type {
   AutoResult,
   AutoScene,
   BranchProposal,
+  FieldsWritten,
   IdeaSuggestion,
   PlotWriteResult,
   SceneSummary,
@@ -236,6 +237,8 @@ export type RunResult =
       readonly branches: readonly BranchProposal[];
       /** アイデアメモの分類案（`output: ideas`。T3-10）。 */
       readonly ideas: readonly IdeaSuggestion[];
+      /** 企画書の下書きを書いた結果（`output: concept`。T4-4。案と、案を見せたときの中身）。 */
+      readonly fields: FieldsWritten | null;
       readonly unread: readonly string[];
       readonly tokens: string;
     }
@@ -284,6 +287,15 @@ export function historyStatus(
         return result.ideas.length === 0
           ? "分類案なし"
           : `分類案 ${result.ideas.length}件`;
+      if (output === "concept") {
+        // 企画書の下書き（T4-4）：書いた項目と案の数。
+        if (result.fields === null) return "書き込めませんでした";
+        const w = result.fields.written.length;
+        const p = result.fields.proposals.length;
+        return w === 0 && p === 0
+          ? "書く項目なし"
+          : `${w}項目を書き、案 ${p}件`;
+      }
       if (output === "draft")
         return result.written === null
           ? "書き込みなし"
@@ -511,10 +523,12 @@ export interface TaskRunner {
   readonly onCancel: () => void;
 }
 
-/** ルートの骨格を作るタスク（生成の段階で、今のシーンを文脈に入れない）か。 */
+/** ルートの骨格を作るタスク（生成の段階で本文に書き、今のシーンを文脈に入れない）か。 */
 export function isSkeleton(task: AiTask): boolean {
   return (
-    task.level === "generate" && !task.context.some((c) => c.kind === "scene")
+    task.level === "generate" &&
+    task.output === "draft" &&
+    !task.context.some((c) => c.kind === "scene")
   );
 }
 

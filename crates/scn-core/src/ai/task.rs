@@ -56,6 +56,8 @@ pub enum TaskOutput {
     Draft,
     /// アイデアメモの分類案（指摘の段階。T3-10）。
     Ideas,
+    /// 企画書の下書き（生成の段階。空いている項目にだけ書き、値のある項目は提案。T4-4）。
+    Concept,
 }
 
 impl TaskOutput {
@@ -67,6 +69,7 @@ impl TaskOutput {
             "proposals" => Some(Self::Proposals),
             "draft" => Some(Self::Draft),
             "ideas" => Some(Self::Ideas),
+            "concept" => Some(Self::Concept),
             _ => None,
         }
     }
@@ -75,7 +78,8 @@ impl TaskOutput {
         match level {
             TaskLevel::Review => matches!(self, Self::Findings | Self::Summary | Self::Ideas),
             TaskLevel::Propose => matches!(self, Self::Diff | Self::Proposals),
-            TaskLevel::Generate | TaskLevel::Auto => self == Self::Draft,
+            TaskLevel::Generate => matches!(self, Self::Draft | Self::Concept),
+            TaskLevel::Auto => self == Self::Draft,
         }
     }
 }

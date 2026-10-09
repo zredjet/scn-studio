@@ -365,6 +365,38 @@ export interface SettingsWrittenExtra {
   readonly provenance_problem?: string | null;
 }
 
+/** 企画書の下書き（コアの `ai::ConceptDraft`。T4-4）。 */
+export interface ConceptDraft {
+  readonly values: Readonly<Record<string, JsonValue>>;
+  readonly body: string | null;
+}
+
+/** 値のある項目への AI の案（コアの `ai::FieldProposal`。T4-4）。本文は key が `#body`。 */
+export interface FieldProposal {
+  readonly file: string;
+  readonly key: string;
+  readonly current: JsonValue;
+  readonly proposed: JsonValue;
+}
+
+/** 企画書・エントリに AI の下書きを書いた結果（コアの `workspace::FieldsWritten`。T4-4）。 */
+export interface FieldsWritten {
+  readonly file: string;
+  readonly text: string;
+  readonly written: readonly string[];
+  readonly proposals: readonly FieldProposal[];
+  readonly notes: readonly string[];
+  readonly provenance_problem: string | null;
+}
+
+/** 下書きを書いた後の応答（書いた結果と、設定を書いた後に返すもの）。 */
+export interface FieldsWrittenResult extends SettingsWrittenExtra {
+  readonly edit: FieldsWritten;
+  readonly assist: AssistData;
+  readonly summary: Summary;
+  readonly checks: readonly IrDiagnostic[];
+}
+
 /** 企画書と設定DBの AI の項目（コアの出自の記録。T4-3）。 */
 export interface AiFieldRecord {
   readonly file: string;
@@ -591,7 +623,8 @@ export interface AiTask {
     | "diff"
     | "proposals"
     | "draft"
-    | "ideas";
+    | "ideas"
+    | "concept";
   readonly scope: string | null;
   readonly branch: string | null;
   readonly checks: readonly string[];
@@ -697,6 +730,8 @@ export interface AiRunOutcome {
   readonly skeleton: readonly SkeletonScene[];
   /** アイデアメモの分類案（`output: ideas`。T3-10）。 */
   readonly ideas: readonly IdeaSuggestion[];
+  /** 企画書の下書き（`output: concept`。T4-4）。書くのは別（`write_concept_draft`）。 */
+  readonly concept: ConceptDraft | null;
   readonly unread: readonly string[];
   readonly text: string;
   readonly completion: {

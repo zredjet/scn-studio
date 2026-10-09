@@ -52,7 +52,7 @@ import type {
   SettingsWrittenExtra,
   Summary,
 } from "../core/types.ts";
-import { AiAside } from "./AiAside.tsx";
+import { AiAside, type ConceptDraftAi } from "./AiAside.tsx";
 import { IdeaCard } from "./IdeaCard.tsx";
 import {
   allTags,
@@ -109,6 +109,8 @@ export interface ConceptAi {
   readonly onHideSuggestion: (key: string) => void;
   /** AI実行の画面で、ルートの骨格のタスクを開く（無ければ null）。 */
   readonly onSkeleton: (() => void) | null;
+  /** 企画書の下書き（T4-4）。 */
+  readonly draft: ConceptDraftAi;
 }
 
 /** 企画書のフォームの項目。 */
@@ -976,6 +978,7 @@ export function ConceptScreen({
         onMakeMemo={makeMemo}
         onApply={applySuggestion}
         onSkeleton={ai.onSkeleton}
+        draft={ai.draft}
       />
     </div>
   );

@@ -16,6 +16,7 @@ use super::client::{
 };
 use super::connection::Connection;
 use super::context::{Assembled, ContextSources, assemble};
+use super::fielddraft::{ConceptDraft, concept_schema, parse_concept_draft};
 use super::generate::generated_body;
 use super::plot::{
     BranchProposal, IdeaSuggestion, SkeletonScene, parse_branch_proposals, parse_idea_suggestions,
@@ -275,6 +276,8 @@ pub struct RunOutcome {
     pub skeleton: Vec<SkeletonScene>,
     /// アイデアメモの分類案（`output: ideas`。T3-10）。
     pub ideas: Vec<IdeaSuggestion>,
+    /// 企画書の下書き（`output: concept`。T4-4）。書くのは別（`Workspace::write_concept_draft`）。
+    pub concept: Option<ConceptDraft>,
     /// 応答のうち、読めなかった行。
     pub unread: Vec<String>,
     /// 応答の文（そのまま）。
@@ -319,9 +322,11 @@ pub fn runnable(task: &AiTask) -> Result<(), String> {
     }
 }
 
-/// ルートの骨格を作るタスク（生成の段階で、今のシーンを文脈に入れないもの）か。
+/// ルートの骨格を作るタスク（生成の段階で本文に書き、今のシーンを文脈に入れないもの）か。
 pub fn is_skeleton(task: &AiTask) -> bool {
-    task.level == TaskLevel::Generate && !task.context.contains(&ContextItem::Scene)
+    task.level == TaskLevel::Generate
+        && task.output == TaskOutput::Draft
+        && !task.context.contains(&ContextItem::Scene)
 }
 
 /// 出力の形ごとの、返す形の JSON Schema（構造化出力。接続先で有効にしたときだけ送る。T4-2）。JSON で返す形
@@ -368,6 +373,7 @@ pub fn output_schema(output: TaskOutput) -> Option<OutputSchema> {
                 "required": ["file"],
             }),
         ),
+        TaskOutput::Concept => return Some(concept_schema()),
         TaskOutput::Summary | TaskOutput::Proposals | TaskOutput::Draft => return None,
     };
     Some(OutputSchema {
@@ -452,6 +458,7 @@ pub fn run_task(
     let mut branches = Vec::new();
     let mut skeleton = Vec::new();
     let mut ideas = Vec::new();
+    let mut concept = None;
     let unread_if = |empty: bool| {
         if empty && !text.trim().is_empty() {
             vec![text.trim().to_owned()]
@@ -494,6 +501,12 @@ pub fn run_task(
             ideas = found;
             (Vec::new(), None, unread)
         }
+        TaskOutput::Concept => {
+            // 読まなかった項目のわけも、読めなかった行として見せる。
+            let (draft, unread) = parse_concept_draft(&text);
+            concept = draft;
+            (Vec::new(), None, unread)
+        }
         _ => {
             let (raw, unread) = parse_findings(&text);
             (resolve_findings(project, ir, raw, scene), None, unread)
@@ -511,6 +524,7 @@ pub fn run_task(
         branches,
         skeleton,
         ideas,
+        concept,
         unread,
         text,
         completion,

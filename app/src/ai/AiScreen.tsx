@@ -12,10 +12,13 @@ import type {
   AiProposalView,
   AiTaskInfo,
   AutoResult,
+  FieldProposal,
+  FieldsWritten,
   SceneSummary,
 } from "../core/types.ts";
 import { AutoPanel } from "./AutoPanel.tsx";
 import { BranchProposals } from "./BranchProposals.tsx";
+import { type FieldDecision, FieldProposals } from "./FieldProposals.tsx";
 import {
   type AutoRun,
   blocker,
@@ -100,6 +103,16 @@ interface Props {
   /** 却下した提案（まとまりの id ごと）。 */
   readonly rejected: ReadonlyMap<string, ReadonlySet<number>>;
   readonly onToggleReject: (setId: string, index: number) => void;
+  /** 企画書・エントリの下書きの案（T4-4）：決め方、採用、却下。 */
+  readonly fieldDecisions: ReadonlyMap<string, FieldDecision>;
+  readonly onAdoptField: (
+    run: number,
+    proposal: FieldProposal,
+    written: FieldsWritten,
+    task: string,
+    model: string,
+  ) => Promise<string | null>;
+  readonly onRejectField: (run: number, proposal: FieldProposal) => void;
   /** 自律（T3-9）：走っている回、最後の結果、誤り、実行と取り消し。 */
   readonly autoRun: AutoRun | null;
   readonly autoResult: AutoResult | null;
@@ -153,6 +166,9 @@ export function AiScreen({
   onGoToProposal,
   rejected,
   onToggleReject,
+  fieldDecisions,
+  onAdoptField,
+  onRejectField,
   autoRun,
   autoResult,
   autoError,
@@ -644,6 +660,25 @@ export function AiScreen({
                           >
                             {result.written}
                           </p>
+                        )}
+                        {result.fields !== null && (
+                          <FieldProposals
+                            written={result.fields}
+                            run={result.run}
+                            decisions={fieldDecisions}
+                            onAdopt={(p) =>
+                              result.fields === null
+                                ? Promise.resolve(null)
+                                : onAdoptField(
+                                    result.run,
+                                    p,
+                                    result.fields,
+                                    task.id,
+                                    result.model,
+                                  )
+                            }
+                            onReject={(p) => onRejectField(result.run, p)}
+                          />
                         )}
                         {skeleton &&
                           !result.wroteOk &&

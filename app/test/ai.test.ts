@@ -3,6 +3,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  fieldLabel,
+  fieldProposalKey,
+  fieldsWrittenText,
+  proposalValueText,
+} from "../src/ai/fields.ts";
+import {
   type AutoRun,
   adoptableIndexes,
   applyAutoEvent,
@@ -219,6 +225,7 @@ test("履歴と数の文", () => {
     branches: [],
     skeleton: [],
     ideas: [],
+    fields: null,
     unread: [],
     tokens: "",
   };
@@ -385,6 +392,7 @@ test("提案：ファイルのまとまり、様子の文、採用できるも�
     branches: [],
     skeleton: [],
     ideas: [],
+    fields: null,
     unread: [],
     tokens: "",
   };
@@ -406,6 +414,7 @@ test("プロットとフローへの支援の文と判断（T3-10）", () => {
     branches: [],
     skeleton: [],
     ideas: [],
+    fields: null,
     unread: [],
     tokens: "",
   };
@@ -423,6 +432,26 @@ test("プロットとフローへの支援の文と判断（T3-10）", () => {
     "分類案 1件",
   );
   assert.equal(historyStatus(ok, 0, "draft"), "書き込みなし");
+  // 企画書の下書き（T4-4）。
+  assert.equal(historyStatus(ok, 0, "concept"), "書き込めませんでした");
+  assert.equal(
+    historyStatus(
+      {
+        ...ok,
+        fields: {
+          file: "concept.md",
+          text: "",
+          written: ["theme"],
+          proposals: [],
+          notes: [],
+          provenance_problem: null,
+        },
+      },
+      0,
+      "concept",
+    ),
+    "1項目を書き、案 0件",
+  );
   assert.equal(
     historyStatus({ ...ok, written: "x", wroteOk: true }, 0, "draft"),
     "書き込みました",
@@ -432,10 +461,26 @@ test("プロットとフローへの支援の文と判断（T3-10）", () => {
     historyStatus({ ...ok, written: "書きませんでした：x" }, 0, "draft"),
     "書き込めませんでした",
   );
-  // ルートの骨格のタスク：生成の段階で、今のシーンを文脈に入れないもの。
+  // ルートの骨格のタスク：生成の段階で本文に書き、今のシーンを文脈に入れないもの。企画書の下書き（T4-4）は違う。
   assert.equal(
-    isSkeleton(task({ level: "generate", context: [{ kind: "concept" }] })),
+    isSkeleton(
+      task({
+        level: "generate",
+        output: "draft",
+        context: [{ kind: "concept" }],
+      }),
+    ),
     true,
+  );
+  assert.equal(
+    isSkeleton(
+      task({
+        level: "generate",
+        output: "concept",
+        context: [{ kind: "concept" }],
+      }),
+    ),
+    false,
   );
   assert.equal(
     isSkeleton(task({ level: "generate", context: [{ kind: "scene" }] })),
@@ -665,4 +710,61 @@ test("実行中の進み具合の文（T4-2）：考えている間は「考え�
     progressText({ ...state, thinking: true }),
     "考えています · 受け取った文字 1,234",
   );
+});
+
+test("企画書の下書きの見せ方（T4-4）：項目の名前、案の値の文、書いた結果の文", () => {
+  assert.equal(fieldLabel("logline"), "ログライン");
+  assert.equal(fieldLabel("#body"), "本文");
+  assert.equal(fieldLabel("unknown"), "unknown");
+  assert.equal(proposalValueText("一文"), "一文");
+  assert.equal(proposalValueText(""), "（空）");
+  assert.equal(proposalValueText(null), "（空）");
+  assert.equal(proposalValueText([]), "（空）");
+  assert.equal(proposalValueText(["akari", "minato"]), "akari、minato");
+  assert.equal(
+    proposalValueText({ chars: 120000, routes: 2 }),
+    "字数 120,000・ルート 2",
+  );
+  assert.equal(
+    proposalValueText([
+      { id: "akari_end", name: "灯エンド", intent: "見送る" },
+      { id: "bad" },
+    ]),
+    "akari_end（灯エンド：見送る）、bad",
+  );
+  const written = {
+    file: "concept.md",
+    text: "",
+    written: ["theme", "#body"],
+    proposals: [
+      {
+        file: "concept.md",
+        key: "logline",
+        current: "人",
+        proposed: "AI",
+      },
+    ],
+    notes: [],
+    provenance_problem: null,
+  };
+  assert.equal(
+    fieldsWrittenText(written),
+    "concept.md の空いている項目に書きました：テーマ、本文。値のある項目への案 1 件（採用を選べます）",
+  );
+  assert.equal(
+    fieldsWrittenText({ ...written, written: [], proposals: [] }),
+    "concept.md に書く項目はありませんでした",
+  );
+  assert.equal(
+    fieldsWrittenText({
+      ...written,
+      written: [],
+      proposals: [],
+      notes: ["x"],
+    }),
+    "concept.md に書いた項目はありません（読まなかった・書けなかったわけは下に）",
+  );
+  const p = written.proposals[0];
+  assert.ok(p !== undefined);
+  assert.notEqual(fieldProposalKey(1, p), fieldProposalKey(2, p));
 });

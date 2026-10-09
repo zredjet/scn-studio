@@ -3510,6 +3510,51 @@ body {
   border-style: dotted;
 }
 
+/* 企画書・設定DBの AI の下書きの、値のある項目への案（T4-4） */
+.ai-field-proposals {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-field-proposal {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1.5px dashed var(--ai-line);
+  border-radius: var(--radius-item);
+  background: var(--paper);
+}
+
+.ai-field-proposal header {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.ai-field-proposal dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 8px;
+  margin: 0;
+  font-size: 12.5px;
+}
+
+.ai-field-proposal dt {
+  color: var(--text-faint);
+}
+
+.ai-field-proposal dd {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ai-field-current {
+  color: var(--text-2);
+}
+
 /* 環境設定（AIの接続先。T3-5、D066） */
 .preferences-screen {
   overflow: auto;

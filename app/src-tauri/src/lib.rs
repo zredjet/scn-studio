@@ -572,6 +572,41 @@ fn after_settings_write(workspace: &mut Workspace, edit: Value) -> Result<Respon
     }))
 }
 
+/// 企画書の下書き（T4-4）を書く：空いている項目にだけ書き、値のある項目は提案にして返す（書くのはコア）。
+#[tauri::command]
+fn write_concept_draft(
+    draft: ai::ConceptDraft,
+    task: String,
+    model: String,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let written = workspace
+        .write_concept_draft(&draft, &task, &model)
+        .map_err(|e| e.to_string())?;
+    after_settings_write(workspace, to_json(&written, "書いた結果")?)
+}
+
+/// AI の下書きの項目の案を採用する（人の操作。T4-4）。`seen` は案を見せたときの中身。
+#[tauri::command]
+fn adopt_field_proposal(
+    file: String,
+    key: String,
+    value: Value,
+    seen: String,
+    task: String,
+    model: String,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let edit = workspace
+        .adopt_field_proposal(&file, &key, &value, &seen, &task, &model)
+        .map_err(|e| e.to_string())?;
+    after_settings_write(workspace, to_json(&edit, "書いた結果")?)
+}
+
 /// 設定DBの中身（設定DBの画面を開いたとき、設定が外で変わったとき）。
 #[tauri::command]
 fn read_bible(state: State<'_, AppState>) -> Result<Response, String> {
@@ -3566,6 +3601,8 @@ pub fn run() {
             ai_connections,
             set_ai_override,
             set_ai_task_connection,
+            write_concept_draft,
+            adopt_field_proposal,
             set_ai_cloud_allowed,
             set_ai_key,
             delete_ai_key,

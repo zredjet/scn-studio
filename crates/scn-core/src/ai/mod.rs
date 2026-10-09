@@ -6,11 +6,13 @@
 //! 提案（T3-8、D069）：行IDつきの差分（アプリの実行と `ai/proposals/*.md`）、行ごとの採用。
 //! 生成と自律（T3-9、D070）：スタブへの下書き、自律の反復、Git のブランチ。
 //! プロットとフローへの AI 支援（T3-10、D071）：提案ノード、ルートの骨格、構造の検証の結果、要約のずれ、メモの分類案。
+//! 企画書と設定DBの下書き（T4-4、D080）：空いている項目にだけ書き、値のある項目は提案にする。
 
 mod auto;
 mod client;
 mod connection;
 mod context;
+mod fielddraft;
 mod generate;
 mod keys;
 mod plot;
@@ -22,6 +24,7 @@ pub use auto::*;
 pub use client::*;
 pub use connection::*;
 pub use context::*;
+pub use fielddraft::*;
 pub use generate::*;
 pub use keys::*;
 pub use plot::*;

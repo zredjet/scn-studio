@@ -192,6 +192,22 @@ pub enum EntryEdit {
     Unsupported { message: String },
 }
 
+/// 企画書・エントリに AI の下書きを書いた結果（T4-4・T4-5）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct FieldsWritten {
+    pub file: String,
+    /// 書いた後の中身（何も書かなければ今の中身）。
+    pub text: String,
+    /// 書いた項目（キー。本文は `#body`）。
+    pub written: Vec<String>,
+    /// 値のある項目への案（人が採用する）。
+    pub proposals: Vec<crate::ai::FieldProposal>,
+    /// 書けなかった項目のわけ。
+    pub notes: Vec<String>,
+    /// 出自を書けなかったわけ。
+    pub provenance_problem: Option<String>,
+}
+
 /// アイデアメモを昇格した結果（T2-6、D057）。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -1401,6 +1417,136 @@ impl Workspace {
             append_provenance(&self.root, &records)
         });
         self.field_provenance_problem = result.err().map(|e| e.to_string());
+    }
+
+    /// 企画書の下書き（T4-4）を書く：空いている項目と、ひな形のままの本文にだけ書き、値のある項目は提案にする
+    /// （[`crate::ai::plan_concept_write`]）。企画書が無ければ、ひな形で作ってから書く。書いた項目の出自を `ai` と
+    /// 記録する。読めない企画書（フロントマターが YAML として読めない）には書かない。
+    pub fn write_concept_draft(
+        &mut self,
+        draft: &crate::ai::ConceptDraft,
+        task: &str,
+        model: &str,
+    ) -> Result<FieldsWritten, ProjectError> {
+        let path = self.root.join(CONCEPT_FILE);
+        let current = match read_disk(&path) {
+            Disk::Text(text) => Some(text),
+            Disk::Missing => None,
+            Disk::Unreadable => {
+                return Err(error(
+                    &path,
+                    io::ErrorKind::InvalidData,
+                    "企画書をUTF-8で読めません",
+                ));
+            }
+        };
+        let plan = crate::ai::plan_concept_write(CONCEPT_FILE, current.as_deref(), draft)
+            .map_err(|message| error(&path, io::ErrorKind::InvalidData, &message))?;
+        let mut provenance_problem = None;
+        let text = if plan.written.is_empty() {
+            current.unwrap_or_default()
+        } else {
+            self.write_settings_file(CONCEPT_FILE, &plan.text)?;
+            if current.is_none() {
+                self.reset_stale_fields(CONCEPT_FILE);
+            }
+            provenance_problem = self
+                .record_ai_fields(CONCEPT_FILE, &plan.written, task, model)
+                .err();
+            plan.text
+        };
+        Ok(FieldsWritten {
+            file: CONCEPT_FILE.to_owned(),
+            text,
+            written: plan.written,
+            proposals: plan.proposals,
+            notes: plan.notes,
+            provenance_problem,
+        })
+    }
+
+    /// AI の下書きの項目の案を採用する（人の操作。T4-4）：企画書かエントリの、その項目の値を案で置き換え（本文は
+    /// [`crate::provenance::BODY_KEY`]）、出自を `ai` と記録する。`seen` は画面が案を見せたときの中身で、外でその
+    /// 項目が変わっていれば書かずに [`EntryEdit::Conflict`] を返す。出自を書けなければ
+    /// [`Self::take_field_provenance_problem`] で受け取れる。
+    pub fn adopt_field_proposal(
+        &mut self,
+        file: &str,
+        key: &str,
+        value: &serde_json::Value,
+        seen: &str,
+        task: &str,
+        model: &str,
+    ) -> Result<EntryEdit, ProjectError> {
+        if !is_field_file(file) {
+            return Err(error(
+                &self.root.join(file),
+                io::ErrorKind::InvalidInput,
+                "企画書か設定DBのエントリのパスではありません",
+            ));
+        }
+        let path = self.entry_path(file)?;
+        let current = self.read_settings_file(&path)?;
+        let body = key == crate::provenance::BODY_KEY;
+        if current != seen {
+            let changed = if body {
+                body_of(&current) != body_of(seen)
+            } else {
+                let at = |text: &str| front_fields(text).ok().and_then(|f| f.get(key).cloned());
+                at(&current) != at(seen)
+            };
+            if changed {
+                return Ok(EntryEdit::Conflict { text: current });
+            }
+        }
+        let text = if body {
+            let Some(body) = value.as_str() else {
+                return Err(error(
+                    &path,
+                    io::ErrorKind::InvalidInput,
+                    "本文の案が文字列ではありません",
+                ));
+            };
+            set_body(&current, body)
+        } else {
+            match set_field(&current, key, value) {
+                Ok(text) => text,
+                Err(e) => {
+                    return Ok(EntryEdit::Unsupported {
+                        message: e.to_string(),
+                    });
+                }
+            }
+        };
+        self.write_settings_file(file, &text)?;
+        self.field_provenance_problem = self
+            .record_ai_fields(file, &[key.to_owned()], task, model)
+            .err();
+        Ok(EntryEdit::Saved { text })
+    }
+
+    /// AI が書いた項目の出自を記録する（T4-4）。
+    fn record_ai_fields(
+        &self,
+        file: &str,
+        keys: &[String],
+        task: &str,
+        model: &str,
+    ) -> Result<(), String> {
+        let at = provenance_now();
+        let records: Vec<Record> = keys
+            .iter()
+            .map(|key| Record {
+                file: Some(file.to_owned()),
+                key: Some(key.clone()),
+                origin: AI.to_owned(),
+                task: task.to_owned(),
+                model: model.to_owned(),
+                at: at.clone(),
+                ..Record::default()
+            })
+            .collect();
+        append_provenance(&self.root, &records).map_err(|e| e.to_string())
     }
 
     /// 企画書かエントリを作り直したパスに残っている AI の項目の記録を打ち消す（T4-3）。

@@ -4,9 +4,33 @@
 // ルートの骨格はAI実行の画面で作る（対象のルートと書く章を選ぶため）。
 
 import { useState } from "react";
+import { type FieldDecision, FieldProposals } from "../ai/FieldProposals.tsx";
 import type { FindingRecord, TaskRunner } from "../ai/model.ts";
 import { QuickRun } from "../ai/QuickRun.tsx";
-import type { Idea, IdeaSuggestion } from "../core/types.ts";
+import type {
+  FieldProposal,
+  FieldsWritten,
+  Idea,
+  IdeaSuggestion,
+} from "../core/types.ts";
+
+/** 企画書の下書き（T4-4）：タスク、最後の回の結果、案の決め方と採用・却下。 */
+export interface ConceptDraftAi {
+  readonly runner: TaskRunner;
+  readonly result: {
+    readonly run: number;
+    readonly text: string;
+    readonly ok: boolean;
+    readonly fields: FieldsWritten | null;
+  } | null;
+  readonly decisions: ReadonlyMap<string, FieldDecision>;
+  readonly onAdopt: (
+    run: number,
+    proposal: FieldProposal,
+    written: FieldsWritten,
+  ) => Promise<string | null>;
+  readonly onReject: (run: number, proposal: FieldProposal) => void;
+}
 
 interface Props {
   readonly questions: TaskRunner;
@@ -27,6 +51,8 @@ interface Props {
   readonly onApply: (suggestion: IdeaSuggestion) => Promise<string | null>;
   /** AI実行の画面で、ルートの骨格のタスクを開く。 */
   readonly onSkeleton: (() => void) | null;
+  /** 企画書の下書き（T4-4）。 */
+  readonly draft: ConceptDraftAi;
 }
 
 export function AiAside({
@@ -40,6 +66,7 @@ export function AiAside({
   onMakeMemo,
   onApply,
   onSkeleton,
+  draft,
 }: Props) {
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -54,7 +81,8 @@ export function AiAside({
       .catch((e: unknown) => setProblem(String(e)))
       .finally(() => setBusy(false));
   };
-  const running = questions.running ?? sort.running;
+  const running = questions.running ?? sort.running ?? draft.runner.running;
+  const draftResult = draft.result;
   return (
     <aside className="concept-ai" aria-label="AIの問い返し">
       <div className="concept-ai-head">
@@ -101,6 +129,43 @@ export function AiAside({
           </div>
         </div>
       ))}
+      <div className="concept-ai-more">
+        <span className="concept-ai-label">企画書の下書き</span>
+        <span className="context-faint">
+          メモから、企画書の空いている項目を AI
+          が書きます。書いてある項目への案は、採用を選べます
+        </span>
+        <QuickRun
+          runner={draft.runner}
+          scene={null}
+          label="AIで下書き"
+          disabledReason={
+            running !== null && running.task !== draft.runner.info?.task.id
+              ? "ほかのタスクを実行しています"
+              : null
+          }
+        />
+        {draftResult !== null && (
+          <>
+            <p className={draftResult.ok ? "export-notice" : "export-warning"}>
+              {draftResult.text}
+            </p>
+            {draftResult.fields !== null && (
+              <FieldProposals
+                written={draftResult.fields}
+                run={draftResult.run}
+                decisions={draft.decisions}
+                onAdopt={(p) =>
+                  draftResult.fields === null
+                    ? Promise.resolve(null)
+                    : draft.onAdopt(draftResult.run, p, draftResult.fields)
+                }
+                onReject={(p) => draft.onReject(draftResult.run, p)}
+              />
+            )}
+          </>
+        )}
+      </div>
       <div className="concept-ai-more">
         <span className="concept-ai-label">ほかのAIタスク</span>
         <QuickRun

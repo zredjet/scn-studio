@@ -447,6 +447,8 @@ enum Written {
         header: &'static str,
         lines: Vec<String>,
     },
+    /// ブロックのリスト（1行に1つの `- 要素`。対応表のリスト。企画書の `endings` の形。T4-4）。
+    List(Vec<String>),
 }
 
 fn json_inline(value: &Value) -> Written {
@@ -470,6 +472,14 @@ fn candidates(value: &Value) -> Vec<Written> {
             vec![Written::Block { header, lines }, json_inline(value)]
         }
         Value::String(s) => vec![Written::Inline(scalar_inline(s, false)), json_inline(value)],
+        // 対応表のリスト（値が文字列・数・真偽値だけ）は、1行に1つの `- { … }` のブロックのリスト（T4-4）。
+        Value::Array(items)
+            if !items.is_empty()
+                && let Some(lines) =
+                    items.iter().map(object_inline).collect::<Option<Vec<_>>>() =>
+        {
+            vec![Written::List(lines), json_inline(value)]
+        }
         Value::Array(items) => {
             let parts: Vec<String> = items
                 .iter()
@@ -484,27 +494,40 @@ fn candidates(value: &Value) -> Vec<Written> {
             ]
         }
         // `{ chars: 300000, routes: 2 }` の形（値が文字列・数・真偽値だけのとき）。読み直して違えば JSON。
-        Value::Object(map) => {
-            let parts: Option<Vec<String>> = map
-                .iter()
-                .map(|(k, v)| {
-                    let v = match v {
-                        Value::String(s) => scalar_inline(s, true),
-                        Value::Number(_) | Value::Bool(_) => v.to_string(),
-                        _ => return None,
-                    };
-                    Some(format!("{}: {v}", key_text(k)))
-                })
-                .collect();
-            match parts {
-                Some(parts) if !parts.is_empty() => vec![
-                    Written::Inline(format!("{{ {} }}", parts.join(", "))),
-                    json_inline(value),
-                ],
-                _ => vec![json_inline(value)],
-            }
-        }
+        Value::Object(_) => match object_inline(value) {
+            Some(inline) => vec![Written::Inline(inline), json_inline(value)],
+            None => vec![json_inline(value)],
+        },
     }
+}
+
+/// 対応表を `{ k: v, … }` の1行にする（値が文字列・数・真偽値だけで、空でないとき）。キーは `id`・`name` を先に、
+/// ほかは名前の順（企画書の `endings` のひな形の並び）。
+fn object_inline(value: &Value) -> Option<String> {
+    let Value::Object(map) = value else {
+        return None;
+    };
+    let rank = |k: &str| match k {
+        "id" => 0,
+        "name" => 1,
+        _ => 2,
+    };
+    let mut entries: Vec<(&String, &Value)> = map.iter().collect();
+    entries.sort_by(|(a, _), (b, _)| rank(a).cmp(&rank(b)).then(a.cmp(b)));
+    let parts: Option<Vec<String>> = entries
+        .into_iter()
+        .map(|(k, v)| {
+            let v = match v {
+                Value::String(s) => scalar_inline(s, true),
+                Value::Number(_) | Value::Bool(_) => v.to_string(),
+                _ => return None,
+            };
+            Some(format!("{}: {v}", key_text(k)))
+        })
+        .collect();
+    parts
+        .filter(|p| !p.is_empty())
+        .map(|parts| format!("{{ {} }}", parts.join(", ")))
 }
 
 /// キーの行：行頭に字下げの無い `キー:`（引用符で囲んだキーも）。キーの部分（`:` の手前まで）の長さを返す。
@@ -656,6 +679,15 @@ fn key_value_lines(key_text: &str, written: &Written, comment: &str, nl: &str) -
     match written {
         Written::Inline(v) if v.is_empty() => format!("{key_text}:{comment}{nl}"),
         Written::Inline(v) => format!("{key_text}: {v}{comment}{nl}"),
+        Written::List(items) => {
+            let mut out = format!("{key_text}:{comment}{nl}");
+            for item in items {
+                out.push_str("  - ");
+                out.push_str(item);
+                out.push_str(nl);
+            }
+            out
+        }
         Written::Block { header, lines } => {
             let mut out = format!("{key_text}: {header}{comment}{nl}");
             for line in lines {
