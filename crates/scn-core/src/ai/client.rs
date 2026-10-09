@@ -347,6 +347,9 @@ pub fn request_preview(conn: &Connection, request: &ChatRequest) -> String {
     format!("POST {}\n{auth}\n\n{body}", request_url(conn))
 }
 
+/// 「接続を試す」の返す長さの上限（人の確認 H33 の報告で 32 から上げた。32 では考えるモデルが答えの前に使い切った）。
+pub const TEST_MAX_TOKENS: u32 = 1024;
+
 /// 環境設定の「接続を試す」で送る中身（作品の中身は送らない）。
 pub fn test_request() -> ChatRequest {
     ChatRequest {
@@ -355,7 +358,8 @@ pub fn test_request() -> ChatRequest {
             role: Role::User,
             content: "「はい」とだけ答えてください。".to_owned(),
         }],
-        max_tokens: Some(32),
+        // 考えるモデルが考え終えて答えまで届くだけの上限（答えは「はい」なので、費用はほとんど変わらない）。
+        max_tokens: Some(TEST_MAX_TOKENS),
         temperature: None,
         schema: None,
     }

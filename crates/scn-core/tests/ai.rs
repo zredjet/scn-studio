@@ -263,7 +263,8 @@ fn openai_streaming() {
     assert_eq!(body["model"], "test-model");
     assert_eq!(body["stream"], true);
     assert_eq!(body["stream_options"]["include_usage"], true);
-    assert_eq!(body["max_tokens"], 32);
+    assert_eq!(body["max_tokens"], ai::TEST_MAX_TOKENS);
+    assert_eq!(ai::TEST_MAX_TOKENS, 1024);
     assert_eq!(body["messages"][0]["role"], "system");
     assert_eq!(body["messages"][1]["role"], "user");
     assert_eq!(
