@@ -57,6 +57,7 @@ pub mod playthrough;
 pub mod plugin;
 pub mod preview;
 pub mod project;
+pub mod projectedit;
 pub mod provenance;
 pub mod rename;
 pub mod renpy;

@@ -552,6 +552,43 @@ export interface VariablesWritten {
   readonly checks: readonly IrDiagnostic[];
 }
 
+/** 環境設定の「この作品」の頁に出す `project.toml` の値（T4-25、N6）。無いキーは null（括弧は既定の「」）。 */
+export interface ProjectSettings {
+  readonly title: string | null;
+  readonly start_scene: string | null;
+  readonly brackets: readonly {
+    /** 開き括弧と閉じ括弧の2文字。 */
+    readonly pair: string;
+    readonly style: string;
+  }[];
+  readonly screen: { readonly width: number; readonly height: number } | null;
+  readonly message_window: {
+    readonly lines: number;
+    readonly chars_per_line: number;
+  } | null;
+  readonly editor: EditorSettings;
+  /** `project.toml` の診断（コードと文）。 */
+  readonly problems: readonly string[];
+}
+
+/** `project.toml` の1つのキーの直し方（コアの `projectedit::SettingEdit`）。`value` が null なら消す。 */
+export interface SettingEdit {
+  readonly path: readonly string[];
+  readonly value: string | number | boolean | null;
+}
+
+/** `project.toml` を直した後に受け取るもの（外で変わったときの知らせと同じものと、読み直した値）。 */
+export interface ProjectSettingsWritten {
+  readonly edit: EntryEdit;
+  readonly settings: ProjectSettings;
+  readonly title: string;
+  readonly brackets: readonly Bracket[];
+  readonly editor: EditorSettings;
+  readonly assist: AssistData;
+  readonly summary: Summary;
+  readonly checks: readonly IrDiagnostic[];
+}
+
 /** エディタの表示：執筆表示（記号を畳む）か、ソース表示（生のテキスト）か（D046）。 */
 export type ViewMode = "writing" | "source";
 

@@ -56,6 +56,8 @@ import type {
   PluginItem,
   PluginRun,
   PreviewRequest,
+  ProjectSettings,
+  ProjectSettingsWritten,
   PromotedWritten,
   Promotion,
   ReadingChoice,
@@ -75,6 +77,7 @@ import type {
   ScriptFormat,
   ScriptSheet,
   SearchRanges,
+  SettingEdit,
   SkeletonScene,
   StoryWrittenResult,
   SummarizeResult,
@@ -357,6 +360,18 @@ export function createType(
 /** 設定DBの型のテンプレート集（T4-9）。 */
 export function typeTemplates(): Promise<TypeTemplate[]> {
   return invoke<TypeTemplate[]>("type_templates");
+}
+
+/** `project.toml` の、環境設定の頁で直せる値（T4-25）。 */
+export function projectSettings(): Promise<ProjectSettings> {
+  return invoke<ProjectSettings>("project_settings");
+}
+
+/** `project.toml` のキーを直す（コメントと並びを残す。正しくない値は書かずに `unsupported`。T4-25）。 */
+export function setProjectSettings(
+  edits: readonly SettingEdit[],
+): Promise<ProjectSettingsWritten> {
+  return invoke<ProjectSettingsWritten>("set_project_settings", { edits });
 }
 
 /** 変数の宣言の1つの項目を直す（フォーム。T2-10）。`value` が null なら項目を消す。 */

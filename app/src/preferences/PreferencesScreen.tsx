@@ -1,12 +1,24 @@
-// 環境設定（左端のバーの「環境設定」。T3-5、D066）：AIの接続先。接続先は作品フォルダの project.toml の
-// [ai.<名前>] に書き、URL・モデル・文脈の長さ（T4-1）・返す分の上限（T4-10）の上書き・クラウドへの送信の許可・
-// キーは、この端末だけの設定にする。
-// キーは入力をコアへ渡すだけで、画面には戻ってこない。
+// 環境設定（左端のバーの「環境設定」。T3-5、D066）：頁を左の一覧で選ぶ（見本 11。T4-25）。AIの接続先は作品
+// フォルダの project.toml の [ai.<名前>] に書き、URL・モデル・文脈の長さ（T4-1）・返す分の上限（T4-10）の上書き・
+// クラウドへの送信の許可・キーは、この端末だけの設定にする。キーは入力をコアへ渡すだけで、画面には戻ってこない。
+// ほかの頁（文字と表示、キーの割り当て、作品の情報、メッセージウィンドウ、エディタ）は `SettingsPages.tsx`。
 
-import { type KeyboardEvent, useRef, useState } from "react";
+import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { isComposingKey } from "../bible/fields.ts";
-import { aiModels, confirm } from "../core/api.ts";
-import type { AiConnection, AiConnections } from "../core/types.ts";
+import {
+  aiModels,
+  confirm,
+  projectSettings,
+  setProjectSettings,
+} from "../core/api.ts";
+import type {
+  AiConnection,
+  AiConnections,
+  ProjectSettings,
+  ProjectSettingsWritten,
+  SceneSummary,
+  SettingEdit,
+} from "../core/types.ts";
 import {
   canListModels,
   currentModelList,
@@ -30,6 +42,12 @@ import {
   type TestState,
   usageText,
 } from "./connection.ts";
+import {
+  DisplayPage,
+  KeysPage,
+  ProjectPage,
+  type ViewPrefsValue,
+} from "./SettingsPages.tsx";
 
 interface Props {
   readonly data: AiConnections | null;
@@ -48,7 +66,38 @@ interface Props {
   readonly onDeleteKey: (endpoint: string) => Promise<void>;
   readonly onTest: (name: string) => void;
   readonly onCancel: (name: string) => void;
+  /** 表示の好み（文字と表示の頁。T4-25）。 */
+  readonly view: ViewPrefsValue;
+  readonly onView: (next: Partial<ViewPrefsValue>) => void;
+  /** シーン（開始シーンの選択肢）。 */
+  readonly scenes: readonly SceneSummary[];
+  /** 設定ファイルが外で変わった回数（project.toml を読み直す）。 */
+  readonly settingsVersion: number;
+  /** project.toml を書いた後（作品名・括弧・エディタの設定・解析の結果を入れる）。 */
+  readonly onProjectWritten: (result: ProjectSettingsWritten) => void;
 }
+
+/** 頁（見本 11 の一覧のうち、今ある設定の頁）。 */
+type Page = "display" | "ai" | "keys" | "project" | "window" | "editor";
+
+const APP_PAGES: readonly (readonly [Page, string])[] = [
+  ["display", "文字と表示"],
+  ["ai", "AIの接続"],
+  ["keys", "キーの割り当て"],
+];
+const PROJECT_PAGES: readonly (readonly [Page, string])[] = [
+  ["project", "作品の情報"],
+  ["window", "メッセージウィンドウ"],
+  ["editor", "エディタ"],
+];
+const PAGE_NOTES: Readonly<Record<Page, string>> = {
+  display: "すぐに使われます",
+  ai: "変えるとすぐに使われます",
+  keys: "見るだけ",
+  project: "project.toml",
+  window: "project.toml",
+  editor: "project.toml",
+};
 
 export function PreferencesScreen({
   data,
@@ -60,10 +109,56 @@ export function PreferencesScreen({
   onDeleteKey,
   onTest,
   onCancel,
+  view,
+  onView,
+  scenes,
+  settingsVersion,
+  onProjectWritten,
 }: Props) {
+  const [page, setPage] = useState<Page>("ai");
+  // project.toml の値（開いたとき・外で変わったときに読み直し、書いたら書いた後の値にする。T4-25）。
+  const [project, setProject] = useState<ProjectSettings | null>(null);
+  const [projectError, setProjectError] = useState<string | null>(null);
+  useEffect(() => {
+    void settingsVersion;
+    let live = true;
+    projectSettings()
+      .then((s) => {
+        if (!live) return;
+        setProject(s);
+        setProjectError(null);
+      })
+      .catch((e: unknown) => {
+        if (live) setProjectError(String(e));
+      });
+    return () => {
+      live = false;
+    };
+  }, [settingsVersion]);
+  const editProject = async (
+    edits: readonly SettingEdit[],
+  ): Promise<string | null> => {
+    const result = await setProjectSettings(edits);
+    setProject(result.settings);
+    onProjectWritten(result);
+    return result.edit.kind === "unsupported" ? result.edit.message : null;
+  };
   // 見せている（今の設定の）回だけを数える。前の設定の回が残っていても、ほかを押せなくしない。
   const running = (data?.connections ?? []).some(
     (c) => currentTest(c, tests)?.kind === "running",
+  );
+  const title =
+    [...APP_PAGES, ...PROJECT_PAGES].find(([p]) => p === page)?.[1] ?? "";
+  const pageButton = ([p, label]: readonly [Page, string]) => (
+    <button
+      key={p}
+      type="button"
+      className={p === page ? "lrow is-selected" : "lrow"}
+      aria-current={p === page ? "page" : undefined}
+      onClick={() => setPage(p)}
+    >
+      <span className="name">{label}</span>
+    </button>
   );
   return (
     <div className="preferences-body">
@@ -71,23 +166,44 @@ export function PreferencesScreen({
         <div className="panel-head">
           <h2 className="h-label">このアプリ（すべての作品）</h2>
         </div>
-        <button type="button" className="lrow is-selected" aria-current="page">
-          <span className="name">AIの接続</span>
-        </button>
+        {APP_PAGES.map(pageButton)}
         <div className="panel-head prefs-group">
           <h2 className="h-label">この作品（project.toml）</h2>
         </div>
-        <p className="empty prefs-note">
-          ここで直せる項目はまだありません。作品フォルダの project.toml
-          を直します（AI の接続先は [ai.&lt;名前&gt;]）。
-        </p>
+        {PROJECT_PAGES.map(pageButton)}
       </nav>
-      <main className="preferences-main" aria-label="AIの接続">
+      <main className="preferences-main" aria-label={title}>
         <header className="work-head">
-          <h1 className="h1">AIの接続</h1>
-          <span className="t-small t-3">変えるとすぐに使われます</span>
+          <h1 className="h1">{title}</h1>
+          <span className="t-small t-3">{PAGE_NOTES[page]}</span>
         </header>
-        <section className="preferences-scroll" aria-label="AIの接続先">
+        {page === "display" && (
+          <section className="preferences-scroll" aria-label={title}>
+            <DisplayPage view={view} onView={onView} />
+          </section>
+        )}
+        {page === "keys" && (
+          <section className="preferences-scroll" aria-label={title}>
+            <KeysPage />
+          </section>
+        )}
+        {(page === "project" || page === "window" || page === "editor") && (
+          <section className="preferences-scroll" aria-label={title}>
+            <ProjectPage
+              key={page}
+              kind={page}
+              settings={project}
+              error={projectError}
+              scenes={scenes}
+              onEdit={editProject}
+            />
+          </section>
+        )}
+        <section
+          className="preferences-scroll"
+          aria-label="AIの接続先"
+          hidden={page !== "ai"}
+        >
           <div>
             <p className="export-note prefs-lead">
               接続先は、作品フォルダの project.toml の [ai.&lt;名前&gt;]

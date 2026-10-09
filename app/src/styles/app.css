@@ -4637,6 +4637,80 @@ button.sb-btn:hover {
   margin: 0;
 }
 
+/* 頁を切り替えても AI の接続先の欄の書きかけを残すので、隠すだけ（T4-25） */
+.preferences-scroll[hidden] {
+  display: none;
+}
+
+/* 環境設定の頁の欄（見本 11 の pf-row：左にラベル、右に欄と説明。T4-25） */
+.prefs-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.prefs-row {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 8px 20px;
+  align-items: start;
+}
+
+.prefs-row-label {
+  padding-top: 7px;
+}
+
+.prefs-row-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.prefs-size,
+.prefs-bracket {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.prefs-brackets {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.prefs-bracket-pair {
+  width: 56px;
+  font-size: var(--fs-h2);
+}
+
+.prefs-bracket-new {
+  width: 56px;
+}
+
+.prefs-problem,
+.prefs-message {
+  margin: 0;
+}
+
+.prefs-message {
+  color: var(--text-2);
+  font-size: var(--fs-small);
+}
+
+.prefs-keys {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.prefs-key {
+  width: 160px;
+  white-space: nowrap;
+}
+
 .ai-connection {
   display: flex;
   flex-direction: column;

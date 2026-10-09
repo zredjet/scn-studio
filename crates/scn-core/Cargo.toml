@@ -18,6 +18,8 @@ serde_json = "1.0.151"
 similar = { version = "3.2.0", default-features = false, features = ["std"] }
 thiserror = "2.0.21"
 toml = "1.1.6"
+# 環境設定で project.toml を直す（コメントと並びを残す。T4-25）
+toml_edit = "0.25.15"
 unicode-ident = "1.0.26"
 url = "2.5.8"
 yaml_serde = "0.10.7"

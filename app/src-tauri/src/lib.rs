@@ -926,6 +926,70 @@ fn after_variables_write(workspace: &Workspace, edit: Value) -> Result<Response,
     }))
 }
 
+/// 環境設定の「この作品」の頁に出す `project.toml` の値（T4-25、N6）。読んだ設定（無いキーは既定の値か null）と、
+/// `project.toml` の診断の文。
+fn project_settings_data(workspace: &Workspace) -> Value {
+    let project = workspace.project();
+    let s = &project.settings;
+    json!({
+        "title": s.title,
+        "start_scene": s.start_scene,
+        "brackets": s
+            .brackets
+            .iter()
+            .map(|b| json!({ "pair": format!("{}{}", b.open, b.close), "style": b.style }))
+            .collect::<Vec<_>>(),
+        "screen": s.screen.map(|x| json!({ "width": x.width, "height": x.height })),
+        "message_window": s
+            .message_window
+            .map(|m| json!({ "lines": m.lines, "chars_per_line": m.chars_per_line })),
+        "editor": s.editor,
+        "problems": project
+            .load_diagnostics
+            .iter()
+            .filter(|d| d.file == "project.toml")
+            .map(|d| format!("{} {}", d.diag.code, d.diag.message))
+            .collect::<Vec<_>>(),
+    })
+}
+
+/// `project.toml` の、環境設定の頁で直せる値（T4-25）。
+#[tauri::command]
+fn project_settings(state: State<'_, AppState>) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    json_response(&project_settings_data(workspace))
+}
+
+/// `project.toml` のキーを直す（環境設定の「この作品」の頁。T4-25）。書いたら、読み直した設定と、作品名・台詞の
+/// 括弧・エディタの設定・補完の材料・解析の結果を返す（外で変わったときの知らせと同じもの）。
+#[tauri::command]
+fn set_project_settings(
+    edits: Vec<scn_core::projectedit::SettingEdit>,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    // 台詞の括弧が変わると、どの章も読み方が変わるので、自律の実行中は書かない。
+    refuse_during_auto(&state, workspace.root(), None)?;
+    let edit = workspace
+        .set_project_settings(&edits)
+        .map_err(|e| e.to_string())?;
+    let Analyzed {
+        summary, checks, ..
+    } = analyze_summary(workspace.project(), true, None)?;
+    json_response(&json!({
+        "edit": to_json(&edit, "書いた結果")?,
+        "settings": project_settings_data(workspace),
+        "title": title_of(workspace),
+        "brackets": brackets(workspace.project()),
+        "editor": workspace.project().settings.editor,
+        "assist": completion_data(workspace.project()),
+        "summary": summary,
+        "checks": checks,
+    }))
+}
+
 /// 変数の宣言の1つの項目を直す（フォーム。T2-10）。`value` が null なら項目を消す。
 #[tauri::command]
 fn set_variable_field(
@@ -3843,6 +3907,8 @@ pub fn run() {
             delete_ai_key,
             ai_test,
             ai_models,
+            project_settings,
+            set_project_settings,
             cancel_ai,
             ai_tasks,
             ai_prepare,

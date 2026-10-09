@@ -31,6 +31,7 @@ paths:
 | `layout` | フロー図の配置（`layout.json`）の読み書き。壊れていても止めず、読めた分を返す |
 | `bible` | 設定DBと変数の画面（アプリ）：項目の型と値の検査（W805・W806）、フロントマターの書き換え（直したキーの値だけを差し替え、読み直して確かめる）、エントリの逆引き、変数の一覧 |
 | `vardecl` | 変数の宣言のフォーム（アプリの変数の画面）：`variables.yaml` の1つの宣言の1つの項目の行を差し替える・足す・消す、宣言を足す。読み直して、ほかが変わっていないことを確かめる。書くのは `workspace` |
+| `projectedit` | 環境設定の「この作品」の頁（T4-25、N6）：`project.toml` の決まったキー（`title`・`start_scene`・`[dialogue.brackets]` の組・`[screen]`・`[message_window]`・`[editor]` の2つ）を `toml_edit` で直す（コメントと並び、行末のコメント、BOM と `\r\n` を残す）。値の形を確かめてから書き、書いた後の中身を `project::read_settings` で読み直して、直したキーが書いた値で読めること、新しい診断が出ないこと、直していないキーの読み方が変わらないことを確かめる（確かめられなければ書かない）。`[dialogue.brackets]` を新しく作るときは既定の「」も書く。消したキーや表の直上のコメントは一緒に消える（R223）。表でないところへは書かない（パニックしない）。書くのは `workspace::set_project_settings`（`tests/projectedit.rs`） |
 | `typedef` | 型定義のフォーム（アプリの設定DBの画面）：`bible/types/*.yaml` の1行の `- { … }` の項目を、`key` で指して直す・並べ替える・消す・足す。読み直して確かめる。型を作るときの元（`TypeSource`：空・テンプレート・複製）と、写すときに名前を替えて `builtin` を除く `retitle_type`（T4-9。写した中身を `project::parse_entry_type` で読み直して確かめるのは `workspace::create_type`）。書くのは `workspace` |
 | `preview` | 簡易ADVプレビューのデータ（アプリ）：IR全体と、画面・ウィンドウの大きさ、括弧と表示スタイル、キャラクターの名前、変数の初期値、素材のファイル（`assets/` の中にあるものだけ） |
 | `script` | 台本の出力（`scn export script`、アプリの「出力」）：IRから台詞ごとの行を作り、CSV（UTF-8 の BOM 付き、CRLF）か Excel 形式（`xlsx`）にする。収録の基準（`export/script-baseline.json`）と比べて、再収録候補を備考に書く |

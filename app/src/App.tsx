@@ -153,6 +153,7 @@ import type {
   Playthrough,
   PlotWriteResult,
   PreviewRequest,
+  ProjectSettingsWritten,
   RecentProject,
   RenameSymbol,
   RouteStat,
@@ -1362,6 +1363,23 @@ export function App() {
     (name: string) =>
       requestBible((seq) => ({ kind: "new", typeId: null, name, seq })),
     [requestBible],
+  );
+
+  /** 環境設定で project.toml を書いた後（T4-25）：外で変わったときと同じに、作品名・台詞の括弧・エディタの設定・
+   * 補完の材料・解析の結果を入れる（自分で書いた変更は、監視の知らせが来ないため）。 */
+  const onProjectWritten = useCallback(
+    (result: ProjectSettingsWritten) => {
+      if (result.edit.kind !== "saved") return;
+      setProject((p) =>
+        p === null
+          ? null
+          : { ...p, title: result.title, brackets: result.brackets },
+      );
+      setAssist(result.assist);
+      setEditorSettings(result.editor);
+      showSummary(result.summary, result.checks);
+    },
+    [showSummary],
   );
 
   /** 設定DBか変数を書いた後：補完の材料と、解析の結果を入れる。 */
@@ -4262,6 +4280,13 @@ export function App() {
                           }
                           onTest={runAiTest}
                           onCancel={cancelTest}
+                          view={viewPrefs}
+                          onView={(next) =>
+                            updateViewPrefs((p) => ({ ...p, ...next }))
+                          }
+                          scenes={project.summary.scenes}
+                          settingsVersion={settingsVersion}
+                          onProjectWritten={onProjectWritten}
                         />
                       </KeepAlive>
                     </section>

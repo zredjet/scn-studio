@@ -365,6 +365,17 @@ pub fn load_project(root: &Path) -> Result<Project, ProjectError> {
     })
 }
 
+/// `project.toml` の中身だけを読んだ設定と、その診断（環境設定で直した後の確かめ。T4-25）。
+pub fn read_settings(text: &str) -> (Settings, Vec<LoadDiagnostic>) {
+    let mut loader = Loader {
+        root: Path::new(""),
+        diags: Vec::new(),
+        entry_texts: BTreeMap::new(),
+    };
+    let settings = loader.settings(text.as_bytes());
+    (settings, loader.diags)
+}
+
 /// 先頭の BOM（U+FEFF）を除いた中身。Windows のエディタが設定ファイルに付けることがあり、YAML の読み手は
 /// BOM の後ろを2つ目の文書として読んでしまうので、読む前に除く（T2-10、D061）。
 pub(crate) fn without_bom(text: &str) -> &str {

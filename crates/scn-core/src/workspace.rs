@@ -26,6 +26,7 @@ use crate::project::{
     Project, ProjectError, SourceFile, load_project, parse_entry_type, scn_paths, without_bom,
     write_source,
 };
+use crate::projectedit::{SettingEdit, edit_project_toml};
 use crate::provenance::{
     AI, PROVENANCE_FILE, Record, append_provenance, edited_ai_fields, edited_ai_lines,
     is_field_file, moved_field_records, now as provenance_now, read_provenance,
@@ -2031,6 +2032,23 @@ impl Workspace {
             Err(e) => Ok(EntryEdit::Unsupported {
                 message: e.to_string(),
             }),
+        }
+    }
+
+    /// `project.toml` のキーを直す（環境設定の「この作品」の頁。T4-25）。コメントと並びを残し、正しくない値や、
+    /// 書くと新しい診断が出る中身は書かずに `Unsupported` でわけを返す（[`crate::projectedit`]）。書いたら設定を
+    /// 読み直す（台詞の括弧が変われば、本文の読み方も変わる）。
+    pub fn set_project_settings(
+        &mut self,
+        edits: &[SettingEdit],
+    ) -> Result<EntryEdit, ProjectError> {
+        let current = self.read_settings_file(&self.root.join("project.toml"))?;
+        match edit_project_toml(&current, edits) {
+            Ok(text) => {
+                self.write_settings_file("project.toml", &text)?;
+                Ok(EntryEdit::Saved { text })
+            }
+            Err(message) => Ok(EntryEdit::Unsupported { message }),
         }
     }
 
