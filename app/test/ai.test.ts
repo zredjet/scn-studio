@@ -7,7 +7,9 @@ import {
   fieldLabel,
   fieldProposalKey,
   fieldsWrittenText,
+  proposalFolded,
   proposalValueText,
+  resultShown,
 } from "../src/ai/fields.ts";
 import {
   type AutoRun,
@@ -922,4 +924,17 @@ test("自律の企画と設定の段（T4-6）：進み具合と結果の文", (
     autoStageText({ ...stage, status: "skipped", message: "無い" }),
     "無い",
   );
+});
+
+test("AI の下書きの結果を畳む・閉じる（T4-27）", () => {
+  // 決めていない案はいつも開く。決めた案は、開かない限り畳む。
+  assert.equal(proposalFolded(undefined, false), false);
+  assert.equal(proposalFolded("adopted", false), true);
+  assert.equal(proposalFolded("rejected", false), true);
+  assert.equal(proposalFolded("adopted", true), false);
+  // 閉じた回の結果は見せない（ほかの回は見せる）。
+  const hidden = new Set([3]);
+  assert.equal(resultShown(3, hidden), false);
+  assert.equal(resultShown(4, hidden), true);
+  assert.equal(resultShown(undefined, hidden), false);
 });

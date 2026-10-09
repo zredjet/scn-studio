@@ -11,6 +11,7 @@ import {
   entriesWrittenText,
   fieldProposalKey,
   fieldsWrittenText,
+  resultShown,
 } from "./ai/fields.ts";
 import {
   type AutoRun,
@@ -2455,6 +2456,14 @@ export function App() {
   const [fieldDecisions, setFieldDecisions] = useState<
     ReadonlyMap<string, FieldDecision>
   >(() => new Map());
+  /** 設定DBと企画の画面で閉じた下書きの結果の回（AI実行の画面の履歴には残す。T4-27）。 */
+  const [hiddenResults, setHiddenResults] = useState<ReadonlySet<number>>(
+    () => new Set(),
+  );
+  const hideResult = useCallback(
+    (run: number) => setHiddenResults((s) => new Set(s).add(run)),
+    [],
+  );
   /** 案を採用する（人の操作。T4-4）。誤りの文を返す。 */
   const adoptField = useCallback(
     async (
@@ -3423,17 +3432,23 @@ export function App() {
     "draft_concept",
     (t) => t.output === "concept",
   );
-  const conceptDraftResult =
+  const conceptDraftAll =
     conceptDraftTask === null
       ? undefined
       : aiResults.get(conceptDraftTask.task.id);
+  const conceptDraftResult = resultShown(conceptDraftAll?.run, hiddenResults)
+    ? conceptDraftAll
+    : undefined;
   const entriesTask = findTask(
     aiTasks,
     "draft_entries",
     (t) => t.output === "entries",
   );
-  const entriesResult =
+  const entriesAll =
     entriesTask === null ? undefined : aiResults.get(entriesTask.task.id);
+  const entriesResult = resultShown(entriesAll?.run, hiddenResults)
+    ? entriesAll
+    : undefined;
   /** 設定の下書き（T4-5）：対象のエントリ（null ならまとめて）で実行する。 */
   const entriesRunner = (target: string | null): TaskRunner => ({
     info: entriesTask,
@@ -3979,6 +3994,7 @@ export function App() {
                                       conceptDraftResult.model,
                                     ),
                               onReject: rejectField,
+                              onDismiss: hideResult,
                             },
                           }}
                         />
@@ -4033,6 +4049,7 @@ export function App() {
                                     entriesResult.model,
                                   ),
                             onReject: rejectField,
+                            onDismiss: hideResult,
                           }}
                           aiFields={aiFieldMap}
                           onWritten={onSettingsWritten}

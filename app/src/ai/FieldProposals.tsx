@@ -7,6 +7,7 @@ import {
   CONCEPT_FIELD_LABELS,
   fieldLabel,
   fieldProposalKey,
+  proposalFolded,
   proposalValueText,
 } from "./fields.ts";
 
@@ -40,6 +41,15 @@ export function FieldProposals({
   const [problems, setProblems] = useState<ReadonlyMap<string, string>>(
     new Map(),
   );
+  /** 決めた案のうち、開いて中身を見ているもの（T4-27）。 */
+  const [opened, setOpened] = useState<ReadonlySet<string>>(new Set());
+  const toggle = (key: string) =>
+    setOpened((s) => {
+      const next = new Set(s);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   if (written.proposals.length === 0 && written.notes.length === 0) return null;
   return (
     <section className="ai-field-proposals" aria-label="値のある項目への案">
@@ -52,11 +62,46 @@ export function FieldProposals({
         const key = fieldProposalKey(run, p);
         const decision = decisions.get(key);
         const problem = problems.get(key);
+        // 決めた案は1行に畳む（開けば中身を見られる。T4-27）。
+        if (proposalFolded(decision, opened.has(key)))
+          return (
+            <article key={key} className="ai-field-proposal is-folded">
+              <header>
+                <span className="tag tag-ai">{fieldLabel(p.key, labels)}</span>
+                <span className="context-faint">
+                  {decision === "adopted" ? "採用しました" : "却下しました"}
+                </span>
+                <span className="context-faint ellipsis">{p.file}</span>
+                <span className="grow" />
+                <button
+                  type="button"
+                  className="btn btn-link btn-sm"
+                  aria-expanded={false}
+                  onClick={() => toggle(key)}
+                >
+                  中身を見る
+                </button>
+              </header>
+            </article>
+          );
         return (
           <article key={key} className="ai-field-proposal">
             <header>
               <span className="tag tag-ai">{fieldLabel(p.key, labels)}</span>
               <span className="context-faint">{p.file}</span>
+              {decision !== undefined && (
+                <>
+                  <span className="grow" />
+                  <button
+                    type="button"
+                    className="btn btn-link btn-sm"
+                    aria-expanded={true}
+                    onClick={() => toggle(key)}
+                  >
+                    畳む
+                  </button>
+                </>
+              )}
             </header>
             <dl>
               <dt>今</dt>

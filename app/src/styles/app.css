@@ -4575,9 +4575,32 @@ button.sb-btn:hover {
 }
 
 .ai-field-proposal dd {
+  max-height: 12em;
   margin: 0;
+  overflow: auto;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* 決めた案は1行に畳む（T4-27） */
+.ai-field-proposal.is-folded {
+  padding: 4px 10px;
+}
+
+.ai-field-proposal header .btn-link {
+  padding: 0;
+}
+
+/* AI の下書きの結果の見出し（知らせと「結果を閉じる」。T4-27） */
+.ai-result-head {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.ai-result-head > .notice {
+  flex: 1;
+  min-width: 0;
 }
 
 .ai-field-current {

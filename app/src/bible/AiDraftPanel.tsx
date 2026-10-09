@@ -27,6 +27,8 @@ export interface BibleAi {
     written: FieldsWritten,
   ) => Promise<string | null>;
   readonly onReject: (run: number, proposal: FieldProposal) => void;
+  /** 結果を閉じる（この画面で見せなくなる。AI実行の画面の履歴には残る。T4-27）。 */
+  readonly onDismiss: (run: number) => void;
 }
 
 /** 実行のボタン（対象のエントリか、まとめて）。 */
@@ -65,9 +67,18 @@ export function AiDraftResult({
   if (result === null) return null;
   return (
     <section className="bible-ai-result" aria-label="AIの下書きの結果">
-      <p className={result.ok ? "notice" : "notice notice-warn"}>
-        {result.text}
-      </p>
+      <div className="ai-result-head">
+        <p className={result.ok ? "notice" : "notice notice-warn"}>
+          {result.text}
+        </p>
+        <button
+          type="button"
+          className="btn btn-sm"
+          onClick={() => ai.onDismiss(result.run)}
+        >
+          結果を閉じる
+        </button>
+      </div>
       {result.notes.map((n) => (
         <p key={n} className="context-faint ai-prepared-note">
           {n}

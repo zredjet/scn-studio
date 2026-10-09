@@ -135,3 +135,21 @@ export function fieldProposalKey(
 ): string {
   return `${run}\u0000${p.file}\u0000${p.key}`;
 }
+
+/**
+ * 案を畳むか（T4-27）：採用・却下を決めた案は、開かない限り1行に畳む（決めていない案はいつも開く）。
+ */
+export function proposalFolded(
+  decision: "adopted" | "rejected" | undefined,
+  opened: boolean,
+): boolean {
+  return decision !== undefined && !opened;
+}
+
+/** 結果を見せるか（T4-27）：設定DBと企画の画面で閉じた回は見せない（AI実行の画面の履歴には残る）。 */
+export function resultShown(
+  run: number | undefined,
+  hidden: ReadonlySet<number>,
+): boolean {
+  return run !== undefined && !hidden.has(run);
+}

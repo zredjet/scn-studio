@@ -34,6 +34,8 @@ export interface ConceptDraftAi {
     written: FieldsWritten,
   ) => Promise<string | null>;
   readonly onReject: (run: number, proposal: FieldProposal) => void;
+  /** 結果を閉じる（この画面で見せなくなる。AI実行の画面の履歴には残る。T4-27）。 */
+  readonly onDismiss: (run: number) => void;
 }
 
 interface Props {
@@ -153,9 +155,18 @@ export function AiAside({
         />
         {draftResult !== null && (
           <>
-            <p className={draftResult.ok ? "notice" : "notice notice-warn"}>
-              {draftResult.text}
-            </p>
+            <div className="ai-result-head">
+              <p className={draftResult.ok ? "notice" : "notice notice-warn"}>
+                {draftResult.text}
+              </p>
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={() => draft.onDismiss(draftResult.run)}
+              >
+                結果を閉じる
+              </button>
+            </div>
             {draftResult.fields !== null && (
               <FieldProposals
                 written={draftResult.fields}

@@ -83,7 +83,7 @@ paths:
 - プロットとフローへの支援（T3-10、D071）：ほかの画面（フロー図、企画の画面）からの実行は `ai/QuickRun.tsx`（App の `runTask` と同じ実行、クラウドでは送る中身を見せてから）。提案ノードはフロー図に重ねるだけ（`graph/model.ts` の `proposalOverlay`。位置は保存しない）で、採用・骨格・summary の書き込みはコア（`adopt_branch_proposal`・`write_ai_skeleton`・`set_scene_summary`）が行い、App が本文を置き換える（`applyPlotWritten`・`applyWrittenText`）。分類案はメモの項目の書き換え（`set_entry_field`）で当てる。却下・閉じたものは App の中だけに持つ。判断と文は `ai/model.ts` に置き、テストを付ける。
 - 自律の企画と設定の段（T4-6、R213）：`ai/AutoPanel.tsx` で選び（既定は行わない）、`ai_auto` に `stages` を渡す。段のタスクがクラウドなら送り先の確かめに入れる。段の結果の案は `FieldProposals` で並べ、採用は App の `adoptField`。進み具合と文は `ai/model.ts` の `applyAutoEvent`・`autoStageText`。Tauri は段を選んだ自律の間、企画書と設定DBを書き換えるコマンドを `refuse_settings_during_auto` で断る（書き換えるコマンドを足したら、ここにも足す）。
 - 設定の下書き（T4-5、R212）：設定DBの画面の `bible/AiDraftPanel.tsx`（まとめての「足りない設定をAIで作る」と、選んだエントリの「空欄をAIで下書き」。対象のエントリは実行の `route` の引数で渡し、書くのもそのエントリだけ）。結果の案は `FieldProposals`（項目の名前は型の定義から）。
-- 企画書と設定DBの下書き（T4-4、R204〜R207）：書くのはコア（`write_concept_draft`。空いている項目にだけ）で、App が実行の後に書き、値のある項目への案を結果に持つ。案は `ai/FieldProposals.tsx`（AI実行の画面と企画の画面の `AiAside`）で並べ、採用はコア（`adopt_field_proposal`。案を見せたときの中身を `seen` に）、却下は App の中だけ。文は `ai/fields.ts`（テストは `app/test/ai.test.ts`）。
+- 企画書と設定DBの下書き（T4-4、R204〜R207）：書くのはコア（`write_concept_draft`。空いている項目にだけ）で、App が実行の後に書き、値のある項目への案を結果に持つ。案は `ai/FieldProposals.tsx`（AI実行の画面と企画の画面の `AiAside`）で並べ、採用はコア（`adopt_field_proposal`。案を見せたときの中身を `seen` に）、却下は App の中だけ。文は `ai/fields.ts`（テストは `app/test/ai.test.ts`）。決めた案は1行に畳み（開けば中身を見られる）、今の値と案は高さを抑えてスクロールさせる。設定DBと企画の画面の結果は「結果を閉じる」で隠す（App の `hiddenResults`。AI実行の画面の履歴には残す）。判断は `proposalFolded`・`resultShown`（T4-27）。
 - 指摘はアプリの中だけに持つ。エディタの印（`editor/findings.ts`）は行末の行IDで引き、本文は変えない。変換中は作り直さず、前の印をずらすだけ。並べ方・持ち方・文は `ai/model.ts` に置き、テストを付ける（`app/test/ai.test.ts`）。
 
 ## 出力の画面（app/src/export/）
