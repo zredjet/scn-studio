@@ -61,7 +61,7 @@ export function SceneList({
         <h2 className="panel-heading">ストーリー</h2>
         <button
           type="button"
-          className="small-button"
+          className="btn btn-sm"
           onClick={() => {
             setAdding(!adding);
             setProblem(null);
@@ -90,7 +90,7 @@ export function SceneList({
             value={name}
             onChange={(event) => setName(event.target.value)}
           />
-          <button type="submit" className="small-button">
+          <button type="submit" className="btn btn-sm">
             足す
           </button>
           {problem !== null && <p className="form-problem">{problem}</p>}
@@ -122,7 +122,7 @@ export function SceneList({
             <div className="file-actions">
               <button
                 type="button"
-                className="link-button"
+                className="btn btn-link"
                 onClick={() =>
                   setRenaming({
                     file,
@@ -136,7 +136,7 @@ export function SceneList({
               </button>
               <button
                 type="button"
-                className="link-button danger"
+                className="btn btn-link btn-danger"
                 onClick={() => onDeleteChapter(file)}
               >
                 削除
@@ -165,14 +165,14 @@ export function SceneList({
               />
               <button
                 type="button"
-                className="small-button"
+                className="btn btn-sm"
                 onClick={commitRename}
               >
                 変える
               </button>
               <button
                 type="button"
-                className="small-button"
+                className="btn btn-sm"
                 onClick={() => setRenaming(null)}
               >
                 やめる

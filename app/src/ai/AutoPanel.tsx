@@ -12,6 +12,7 @@ import type {
   FieldsWritten,
   SceneSummary,
 } from "../core/types.ts";
+import { AiMark } from "../shell/AiMark.tsx";
 import { type FieldDecision, FieldProposals } from "./FieldProposals.tsx";
 import {
   type AutoRun,
@@ -219,13 +220,13 @@ export function AutoPanel({
         </p>
         <div className="ai-run-actions">
           {running ? (
-            <button type="button" className="small-button" onClick={onCancel}>
+            <button type="button" className="btn btn-sm" onClick={onCancel}>
               取り消す（次の段の合間で止まります）
             </button>
           ) : (
             <button
               type="button"
-              className="primary-small ai-run-button"
+              className="btn"
               disabled={
                 busy ||
                 blocked !== null ||
@@ -244,6 +245,7 @@ export function AutoPanel({
                 setConfirmedFor(null);
               }}
             >
+              <AiMark />
               自律で実行
             </button>
           )}
@@ -252,7 +254,7 @@ export function AutoPanel({
           )}
         </div>
       </div>
-      {error !== null && <p className="export-warning">{error}</p>}
+      {error !== null && <p className="notice notice-warn">{error}</p>}
       {running && run !== null && (
         <div className="ai-auto-progress" role="status">
           <p className="context-faint">
@@ -355,7 +357,7 @@ export function AutoPanel({
           )}
           <h2 className="context-heading">生成したシーン</h2>
           {result.outcome.stopped !== null && (
-            <p className="export-warning">
+            <p className="notice notice-warn">
               途中で止めました：{result.outcome.stopped}
             </p>
           )}
@@ -410,7 +412,7 @@ export function AutoPanel({
               className={
                 result.branch.problem === null
                   ? "export-info"
-                  : "export-warning"
+                  : "notice notice-warn"
               }
             >
               {autoBranchText(result.branch)}
@@ -469,7 +471,7 @@ function BranchList({
             <code>{name}</code>
             <button
               type="button"
-              className="small-button"
+              className="btn btn-sm"
               disabled={busy}
               onClick={() => {
                 setBusy(true);
@@ -483,7 +485,7 @@ function BranchList({
             </button>
             <button
               type="button"
-              className="small-button"
+              className="btn btn-sm"
               disabled={busy || diff?.name !== name}
               title="差分を見てから取り込みます"
               onClick={() =>
@@ -497,7 +499,7 @@ function BranchList({
             </button>
             <button
               type="button"
-              className="small-button danger"
+              className="btn btn-sm btn-danger"
               disabled={busy}
               onClick={() => act(() => onDelete(name), `${name} を捨てました`)}
             >
@@ -506,7 +508,7 @@ function BranchList({
           </li>
         ))}
       </ul>
-      {message !== null && <p className="export-notice">{message}</p>}
+      {message !== null && <p className="notice">{message}</p>}
       {diff !== null && (
         <div className="ai-branch-diff">
           <p className="context-faint">

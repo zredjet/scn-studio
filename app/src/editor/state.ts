@@ -130,33 +130,32 @@ export const editorThemeSpec = {
   },
   ".cm-scroller": {
     fontFamily: "var(--font-mono)",
-    fontSize: "13.5px",
+    fontSize: "var(--fs-base)",
     lineHeight: "1.9",
   },
   ".cm-content": { padding: "16px 0" },
   ".cm-gutters": {
     backgroundColor: "var(--panel-bg-2)",
-    color: "var(--line-number)",
+    color: "var(--text-3)",
     border: "none",
   },
   // 選択の色（drawSelection）は本文の後ろの層に描かれるので、本文の行の背景は透けさせる。
   // 不透明にすると、1行の中の選択（Shift+←など）が隠れて見えなくなる。
   ".cm-activeLine": {
-    backgroundColor:
-      "color-mix(in srgb, var(--accent-tint-2) 60%, transparent)",
+    backgroundColor: "color-mix(in srgb, var(--accent-weak) 60%, transparent)",
   },
-  ".cm-activeLineGutter": { backgroundColor: "var(--accent-tint-2)" },
+  ".cm-activeLineGutter": { backgroundColor: "var(--accent-weak)" },
   // 補完の窓（T1-8）。選ばれている行は、一覧の選択と同じ色（docs/ui/README.md）。基本テーマより詳細度を上げる。
   "&.cm-editor .cm-tooltip.cm-tooltip-autocomplete": {
     border: "1px solid var(--border)",
-    borderRadius: "var(--radius-item)",
+    borderRadius: "var(--r-lg)",
     backgroundColor: "var(--paper)",
     overflow: "hidden",
   },
   "&.cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul > li": {
     padding: "4px 10px",
     fontFamily: "var(--font-ui)",
-    fontSize: "13px",
+    fontSize: "var(--fs-base)",
     lineHeight: "1.6",
   },
   "&.cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]": {
@@ -169,24 +168,24 @@ export const editorThemeSpec = {
     color: "var(--ink)",
     borderColor: "var(--border)",
     fontFamily: "var(--font-ui)",
-    fontSize: "12px",
+    fontSize: "var(--fs-small)",
   },
   "&.cm-editor .cm-panel.cm-search": { padding: "6px 10px" },
-  "&.cm-editor .cm-panel.cm-search label": { fontSize: "12px" },
+  "&.cm-editor .cm-panel.cm-search label": { fontSize: "var(--fs-small)" },
   "&.cm-editor .cm-textfield": {
     border: "1px solid var(--border-control)",
-    borderRadius: "var(--radius-control)",
+    borderRadius: "var(--r)",
     backgroundColor: "var(--paper)",
     padding: "2px 6px",
-    fontSize: "13px",
+    fontSize: "var(--fs-base)",
   },
   "&.cm-editor .cm-button": {
     border: "1px solid var(--border-control)",
-    borderRadius: "var(--radius-control)",
+    borderRadius: "var(--r)",
     backgroundColor: "var(--paper)",
     backgroundImage: "none",
     color: "var(--ink)",
-    fontSize: "12px",
+    fontSize: "var(--fs-small)",
   },
   "&.cm-editor .cm-searchMatch": {
     backgroundColor: "var(--warn-tint)",
@@ -198,8 +197,8 @@ export const editorThemeSpec = {
   ".cm-completionDetail": {
     marginLeft: "12px",
     fontStyle: "normal",
-    fontSize: "12px",
-    color: "var(--text-faint)",
+    fontSize: "var(--fs-small)",
+    color: "var(--text-3)",
   },
   // フォーカス中の選択は、CodeMirror の基本テーマ（クラス5つ）より詳細度を上げないと、基本テーマの色になる。
   ".cm-selectionBackground, &.cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground":

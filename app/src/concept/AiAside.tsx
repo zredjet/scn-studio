@@ -101,14 +101,14 @@ export function AiAside({
             : null
         }
       />
-      {problem !== null && <p className="export-warning">{problem}</p>}
+      {problem !== null && <p className="notice notice-warn">{problem}</p>}
       {findings.map((f) => (
         <div key={f.id} className="concept-ai-card">
           <span>{f.finding.message}</span>
           <div className="ai-actions">
             <button
               type="button"
-              className="small-button"
+              className="btn btn-sm"
               disabled={busy}
               onClick={() =>
                 act(
@@ -121,7 +121,7 @@ export function AiAside({
             </button>
             <button
               type="button"
-              className="small-button"
+              className="btn btn-sm"
               onClick={() => onDismissFinding(f.id)}
             >
               閉じる
@@ -147,7 +147,7 @@ export function AiAside({
         />
         {draftResult !== null && (
           <>
-            <p className={draftResult.ok ? "export-notice" : "export-warning"}>
+            <p className={draftResult.ok ? "notice" : "notice notice-warn"}>
               {draftResult.text}
             </p>
             {draftResult.fields !== null && (
@@ -198,7 +198,7 @@ export function AiAside({
               <div className="ai-actions">
                 <button
                   type="button"
-                  className="small-button"
+                  className="btn btn-sm"
                   disabled={busy || idea === undefined}
                   onClick={() =>
                     act(
@@ -211,7 +211,7 @@ export function AiAside({
                 </button>
                 <button
                   type="button"
-                  className="small-button"
+                  className="btn btn-sm"
                   onClick={() => onHideSuggestion(key)}
                 >
                   閉じる
@@ -223,7 +223,7 @@ export function AiAside({
         {onSkeleton !== null && (
           <button
             type="button"
-            className="small-button concept-ai-link"
+            className="btn btn-sm concept-ai-link"
             onClick={onSkeleton}
           >
             エンディングからルート骨格を提案（AI実行の画面）

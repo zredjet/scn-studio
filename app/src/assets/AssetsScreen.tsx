@@ -62,15 +62,18 @@ const STATE_CLASS: Readonly<Record<AssetRow["state"], string>> = {
   unregistered: "unregistered",
 };
 
+/** 状態の札の部品のクラス（見本 v1：仮素材は琥珀の点線、未登録は琥珀の実線）。 */
+const TAG_CLASS: Readonly<Record<AssetRow["state"], string>> = {
+  file: "tag",
+  placeholder: "tag tag-ph",
+  unregistered: "tag tag-warn",
+};
+
 function StateBadge({ row }: { readonly row: AssetRow }) {
   if (row.state === "file") {
     return <span className="assets-state-file">{STATE_LABEL.file}</span>;
   }
-  return (
-    <span className={`assets-badge ${STATE_CLASS[row.state]}`}>
-      {STATE_LABEL[row.state]}
-    </span>
-  );
+  return <span className={TAG_CLASS[row.state]}>{STATE_LABEL[row.state]}</span>;
 }
 
 function fileText(row: AssetRow): string {
@@ -250,7 +253,7 @@ export function AssetsScreen({
           <span className="flow-spacer" />
           <button
             type="button"
-            className="secondary-small"
+            className="btn"
             disabled={busy || addable.length === 0}
             title={
               addable.length === 0
@@ -268,7 +271,7 @@ export function AssetsScreen({
           </button>
           <button
             type="button"
-            className="primary-small"
+            className="btn btn-primary"
             disabled={busy || list === null}
             onClick={() => {
               setBusy(true);
@@ -293,7 +296,7 @@ export function AssetsScreen({
           </code>
           <button
             type="button"
-            className="secondary-small"
+            className="btn"
             title="素材のフォルダを Finder（Windows はエクスプローラー）で開く。無ければ作る"
             onClick={() => reveal(null)}
           >
@@ -301,7 +304,7 @@ export function AssetsScreen({
           </button>
           <button
             type="button"
-            className="secondary-small"
+            className="btn"
             title="素材のフォルダのパスをクリップボードにコピーする"
             disabled={folder === null}
             onClick={() => copyPath(folder)}
@@ -567,7 +570,7 @@ export function AssetsScreen({
               {row.addable && (
                 <button
                   type="button"
-                  className="secondary-small"
+                  className="btn"
                   disabled={busy}
                   onClick={() =>
                     write(
@@ -582,7 +585,7 @@ export function AssetsScreen({
               {row.state !== "unregistered" && (
                 <button
                   type="button"
-                  className="secondary-small"
+                  className="btn"
                   disabled={busy}
                   onClick={() => assign(row)}
                 >
@@ -591,7 +594,7 @@ export function AssetsScreen({
               )}
               <button
                 type="button"
-                className="secondary-small"
+                className="btn"
                 title={
                   row.path !== null
                     ? "このファイルを Finder（Windows はエクスプローラー）で選んだ状態で開く"
@@ -603,7 +606,7 @@ export function AssetsScreen({
               </button>
               <button
                 type="button"
-                className="secondary-small"
+                className="btn"
                 title="このファイル（無ければ、置く場所のフォルダ）のパスをコピーする"
                 disabled={rowLocation === null}
                 onClick={() => copyPath(rowLocation)}

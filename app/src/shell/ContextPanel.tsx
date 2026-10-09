@@ -177,7 +177,7 @@ export function ContextPanel({
               <div className="ai-finding-actions">
                 <button
                   type="button"
-                  className="small-button"
+                  className="btn btn-sm"
                   disabled={r.finding.file === null || r.finding.span === null}
                   onClick={() => onGoToFinding(r)}
                 >
@@ -185,7 +185,7 @@ export function ContextPanel({
                 </button>
                 <button
                   type="button"
-                  className="small-button"
+                  className="btn btn-sm"
                   onClick={() => onDismissFinding(r.id)}
                 >
                   閉じる

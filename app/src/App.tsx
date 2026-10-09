@@ -3086,7 +3086,7 @@ export function App() {
         {project !== null && focusing && (
           <button
             type="button"
-            className="small-button focus-exit"
+            className="btn btn-sm focus-exit"
             onClick={() => updateViewPrefs((p) => ({ ...p, focus: false }))}
           >
             集中モードを終える（{keyLabel("Mod-Shift-F", IS_MAC)}）

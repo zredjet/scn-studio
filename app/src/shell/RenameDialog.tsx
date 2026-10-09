@@ -126,12 +126,12 @@ export function RenameDialog({ symbol, onApply, onClose }: Props) {
           </ul>
         )}
         <div className="rename-buttons">
-          <button type="button" className="small-button" onClick={onClose}>
+          <button type="button" className="btn btn-sm" onClick={onClose}>
             やめる
           </button>
           <button
             type="button"
-            className="primary-small"
+            className="btn btn-primary"
             disabled={!ready}
             onClick={apply}
           >

@@ -55,7 +55,7 @@ export function FieldProposals({
         return (
           <article key={key} className="ai-field-proposal">
             <header>
-              <span className="ai-badge">{fieldLabel(p.key, labels)}</span>
+              <span className="tag tag-ai">{fieldLabel(p.key, labels)}</span>
               <span className="context-faint">{p.file}</span>
             </header>
             <dl>
@@ -69,7 +69,7 @@ export function FieldProposals({
               </dd>
             </dl>
             {problem !== undefined && (
-              <p className="export-warning">{problem}</p>
+              <p className="notice notice-warn">{problem}</p>
             )}
             {readOnly !== undefined ? (
               <p className="context-faint">{readOnly}</p>
@@ -77,7 +77,7 @@ export function FieldProposals({
               <div className="ai-actions">
                 <button
                   type="button"
-                  className="small-button"
+                  className="btn btn-sm"
                   disabled={busy !== null}
                   onClick={() => {
                     setBusy(key);
@@ -97,7 +97,7 @@ export function FieldProposals({
                 </button>
                 <button
                   type="button"
-                  className="small-button"
+                  className="btn btn-sm"
                   disabled={busy !== null}
                   onClick={() => onReject(p)}
                 >

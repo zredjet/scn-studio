@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { viewProposals } from "../core/api.ts";
 import type { AiProposalView } from "../core/types.ts";
+import { AiMark } from "../shell/AiMark.tsx";
 import {
   adoptableIndexes,
   type ProposalSet,
@@ -67,7 +68,7 @@ export function ProposalPanel({
     };
   }, [set.id, version]);
 
-  if (error !== null) return <p className="export-warning">{error}</p>;
+  if (error !== null) return <p className="notice notice-warn">{error}</p>;
   if (views === null)
     return <p className="context-faint">提案を本文と照らしています…</p>;
   if (views.length === 0)
@@ -94,14 +95,15 @@ export function ProposalPanel({
         </span>
         <button
           type="button"
-          className="primary-small ai-run-button"
+          className="btn"
           disabled={busy || ready.length === 0}
           onClick={() => adopt(ready)}
         >
+          <AiMark />
           採用できるものをすべて採用
         </button>
       </div>
-      {message !== null && <p className="export-notice">{message}</p>}
+      {message !== null && <p className="notice">{message}</p>}
       {views.map((v, i) => {
         const isRejected = rejected.has(i);
         return (
@@ -150,7 +152,7 @@ export function ProposalPanel({
             <div className="ai-finding-actions">
               <button
                 type="button"
-                className="small-button"
+                className="btn btn-sm"
                 disabled={busy || isRejected || v.status.kind !== "ready"}
                 onClick={() => adopt([i])}
               >
@@ -158,7 +160,7 @@ export function ProposalPanel({
               </button>
               <button
                 type="button"
-                className="small-button"
+                className="btn btn-sm"
                 disabled={busy || v.status.kind === "same"}
                 onClick={() => onToggleReject(set.id, i)}
               >
@@ -166,7 +168,7 @@ export function ProposalPanel({
               </button>
               <button
                 type="button"
-                className="small-button"
+                className="btn btn-sm"
                 disabled={v.file === null}
                 onClick={() => onGoTo(v)}
               >

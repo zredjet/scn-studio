@@ -23,7 +23,7 @@
 }
 
 .preview-placeholder {
-  color: var(--chrome-text-muted);
+  color: var(--chrome-text-2);
 }
 
 .preview-main {
@@ -42,15 +42,15 @@
   padding: 8px 16px;
   border-bottom: 1px solid var(--chrome-bg-2);
   background: var(--chrome-bg);
-  font-size: 12px;
+  font-size: var(--fs-small);
 }
 
 .preview-header strong {
-  font-size: 14px;
+  font-size: var(--fs-h2);
 }
 
 .preview-header-title {
-  color: var(--chrome-text-muted);
+  color: var(--chrome-text-2);
 }
 
 .preview-check {
@@ -95,11 +95,11 @@
   min-height: 30px;
   padding: 0 12px;
   border: 1px solid var(--preview-line);
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   background: var(--preview-control);
   color: var(--chrome-text);
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -128,7 +128,7 @@
   padding: 8px 16px;
   background: var(--chrome-bg-2);
   color: var(--preview-provisional-text);
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .preview-notice {
@@ -139,7 +139,7 @@
   padding: 6px 16px;
   background: var(--chrome-bg-2);
   color: var(--chrome-text);
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .preview-stage-wrap {
@@ -153,8 +153,8 @@
   width: 100%;
   max-width: 960px;
   overflow: hidden;
-  border-radius: 6px;
-  background: #0d0f12;
+  border-radius: var(--r);
+  background: var(--preview-stage);
 }
 
 .preview-bg {
@@ -233,10 +233,10 @@
 .preview-tag {
   position: absolute;
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: var(--r-sm);
   background: var(--preview-tag-bg);
   color: var(--preview-text);
-  font-size: 11.5px;
+  font-size: var(--fs-small);
   white-space: nowrap;
 }
 
@@ -275,10 +275,10 @@
   box-sizing: border-box;
   padding: 26px 30px 16px;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--r-lg);
   background: var(--preview-window-bg);
   color: var(--preview-text);
-  font-family: var(--font-body);
+  font-family: var(--font-text);
   line-height: 1.8;
   text-align: left;
   cursor: pointer;
@@ -289,12 +289,12 @@
   top: -16px;
   left: 22px;
   padding: 3px 16px;
-  border-radius: 4px;
+  border-radius: var(--r-sm);
   background: var(--accent);
   color: #ffffff;
   font-family: var(--font-ui);
-  font-size: 15px;
-  font-weight: 700;
+  font-size: var(--fs-h2);
+  font-weight: 600;
   line-height: 1.6;
 }
 
@@ -318,7 +318,7 @@
   right: 18px;
   bottom: 10px;
   color: var(--preview-text-soft);
-  font-size: 14px;
+  font-size: var(--fs-h2);
 }
 
 .preview-choices {
@@ -336,8 +336,8 @@
 .preview-prompt {
   margin: 0 0 4px;
   color: var(--preview-text);
-  font-family: var(--font-body);
-  font-size: 16px;
+  font-family: var(--font-text);
+  font-size: var(--fs-prose);
   text-align: center;
 }
 
@@ -348,11 +348,11 @@
   align-items: center;
   padding: 10px 16px;
   border: 1px solid var(--preview-line);
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
   background: var(--preview-window-bg);
   color: var(--preview-text);
-  font-family: var(--font-body);
-  font-size: 16px;
+  font-family: var(--font-text);
+  font-size: var(--fs-prose);
   cursor: pointer;
 }
 
@@ -368,7 +368,7 @@
 .preview-cond {
   color: var(--preview-text-soft);
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--fs-small);
 }
 
 .preview-board {
@@ -379,20 +379,20 @@
   gap: 6px;
   padding: 18px 22px;
   border: 1px solid var(--preview-line);
-  border-radius: var(--radius-card);
+  border-radius: var(--r-lg);
   background: var(--preview-window-bg);
   color: var(--preview-text);
   text-align: center;
 }
 
 .preview-board strong {
-  font-family: var(--font-body);
-  font-size: 18px;
+  font-family: var(--font-text);
+  font-size: var(--fs-h1);
 }
 
 .preview-board span {
   color: var(--preview-text-soft);
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .preview-controls {
@@ -409,13 +409,13 @@
 
 .preview-controls .preview-button {
   min-height: 34px;
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
 }
 
 .preview-position {
-  color: var(--chrome-text-muted);
+  color: var(--chrome-text-2);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-small);
 }
 
 .preview-info {
@@ -424,8 +424,8 @@
   box-sizing: border-box;
   margin: 8px auto 16px;
   padding: 0 16px;
-  color: var(--chrome-text-muted);
-  font-size: 12px;
+  color: var(--chrome-text-2);
+  font-size: var(--fs-small);
 }
 
 .preview-debug-wrap {
@@ -441,6 +441,7 @@
   display: flex;
   flex: 1;
   flex-direction: column;
+  min-width: 0;
 }
 
 .preview-debug section {
@@ -450,22 +451,21 @@
 
 .preview-debug-heading {
   margin: 0 0 8px;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  color: var(--text-2);
+  font-size: var(--fs-small);
+  font-weight: 600;
 }
 
 .preview-debug-where {
   margin: 0 0 4px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .preview-debug-sub {
   margin: 0 0 8px;
-  color: var(--text-faint);
+  color: var(--text-3);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-small);
 }
 
 .preview-vars {
@@ -481,7 +481,7 @@
   display: flex;
   gap: 8px;
   align-items: center;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .preview-vars li.persistent.first {
@@ -506,7 +506,7 @@
   box-sizing: border-box;
   padding: 0 8px;
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   font: inherit;
 }
 
@@ -526,43 +526,45 @@
 
 .preview-badge {
   padding: 0 6px;
-  border-radius: 4px;
+  border-radius: var(--r-sm);
   background: var(--panel-bg);
-  color: var(--text-muted);
-  font-size: 11px;
+  color: var(--text-2);
+  font-size: var(--fs-caption);
 }
 
 .preview-badge.warn {
   background: var(--warn-tint);
-  color: var(--warn-text);
+  color: var(--warn-strong);
 }
 
+/* シーンの選択を1行に置き、ボタン（折り返さない）はその下に並べる。 */
 .preview-jump {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
 .preview-jump select {
-  flex: 1;
+  flex: 1 1 100%;
   min-width: 0;
   height: 30px;
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .preview-note {
   margin: 6px 0 0;
-  color: var(--text-faint);
-  font-size: 11.5px;
+  color: var(--text-3);
+  font-size: var(--fs-small);
 }
 
 .preview-policy {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .preview-warnings {
@@ -571,8 +573,8 @@
   gap: 4px;
   margin: 0;
   padding: 0;
-  color: var(--warn-text);
-  font-size: 12px;
+  color: var(--warn-strong);
+  font-size: var(--fs-small);
   list-style: none;
 }
 
@@ -589,17 +591,17 @@
   width: 100%;
   padding: 4px 6px;
   border: 0;
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   background: transparent;
-  color: var(--text-muted);
-  font-family: var(--font-body);
-  font-size: 14px;
+  color: var(--text-2);
+  font-family: var(--font-text);
+  font-size: var(--fs-h2);
   text-align: left;
   cursor: pointer;
 }
 
 .preview-log li.current button {
-  background: var(--accent-tint-2);
+  background: var(--accent-weak);
   color: var(--ink);
 }
 
@@ -607,13 +609,13 @@
   margin-right: 6px;
   color: var(--accent);
   font-family: var(--font-ui);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .preview-log-chosen {
-  color: var(--text-faint);
+  color: var(--text-3);
   font-family: var(--font-ui);
-  font-size: 12px;
+  font-size: var(--fs-small);
 }
 
 .sr-only {
@@ -663,7 +665,7 @@
   gap: 12px;
   align-items: center;
   padding: 8px 16px;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .vertical-field {
@@ -682,13 +684,13 @@
 }
 
 .vertical-count {
-  color: var(--chrome-text-muted);
+  color: var(--chrome-text-2);
 }
 
 .vertical-error {
   margin: 0 16px;
   color: var(--preview-provisional-text);
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .vertical-stage {
@@ -708,11 +710,11 @@
   height: calc(var(--v-chars, 40) * 1em);
   padding: 28px 32px;
   overflow: hidden;
-  border-radius: 4px;
+  border-radius: var(--r-sm);
   background: var(--paper);
   color: var(--ink);
-  font-family: var(--font-body);
-  font-size: 15px;
+  font-family: var(--font-text);
+  font-size: var(--fs-h2);
   line-height: 1.9;
   writing-mode: vertical-rl;
   text-orientation: mixed;
@@ -729,11 +731,11 @@
 
 .v-line.heading {
   padding-inline-start: 3em;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .v-line.note {
-  color: var(--text-muted);
+  color: var(--text-2);
   font-size: 0.85em;
 }
 
@@ -756,10 +758,10 @@
   width: 32px;
   height: 64px;
   border: 1px solid var(--preview-line);
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   background: transparent;
   color: var(--chrome-text);
-  font-size: 22px;
+  font-size: var(--fs-display);
   cursor: pointer;
 }
 
@@ -771,8 +773,8 @@
 .vertical-info {
   margin: 0;
   padding: 0 16px 10px;
-  color: var(--chrome-text-muted);
-  font-size: 12px;
+  color: var(--chrome-text-2);
+  font-size: var(--fs-small);
 }
 
 .vertical-side {
@@ -799,12 +801,19 @@
   list-style: none;
 }
 
-.vertical-scenes .small-button {
+/* 長い名前は左に寄せて折り返す（btn は中央寄せで折り返さない）。 */
+.vertical-scenes .btn {
+  justify-content: flex-start;
   width: 100%;
+  height: auto;
+  min-height: var(--h-control-sm);
+  padding-block: 4px;
+  line-height: 18px;
   text-align: left;
+  white-space: normal;
 }
 
-.vertical-side > .small-button {
+.vertical-side > .btn {
   align-self: flex-start;
   margin: 8px 12px 0;
 }

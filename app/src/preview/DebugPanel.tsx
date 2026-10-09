@@ -140,7 +140,7 @@ export function DebugPanel({
           <span className="mono">{scene?.id ?? "—"}</span> {scene?.title ?? ""}
         </p>
         <p className="preview-debug-sub mono">{position}</p>
-        <button type="button" className="small-button" onClick={onShowInEditor}>
+        <button type="button" className="btn btn-sm" onClick={onShowInEditor}>
           エディタで表示
         </button>
       </section>
@@ -210,7 +210,7 @@ export function DebugPanel({
           </select>
           <button
             type="button"
-            className="small-button"
+            className="btn btn-sm"
             disabled={jump === ""}
             onClick={() => onJump(jump)}
           >
@@ -218,7 +218,7 @@ export function DebugPanel({
           </button>
           <button
             type="button"
-            className="small-button"
+            className="btn btn-sm"
             disabled={jump === ""}
             onClick={() => onRouteJump(jump)}
           >

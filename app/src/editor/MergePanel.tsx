@@ -145,12 +145,12 @@ export function MergePanel({ file, view, onApply, onCancel }: Props) {
           })}
         </div>
         <footer className="merge-foot">
-          <button type="button" className="small-button" onClick={onCancel}>
+          <button type="button" className="btn btn-sm" onClick={onCancel}>
             やめる
           </button>
           <button
             type="button"
-            className="primary-small"
+            className="btn btn-primary"
             disabled={busy}
             onClick={() => {
               setBusy(true);

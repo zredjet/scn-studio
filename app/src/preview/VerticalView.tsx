@@ -297,7 +297,7 @@ export function VerticalView({
             <li key={index}>
               <button
                 type="button"
-                className="small-button"
+                className="btn btn-sm"
                 onClick={() => {
                   const at = pageOfParagraph(pages, index);
                   if (at !== null) setPage(at);
@@ -313,7 +313,7 @@ export function VerticalView({
         </ul>
         <button
           type="button"
-          className="small-button"
+          className="btn btn-sm"
           disabled={
             firstParagraph === undefined || firstParagraph.span === null
           }

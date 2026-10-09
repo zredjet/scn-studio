@@ -14,10 +14,10 @@ export function Welcome({ recent, onOpen, onCreate, onOpenRecent }: Props) {
     <section className="welcome" aria-label="はじめに">
       <h1>作品フォルダを開く</h1>
       <div className="welcome-actions">
-        <button type="button" className="primary-button" onClick={onOpen}>
+        <button type="button" className="btn btn-primary" onClick={onOpen}>
           作品フォルダを開く
         </button>
-        <button type="button" className="secondary-button" onClick={onCreate}>
+        <button type="button" className="btn" onClick={onCreate}>
           新しく作る
         </button>
       </div>

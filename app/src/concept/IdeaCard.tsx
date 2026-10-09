@@ -116,7 +116,7 @@ export function IdeaCard({
         {idea.tags.length > 0 && (
           <span className="idea-tags">
             {idea.tags.map((tag) => (
-              <span key={tag} className="idea-tag">
+              <span key={tag} className="tag">
                 {tag}
               </span>
             ))}
@@ -181,7 +181,7 @@ export function IdeaCard({
                 <button
                   key={m}
                   type="button"
-                  className="small-button"
+                  className="btn btn-sm"
                   aria-pressed={mode === m}
                   onClick={() => setMode(mode === m ? null : m)}
                 >
@@ -355,12 +355,12 @@ function PromoteForm({
         </span>
       )}
       <div className="idea-promote-buttons">
-        <button type="button" className="small-button" onClick={onCancel}>
+        <button type="button" className="btn btn-sm" onClick={onCancel}>
           やめる
         </button>
         <button
           type="button"
-          className="primary-small"
+          className="btn btn-primary"
           disabled={!ready}
           onClick={submit}
         >

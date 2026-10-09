@@ -136,7 +136,7 @@ function ProvenanceCard({
         </div>
         <button
           type="button"
-          className="primary-small"
+          className="btn btn-primary"
           disabled={busy}
           onClick={() => {
             setBusy(true);
@@ -164,18 +164,18 @@ function ProvenanceCard({
         </p>
       )}
       {data !== null && data.problems > 0 && (
-        <p className="export-warning">
+        <p className="notice notice-warn">
           出自の記録に読めない行が {data.problems}{" "}
           あります（読み飛ばしました）。
         </p>
       )}
       {notice !== null && (
-        <p className="export-notice" role="status">
+        <p className="notice" role="status">
           {notice}
         </p>
       )}
       {error !== null && (
-        <p className="export-error" role="alert">
+        <p className="notice notice-danger" role="alert">
           {error}
         </p>
       )}
@@ -231,7 +231,7 @@ function TextCard({
         </div>
         <button
           type="button"
-          className="primary-small"
+          className="btn btn-primary"
           disabled={busy || choice === undefined}
           onClick={() => {
             if (choice === undefined) return;
@@ -272,18 +272,18 @@ function TextCard({
         </label>
       </div>
       {choices.length === 0 && (
-        <p className="export-warning">
+        <p className="notice notice-warn">
           道がありません（シーンのメタ情報に route
           を書くと、ルートごとに書き出せます）。
         </p>
       )}
       {notice !== null && (
-        <p className="export-notice" role="status">
+        <p className="notice" role="status">
           {notice}
         </p>
       )}
       {error !== null && (
-        <p className="export-error" role="alert">
+        <p className="notice notice-danger" role="alert">
           {error}
         </p>
       )}
@@ -408,7 +408,7 @@ function BookCard({
         <div className="export-buttons">
           <button
             type="button"
-            className="primary-small"
+            className="btn btn-primary"
             disabled={busy || choice === undefined}
             onClick={() => write(false)}
           >
@@ -416,7 +416,7 @@ function BookCard({
           </button>
           <button
             type="button"
-            className="small-button"
+            className="btn btn-sm"
             disabled={busy || choice === undefined}
             onClick={() => write(true)}
           >
@@ -466,25 +466,27 @@ function BookCard({
         )}
       </div>
       {notice !== null && (
-        <p className="export-notice" role="status">
+        <p className="notice" role="status">
           {notice}
         </p>
       )}
       {output !== null && <CommandOutput run={output} />}
       {problems.length > 0 && (
-        <div className="export-warning">
-          <p className="export-list-head">
-            出力プロファイルの誤り（読み飛ばして書き出しました）
-          </p>
-          <ul className="export-list">
-            {keyed(problems, (p) => p).map(([key, p]) => (
-              <li key={key}>{p}</li>
-            ))}
-          </ul>
+        <div className="notice notice-warn">
+          <div>
+            <p className="export-list-head">
+              出力プロファイルの誤り（読み飛ばして書き出しました）
+            </p>
+            <ul className="export-list">
+              {keyed(problems, (p) => p).map(([key, p]) => (
+                <li key={key}>{p}</li>
+              ))}
+            </ul>
+          </div>
         </div>
       )}
       {error !== null && (
-        <p className="export-error" role="alert">
+        <p className="notice notice-danger" role="alert">
           {error}
         </p>
       )}
@@ -577,7 +579,7 @@ function PluginCard({
         </div>
         <button
           type="button"
-          className="small-button"
+          className="btn btn-sm"
           onClick={() => setReload((n) => n + 1)}
         >
           一覧を読み直す
@@ -604,7 +606,7 @@ function PluginCard({
                   <span className="flow-spacer" />
                   <button
                     type="button"
-                    className="primary-small"
+                    className="btn btn-primary"
                     disabled={busy !== null || p.kind === "error"}
                     onClick={() => start(p.name)}
                   >
@@ -615,24 +617,24 @@ function PluginCard({
                   <p className="export-note">書き出し先：{p.output}</p>
                 )}
                 {p.error !== null && (
-                  <p className="export-error" role="alert">
+                  <p className="notice notice-danger" role="alert">
                     {p.error}
                   </p>
                 )}
                 {typeof result === "string" && (
-                  <p className="export-error" role="alert">
+                  <p className="notice notice-danger" role="alert">
                     {result}
                   </p>
                 )}
                 {typeof result === "object" && (
                   <>
                     {pluginRunText(result) !== null && (
-                      <p className="export-notice" role="status">
+                      <p className="notice" role="status">
                         {pluginRunText(result)}
                       </p>
                     )}
                     {typeof result.error === "string" && (
-                      <p className="export-error" role="alert">
+                      <p className="notice notice-danger" role="alert">
                         {result.error}
                       </p>
                     )}
@@ -643,16 +645,18 @@ function PluginCard({
                   ? (result.problems ?? [])
                   : p.problems
                 ).length > 0 && (
-                  <ul className="export-list export-warning">
-                    {keyed(
-                      typeof result === "object"
-                        ? (result.problems ?? [])
-                        : p.problems,
-                      (x) => x,
-                    ).map(([key, x]) => (
-                      <li key={key}>{x}</li>
-                    ))}
-                  </ul>
+                  <div className="notice notice-warn">
+                    <ul className="export-list">
+                      {keyed(
+                        typeof result === "object"
+                          ? (result.problems ?? [])
+                          : p.problems,
+                        (x) => x,
+                      ).map(([key, x]) => (
+                        <li key={key}>{x}</li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
               </li>
             );
@@ -660,7 +664,7 @@ function PluginCard({
         </ul>
       )}
       {error !== null && (
-        <p className="export-error" role="alert">
+        <p className="notice notice-danger" role="alert">
           {error}
         </p>
       )}
@@ -702,7 +706,7 @@ function EngineCard({
         </div>
         <button
           type="button"
-          className="primary-small"
+          className="btn btn-primary"
           disabled={busy}
           onClick={() => {
             setBusy(true);
@@ -719,31 +723,33 @@ function EngineCard({
         </button>
       </div>
       {result !== null && (
-        <p className="export-notice" role="status">
+        <p className="notice" role="status">
           {result.path} に書き出しました（{result.files}ファイル）
         </p>
       )}
       {error !== null && (
-        <p className="export-error" role="alert">
+        <p className="notice notice-danger" role="alert">
           {error}
         </p>
       )}
       {unsaved > 0 && (
-        <p className="export-warning">
+        <p className="notice notice-warn">
           保存していないファイルが {unsaved}{" "}
           あります。保存していない本文も含めて書き出します。
         </p>
       )}
       {result !== null && result.problems.length > 0 && (
-        <div className="export-warning">
-          <p className="export-list-head">
-            出力プロファイルの誤り（読み飛ばして書き出しました）
-          </p>
-          <ul className="export-list">
-            {keyed(result.problems, (p) => p).map(([key, p]) => (
-              <li key={key}>{p}</li>
-            ))}
-          </ul>
+        <div className="notice notice-warn">
+          <div>
+            <p className="export-list-head">
+              出力プロファイルの誤り（読み飛ばして書き出しました）
+            </p>
+            <ul className="export-list">
+              {keyed(result.problems, (p) => p).map(([key, p]) => (
+                <li key={key}>{p}</li>
+              ))}
+            </ul>
+          </div>
         </div>
       )}
       {result !== null && result.warnings.length > 0 && (
@@ -888,7 +894,7 @@ export function ExportScreen({
           </div>
           <button
             type="button"
-            className="primary-small"
+            className="btn btn-primary"
             disabled={busy || sheet === null}
             onClick={() => {
               setBusy(true);
@@ -933,12 +939,12 @@ export function ExportScreen({
           </label>
         </div>
         {notice !== null && (
-          <p className="export-notice" role="status">
+          <p className="notice" role="status">
             {notice}
           </p>
         )}
         {error !== null && (
-          <p className="export-error" role="alert">
+          <p className="notice notice-danger" role="alert">
             {error}
           </p>
         )}
@@ -952,18 +958,18 @@ export function ExportScreen({
           </p>
         )}
         {sheet !== null && sheet.baseline_problem !== null && (
-          <p className="export-warning">
+          <p className="notice notice-warn">
             {sheet.baseline_problem}（再収録候補を付けずに作りました）
           </p>
         )}
         {unsaved > 0 && (
-          <p className="export-warning">
+          <p className="notice notice-warn">
             保存していないファイルが {unsaved}{" "}
             あります。台本は、保存していない本文も含めて作ります（保存すると、行IDの無い行に行IDが付きます）。
           </p>
         )}
         {sheet !== null && sheet.missing_line_ids > 0 && (
-          <p className="export-warning">
+          <p className="notice notice-warn">
             行IDの無い台詞が {sheet.missing_line_ids}{" "}
             行あります。ボイスファイル名を付けられないので空にします（保存すると行IDが付きます）。
           </p>

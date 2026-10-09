@@ -534,7 +534,7 @@ export function ConceptScreen({
           />
           <button
             type="button"
-            className="primary-small"
+            className="btn btn-primary"
             disabled={draft.trim() === ""}
             onClick={addIdea}
           >
@@ -680,7 +680,7 @@ export function ConceptScreen({
             </p>
             <button
               type="button"
-              className="primary-small"
+              className="btn btn-primary"
               onClick={() => void enqueue(() => createConcept())}
             >
               企画書を作る

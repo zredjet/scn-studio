@@ -50,7 +50,7 @@ export function BranchProposals({
   return (
     <div className="ai-branches-list">
       {done.map(([key, message]) => (
-        <p key={key} className="export-notice">
+        <p key={key} className="notice">
           {message}
         </p>
       ))}
@@ -78,17 +78,17 @@ export function BranchProposals({
             <p className="context-faint">理由：{p.reason}</p>
           )}
           {p.problems.map((problem) => (
-            <p key={problem} className="export-warning">
+            <p key={problem} className="notice notice-warn">
               {problem}
             </p>
           ))}
           {messages.get(key) !== undefined && (
-            <p className="export-warning">{messages.get(key)}</p>
+            <p className="notice notice-warn">{messages.get(key)}</p>
           )}
           <div className="ai-actions">
             <button
               type="button"
-              className="primary-small"
+              className="btn btn-primary"
               disabled={busy || p.problems.length > 0}
               onClick={() => {
                 setBusy(true);
@@ -103,7 +103,7 @@ export function BranchProposals({
             </button>
             <button
               type="button"
-              className="small-button"
+              className="btn btn-sm"
               disabled={busy}
               onClick={() => onReject(key)}
             >

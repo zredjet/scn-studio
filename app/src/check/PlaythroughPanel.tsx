@@ -38,7 +38,7 @@ export function PlaythroughPanel({
         </div>
         <button
           type="button"
-          className="primary-small"
+          className="btn btn-primary"
           disabled={running}
           onClick={onRun}
         >
@@ -50,7 +50,7 @@ export function PlaythroughPanel({
         </button>
       </div>
       {error !== null && (
-        <p className="export-error" role="alert">
+        <p className="notice notice-danger" role="alert">
           {error}
         </p>
       )}
@@ -65,7 +65,7 @@ export function PlaythroughPanel({
             {summaryText(report)}
           </p>
           {!report.complete && (
-            <p className="export-warning">
+            <p className="notice notice-warn">
               調べきれませんでした：{report.limit}
               （選べない選択肢・真にならない条件・着かないシーンは出していません）
             </p>

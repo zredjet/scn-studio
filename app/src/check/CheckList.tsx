@@ -39,7 +39,7 @@ function RegisterButton({
   return (
     <button
       type="button"
-      className="small-button check-register"
+      className="btn btn-sm check-register"
       onClick={() => onRegister(name)}
     >
       「{name}」を設定DBに登録…

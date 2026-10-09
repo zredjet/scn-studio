@@ -65,11 +65,9 @@ function Target({
   return (
     <span>
       → {id} {scene?.title ?? "（無いシーン）"}
-      {scene?.is_stub === true && (
-        <span className="flow-badge stub">スタブ</span>
-      )}
+      {scene?.is_stub === true && <span className="tag tag-stub">スタブ</span>}
       {scene?.meta.status === "ai-draft" && (
-        <span className="flow-badge ai">AI下書き</span>
+        <span className="tag tag-ai">AI下書き</span>
       )}
     </span>
   );
@@ -157,7 +155,7 @@ export function FlowPanel({ graph, scenes, selected, onOpen, ai }: Props) {
         <div>
           <button
             type="button"
-            className="primary-small"
+            className="btn btn-primary"
             onClick={() => onOpen(scene)}
           >
             本文を開く
@@ -237,7 +235,7 @@ export function FlowPanel({ graph, scenes, selected, onOpen, ai }: Props) {
           }
         />
         {ai.result?.kind === "failed" && ai.result.scene === scene.id && (
-          <p className="export-warning">{ai.result.message}</p>
+          <p className="notice notice-warn">{ai.result.message}</p>
         )}
         {ai.result?.scene === scene.id && (
           <BranchProposals

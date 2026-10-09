@@ -522,7 +522,7 @@ export function BibleScreen({
           <h2 className="bible-small-heading">設定の型</h2>
           <button
             type="button"
-            className="link-button"
+            className="btn btn-link"
             onClick={() =>
               setNewType(
                 newType === null
@@ -625,12 +625,12 @@ export function BibleScreen({
               />
             </label>
             <div className="bible-create-buttons">
-              <button type="submit" className="primary-small">
+              <button type="submit" className="btn btn-primary">
                 作る
               </button>
               <button
                 type="button"
-                className="small-button"
+                className="btn btn-sm"
                 onClick={() => setNewType(null)}
               >
                 やめる
@@ -673,7 +673,7 @@ export function BibleScreen({
               型の項目
               <button
                 type="button"
-                className="link-button"
+                className="btn btn-link"
                 aria-pressed={editingType}
                 onClick={() => guard(() => setEditingType(!editingType))}
               >
@@ -771,12 +771,12 @@ export function BibleScreen({
               />
             </label>
             <div className="bible-create-buttons">
-              <button type="submit" className="primary-small">
+              <button type="submit" className="btn btn-primary">
                 作る
               </button>
               <button
                 type="button"
-                className="small-button"
+                className="btn btn-sm"
                 onClick={() => setCreating(null)}
               >
                 やめる
@@ -852,7 +852,7 @@ export function BibleScreen({
                   {fileLabel(file)}
                   {entry !== null && isAiDraftEntry(entry.fields) && (
                     <span
-                      className="ai-badge ai-draft-entry"
+                      className="tag tag-ai ai-draft-entry"
                       title="AI が作ったエントリです（フロントマターの status: ai-draft を消すか変えれば、確かめたことになります）"
                     >
                       AI下書き
@@ -864,7 +864,7 @@ export function BibleScreen({
                   {entry !== null && onRenameEntry !== undefined && (
                     <button
                       type="button"
-                      className="link-button"
+                      className="btn btn-link"
                       onClick={() =>
                         onRenameEntry(entry.type_id, entry.id, fileLabel(file))
                       }
@@ -1030,7 +1030,7 @@ export function BibleScreen({
                           />
                           <button
                             type="button"
-                            className="small-button"
+                            className="btn btn-sm"
                             disabled={status.kind === "saving"}
                             onClick={() =>
                               addExpression(entry.id, newExpression.name)
@@ -1040,7 +1040,7 @@ export function BibleScreen({
                           </button>
                           <button
                             type="button"
-                            className="small-button"
+                            className="btn btn-sm"
                             onClick={() => setNewExpression(null)}
                           >
                             やめる

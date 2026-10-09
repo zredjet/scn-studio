@@ -67,7 +67,7 @@ export function QuickRun({ runner, scene, label, disabledReason }: Props) {
             </span>
             <button
               type="button"
-              className="small-button"
+              className="btn btn-sm"
               onClick={runner.onCancel}
             >
               取り消す
@@ -76,7 +76,7 @@ export function QuickRun({ runner, scene, label, disabledReason }: Props) {
         ) : (
           <button
             type="button"
-            className="small-button ai-quick-button"
+            className="btn btn-sm ai-quick-button"
             disabled={
               blocked !== null ||
               running !== null ||
@@ -96,8 +96,8 @@ export function QuickRun({ runner, scene, label, disabledReason }: Props) {
             : `${info.connection.name}（${cloud ? "クラウド" : "ローカル"}）`}
         </span>
       </div>
-      {blocked !== null && <p className="export-warning">{blocked}</p>}
-      {error !== null && <p className="export-warning">{error}</p>}
+      {blocked !== null && <p className="notice notice-warn">{blocked}</p>}
+      {error !== null && <p className="notice notice-warn">{error}</p>}
       {shown !== null && (
         <div className="ai-confirm">
           <p>
@@ -115,7 +115,7 @@ export function QuickRun({ runner, scene, label, disabledReason }: Props) {
             <p className="context-faint ai-prepared-note">{STRUCTURED_NOTE}</p>
           )}
           {shown.assembled.problem !== null && (
-            <p className="export-warning">{shown.assembled.problem}</p>
+            <p className="notice notice-warn">{shown.assembled.problem}</p>
           )}
           <details>
             <summary>指示（system）と依頼（user）</summary>
@@ -125,7 +125,7 @@ export function QuickRun({ runner, scene, label, disabledReason }: Props) {
           <div className="ai-actions">
             <button
               type="button"
-              className="primary-small"
+              className="btn btn-primary"
               disabled={shown.assembled.problem !== null || running !== null}
               onClick={() => {
                 setPrepared(null);
@@ -136,7 +136,7 @@ export function QuickRun({ runner, scene, label, disabledReason }: Props) {
             </button>
             <button
               type="button"
-              className="small-button"
+              className="btn btn-sm"
               onClick={() => setPrepared(null)}
             >
               やめる

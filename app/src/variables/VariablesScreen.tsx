@@ -279,7 +279,7 @@ export function VariablesScreen({
           {view === "table" && (
             <button
               type="button"
-              className="small-button"
+              className="btn btn-sm"
               onClick={() =>
                 setAdding(
                   adding === null ? { key: "", type: "int", values: "" } : null,
@@ -353,7 +353,7 @@ export function VariablesScreen({
             )}
             <button
               type="button"
-              className="primary-small"
+              className="btn btn-primary"
               disabled={adding.key.trim() === ""}
               onClick={() =>
                 declare(
@@ -439,12 +439,12 @@ export function VariablesScreen({
                               <span className="variables-who">{who}</span>
                             )}
                             {!r.declared && (
-                              <span className="flow-badge stub">宣言なし</span>
+                              <span className="tag tag-stub">宣言なし</span>
                             )}
                             {problems.map((d) => (
                               <span
                                 key={`${d.code}-${d.span[0]}`}
-                                className="flow-badge warn"
+                                className="tag tag-warn"
                                 title={d.message}
                               >
                                 {d.code}
@@ -525,7 +525,7 @@ export function VariablesScreen({
                   <button
                     key={t}
                     type="button"
-                    className="small-button"
+                    className="btn btn-sm"
                     onClick={() => declare(row.key, t, [])}
                   >
                     {t} として宣言する

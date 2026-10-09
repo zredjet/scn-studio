@@ -14,6 +14,7 @@ paths:
 - Reactは関数コンポーネントとフックで書く。状態はまずReact標準の仕組みで持ち、状態管理ライブラリを足すときは人に確認する。
 - コアの呼び出し（Tauriの `invoke`）は1つのモジュール（`app/src/core/` など）にまとめ、コンポーネントから直接呼ばない。
 - UIコンポーネント集は使わない。見た目は `docs/ui/tokens.md`（値の正は `docs/ui/mockups/scn-ui.css` の `:root`）のデザイントークンをCSS変数にして使う。部品と画面の並べ方は `docs/ui/mockups/` の見本 v1、決めごとは `docs/ui/decisions-v1.md`（実装で変えたことは同じ文書の最後）。
+- 部品（ボタン `btn`、札 `tag`、注意の帯 `notice`、入力欄、表など）は `app/src/styles/components.css` のクラスを使い、画面ごとの調整だけを `app.css` に書く。色・文字の大きさ（`--fs-*`）・太さ（400 と 600）・角丸（`--r-*`）はトークンから取り、影は使わない（例外は、塗った面の上の白の文字、左の線の inset、丸（50% と 999px）、相対の em の文字の大きさ。`app/test/styles.test.ts` が CSS と CodeMirror のテーマと構文の色を確かめる。T4-16）。AI に頼む操作のボタンには `shell/AiMark.tsx` の印を付ける（U07）。`btn` は折り返さないので、狭い欄で長い名前のボタンを置くときは、その場で `white-space: normal` にするか、並べ方を変える。
 
 ## エディタ（CodeMirror 6）
 

@@ -17,6 +17,7 @@ import type {
   FieldsWritten,
   SceneSummary,
 } from "../core/types.ts";
+import { AiMark } from "../shell/AiMark.tsx";
 import { AutoPanel } from "./AutoPanel.tsx";
 import { BranchProposals } from "./BranchProposals.tsx";
 import { type FieldDecision, FieldProposals } from "./FieldProposals.tsx";
@@ -352,7 +353,7 @@ export function AiScreen({
       {openFile !== null ? (
         <main className="ai-run-main" aria-label="提案ファイル">
           <header className="ai-run-head">
-            <span className="ai-badge">提案</span>
+            <span className="tag tag-ai">提案</span>
             <h1>{openFile.path}</h1>
             <span className="context-faint">
               {openFile.task ?? "タスクの記載なし"} ·{" "}
@@ -366,7 +367,7 @@ export function AiScreen({
             として記録します。却下はこの画面の中だけで、ファイルは書き換えません。
           </p>
           {openFile.problems.map((p) => (
-            <p key={p} className="export-warning">
+            <p key={p} className="notice notice-warn">
               {p}
             </p>
           ))}
@@ -383,7 +384,7 @@ export function AiScreen({
         <>
           <main className="ai-run-main" aria-label="実行">
             <header className="ai-run-head">
-              <span className="ai-badge">{LEVEL_LABEL[task.level]}</span>
+              <span className="tag tag-ai">{LEVEL_LABEL[task.level]}</span>
               <h1>{task.name}</h1>
               <span className="context-faint">
                 {info.connection === null
@@ -421,10 +422,10 @@ export function AiScreen({
               </label>
             </header>
             {chooseError !== null && (
-              <p className="export-warning">{chooseError}</p>
+              <p className="notice notice-warn">{chooseError}</p>
             )}
             {blocked !== null && (
-              <p className="export-warning">
+              <p className="notice notice-warn">
                 {blocked}
                 {(info.connection_problem !== null ||
                   (cloud && info.connection?.allowed === false)) && (
@@ -432,7 +433,7 @@ export function AiScreen({
                     {" "}
                     <button
                       type="button"
-                      className="small-button"
+                      className="btn btn-sm"
                       onClick={onOpenPreferences}
                     >
                       環境設定を開く
@@ -553,7 +554,7 @@ export function AiScreen({
                       </span>
                       <button
                         type="button"
-                        className="small-button"
+                        className="btn btn-sm"
                         onClick={onCancel}
                       >
                         取り消す
@@ -562,7 +563,7 @@ export function AiScreen({
                   ) : (
                     <button
                       type="button"
-                      className="primary-small ai-run-button"
+                      className="btn"
                       disabled={
                         blocked !== null ||
                         isRunning ||
@@ -578,12 +579,13 @@ export function AiScreen({
                         } else runNow();
                       }}
                     >
+                      <AiMark />
                       実行
                     </button>
                   )}
                   <button
                     type="button"
-                    className="small-button"
+                    className="btn btn-sm"
                     disabled={preparing || (sceneNeeded && scene === null)}
                     onClick={prepare}
                   >
@@ -596,7 +598,7 @@ export function AiScreen({
                   )}
                 </div>
                 {prepareError !== null && (
-                  <p className="export-warning">{prepareError}</p>
+                  <p className="notice notice-warn">{prepareError}</p>
                 )}
                 {shown !== null && (
                   <section className="ai-prepared" aria-label="送る中身">
@@ -604,7 +606,7 @@ export function AiScreen({
                       {estimateText(shown.assembled)}
                     </p>
                     {shown.assembled.problem !== null && (
-                      <p className="export-warning">
+                      <p className="notice notice-warn">
                         {shown.assembled.problem}
                       </p>
                     )}
@@ -633,14 +635,14 @@ export function AiScreen({
                         <div className="ai-actions">
                           <button
                             type="button"
-                            className="primary-small"
+                            className="btn btn-primary"
                             onClick={runNow}
                           >
                             送る
                           </button>
                           <button
                             type="button"
-                            className="small-button"
+                            className="btn btn-sm"
                             onClick={() => setConfirming(false)}
                           >
                             やめる
@@ -664,7 +666,7 @@ export function AiScreen({
                       結果{result.scene !== null ? `（${result.scene}）` : ""}
                     </h2>
                     {result.kind === "failed" && (
-                      <p className="export-warning">{result.message}</p>
+                      <p className="notice notice-warn">{result.message}</p>
                     )}
                     {result.kind === "cancelled" && (
                       <p className="context-faint">取り消しました。</p>
@@ -675,9 +677,7 @@ export function AiScreen({
                         {result.written !== null && (
                           <p
                             className={
-                              result.wroteOk
-                                ? "export-notice"
-                                : "export-warning"
+                              result.wroteOk ? "notice" : "notice notice-warn"
                             }
                           >
                             {result.written}
@@ -717,7 +717,7 @@ export function AiScreen({
                               </span>
                               <button
                                 type="button"
-                                className="small-button"
+                                className="btn btn-sm"
                                 disabled={skeletonMissing || isRunning}
                                 onClick={() =>
                                   onRewriteSkeleton(info, skeletonTarget)
@@ -729,7 +729,7 @@ export function AiScreen({
                           )}
                         {task.output === "summary" &&
                           (result.summary === null ? (
-                            <p className="export-warning">
+                            <p className="notice notice-warn">
                               要約を読めませんでした。
                             </p>
                           ) : (
@@ -827,7 +827,7 @@ export function AiScreen({
                             <div className="ai-finding-actions">
                               <button
                                 type="button"
-                                className="small-button"
+                                className="btn btn-sm"
                                 disabled={
                                   r.finding.file === null ||
                                   r.finding.span === null
@@ -838,7 +838,7 @@ export function AiScreen({
                               </button>
                               <button
                                 type="button"
-                                className="small-button"
+                                className="btn btn-sm"
                                 onClick={() => onDismissFinding(r.id)}
                               >
                                 閉じる

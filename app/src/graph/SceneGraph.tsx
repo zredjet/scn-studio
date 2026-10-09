@@ -104,6 +104,15 @@ const LEVELS: readonly GraphLevel[] = ["route", "chapter", "scene"];
 const EMPTY_LAYOUT: Layout = { scene: {}, chapter: {}, route: {} };
 
 /**
+ * デザイントークンの色の値を読む。xyflow は矢印の色を SVG の id に入れるので、`var(--…)` のままでは渡さない。
+ */
+function tokenColor(name: string): string {
+  return getComputedStyle(document.documentElement)
+    .getPropertyValue(name)
+    .trim();
+}
+
+/**
  * グラフを読み込んだときと、粒度を変えたときに1回、全体が収まるように表示し直す。ノードの大きさを
  * 測り終えてから行う（測る前だと、はみ出す）。収めると節の文字が読めないほど小さくなるときは、読める縮尺で
  * 開始のノードのあたりを見せる（`start` は開始のノードのID。T4-13、U6）。
@@ -328,7 +337,7 @@ export function SceneGraph({
         className: `flow-edge${e.out ? " out" : ""}${e.call ? " call" : ""}`,
         markerEnd: {
           type: MarkerType.ArrowClosed,
-          color: e.out ? "#3343b8" : "#8a93a3",
+          color: tokenColor(e.out ? "--accent" : "--stub-line"),
           width: 16,
           height: 16,
         },
@@ -341,7 +350,7 @@ export function SceneGraph({
         className: "flow-edge proposal",
         markerEnd: {
           type: MarkerType.ArrowClosed,
-          color: "#2e9c90",
+          color: tokenColor("--ai-line"),
           width: 16,
           height: 16,
         },
@@ -467,7 +476,7 @@ export function SceneGraph({
           {level === "scene" && (
             <button
               type="button"
-              className="small-button"
+              className="btn btn-sm"
               onClick={() => setStubOpen(true)}
             >
               ＋ スタブ
@@ -475,7 +484,7 @@ export function SceneGraph({
           )}
           <button
             type="button"
-            className="small-button"
+            className="btn btn-sm"
             onClick={() => {
               // 人が動かした位置があれば、捨ててよいかを聞く（T4-12、U4）。
               const manual =

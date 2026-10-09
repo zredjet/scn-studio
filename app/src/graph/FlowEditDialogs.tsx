@@ -142,12 +142,12 @@ export function StubDialog({
           {problem ?? idProblem ?? "題名を打ってください。"}
         </p>
         <div className="rename-buttons">
-          <button type="button" className="small-button" onClick={onClose}>
+          <button type="button" className="btn btn-sm" onClick={onClose}>
             やめる
           </button>
           <button
             type="button"
-            className="primary-small"
+            className="btn btn-primary"
             disabled={!ready}
             onClick={submit}
           >
@@ -244,12 +244,12 @@ export function EdgeDialog({
         )}
         {problem !== null && <p className="rename-problem">{problem}</p>}
         <div className="rename-buttons">
-          <button type="button" className="small-button" onClick={onClose}>
+          <button type="button" className="btn btn-sm" onClick={onClose}>
             やめる
           </button>
           <button
             type="button"
-            className="primary-small"
+            className="btn btn-primary"
             disabled={!ready}
             onClick={submit}
           >

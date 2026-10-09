@@ -52,7 +52,7 @@ export function TitleBar({
           aria-label={`${ai.text}：${ai.detail}。環境設定を開く`}
           onClick={onAi}
         >
-          <span className="ai-mark" aria-hidden="true">
+          <span className="ai-indicator-mark" aria-hidden="true">
             {AI_MARK[ai.state]}
           </span>
           {ai.text}

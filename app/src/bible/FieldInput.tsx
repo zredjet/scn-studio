@@ -331,7 +331,7 @@ function RefSelect({
       </select>
       <button
         type="button"
-        className="small-button"
+        className="btn btn-sm"
         disabled={!known}
         onClick={() => onOpenRef(target, value)}
       >

@@ -77,14 +77,14 @@ export function PreferencesScreen({
             です。タスクごとの接続先は、この端末で、AI実行の画面で選べます。
           </p>
         </div>
-        {error !== null && <p className="export-warning">{error}</p>}
+        {error !== null && <p className="notice notice-warn">{error}</p>}
         {data?.settings_problem && (
-          <p className="export-warning">
+          <p className="notice notice-warn">
             {data.settings_problem}。既定の設定で読みました。
           </p>
         )}
         {data?.key_problem && (
-          <p className="export-warning">{data.key_problem}</p>
+          <p className="notice notice-warn">{data.key_problem}</p>
         )}
         {data !== null && data.connections.length === 0 && (
           <div className="export-info">
@@ -220,9 +220,9 @@ function ConnectionCard({
       <div className="ai-connection-head">
         <h3>{c.name}</h3>
         {c.endpoint !== null && (
-          <span className="ai-badge">{placeLabel(c)}</span>
+          <span className="tag tag-ai">{placeLabel(c)}</span>
         )}
-        {c.is_default && <span className="ai-badge default">既定</span>}
+        {c.is_default && <span className="tag tag-accent">既定</span>}
         <span className="ai-provider">{c.provider}</span>
       </div>
       <dl className="ai-fields">
@@ -301,7 +301,7 @@ function ConnectionCard({
           )}
         </dd>
       </dl>
-      {missing !== null && <p className="export-warning">{missing}</p>}
+      {missing !== null && <p className="notice notice-warn">{missing}</p>}
       <fieldset className="ai-override">
         <legend>この端末での上書き</legend>
         <label>
@@ -400,7 +400,7 @@ function ConnectionCard({
           <div className="ai-actions">
             <button
               type="button"
-              className="small-button"
+              className="btn btn-sm"
               disabled={busy}
               onClick={() => {
                 setUrl("");
@@ -452,7 +452,7 @@ function ConnectionCard({
           <div className="ai-actions">
             <button
               type="button"
-              className="small-button"
+              className="btn btn-sm"
               disabled={busy || key.trim() === ""}
               onClick={() => {
                 const endpoint = c.endpoint;
@@ -470,7 +470,7 @@ function ConnectionCard({
             {c.has_key && (
               <button
                 type="button"
-                className="small-button danger"
+                className="btn btn-sm btn-danger"
                 disabled={busy}
                 onClick={() => {
                   const endpoint = c.endpoint;
@@ -521,7 +521,7 @@ function ConnectionCard({
             <span className="ai-test-state">試しています…</span>
             <button
               type="button"
-              className="small-button"
+              className="btn btn-sm"
               onClick={() => onCancel(c.name)}
             >
               取り消す
@@ -530,7 +530,7 @@ function ConnectionCard({
         ) : (
           <button
             type="button"
-            className="primary-small"
+            className="btn btn-primary"
             disabled={busy || missing !== null || otherRunning || confirming}
             onClick={() => (c.cloud ? setConfirming(true) : startTest())}
           >
@@ -556,12 +556,16 @@ function ConnectionCard({
           </p>
           <pre className="ai-preview">{c.test_preview}</pre>
           <div className="ai-actions">
-            <button type="button" className="primary-small" onClick={startTest}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={startTest}
+            >
               送る
             </button>
             <button
               type="button"
-              className="small-button"
+              className="btn btn-sm"
               onClick={() => setConfirming(false)}
             >
               やめる
@@ -575,7 +579,7 @@ function ConnectionCard({
           <pre className="ai-preview">{c.test_preview}</pre>
         </details>
       )}
-      {message !== null && <p className="export-notice">{message}</p>}
+      {message !== null && <p className="notice">{message}</p>}
     </article>
   );
 }

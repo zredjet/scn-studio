@@ -23,14 +23,14 @@ export function ConflictBar({
         {file} が外部で{deleted ? "削除" : "変更"}
         されました。このファイルには保存していない変更があります。
       </span>
-      <button type="button" className="small-button" onClick={onReload}>
+      <button type="button" className="btn btn-sm" onClick={onReload}>
         {deleted ? "閉じる" : "読み込み直す"}
       </button>
-      <button type="button" className="small-button" onClick={onKeep}>
+      <button type="button" className="btn btn-sm" onClick={onKeep}>
         自分の変更を残す
       </button>
       {!deleted && (
-        <button type="button" className="small-button" onClick={onMerge}>
+        <button type="button" className="btn btn-sm" onClick={onMerge}>
           マージする
         </button>
       )}

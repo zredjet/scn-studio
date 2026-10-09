@@ -119,14 +119,14 @@ export function SyncPanel({
                 要約を作り直しています（{running.done}/{running.total}
                 {running.scene !== null ? ` · ${running.scene}` : ""}）
               </span>
-              <button type="button" className="small-button" onClick={onCancel}>
+              <button type="button" className="btn btn-sm" onClick={onCancel}>
                 取り消す
               </button>
             </>
           ) : (
             <button
               type="button"
-              className="small-button"
+              className="btn btn-sm"
               disabled={
                 blocked !== null ||
                 busy ||
@@ -145,11 +145,11 @@ export function SyncPanel({
             </button>
           )}
         </div>
-        {error !== null && <p className="export-warning">{error}</p>}
+        {error !== null && <p className="notice notice-warn">{error}</p>}
         {result !== null && running === null && (
           <p
             className={
-              result.stopped === null ? "export-info" : "export-warning"
+              result.stopped === null ? "export-info" : "notice notice-warn"
             }
           >
             {result.total === 0
@@ -160,7 +160,9 @@ export function SyncPanel({
           </p>
         )}
       </div>
-      {driftError !== null && <p className="export-warning">{driftError}</p>}
+      {driftError !== null && (
+        <p className="notice notice-warn">{driftError}</p>
+      )}
       {drift !== null && items.length === 0 && (
         <p className="context-faint">ずれはありません。</p>
       )}
@@ -201,12 +203,12 @@ export function SyncPanel({
               )}
             </p>
             {problems.get(key) !== undefined && (
-              <p className="export-warning">{problems.get(key)}</p>
+              <p className="notice notice-warn">{problems.get(key)}</p>
             )}
             <div className="ai-finding-actions">
               <button
                 type="button"
-                className="small-button"
+                className="btn btn-sm"
                 disabled={writing || running !== null}
                 onClick={() => {
                   setWriting(true);
@@ -226,7 +228,7 @@ export function SyncPanel({
               </button>
               <button
                 type="button"
-                className="small-button"
+                className="btn btn-sm"
                 disabled={writing}
                 onClick={() => onReject(key)}
               >

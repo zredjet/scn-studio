@@ -97,7 +97,7 @@ export function SourceView({ label, text, onSave, onUnsaved }: Props) {
         <span className="flow-spacer" />
         <button
           type="button"
-          className="small-button"
+          className="btn btn-sm"
           disabled={!unsaved}
           onClick={() => {
             const next = conflict ?? base;
@@ -110,7 +110,7 @@ export function SourceView({ label, text, onSave, onUnsaved }: Props) {
         </button>
         <button
           type="button"
-          className="primary-small"
+          className="btn btn-primary"
           disabled={!unsaved || saving}
           onClick={() => void save(false)}
         >
@@ -125,7 +125,7 @@ export function SourceView({ label, text, onSave, onUnsaved }: Props) {
           </span>
           <button
             type="button"
-            className="small-button"
+            className="btn btn-sm"
             onClick={() => {
               setBase(conflict);
               setDraft(normalizeNewlines(conflict));
@@ -136,14 +136,14 @@ export function SourceView({ label, text, onSave, onUnsaved }: Props) {
           </button>
           <button
             type="button"
-            className="small-button"
+            className="btn btn-sm"
             onClick={() => void save(true)}
           >
             上書きする
           </button>
           <button
             type="button"
-            className="small-button"
+            className="btn btn-sm"
             onClick={() => {
               const theirs = conflict;
               void mergeSource(

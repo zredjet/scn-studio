@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "@xyflow/react/dist/style.css";
 import "./styles/tokens.css";
+import "./styles/components.css";
 import "./styles/app.css";
 import "./styles/preview.css";
 import { App } from "./App.tsx";

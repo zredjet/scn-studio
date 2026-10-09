@@ -15,7 +15,7 @@ body {
   background: var(--app-bg);
   color: var(--ink);
   font-family: var(--font-ui);
-  font-size: 13px;
+  font-size: var(--fs-base);
   line-height: 1.5;
 }
 
@@ -29,18 +29,18 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  height: var(--titlebar-height);
+  height: var(--h-titlebar);
   padding: 0 12px;
   background: var(--chrome-bg);
   color: var(--chrome-text);
 }
 
 .app-name {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .project-title {
-  color: var(--chrome-text-muted);
+  color: var(--chrome-text-2);
 }
 
 .titlebar-spacer {
@@ -52,7 +52,7 @@ body {
   height: 28px;
   padding: 0 12px;
   border: 0;
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   background: var(--chrome-bg-2);
   color: var(--chrome-text);
   font: inherit;
@@ -63,44 +63,11 @@ body {
   max-width: 280px;
 }
 
-.small-button {
-  height: 26px;
-  padding: 0 10px;
-  border: 1px solid var(--border-control);
-  border-radius: var(--radius-control);
-  background: var(--paper);
-  color: var(--ink);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.primary-button,
-.secondary-button {
-  height: 36px;
-  padding: 0 18px;
-  border-radius: var(--radius-control);
-  font: inherit;
-  cursor: pointer;
-}
-
-.primary-button {
-  border: 0;
-  background: var(--accent);
-  color: #ffffff;
-}
-
-.secondary-button {
-  border: 1px solid var(--border-control);
-  background: var(--paper);
-  color: var(--ink);
-}
-
 .error {
   margin: 0;
   padding: 6px 12px;
   background: var(--warn-tint);
-  color: var(--warn-text);
+  color: var(--warn-strong);
 }
 
 .app-error {
@@ -120,11 +87,11 @@ body {
   height: 26px;
   padding: 0 10px;
   border: 1px solid var(--warn-border);
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   background: transparent;
-  color: var(--warn-text);
+  color: var(--warn-strong);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-small);
   cursor: pointer;
 }
 
@@ -147,11 +114,11 @@ body {
   position: relative;
   height: 44px;
   border: 0;
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
   background: transparent;
-  color: var(--chrome-text-muted);
+  color: var(--chrome-text-2);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-small);
   cursor: pointer;
 }
 
@@ -171,10 +138,10 @@ body {
   right: 4px;
   min-width: 16px;
   padding: 0 4px;
-  border-radius: 8px;
+  border-radius: 999px;
   background: var(--warn);
   color: #ffffff;
-  font-size: 11px;
+  font-size: var(--fs-caption);
   line-height: 16px;
 }
 
@@ -217,10 +184,9 @@ body {
 .context-heading {
   margin: 0;
   padding: 14px 16px 8px;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  color: var(--text-2);
+  font-size: var(--fs-small);
+  font-weight: 600;
 }
 
 .context-heading ~ .context-heading {
@@ -230,8 +196,8 @@ body {
 .context-empty {
   margin: 0;
   padding: 0 16px;
-  color: var(--text-faint);
-  font-size: 12px;
+  color: var(--text-3);
+  font-size: var(--fs-small);
 }
 
 .character-card {
@@ -241,7 +207,7 @@ body {
   margin: 0 12px 8px;
   padding: 12px;
   border: 1px solid var(--border-soft);
-  border-radius: var(--radius-card);
+  border-radius: var(--r-lg);
   background: var(--paper);
 }
 
@@ -261,8 +227,8 @@ body {
   border-radius: 50%;
   background: var(--accent-tint);
   color: var(--accent-strong);
-  font-family: var(--font-body);
-  font-size: 17px;
+  font-family: var(--font-text);
+  font-size: var(--fs-prose);
   font-weight: 600;
 }
 
@@ -272,8 +238,8 @@ body {
 }
 
 .character-name span {
-  color: var(--text-faint);
-  font-size: 12px;
+  color: var(--text-3);
+  font-size: var(--fs-small);
 }
 
 .character-open {
@@ -282,7 +248,7 @@ body {
   background: transparent;
   color: var(--ink);
   font: inherit;
-  font-weight: 700;
+  font-weight: 600;
   text-align: left;
   cursor: pointer;
 }
@@ -297,11 +263,11 @@ body {
   grid-template-columns: 56px minmax(0, 1fr);
   gap: 4px 8px;
   margin: 0;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .character-fields dt {
-  color: var(--text-faint);
+  color: var(--text-3);
 }
 
 .character-fields dd {
@@ -314,7 +280,7 @@ body {
   gap: 6px;
   margin: 0;
   padding: 0 16px;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   list-style: none;
 }
 
@@ -330,7 +296,7 @@ body {
 
 .context-faint,
 .context-kind {
-  color: var(--text-faint);
+  color: var(--text-3);
 }
 
 .context-kind {
@@ -340,18 +306,18 @@ body {
 
 .context-right {
   margin-left: auto;
-  color: var(--text-muted);
+  color: var(--text-2);
   white-space: nowrap;
 }
 
 .context-right.provisional {
   padding: 0 7px;
   border: 1px dashed var(--warn-border);
-  border-radius: 4px;
+  border-radius: var(--r-sm);
   background: var(--warn-tint);
-  color: var(--warn-text);
-  font-size: 11px;
-  font-weight: 700;
+  color: var(--warn-strong);
+  font-size: var(--fs-caption);
+  font-weight: 600;
 }
 
 .context-problems {
@@ -369,7 +335,7 @@ body {
   gap: 6px;
   align-items: center;
   margin: 4px 0 8px 8px;
-  font-size: 12px;
+  font-size: var(--fs-small);
 }
 
 .check-register-form input {
@@ -379,7 +345,7 @@ body {
 }
 
 .check-register-error {
-  color: var(--danger-text);
+  color: var(--danger);
 }
 
 /* クイックオープン（Mod-P） */
@@ -393,7 +359,7 @@ body {
   position: absolute;
   inset: 0;
   border: 0;
-  background: rgb(27 31 36 / 20%);
+  background: var(--scrim);
 }
 
 .quick-open {
@@ -406,7 +372,7 @@ body {
   max-height: 60vh;
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: var(--radius-card);
+  border-radius: var(--r-lg);
   background: var(--paper);
   transform: translateX(-50%);
 }
@@ -415,7 +381,7 @@ body {
   margin: 10px;
   padding: 6px 10px;
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   font: inherit;
 }
 
@@ -433,7 +399,7 @@ body {
   width: 100%;
   padding: 6px 8px;
   border: 0;
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
   background: transparent;
   color: var(--ink);
   font: inherit;
@@ -450,15 +416,15 @@ body {
 .quick-open-id {
   width: 56px;
   flex: none;
-  color: var(--text-faint);
+  color: var(--text-3);
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--fs-small);
 }
 
 .quick-open-file {
   margin-left: auto;
-  color: var(--text-faint);
-  font-size: 11.5px;
+  color: var(--text-3);
+  font-size: var(--fs-small);
 }
 
 .welcome {
@@ -467,7 +433,7 @@ body {
 }
 
 .welcome h1 {
-  font-size: 20px;
+  font-size: var(--fs-display);
 }
 
 .welcome-actions {
@@ -489,7 +455,7 @@ body {
   width: 100%;
   padding: 8px 10px;
   border: 0;
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
   background: transparent;
   font: inherit;
   text-align: left;
@@ -497,12 +463,12 @@ body {
 }
 
 .recent-item:hover {
-  background: var(--accent-tint-2);
+  background: var(--accent-weak);
 }
 
 .recent-path {
-  color: var(--text-faint);
-  font-size: 12px;
+  color: var(--text-3);
+  font-size: var(--fs-small);
 }
 
 .scene-list {
@@ -533,15 +499,15 @@ body {
   height: 26px;
   padding: 0 8px;
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   font: inherit;
 }
 
 .form-problem {
   flex-basis: 100%;
   margin: 0;
-  color: var(--danger-text);
-  font-size: 12px;
+  color: var(--danger);
+  font-size: var(--fs-small);
 }
 
 .file-button {
@@ -560,17 +526,17 @@ body {
 
 .panel-heading {
   margin: 4px 8px 8px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
+  font-size: var(--fs-small);
+  line-height: 18px;
+  font-weight: 600;
+  color: var(--text-2);
 }
 
 .file-name {
   margin: 12px 8px 4px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-faint);
+  font-size: var(--fs-small);
+  font-weight: 600;
+  color: var(--text-3);
 }
 
 .file.current .file-name {
@@ -590,7 +556,7 @@ body {
   width: 100%;
   padding: 6px 8px;
   border: 1px solid transparent;
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
   background: transparent;
   color: var(--ink);
   font: inherit;
@@ -599,7 +565,7 @@ body {
 }
 
 .scene:hover {
-  background: var(--accent-tint-2);
+  background: var(--accent-weak);
 }
 
 .scene.stub {
@@ -610,13 +576,13 @@ body {
 .scene.current {
   background: var(--accent-tint);
   color: var(--accent);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .scene-id {
-  color: var(--text-faint);
+  color: var(--text-3);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-small);
 }
 
 .scene.current .scene-id {
@@ -645,30 +611,36 @@ body {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  color: var(--text-muted);
+  color: var(--text-2);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* 表示の切り替え（見本 v1 の .seg。fieldset なので枠と余白を消す） */
 .mode-switch {
   display: inline-flex;
   gap: 2px;
   min-width: 0;
+  height: var(--h-control);
   margin: 0;
-  padding: 3px;
+  padding: 2px;
   border: 0;
-  border-radius: var(--radius-item);
-  background: var(--app-bg);
+  border-radius: var(--r);
+  background: var(--sunken);
 }
 
 .mode-switch button {
-  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--h-control-sm);
   padding: 0 12px;
   border: 1px solid transparent;
-  border-radius: var(--radius-control);
+  border-radius: var(--r-sm);
   background: transparent;
-  color: var(--text-muted);
-  font: inherit;
+  color: var(--text-2);
+  font-size: var(--fs-base);
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -676,13 +648,13 @@ body {
   border-color: var(--border-control);
   background: var(--paper);
   color: var(--ink);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .mode-shortcut {
-  color: var(--text-faint);
+  color: var(--text-3);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-caption);
 }
 
 .conflict-bar,
@@ -693,7 +665,7 @@ body {
   align-items: center;
   padding: 8px 12px;
   background: var(--warn-tint);
-  color: var(--warn-text);
+  color: var(--warn-strong);
   border-bottom: 1px solid var(--warn-border);
 }
 
@@ -708,17 +680,17 @@ body {
   width: 100%;
   padding: 4px 8px;
   border: 0;
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
   background: transparent;
   color: var(--ink);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-small);
   text-align: left;
   cursor: pointer;
 }
 
 .check-item:hover:not(:disabled) {
-  background: var(--accent-tint-2);
+  background: var(--accent-weak);
 }
 
 .check-item:disabled {
@@ -736,13 +708,13 @@ body {
 }
 
 .check-place {
-  color: var(--text-faint);
+  color: var(--text-3);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-small);
 }
 
 .check-item.error .check-severity {
-  color: var(--danger-text);
+  color: var(--danger);
 }
 
 .check-item.warning .check-severity {
@@ -750,7 +722,7 @@ body {
 }
 
 .check-item.info .check-severity {
-  color: var(--text-faint);
+  color: var(--text-3);
 }
 
 .editor {
@@ -760,13 +732,15 @@ body {
 
 .placeholder {
   margin: 24px;
-  color: var(--text-muted);
+  color: var(--text-3);
+  font-size: var(--fs-small);
+  line-height: 18px;
 }
 
 .scene-graph {
   flex: 1;
   min-height: 0;
-  background: #f7f8fa;
+  background: var(--panel-bg-2);
 }
 
 /* フローの画面（docs/ui/mockups/03-flow.html。T1-9） */
@@ -798,14 +772,14 @@ body {
   display: inline-flex;
   gap: 6px;
   align-items: center;
-  color: var(--text-muted);
+  color: var(--text-2);
 }
 
 .flow-filter select {
   min-height: 30px;
   padding: 0 8px;
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   background: var(--paper);
   color: var(--ink);
   font: inherit;
@@ -822,8 +796,8 @@ body {
 }
 
 .flow-problem {
-  color: var(--warn-text);
-  font-size: 12px;
+  color: var(--warn-strong);
+  font-size: var(--fs-small);
 }
 
 /* ノード（xyflow の自前のノード） */
@@ -835,11 +809,11 @@ body {
   width: 144px;
   height: 64px;
   padding: 8px 12px;
-  border: 1px solid #cdd2da;
-  border-radius: var(--radius-card);
+  border: 1px solid var(--border-control);
+  border-radius: var(--r-lg);
   background: var(--paper);
   color: var(--ink);
-  font-size: 13px;
+  font-size: var(--fs-base);
   line-height: 16px;
 }
 
@@ -851,29 +825,29 @@ body {
   display: flex;
   gap: 4px;
   align-items: center;
-  color: var(--text-faint);
+  color: var(--text-3);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-caption);
 }
 
 .flow-node-title {
   overflow: hidden;
-  font-weight: 700;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .flow-node-foot {
   overflow: hidden;
-  color: var(--text-faint);
-  font-size: 11px;
+  color: var(--text-3);
+  font-size: var(--fs-caption);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .flow-node.selected {
   border: 2px solid var(--accent);
-  background: var(--accent-tint-2);
+  background: var(--accent-weak);
 }
 
 .flow-node.selected .flow-node-head {
@@ -882,23 +856,23 @@ body {
 
 .flow-node.ai-draft {
   border: 1.5px solid var(--ai-line);
-  background: var(--ai-tint-2);
-  color: #0b3f3a;
+  background: var(--ai-tint);
+  color: var(--ai);
 }
 
 .flow-node.ai-draft .flow-node-foot {
-  color: var(--ai-text);
+  color: var(--ai);
 }
 
 .flow-node.stub {
   border: 1.5px dashed var(--stub-line);
-  color: var(--text-muted);
+  color: var(--text-2);
 }
 
 /* 選んだスタブとAI下書きも、藍の太い枠で見せる（スタブの点線とAI下書きの色は残す）。 */
 .flow-node.stub.selected {
   border: 2px dashed var(--accent);
-  background: var(--accent-tint-2);
+  background: var(--accent-weak);
 }
 
 .flow-node.ai-draft.selected {
@@ -908,7 +882,7 @@ body {
 .flow-node.missing {
   border: 1.5px dashed var(--warn-border);
   background: var(--warn-tint);
-  color: var(--warn-text);
+  color: var(--warn-strong);
 }
 
 .flow-marks {
@@ -919,10 +893,10 @@ body {
 
 .flow-mark {
   padding: 0 5px;
-  border-radius: 4px;
+  border-radius: var(--r-sm);
   font-family: var(--font-ui);
-  font-size: 10px;
-  font-weight: 700;
+  font-size: var(--fs-caption);
+  font-weight: 600;
   line-height: 14px;
 }
 
@@ -941,8 +915,8 @@ body {
   box-sizing: border-box;
   width: 100%;
   height: 100%;
-  border: 1px solid #e3e6eb;
-  border-radius: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
   background: color-mix(in srgb, var(--paper) 85%, transparent);
   pointer-events: none;
 }
@@ -951,9 +925,9 @@ body {
   position: absolute;
   top: 10px;
   left: 16px;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 700;
+  color: var(--text-2);
+  font-size: var(--fs-small);
+  font-weight: 600;
 }
 
 /* 辺 */
@@ -979,10 +953,10 @@ body {
   padding: 0 6px;
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--r);
   background: var(--paper);
   color: var(--accent-strong);
-  font-size: 11px;
+  font-size: var(--fs-caption);
   line-height: 16px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1003,11 +977,11 @@ body {
   border-top: 1px solid var(--border);
   background: var(--paper);
   color: var(--text-2);
-  font-size: 12px;
+  font-size: var(--fs-small);
 }
 
 .flow-legend strong {
-  color: var(--text-muted);
+  color: var(--text-2);
 }
 
 .legend-item {
@@ -1032,12 +1006,12 @@ body {
 .legend-box {
   width: 18px;
   height: 12px;
-  border-radius: 3px;
+  border-radius: var(--r-sm);
 }
 
 .legend-box.ai {
   border: 1.5px solid var(--ai-line);
-  background: var(--ai-tint-2);
+  background: var(--ai-tint);
 }
 
 .legend-box.stub {
@@ -1057,7 +1031,7 @@ body {
   overflow: auto;
   border-left: 1px solid var(--border);
   background: var(--paper);
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .flow-panel-empty {
@@ -1074,28 +1048,16 @@ body {
 
 .flow-panel-head h2 {
   margin: 0;
-  font-family: var(--font-body);
-  font-size: 22px;
+  font-family: var(--font-text);
+  font-size: var(--fs-display);
+  line-height: 30px;
   font-weight: 600;
 }
 
 .flow-panel-id {
-  color: var(--text-muted);
+  color: var(--text-2);
   font-family: var(--font-mono);
-  font-size: 12px;
-}
-
-.primary-small {
-  min-height: 32px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: var(--radius-control);
-  background: var(--accent);
-  color: #ffffff;
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 500;
-  cursor: pointer;
+  font-size: var(--fs-small);
 }
 
 .flow-section {
@@ -1105,8 +1067,8 @@ body {
 .flow-summary {
   margin: 0;
   padding: 0 16px 8px;
-  font-family: var(--font-body);
-  font-size: 14px;
+  font-family: var(--font-text);
+  font-size: var(--fs-h2);
   line-height: 1.7;
 }
 
@@ -1121,7 +1083,7 @@ body {
 
 .flow-meta dt,
 .flow-vars dt {
-  color: var(--text-faint);
+  color: var(--text-3);
 }
 
 .flow-meta dd,
@@ -1131,7 +1093,7 @@ body {
 
 .flow-vars dd {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-small);
 }
 
 .flow-exits,
@@ -1150,36 +1112,17 @@ body {
   flex-direction: column;
   gap: 2px;
   padding: 8px 10px;
-  border-radius: var(--radius-item);
-  background: #f6f7fe;
+  border-radius: var(--r-lg);
+  background: var(--accent-weak);
 }
 
 .flow-exit-cond {
   color: var(--accent-strong);
-  font-size: 12px;
+  font-size: var(--fs-small);
 }
 
 .flow-entries li {
   padding: 0 4px;
-}
-
-.flow-badge {
-  margin-left: 6px;
-  padding: 0 6px;
-  border-radius: 4px;
-  font-size: 11px;
-}
-
-.flow-badge.stub {
-  border: 1px dashed var(--stub-line);
-  color: var(--text-muted);
-}
-
-.flow-badge.ai {
-  border: 1px solid var(--ai-border);
-  background: var(--ai-tint);
-  color: var(--ai-text);
-  font-weight: 700;
 }
 
 .flow-scene-item {
@@ -1188,7 +1131,7 @@ body {
   width: 100%;
   padding: 4px 8px;
   border: 0;
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
   background: transparent;
   color: var(--ink);
   font: inherit;
@@ -1203,7 +1146,7 @@ body {
 .flow-scene-id {
   width: 48px;
   flex: none;
-  color: var(--text-faint);
+  color: var(--text-3);
   font-family: var(--font-mono);
 }
 
@@ -1211,21 +1154,21 @@ body {
   display: flex;
   gap: 16px;
   align-items: center;
-  height: var(--statusbar-height);
+  height: var(--h-statusbar);
   padding: 0 12px;
   background: var(--statusbar-bg);
   color: var(--text-2);
-  font-size: 12px;
+  font-size: var(--fs-small);
 }
 
 .statusbar-mode {
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .statusbar-notice {
   flex: 1;
   overflow: hidden;
-  color: var(--text-muted);
+  color: var(--text-2);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1246,10 +1189,9 @@ body {
 
 .bible-small-heading {
   margin: 0;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  color: var(--text-2);
+  font-size: var(--fs-small);
+  font-weight: 600;
 }
 
 .bible-types {
@@ -1283,7 +1225,7 @@ body {
   justify-content: space-between;
   padding: 7px 10px;
   border: 0;
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
   background: transparent;
   color: var(--ink);
   font: inherit;
@@ -1298,12 +1240,12 @@ body {
 .bible-type-item[aria-pressed="true"] {
   background: var(--accent-tint);
   color: var(--accent-strong);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .bible-count {
-  color: var(--text-faint);
-  font-size: 12px;
+  color: var(--text-3);
+  font-size: var(--fs-small);
 }
 
 .bible-type-item[aria-pressed="true"] .bible-count {
@@ -1320,9 +1262,9 @@ body {
 }
 
 .bible-type-file {
-  color: var(--text-muted);
+  color: var(--text-2);
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--fs-small);
   overflow-wrap: anywhere;
 }
 
@@ -1331,7 +1273,7 @@ body {
   flex-direction: column;
   gap: 4px;
   margin: 0;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .bible-type-row {
@@ -1349,9 +1291,9 @@ body {
 .bible-type-row dd {
   max-width: 65%;
   margin: 0;
-  color: var(--text-muted);
+  color: var(--text-2);
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--fs-small);
   text-align: right;
   overflow-wrap: anywhere;
 }
@@ -1359,8 +1301,8 @@ body {
 .bible-types-foot {
   margin: auto 0 0;
   padding: 12px 16px;
-  color: var(--text-faint);
-  font-size: 12px;
+  color: var(--text-3);
+  font-size: var(--fs-small);
   border-top: 1px solid var(--border);
 }
 
@@ -1388,9 +1330,9 @@ body {
   min-width: 0;
   padding: 5px 10px;
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   background: var(--paper);
-  color: var(--text-faint);
+  color: var(--text-3);
 }
 
 .bible-search input {
@@ -1409,7 +1351,7 @@ body {
   height: 28px;
   padding: 0;
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   background: var(--paper);
   color: var(--text-2);
   cursor: pointer;
@@ -1427,13 +1369,13 @@ body {
   margin: 0 12px 12px;
   padding: 12px;
   border: 1px solid var(--accent-border);
-  border-radius: var(--radius-item);
-  background: var(--accent-tint-2);
-  font-size: 12.5px;
+  border-radius: var(--r-lg);
+  background: var(--accent-weak);
+  font-size: var(--fs-base);
 }
 
 .bible-create-title {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .bible-create label {
@@ -1448,13 +1390,13 @@ body {
   min-height: 30px;
   padding: 0 8px;
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   font: inherit;
 }
 
 .bible-type-source {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-small);
   line-height: 1.6;
 }
 
@@ -1479,7 +1421,7 @@ body {
   width: 100%;
   padding: 8px 10px;
   border: 0;
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
   background: transparent;
   color: var(--ink);
   font: inherit;
@@ -1505,8 +1447,8 @@ body {
   border-radius: 50%;
   background: var(--app-bg);
   color: var(--text-2);
-  font-family: var(--font-body);
-  font-size: 15px;
+  font-family: var(--font-text);
+  font-size: var(--fs-h2);
   font-weight: 600;
 }
 
@@ -1520,7 +1462,7 @@ body {
   height: 48px;
   background: var(--accent-tint);
   color: var(--accent-strong);
-  font-size: 22px;
+  font-size: var(--fs-display);
 }
 
 .bible-entry-text {
@@ -1531,14 +1473,14 @@ body {
 
 .bible-entry-name {
   overflow: hidden;
-  font-weight: 700;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .bible-entry-sub {
-  color: var(--text-faint);
-  font-size: 11.5px;
+  color: var(--text-3);
+  font-size: var(--fs-small);
 }
 
 .bible-entry-item[aria-pressed="true"] .bible-entry-sub {
@@ -1571,44 +1513,50 @@ body {
   min-width: 0;
 }
 
-.bible-head h1,
+.bible-head h1 {
+  margin: 0;
+  font-family: var(--font-text);
+  font-size: var(--fs-display);
+  line-height: 30px;
+  font-weight: 600;
+}
+
 .variables-head h1 {
   margin: 0;
-  font-family: var(--font-body);
-  font-size: 24px;
+  font-size: var(--fs-h1);
   font-weight: 600;
 }
 
 .bible-path {
-  color: var(--text-muted);
+  color: var(--text-2);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-small);
 }
 
 .bible-status {
-  color: var(--text-muted);
-  font-size: 12px;
+  color: var(--text-2);
+  font-size: var(--fs-small);
 }
 
 .bible-status.error {
   max-width: 360px;
-  color: var(--danger-text);
+  color: var(--danger);
 }
 
 .bible-file-problems {
   margin: 0;
   padding: 8px 28px;
   list-style: none;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   border-bottom: 1px solid var(--border-soft);
 }
 
 .bible-file-problems .error {
-  color: var(--danger-text);
+  color: var(--danger);
 }
 
 .bible-file-problems .warning {
-  color: var(--warn-text);
+  color: var(--warn-strong);
 }
 
 .bible-form-scroll {
@@ -1632,13 +1580,13 @@ body {
 
 .bible-label {
   color: var(--text-2);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--fs-small);
+  font-weight: 600;
 }
 
 .bible-label-note {
   margin-left: 8px;
-  color: var(--text-faint);
+  color: var(--text-3);
   font-weight: 400;
 }
 
@@ -1648,53 +1596,53 @@ body {
   min-height: 36px;
   padding: 0 10px;
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
   background: var(--paper);
   color: var(--ink);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--fs-h2);
 }
 
 .bible-field textarea,
 .bible-body {
   padding: 8px 10px;
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
   color: var(--ink);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--fs-base);
   line-height: 1.7;
   resize: vertical;
 }
 
 .bible-body {
   padding: 10px 12px;
-  font-family: var(--font-body);
-  font-size: 15px;
+  font-family: var(--font-text);
+  font-size: var(--fs-h2);
   line-height: 1.8;
 }
 
 .bible-field input::placeholder,
 .bible-field textarea::placeholder {
-  color: var(--line-number);
+  color: var(--text-3);
 }
 
 .bible-field [aria-invalid="true"] {
-  border-color: var(--danger-text);
+  border-color: var(--danger);
 }
 
 .bible-field-error,
 .bible-field-problem {
-  font-size: 12px;
+  font-size: var(--fs-small);
 }
 
 .bible-field-error,
 .bible-field-problem.error {
-  color: var(--danger-text);
+  color: var(--danger);
 }
 
 .bible-field-problem.warning {
-  color: var(--warn-text);
+  color: var(--warn-strong);
 }
 
 .bible-chips {
@@ -1706,7 +1654,7 @@ body {
   box-sizing: border-box;
   padding: 4px 6px;
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
 }
 
 .bible-chips.readonly {
@@ -1724,7 +1672,7 @@ body {
 .bible-chips select {
   min-height: 28px;
   border: 0;
-  color: var(--text-muted);
+  color: var(--text-2);
 }
 
 .bible-chip {
@@ -1732,14 +1680,14 @@ body {
   gap: 4px;
   align-items: center;
   padding: 2px 8px;
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   background: var(--panel-bg);
-  font-size: 13px;
+  font-size: var(--fs-base);
 }
 
 .bible-chip.missing {
   background: var(--warn-tint);
-  color: var(--warn-text);
+  color: var(--warn-strong);
 }
 
 .bible-chip button {
@@ -1748,7 +1696,7 @@ body {
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--text-muted);
+  color: var(--text-2);
   cursor: pointer;
 }
 
@@ -1772,7 +1720,7 @@ body {
 .bible-ref select {
   flex: 1;
   border-color: var(--accent-border);
-  background: var(--accent-tint-2);
+  background: var(--accent-weak);
   color: var(--accent-strong);
 }
 
@@ -1780,7 +1728,7 @@ body {
   display: inline-flex;
   gap: 6px;
   align-items: center;
-  font-size: 14px;
+  font-size: var(--fs-base);
 }
 
 .bible-multi {
@@ -1795,10 +1743,10 @@ body {
   gap: 4px;
   padding: 8px 10px;
   border: 1px dashed var(--warn-border);
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
   background: var(--warn-tint);
-  color: var(--warn-text);
-  font-size: 12.5px;
+  color: var(--warn-strong);
+  font-size: var(--fs-base);
 }
 
 .bible-extra {
@@ -1806,7 +1754,7 @@ body {
   grid-template-columns: max-content minmax(0, 1fr);
   gap: 4px 12px;
   margin: 0;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .bible-extra div {
@@ -1814,7 +1762,7 @@ body {
 }
 
 .bible-extra dt {
-  color: var(--text-muted);
+  color: var(--text-2);
   font-family: var(--font-mono);
 }
 
@@ -1827,24 +1775,24 @@ body {
 .bible-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--border-soft);
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
 }
 
 .bible-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .bible-table thead tr {
   background: var(--panel-bg);
-  color: var(--text-muted);
+  color: var(--text-2);
   text-align: left;
 }
 
 .bible-table th {
   padding: 6px 10px;
-  font-weight: 500;
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -1884,9 +1832,9 @@ body {
 }
 
 .bible-source-label {
-  color: var(--text-muted);
+  color: var(--text-2);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-small);
 }
 
 .bible-source-text {
@@ -1899,7 +1847,7 @@ body {
   background: var(--panel-bg-2);
   color: var(--ink);
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--fs-base);
   line-height: 1.7;
   resize: none;
 }
@@ -1917,19 +1865,17 @@ body {
 .bible-usage-heading {
   margin: 0;
   padding: 16px 16px 8px;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  color: var(--text-2);
+  font-size: var(--fs-small);
+  font-weight: 600;
 }
 
 .bible-usage-subheading {
   margin: 0;
   padding: 18px 16px 6px;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  color: var(--text-2);
+  font-size: var(--fs-small);
+  font-weight: 600;
 }
 
 .bible-usage-cards {
@@ -1944,13 +1890,13 @@ body {
   flex-direction: column;
   padding: 10px;
   border: 1px solid var(--border-soft);
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
   background: var(--paper);
 }
 
 .bible-usage-card strong {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: var(--fs-h1);
+  font-weight: 600;
 }
 
 .bible-usage-card strong.mono {
@@ -1958,8 +1904,8 @@ body {
 }
 
 .bible-usage-card span {
-  color: var(--text-muted);
-  font-size: 11.5px;
+  color: var(--text-2);
+  font-size: var(--fs-small);
 }
 
 .bible-usage-scenes,
@@ -1978,11 +1924,11 @@ body {
   width: 100%;
   padding: 6px 8px;
   border: 0;
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   background: transparent;
   color: var(--ink);
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   text-align: left;
   cursor: pointer;
 }
@@ -1994,16 +1940,16 @@ body {
 }
 
 .bible-ref-item:disabled {
-  color: var(--text-faint);
+  color: var(--text-3);
   cursor: default;
 }
 
 .bible-usage-id {
   flex: none;
   width: 44px;
-  color: var(--text-muted);
+  color: var(--text-2);
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--fs-small);
 }
 
 .bible-usage-title {
@@ -2015,8 +1961,8 @@ body {
 
 .bible-usage-count,
 .bible-ref-note {
-  color: var(--text-muted);
-  font-size: 12px;
+  color: var(--text-2);
+  font-size: var(--fs-small);
   white-space: nowrap;
 }
 
@@ -2031,7 +1977,7 @@ body {
   background: transparent;
   color: var(--accent);
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   text-align: left;
   cursor: pointer;
 }
@@ -2073,9 +2019,9 @@ body {
 
 .variables-who {
   margin-left: 6px;
-  color: var(--text-faint);
+  color: var(--text-3);
   font-family: var(--font-ui);
-  font-size: 11.5px;
+  font-size: var(--fs-small);
 }
 
 .variables-desc {
@@ -2087,12 +2033,7 @@ body {
   margin: 0;
   padding: 0 16px 4px;
   font-family: var(--font-mono);
-  font-weight: 700;
-}
-
-.flow-badge.warn {
-  background: var(--warn-tint);
-  color: var(--warn-text);
+  font-weight: 600;
 }
 
 /* ---- 出力の画面（T1-12、D051） ---- */
@@ -2118,8 +2059,8 @@ body {
 
 .export-head h1 {
   margin: 0;
-  font-family: var(--font-body);
-  font-size: 24px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-h1);
   font-weight: 600;
 }
 
@@ -2130,7 +2071,7 @@ body {
   margin: 20px 28px 40px;
   padding: 16px 20px;
   border: 1px solid var(--border-soft);
-  border-radius: var(--radius-card);
+  border-radius: var(--r-lg);
 }
 
 .export-card-head {
@@ -2142,36 +2083,14 @@ body {
 
 .export-card h2 {
   margin: 0 0 4px;
-  font-size: 15px;
+  font-size: var(--fs-h2);
 }
 
 .export-note {
   max-width: 720px;
   margin: 0;
-  color: var(--text-muted);
-  font-size: 12.5px;
-}
-
-.export-notice {
-  margin: 0;
-  color: var(--accent-strong);
-  font-size: 12.5px;
-}
-
-.export-error {
-  margin: 0;
-  color: var(--danger-text);
-  font-size: 12.5px;
-}
-
-.export-warning {
-  margin: 0;
-  padding: 8px 10px;
-  border: 1px dashed var(--warn-border);
-  border-radius: var(--radius-item);
-  background: var(--warn-tint);
-  color: var(--warn-text);
-  font-size: 12.5px;
+  color: var(--text-2);
+  font-size: var(--fs-base);
 }
 
 .export-options {
@@ -2179,7 +2098,7 @@ body {
   flex-wrap: wrap;
   gap: 16px;
   align-items: center;
-  font-size: 13px;
+  font-size: var(--fs-base);
 }
 
 .export-options label {
@@ -2195,9 +2114,9 @@ body {
 .export-info {
   padding: 8px 10px;
   border: 1px solid var(--border-soft);
-  border-radius: var(--radius-item);
-  color: var(--text-muted);
-  font-size: 12.5px;
+  border-radius: var(--r-lg);
+  color: var(--text-2);
+  font-size: var(--fs-base);
 }
 
 .export-list-head {
@@ -2224,14 +2143,14 @@ body {
   gap: 8px;
   align-items: center;
   padding: 0 28px 10px;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .assets-location {
   margin: 0;
   overflow: hidden;
-  color: var(--text-muted);
-  font-size: 12px;
+  color: var(--text-2);
+  font-size: var(--fs-small);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2243,7 +2162,7 @@ body {
 }
 
 .assets-folder-label {
-  color: var(--text-muted);
+  color: var(--text-2);
 }
 
 .assets-folder-path {
@@ -2254,24 +2173,6 @@ body {
   text-overflow: ellipsis;
   user-select: text;
   white-space: nowrap;
-}
-
-.secondary-small {
-  min-height: 32px;
-  padding: 0 12px;
-  border: 1px solid var(--border-control);
-  border-radius: var(--radius-control);
-  background: var(--paper);
-  color: var(--ink);
-  font: inherit;
-  font-size: 12.5px;
-  cursor: pointer;
-}
-
-.secondary-small:disabled,
-.primary-small:disabled {
-  cursor: default;
-  opacity: 0.55;
 }
 
 .assets-screen {
@@ -2310,8 +2211,8 @@ body {
 
 .assets-title h1 {
   margin: 0;
-  font-family: var(--font-body);
-  font-size: 24px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-h1);
   font-weight: 600;
 }
 
@@ -2324,22 +2225,22 @@ body {
 
 .assets-count {
   padding: 4px 10px;
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   background: var(--panel-bg);
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .assets-count.provisional {
   border: 1px dashed var(--warn-border);
   background: var(--warn-tint);
-  color: var(--warn-text);
-  font-weight: 500;
+  color: var(--warn-strong);
+  font-weight: 600;
 }
 
 .assets-count.unregistered {
   background: var(--warn-strong);
   color: #ffffff;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .assets-toolbar {
@@ -2354,7 +2255,7 @@ body {
   display: inline-flex;
   gap: 6px;
   align-items: center;
-  font-size: 13px;
+  font-size: var(--fs-base);
 }
 
 .assets-search {
@@ -2365,7 +2266,7 @@ body {
 .assets-notice,
 .assets-error {
   margin: 0 24px 8px;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .assets-notice {
@@ -2373,7 +2274,7 @@ body {
 }
 
 .assets-error {
-  color: var(--danger-text);
+  color: var(--danger);
 }
 
 .assets-table-scroll {
@@ -2400,7 +2301,7 @@ body {
 }
 
 .assets-kind {
-  color: var(--text-muted);
+  color: var(--text-2);
 }
 
 .assets-name {
@@ -2409,7 +2310,7 @@ body {
   background: none;
   color: var(--ink);
   font: inherit;
-  font-weight: 500;
+  font-weight: 600;
   text-align: left;
   cursor: pointer;
 }
@@ -2419,35 +2320,17 @@ body {
 }
 
 .assets-file.muted {
-  color: var(--text-muted);
+  color: var(--text-2);
 }
 
 .assets-state-file {
-  color: var(--text-muted);
-}
-
-.assets-badge {
-  padding: 1px 8px;
-  border-radius: 4px;
-  font-size: 11.5px;
-  font-weight: 700;
-}
-
-.assets-badge.provisional {
-  border: 1px dashed var(--warn-border);
-  background: var(--warn-tint);
-  color: var(--warn-text);
-}
-
-.assets-badge.unregistered {
-  background: var(--warn-strong);
-  color: #ffffff;
+  color: var(--text-2);
 }
 
 .assets-note {
   margin: 12px 0 0;
-  color: var(--text-muted);
-  font-size: 12px;
+  color: var(--text-2);
+  font-size: var(--fs-small);
 }
 
 .assets-side {
@@ -2458,8 +2341,8 @@ body {
 .assets-side-note {
   margin: 0;
   padding: 0 16px 10px;
-  color: var(--text-muted);
-  font-size: 12px;
+  color: var(--text-2);
+  font-size: var(--fs-small);
 }
 
 .assets-matrix-scroll {
@@ -2471,12 +2354,12 @@ body {
   width: 100%;
   border-collapse: separate;
   border-spacing: 4px;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .assets-matrix th {
-  color: var(--text-muted);
-  font-weight: 500;
+  color: var(--text-2);
+  font-weight: 600;
   text-align: left;
   white-space: nowrap;
 }
@@ -2487,7 +2370,7 @@ body {
 
 .assets-matrix-unknown {
   color: var(--warn-strong);
-  font-size: 11px;
+  font-size: var(--fs-caption);
 }
 
 .assets-cell-wrap {
@@ -2505,7 +2388,7 @@ body {
   min-height: 28px;
   padding: 0 6px;
   border: 1px solid var(--border-soft);
-  border-radius: 4px;
+  border-radius: var(--r-sm);
   background: var(--paper);
   color: var(--ink);
   font: inherit;
@@ -2515,7 +2398,7 @@ body {
 .assets-cell.provisional {
   border: 1px dashed var(--warn-border);
   background: var(--warn-tint);
-  color: var(--warn-text);
+  color: var(--warn-strong);
 }
 
 .assets-cell.unregistered {
@@ -2530,13 +2413,13 @@ body {
 }
 
 .assets-cell-none {
-  color: var(--text-muted);
+  color: var(--text-2);
   text-align: center;
 }
 
 .assets-cell-mark {
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--fs-caption);
+  font-weight: 600;
 }
 
 .assets-legend {
@@ -2544,7 +2427,7 @@ body {
   flex-wrap: wrap;
   gap: 14px;
   padding: 8px 16px 0;
-  font-size: 12px;
+  font-size: var(--fs-small);
 }
 
 .assets-legend > span {
@@ -2558,7 +2441,7 @@ body {
   width: 14px;
   height: 14px;
   border: 1px solid var(--border-soft);
-  border-radius: 3px;
+  border-radius: var(--r-sm);
   background: var(--paper);
 }
 
@@ -2577,7 +2460,7 @@ body {
   flex-direction: column;
   gap: 8px;
   padding: 0 16px 8px;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .assets-detail p {
@@ -2585,7 +2468,7 @@ body {
 }
 
 .assets-muted {
-  color: var(--text-muted);
+  color: var(--text-2);
 }
 
 .assets-thumb {
@@ -2593,7 +2476,7 @@ body {
   max-height: 180px;
   align-self: flex-start;
   border: 1px solid var(--border-soft);
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
   object-fit: contain;
 }
 
@@ -2611,9 +2494,9 @@ body {
   margin: 0 12px 8px;
   padding: 10px 12px;
   border: 1px solid var(--border-soft);
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
   background: var(--paper);
-  font-size: 12px;
+  font-size: var(--fs-small);
   line-height: 1.8;
   overflow-wrap: anywhere;
 }
@@ -2621,12 +2504,12 @@ body {
 .bible-chip.provisional {
   border: 1px dashed var(--warn-border);
   background: var(--warn-tint);
-  color: var(--warn-text);
+  color: var(--warn-strong);
 }
 
 .bible-chip-mark {
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--fs-caption);
+  font-weight: 600;
 }
 
 /* ---- 企画の画面（docs/ui/mockups/01-ideas.html、T2-6、D057） ---- */
@@ -2664,18 +2547,18 @@ body {
 .ideas-title h1,
 .ideas-title h2 {
   margin: 0;
-  font-size: 20px;
-  font-weight: 700;
+  font-size: var(--fs-h1);
+  font-weight: 600;
 }
 
 .ideas-title h2 {
-  font-size: 18px;
+  font-size: var(--fs-h1);
 }
 
 .ideas-count {
-  color: var(--text-muted);
+  color: var(--text-2);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-small);
 }
 
 .ideas-filter {
@@ -2695,7 +2578,7 @@ body {
   background: var(--paper);
   color: var(--text-2);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-small);
   cursor: pointer;
 }
 
@@ -2717,16 +2600,16 @@ body {
   min-height: 36px;
   padding: 0 12px;
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
   color: var(--ink);
   font: inherit;
-  font-size: 13.5px;
+  font-size: var(--fs-base);
 }
 
 .ideas-error {
   margin: 0 20px 10px;
-  color: var(--danger-text);
-  font-size: 12.5px;
+  color: var(--danger);
+  font-size: var(--fs-base);
 }
 
 .ideas-scroll {
@@ -2748,16 +2631,15 @@ body {
   flex-direction: column;
   gap: 8px;
   padding: 10px;
-  border-radius: 12px;
+  border-radius: var(--r-lg);
   background: var(--panel-bg);
 }
 
 .ideas-column h2 {
   margin: 0 2px 2px;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  color: var(--text-2);
+  font-size: var(--fs-small);
+  font-weight: 600;
 }
 
 /* 選んだメモの列は広げる（直す欄と昇格の欄を開くため）。 */
@@ -2768,11 +2650,11 @@ body {
 .ideas-show-folded {
   min-height: 32px;
   border: 1px dashed var(--border-control);
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
   background: transparent;
-  color: var(--text-muted);
+  color: var(--text-2);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-small);
   cursor: pointer;
 }
 
@@ -2782,7 +2664,7 @@ body {
   gap: 8px;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-card);
+  border-radius: var(--r-lg);
   background: var(--paper);
 }
 
@@ -2806,8 +2688,8 @@ body {
 
 .idea-text {
   margin: 0;
-  font-family: var(--font-body);
-  font-size: 14px;
+  font-family: var(--font-text);
+  font-size: var(--fs-h2);
   line-height: 1.7;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -2819,14 +2701,6 @@ body {
   gap: 4px;
 }
 
-.idea-tag {
-  padding: 0 7px;
-  border-radius: 999px;
-  background: var(--border-soft);
-  color: var(--text-2);
-  font-size: 11px;
-}
-
 .idea-target {
   align-self: flex-start;
   padding: 0;
@@ -2834,20 +2708,20 @@ body {
   background: transparent;
   color: var(--accent);
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   text-align: left;
   cursor: pointer;
 }
 
 .idea-target.missing {
-  color: var(--warn-text);
+  color: var(--warn-strong);
   cursor: default;
 }
 
 .idea-problem {
   margin: 0;
-  color: var(--warn-text);
-  font-size: 12px;
+  color: var(--warn-strong);
+  font-size: var(--fs-small);
 }
 
 .idea-editor {
@@ -2859,9 +2733,9 @@ body {
 }
 
 .idea-file {
-  color: var(--text-faint);
+  color: var(--text-3);
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--fs-small);
 }
 
 .idea-promote {
@@ -2874,8 +2748,8 @@ body {
 }
 
 .idea-promote-label {
-  color: var(--text-muted);
-  font-size: 11.5px;
+  color: var(--text-2);
+  font-size: var(--fs-small);
 }
 
 .idea-promote button[aria-pressed="true"] {
@@ -2888,14 +2762,14 @@ body {
   flex-direction: column;
   gap: 8px;
   padding: 10px;
-  border-radius: var(--radius-item);
-  background: var(--accent-tint-2);
+  border-radius: var(--r-lg);
+  background: var(--accent-weak);
 }
 
 .idea-promote-note {
   margin: 0;
   color: var(--text-2);
-  font-size: 12px;
+  font-size: var(--fs-small);
   line-height: 1.6;
 }
 
@@ -2904,8 +2778,8 @@ body {
   flex-direction: column;
   gap: 4px;
   color: var(--text-2);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--fs-small);
+  font-weight: 600;
 }
 
 .idea-promote-field input,
@@ -2913,11 +2787,11 @@ body {
   min-height: 30px;
   padding: 0 8px;
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   background: var(--paper);
   color: var(--ink);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--fs-base);
   font-weight: 400;
 }
 
@@ -2963,11 +2837,11 @@ body {
   gap: 2px;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
   background: var(--paper);
   color: var(--ink);
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   text-align: left;
   cursor: pointer;
 }
@@ -2977,24 +2851,24 @@ body {
 }
 
 .concept-character-name {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .concept-trait-label {
   margin-right: 6px;
-  color: var(--text-muted);
+  color: var(--text-2);
 }
 
 .concept-ending-name {
-  font-weight: 500;
+  font-weight: 600;
   white-space: nowrap;
 }
 
 .concept-ending-id {
   display: block;
-  color: var(--text-faint);
+  color: var(--text-3);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--fs-caption);
   font-weight: 400;
 }
 
@@ -3005,19 +2879,19 @@ body {
   background: transparent;
   color: var(--accent);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-small);
   cursor: pointer;
 }
 
 .concept-missing-scene {
-  color: var(--warn-text);
-  font-weight: 700;
+  color: var(--warn-strong);
+  font-weight: 600;
 }
 
 .concept-note {
   margin: 4px 0 0;
-  color: var(--text-muted);
-  font-size: 12px;
+  color: var(--text-2);
+  font-size: var(--fs-small);
 }
 
 .concept-unplanned {
@@ -3032,15 +2906,15 @@ body {
   gap: 10px;
   padding: 0 18px;
   color: var(--text-2);
-  font-size: 13px;
+  font-size: var(--fs-base);
 }
 
 .concept-status {
   min-height: 1.5em;
   margin: 0;
   padding: 0 18px 10px;
-  color: var(--text-muted);
-  font-size: 12px;
+  color: var(--text-2);
+  font-size: var(--fs-small);
 }
 
 /* ---- マージの画面（T2-7、D058） ---- */
@@ -3053,7 +2927,7 @@ body {
   align-items: flex-start;
   justify-content: center;
   padding: 24px;
-  background: rgba(27, 31, 36, 0.28);
+  background: var(--scrim);
 }
 
 .merge-panel {
@@ -3062,10 +2936,9 @@ body {
   width: min(960px, 100%);
   max-height: 100%;
   min-height: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
   background: var(--paper);
-  box-shadow: 0 12px 32px rgba(27, 31, 36, 0.18);
 }
 
 .merge-head {
@@ -3075,13 +2948,13 @@ body {
 
 .merge-head h2 {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--fs-h2);
 }
 
 .merge-note {
   margin: 6px 0 0;
   color: var(--text-2);
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   line-height: 1.6;
 }
 
@@ -3104,18 +2977,18 @@ body {
 .merge-lines {
   margin: 0;
   padding: 6px 10px;
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   background: var(--panel-bg);
   color: var(--text-2);
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
 .merge-lines.mine {
-  background: var(--accent-tint-2);
+  background: var(--accent-weak);
   color: var(--ink);
 }
 
@@ -3125,12 +2998,12 @@ body {
 }
 
 .merge-empty {
-  color: var(--text-faint);
+  color: var(--text-3);
 }
 
 .merge-omitted {
-  color: var(--text-faint);
-  font-size: 12px;
+  color: var(--text-3);
+  font-size: var(--fs-small);
 }
 
 .merge-conflict {
@@ -3140,14 +3013,14 @@ body {
   margin: 0;
   padding: 10px 12px;
   border: 1px solid var(--warn-border);
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
 }
 
 .merge-conflict legend {
   padding: 0 4px;
-  color: var(--warn-text);
-  font-size: 12px;
-  font-weight: 700;
+  color: var(--warn-strong);
+  font-size: var(--fs-small);
+  font-weight: 600;
 }
 
 .merge-sides {
@@ -3159,16 +3032,16 @@ body {
 .merge-side-label {
   display: block;
   margin-bottom: 4px;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 700;
+  color: var(--text-2);
+  font-size: var(--fs-small);
+  font-weight: 600;
 }
 
 .merge-choices {
   display: flex;
   flex-wrap: wrap;
   gap: 14px;
-  font-size: 13px;
+  font-size: var(--fs-base);
 }
 
 .merge-choices label {
@@ -3189,27 +3062,12 @@ body {
   margin: 0;
   padding: 6px 12px;
   border-bottom: 1px solid var(--border-soft);
-  background: var(--accent-tint-2);
+  background: var(--accent-weak);
   color: var(--text-2);
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 /* ---- 名前の変更、章の操作（T2-8、D059） ---- */
-
-.link-button {
-  margin-left: 8px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--accent);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.link-button.danger {
-  color: var(--danger-text);
-}
 
 .file-actions {
   display: flex;
@@ -3225,37 +3083,36 @@ body {
   width: min(520px, calc(100% - 32px));
   margin: 12vh auto 0;
   padding: 18px 20px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
   background: var(--paper);
-  box-shadow: 0 12px 32px rgba(27, 31, 36, 0.18);
 }
 
 .rename-dialog h2 {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--fs-h2);
 }
 
 .rename-current {
   margin: 0;
   color: var(--text-2);
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .rename-dialog input {
   min-height: 36px;
   padding: 0 10px;
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
   color: var(--ink);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--fs-base);
 }
 
 .rename-preview,
 .rename-problem {
   margin: 0;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   line-height: 1.6;
 }
 
@@ -3264,14 +3121,14 @@ body {
 }
 
 .rename-problem {
-  color: var(--danger-text);
+  color: var(--danger);
 }
 
 .rename-notes {
   margin: 0;
   padding-left: 18px;
-  color: var(--warn-text);
-  font-size: 12px;
+  color: var(--warn-strong);
+  font-size: var(--fs-small);
   line-height: 1.6;
 }
 
@@ -3291,7 +3148,7 @@ body {
 
 /* 明朝とゴシックの切り替え：執筆表示の本文の書体。 */
 .editor-pane.font-gothic {
-  --font-body: var(--font-ui);
+  --font-text: var(--font-ui);
 }
 
 /* ---- フロー図からの編集（T2-9、D060） ---- */
@@ -3303,7 +3160,7 @@ body {
   margin: 0;
   padding: 0;
   border: 0;
-  font-size: 13px;
+  font-size: var(--fs-base);
 }
 
 .flow-edge-kinds label {
@@ -3326,11 +3183,11 @@ body {
   min-height: 30px;
   padding: 0 8px;
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   background: var(--paper);
   color: var(--ink);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--fs-base);
 }
 
 .variables-add input {
@@ -3346,8 +3203,8 @@ body {
 
 .variables-note {
   margin: 0;
-  color: var(--text-muted);
-  font-size: 12px;
+  color: var(--text-2);
+  font-size: var(--fs-small);
 }
 
 .variables-undeclared {
@@ -3379,18 +3236,18 @@ body {
 
 .type-editor-head h1 {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--fs-h1);
   white-space: nowrap;
 }
 
-.type-editor-head .small-button {
+.type-editor-head .btn {
   flex: none;
 }
 
 .type-editor-note {
   margin: 0;
-  color: var(--text-muted);
-  font-size: 12px;
+  color: var(--text-2);
+  font-size: var(--fs-small);
 }
 
 .type-editor-rows {
@@ -3421,18 +3278,18 @@ body {
   min-height: 28px;
   padding: 0 8px;
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   background: var(--paper);
   color: var(--ink);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--fs-base);
 }
 
 .type-editor-key {
   flex: 0 0 100px;
   overflow: hidden;
-  color: var(--text-muted);
-  font-size: 12px;
+  color: var(--text-2);
+  font-size: var(--fs-small);
   text-overflow: ellipsis;
 }
 
@@ -3481,25 +3338,25 @@ body {
   gap: 16px;
 }
 
-.playthrough-head .primary-small {
+.playthrough-head .btn-primary {
   flex: none;
 }
 
 .playthrough-note {
   margin: 4px 0 0;
-  color: var(--text-muted);
-  font-size: 12px;
+  color: var(--text-2);
+  font-size: var(--fs-small);
 }
 
 .playthrough-summary {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-base);
 }
 
 .playthrough-scene {
   margin-left: 8px;
-  color: var(--text-muted);
-  font-size: 12px;
+  color: var(--text-2);
+  font-size: var(--fs-small);
 }
 
 .playthrough-ok {
@@ -3508,12 +3365,12 @@ body {
 
 .playthrough-ng {
   color: var(--warn-strong);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .playthrough-values {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-small);
 }
 
 /* ---- AIが書いた行の印（T3-4、D065） ---- */
@@ -3554,9 +3411,9 @@ body {
   margin-left: 8px;
   padding: 0 5px;
   border: 1px solid var(--ai-line);
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
   color: var(--text-2);
-  font-size: 11px;
+  font-size: var(--fs-caption);
   font-weight: 400;
 }
 
@@ -3572,14 +3429,14 @@ body {
   margin: 0;
   padding: 6px 10px 8px;
   border: 1px solid var(--border-soft);
-  border-radius: var(--radius-item);
-  font-size: 12.5px;
+  border-radius: var(--r-lg);
+  font-size: var(--fs-base);
 }
 
 .ai-auto-stages legend {
   padding: 0 4px;
-  color: var(--text-faint);
-  font-size: 12px;
+  color: var(--text-3);
+  font-size: var(--fs-small);
 }
 
 .ai-auto-stage {
@@ -3600,7 +3457,7 @@ body {
   gap: 6px;
   padding: 10px 12px;
   border-top: 1px solid var(--border-soft);
-  font-size: 12px;
+  font-size: var(--fs-small);
 }
 
 .bible-ai-bar {
@@ -3627,7 +3484,7 @@ body {
   gap: 6px;
   padding: 8px 10px;
   border: 1.5px dashed var(--ai-line);
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
   background: var(--paper);
 }
 
@@ -3642,11 +3499,11 @@ body {
   grid-template-columns: auto 1fr;
   gap: 4px 8px;
   margin: 0;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .ai-field-proposal dt {
-  color: var(--text-faint);
+  color: var(--text-3);
 }
 
 .ai-field-proposal dd {
@@ -3678,7 +3535,7 @@ body {
   gap: 10px;
   padding: 14px 16px;
   border: 1px solid var(--border-soft);
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
 }
 
 .ai-connection.cloud {
@@ -3694,26 +3551,13 @@ body {
 .ai-connection-head h3 {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 14px;
-}
-
-.ai-badge {
-  padding: 1px 8px;
-  border-radius: 999px;
-  background: var(--ai-tint);
-  color: var(--ai-text);
-  font-size: 11.5px;
-}
-
-.ai-badge.default {
-  background: var(--accent-tint-2);
-  color: var(--accent-strong);
+  font-size: var(--fs-h2);
 }
 
 .ai-provider {
-  color: var(--text-faint);
+  color: var(--text-3);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-small);
 }
 
 .ai-fields {
@@ -3721,11 +3565,11 @@ body {
   grid-template-columns: max-content 1fr;
   gap: 4px 12px;
   margin: 0;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .ai-fields dt {
-  color: var(--text-muted);
+  color: var(--text-2);
 }
 
 .ai-fields dd {
@@ -3736,19 +3580,19 @@ body {
 }
 
 .ai-note {
-  color: var(--text-faint);
+  color: var(--text-3);
 }
 
 .ai-url-hint,
 .ai-field-problem {
   flex-basis: 100%;
-  color: var(--warn-text);
+  color: var(--warn-strong);
 }
 
 .ai-field-note {
   flex-basis: 100%;
-  color: var(--text-faint);
-  font-size: 12px;
+  color: var(--text-3);
+  font-size: var(--fs-small);
 }
 
 .ai-override,
@@ -3760,14 +3604,14 @@ body {
   margin: 0;
   padding: 8px 12px 10px;
   border: 1px solid var(--border-soft);
-  border-radius: var(--radius-item);
-  font-size: 12.5px;
+  border-radius: var(--r-lg);
+  font-size: var(--fs-base);
 }
 
 .ai-override legend,
 .ai-key legend {
   padding: 0 4px;
-  color: var(--text-muted);
+  color: var(--text-2);
 }
 
 .ai-override label,
@@ -3775,7 +3619,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  color: var(--text-muted);
+  color: var(--text-2);
 }
 
 .ai-override input,
@@ -3784,10 +3628,10 @@ body {
   height: 28px;
   padding: 0 8px;
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   color: var(--ink);
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .ai-key-state {
@@ -3801,15 +3645,11 @@ body {
   gap: 8px;
 }
 
-.small-button.danger {
-  color: var(--danger-text);
-}
-
 .ai-allow {
   display: flex;
   gap: 8px;
   align-items: flex-start;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .ai-test {
@@ -3821,15 +3661,15 @@ body {
 
 .ai-test-state {
   color: var(--text-2);
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .ai-test-state.ok {
-  color: var(--ai-text);
+  color: var(--ai);
 }
 
 .ai-test-state.failed {
-  color: var(--danger-text);
+  color: var(--danger);
 }
 
 .ai-confirm {
@@ -3838,9 +3678,9 @@ body {
   gap: 8px;
   padding: 10px 12px;
   border: 1px dashed var(--warn-border);
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
   background: var(--warn-tint);
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .ai-confirm p,
@@ -3853,17 +3693,17 @@ body {
   margin: 0;
   overflow: auto;
   padding: 8px 10px;
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   background: var(--panel-bg-2);
   color: var(--ink);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-small);
   white-space: pre-wrap;
 }
 
 .ai-preview-details summary {
-  color: var(--text-muted);
-  font-size: 12.5px;
+  color: var(--text-2);
+  font-size: var(--fs-base);
   cursor: pointer;
 }
 
@@ -3875,11 +3715,11 @@ body {
   height: 28px;
   padding: 0 10px;
   border: 0;
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   background: transparent;
   color: var(--preview-text-soft);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-small);
   cursor: pointer;
 }
 
@@ -3887,23 +3727,23 @@ body {
   background: var(--chrome-bg-2);
 }
 
-.ai-mark {
+.ai-indicator-mark {
   width: 1em;
   text-align: center;
 }
 
-.ai-indicator.ok .ai-mark {
-  color: var(--ai-ok);
+.ai-indicator.ok .ai-indicator-mark {
+  color: var(--ai-on-chrome);
 }
 
-.ai-indicator.failed .ai-mark,
-.ai-indicator.unusable .ai-mark {
-  color: var(--ai-failed);
+.ai-indicator.failed .ai-indicator-mark,
+.ai-indicator.unusable .ai-indicator-mark {
+  color: var(--danger-on-chrome);
 }
 
-.ai-indicator.unknown .ai-mark,
-.ai-indicator.running .ai-mark {
-  color: var(--chrome-text-muted);
+.ai-indicator.unknown .ai-indicator-mark,
+.ai-indicator.running .ai-indicator-mark {
+  color: var(--chrome-text-2);
 }
 
 /* 設定DBの「AIに渡す内容」（T3-6） */
@@ -3911,14 +3751,14 @@ body {
   margin: 0;
   padding: 0 16px 6px;
   color: var(--text-2);
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .bible-ai-tasks {
   margin: 0 0 16px;
   padding: 0 16px 0 34px;
-  color: var(--ai-text);
-  font-size: 12px;
+  color: var(--ai);
+  font-size: var(--fs-small);
 }
 
 /* 設定DBの「＋ 差分を追加」（T3-6。モック 04-bible.html の点線のボタン） */
@@ -3927,11 +3767,11 @@ body {
   margin-top: 6px;
   padding: 6px 12px;
   border: 1.5px dashed var(--border-control);
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
   background: var(--paper);
-  color: var(--text-muted);
+  color: var(--text-2);
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   cursor: pointer;
 }
 
@@ -3948,14 +3788,14 @@ body {
   height: 26px;
   padding: 0 8px;
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 /* AIの指摘のある行（T3-7）：薄い緑青の地と、点の下線（色だけで分けない） */
 .cm-ai-finding-line {
-  background: var(--ai-tint-2);
+  background: var(--ai-tint);
   text-decoration: underline dotted var(--ai-line);
   text-underline-offset: 4px;
 }
@@ -3968,14 +3808,14 @@ body {
   margin: 0 12px 8px;
   padding: 10px 12px;
   border: 1px solid var(--ai-border);
-  border-radius: var(--radius-item);
-  background: var(--ai-tint-2);
-  font-size: 12.5px;
+  border-radius: var(--r-lg);
+  background: var(--ai-tint);
+  font-size: var(--fs-base);
 }
 
 .ai-finding-source {
-  color: var(--ai-text);
-  font-size: 11.5px;
+  color: var(--ai);
+  font-size: var(--fs-small);
 }
 
 .ai-finding-actions {
@@ -3987,13 +3827,13 @@ body {
   margin-right: 6px;
   padding: 0 6px;
   border: 1px solid currentColor;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 700;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-caption);
+  font-weight: 600;
 }
 
 .ai-severity.error {
-  color: var(--danger-text);
+  color: var(--danger);
 }
 
 .ai-severity.warning {
@@ -4035,8 +3875,8 @@ body {
 
 .ai-task-level {
   padding: 6px 8px 2px;
-  color: var(--text-faint);
-  font-size: 11px;
+  color: var(--text-3);
+  font-size: var(--fs-caption);
 }
 
 .ai-task-item {
@@ -4045,19 +3885,19 @@ body {
   align-items: center;
   padding: 7px 10px;
   border: 0;
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
   background: transparent;
   color: var(--ink);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--fs-base);
   text-align: left;
   cursor: pointer;
 }
 
 .ai-task-item[aria-pressed="true"] {
   background: var(--ai-tint);
-  color: var(--ai-text);
-  font-weight: 500;
+  color: var(--ai);
+  font-weight: 600;
 }
 
 .ai-task-name {
@@ -4065,8 +3905,8 @@ body {
 }
 
 .ai-task-place {
-  color: var(--text-muted);
-  font-size: 11px;
+  color: var(--text-2);
+  font-size: var(--fs-caption);
 }
 
 .ai-history {
@@ -4076,7 +3916,7 @@ body {
   margin: 0;
   padding: 0 16px 16px;
   list-style: none;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .ai-history li {
@@ -4103,7 +3943,7 @@ body {
 
 .ai-run-head h1 {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--fs-h1);
 }
 
 .ai-connection-choice {
@@ -4111,8 +3951,8 @@ body {
   gap: 6px;
   align-items: center;
   margin-left: auto;
-  font-size: 12px;
-  color: var(--text-faint);
+  font-size: var(--fs-small);
+  color: var(--text-3);
 }
 
 .ai-connection-choice select {
@@ -4124,13 +3964,13 @@ body {
   display: flex;
   gap: 8px;
   align-items: center;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .ai-scene-select select {
   height: 28px;
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   font: inherit;
 }
 
@@ -4141,10 +3981,6 @@ body {
   align-items: center;
 }
 
-.ai-run-button {
-  background: var(--ai);
-}
-
 .ai-prepared {
   display: flex;
   flex-direction: column;
@@ -4153,7 +3989,7 @@ body {
 
 .ai-prepared-note {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-small);
 }
 
 .ai-result .ai-finding-card {
@@ -4181,7 +4017,7 @@ body {
 
 .ai-scope-note {
   margin: 12px 16px 0;
-  font-size: 12px;
+  font-size: var(--fs-small);
 }
 
 .ai-result .context-heading {
@@ -4208,9 +4044,9 @@ body {
   gap: 4px;
   padding: 10px 12px;
   border: 1px dashed var(--ai-line);
-  border-radius: var(--radius-item);
-  background: var(--ai-tint-2);
-  font-size: 13px;
+  border-radius: var(--r-lg);
+  background: var(--ai-tint);
+  font-size: var(--fs-base);
 }
 
 .ai-proposal.same,
@@ -4230,7 +4066,7 @@ body {
   display: flex;
   gap: 10px;
   align-items: baseline;
-  font-size: 12px;
+  font-size: var(--fs-small);
 }
 
 .ai-proposal-status {
@@ -4240,37 +4076,37 @@ body {
 
 .ai-proposal-line {
   margin: 0;
-  font-family: var(--font-body);
+  font-family: var(--font-text);
   white-space: pre-wrap;
 }
 
 .ai-proposal-label {
   display: inline-block;
   width: 2em;
-  color: var(--text-faint);
+  color: var(--text-3);
   font-family: var(--font-ui);
-  font-size: 11px;
+  font-size: var(--fs-caption);
 }
 
 .ai-proposal-line del {
-  background: #fde8e8;
-  color: var(--danger-text);
+  background: var(--danger-tint);
+  color: var(--danger);
   text-decoration: line-through;
 }
 
 .ai-proposal-line ins {
   background: var(--ai-tint);
-  color: var(--ai-text);
+  color: var(--ai);
   text-decoration: underline;
 }
 
 .ai-proposal-reason {
   margin: 0;
-  color: var(--text-muted);
-  font-size: 12px;
+  color: var(--text-2);
+  font-size: var(--fs-small);
 }
 
-.ai-proposals .export-notice {
+.ai-proposals .notice {
   white-space: pre-wrap;
 }
 
@@ -4280,7 +4116,7 @@ body {
   gap: 6px;
   align-items: center;
   color: var(--text-2);
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 /* 自律の実行（T3-9） */
@@ -4299,31 +4135,31 @@ body {
 .ai-auto-cloud-task {
   display: block;
   margin-top: 2px;
-  color: var(--text-muted);
+  color: var(--text-2);
 }
 
 .ai-progressbar {
   height: 6px;
   overflow: hidden;
-  border-radius: 3px;
+  border-radius: var(--r-sm);
   background: var(--border-soft);
 }
 
 .ai-progressbar > div {
   height: 100%;
-  background: var(--ai);
+  background: var(--ai-line);
 }
 
 .ai-auto-scenes {
   margin: 6px 0 0;
   padding-left: 20px;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .ai-auto-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .ai-auto-result .ai-auto-table thead th,
@@ -4341,7 +4177,7 @@ body {
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .ai-branch-list li {
@@ -4359,13 +4195,13 @@ body {
 
 .flow-node.proposal {
   border: 1.5px dashed var(--ai-line);
-  background: var(--ai-tint-2);
-  color: var(--ai-text);
+  background: var(--ai-tint);
+  color: var(--ai);
 }
 
 .flow-node.proposal .flow-node-head {
-  color: var(--ai-text);
-  font-weight: 700;
+  color: var(--ai);
+  font-weight: 600;
 }
 
 .flow-node.proposal.problem {
@@ -4380,7 +4216,7 @@ body {
 
 .legend-box.proposal {
   border: 1.5px dashed var(--ai-line);
-  background: var(--ai-tint-2);
+  background: var(--ai-tint);
 }
 
 .flow-ai {
@@ -4407,9 +4243,9 @@ body {
   gap: 4px;
   padding: 10px 12px;
   border: 1.5px dashed var(--ai-line);
-  border-radius: var(--radius-item);
-  background: var(--ai-tint-2);
-  font-size: 12.5px;
+  border-radius: var(--r-lg);
+  background: var(--ai-tint);
+  font-size: var(--fs-base);
 }
 
 .ai-branch-head {
@@ -4420,9 +4256,9 @@ body {
 }
 
 .ai-branch-letter {
-  color: var(--ai-text);
-  font-size: 11.5px;
-  font-weight: 700;
+  color: var(--ai);
+  font-size: var(--fs-small);
+  font-weight: 600;
 }
 
 .ai-branch-effect {
@@ -4440,7 +4276,7 @@ body {
   min-height: 30px;
   padding: 0 8px;
   border: 1px solid var(--border-control);
-  border-radius: var(--radius-control);
+  border-radius: var(--r);
   font: inherit;
 }
 
@@ -4478,8 +4314,8 @@ body {
 
 .concept-ai-head h2 {
   margin: 0;
-  color: var(--ai-text);
-  font-size: 14px;
+  color: var(--ai);
+  font-size: var(--fs-h2);
 }
 
 .concept-ai-card {
@@ -4488,9 +4324,9 @@ body {
   gap: 8px;
   padding: 12px;
   border: 1px solid var(--ai-border);
-  border-radius: 10px;
-  background: var(--ai-tint-2);
-  font-size: 12.5px;
+  border-radius: var(--r-lg);
+  background: var(--ai-tint);
+  font-size: var(--fs-base);
   line-height: 1.6;
 }
 
@@ -4504,19 +4340,20 @@ body {
 }
 
 .concept-ai-label {
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 700;
+  color: var(--text-2);
+  font-size: var(--fs-small);
+  font-weight: 600;
 }
 
 .concept-ai-link {
   align-self: flex-start;
   /* 長い名前でも枠に収める（折り返したら高さを伸ばす。T4-14、V8）。 */
   height: auto;
-  min-height: 26px;
+  min-height: var(--h-control-sm);
   padding-block: 4px;
   line-height: 1.5;
   text-align: left;
+  white-space: normal;
 }
 
 /* 書き出しのプラグイン（T3-14） */
@@ -4535,7 +4372,7 @@ body {
   gap: 6px;
   padding: 10px 12px;
   border: 1px solid var(--border-soft);
-  border-radius: var(--radius-item);
+  border-radius: var(--r-lg);
 }
 
 .plugin-head {
@@ -4543,17 +4380,17 @@ body {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-  font-size: 13px;
+  font-size: var(--fs-base);
 }
 
 .plugin-kind {
-  color: var(--text-muted);
-  font-size: 12px;
+  color: var(--text-2);
+  font-size: var(--fs-small);
 }
 
 .plugin-detail {
   overflow-wrap: anywhere;
-  font-size: 12px;
+  font-size: var(--fs-small);
 }
 
 /* EPUB・縦書きPDF のカードのボタン（T3-13） */

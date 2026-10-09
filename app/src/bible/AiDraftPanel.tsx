@@ -65,7 +65,7 @@ export function AiDraftResult({
   if (result === null) return null;
   return (
     <section className="bible-ai-result" aria-label="AIの下書きの結果">
-      <p className={result.ok ? "export-notice" : "export-warning"}>
+      <p className={result.ok ? "notice" : "notice notice-warn"}>
         {result.text}
       </p>
       {result.notes.map((n) => (

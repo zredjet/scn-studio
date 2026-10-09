@@ -105,7 +105,7 @@ export function TypeEditor({ type, types, onWritten, onClose }: Props) {
         <h1>{type.name} の項目</h1>
         <span className="bible-path">bible/types/{type.id}.yaml</span>
         <span className="flow-spacer" />
-        <button type="button" className="small-button" onClick={onClose}>
+        <button type="button" className="btn btn-sm" onClick={onClose}>
           閉じる
         </button>
       </header>
@@ -200,7 +200,7 @@ export function TypeEditor({ type, types, onWritten, onClose }: Props) {
         )}
         <button
           type="button"
-          className="primary-small"
+          className="btn btn-primary"
           disabled={
             busy || adding.key.trim() === "" || adding.label.trim() === ""
           }
@@ -311,7 +311,7 @@ function TypeFieldRow({
       <span className="type-editor-buttons">
         <button
           type="button"
-          className="small-button"
+          className="btn btn-sm"
           aria-label={`${field.label} を前へ`}
           disabled={busy || first}
           onClick={() => onMove(-1)}
@@ -320,7 +320,7 @@ function TypeFieldRow({
         </button>
         <button
           type="button"
-          className="small-button"
+          className="btn btn-sm"
           aria-label={`${field.label} を後ろへ`}
           disabled={busy || last}
           onClick={() => onMove(1)}
@@ -329,7 +329,7 @@ function TypeFieldRow({
         </button>
         <button
           type="button"
-          className="small-button"
+          className="btn btn-sm"
           disabled={busy}
           onClick={onRemove}
         >
