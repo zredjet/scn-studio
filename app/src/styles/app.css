@@ -3698,6 +3698,12 @@ body {
   color: var(--warn-text);
 }
 
+.ai-field-note {
+  flex-basis: 100%;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
 .ai-override,
 .ai-key {
   display: flex;

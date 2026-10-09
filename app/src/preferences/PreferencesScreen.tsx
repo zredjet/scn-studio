@@ -3,11 +3,16 @@
 // キーは、この端末だけの設定にする。
 // キーは入力をコアへ渡すだけで、画面には戻ってこない。
 
-import { useState } from "react";
+import { type KeyboardEvent, useRef, useState } from "react";
+import { isComposingKey } from "../bible/fields.ts";
+import { confirm } from "../core/api.ts";
 import type { AiConnection, AiConnections } from "../core/types.ts";
 import {
   currentTest,
-  outputTokensProblem,
+  type OverrideDraft,
+  type OverrideValues,
+  overrideOutputProblem,
+  overrideSave,
   parseContextTokens,
   parseOutputTokens,
   placeLabel,
@@ -15,7 +20,6 @@ import {
   replyText,
   type StructuredChoice,
   structuredChoice,
-  structuredValue,
   type TestRecord,
   type TestState,
   usageText,
@@ -146,32 +150,19 @@ function ConnectionCard({
     c.override_output_tokens === null ? "" : String(c.override_output_tokens),
   );
   const parsedOutput = parseOutputTokens(output);
-  // 保存したときに効く文脈の長さと返す分の上限で比べる（欄が空なら project.toml の値。どちらも無ければ、今
-  // 上書きしていないときだけ今の値。分からなければ比べない。返す分の既定は文脈の長さから決まるので、返す分を書いた
-  // ときだけ比べる）。どちらの欄も空なら比べない（project.toml だけの食い違いで、ほかの上書きを止めない。実行は
-  // コアが断る）。
-  const outputProblem =
-    tokens.trim() === "" && output.trim() === ""
-      ? null
-      : outputTokensProblem(
-          parsedTokens === "invalid"
-            ? null
-            : (parsedTokens ??
-                c.project_context_tokens ??
-                (c.override_context_tokens === null ? c.context_tokens : null)),
-          parsedOutput === "invalid"
-            ? null
-            : (parsedOutput ?? c.project_output_tokens),
-        );
   const [structured, setStructured] = useState<StructuredChoice>(
     structuredChoice(c.override_structured_output),
   );
+  const draft: OverrideDraft = { url, model, tokens, output, structured };
+  const outputProblem = overrideOutputProblem(c, draft);
   // 構造化出力は OpenAI 互換だけ（T4-2）。
   const canStructure = c.provider === "openai-compatible";
   const [key, setKey] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  /** 最後に保存を頼んだ上書きの値（接続先を取り直す前の比べ先）。 */
+  const sent = useRef<OverrideValues | null>(null);
   const missing = readiness(c);
   const act = (work: () => Promise<void>, done: string) => {
     setBusy(true);
@@ -186,12 +177,36 @@ function ConnectionCard({
     c.override_context_tokens !== null ||
     c.override_output_tokens !== null ||
     c.override_structured_output !== null;
-  const changed =
-    url.trim() !== (c.override_base_url ?? "") ||
-    model.trim() !== (c.override_model ?? "") ||
-    parsedTokens !== c.override_context_tokens ||
-    parsedOutput !== c.override_output_tokens ||
-    structuredValue(structured) !== c.override_structured_output;
+  // 欄を離れたとき（変換中でない Enter、選んだとき）に保存する（T4-12、Z1）。正しくない欄があれば保存せずに
+  // そう知らせる。ほかのボタン（接続を試す、上書きをやめる）を止めないよう、`busy` は立てない。
+  const commit = (next: OverrideDraft = draft) => {
+    const decision = overrideSave(c, next, sent.current);
+    if (decision.kind === "invalid") {
+      setMessage("正しくない欄があるので、上書きを保存していません");
+      return;
+    }
+    if (decision.kind !== "save") return;
+    const v = decision.values;
+    sent.current = v;
+    onOverride(
+      c.name,
+      v.base_url,
+      v.model,
+      v.context_tokens,
+      v.output_tokens,
+      v.structured_output,
+    )
+      .then(() => setMessage("上書きを保存しました"))
+      .catch((e: unknown) => {
+        sent.current = null;
+        setMessage(String(e));
+      });
+  };
+  const commitOnEnter = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter" || isComposingKey(event)) return;
+    event.preventDefault();
+    commit();
+  };
   const startTest = () => {
     setConfirming(false);
     setMessage(null);
@@ -297,6 +312,8 @@ function ConnectionCard({
             placeholder={c.project_base_url ?? c.base_url ?? ""}
             spellCheck={false}
             onChange={(e) => setUrl(e.target.value)}
+            onBlur={() => commit()}
+            onKeyDown={commitOnEnter}
           />
         </label>
         <label>
@@ -307,6 +324,8 @@ function ConnectionCard({
             placeholder={c.project_model ?? ""}
             spellCheck={false}
             onChange={(e) => setModel(e.target.value)}
+            onBlur={() => commit()}
+            onKeyDown={commitOnEnter}
           />
         </label>
         <label>
@@ -323,6 +342,8 @@ function ConnectionCard({
             spellCheck={false}
             aria-invalid={parsedTokens === "invalid"}
             onChange={(e) => setTokens(e.target.value)}
+            onBlur={() => commit()}
+            onKeyDown={commitOnEnter}
           />
         </label>
         <label>
@@ -339,6 +360,8 @@ function ConnectionCard({
             spellCheck={false}
             aria-invalid={parsedOutput === "invalid" || outputProblem !== null}
             onChange={(e) => setOutput(e.target.value)}
+            onBlur={() => commit()}
+            onKeyDown={commitOnEnter}
           />
         </label>
         {canStructure && (
@@ -346,9 +369,11 @@ function ConnectionCard({
             <span>構造化出力（JSON の形を指定）</span>
             <select
               value={structured}
-              onChange={(e) =>
-                setStructured(e.target.value as StructuredChoice)
-              }
+              onChange={(e) => {
+                const next = e.target.value as StructuredChoice;
+                setStructured(next);
+                commit({ ...draft, structured: next });
+              }}
             >
               <option value="project">project.toml のまま</option>
               <option value="on">使う</option>
@@ -370,35 +395,9 @@ function ConnectionCard({
         {outputProblem !== null && (
           <span className="ai-field-problem">{outputProblem}</span>
         )}
-        <div className="ai-actions">
-          <button
-            type="button"
-            className="small-button"
-            disabled={
-              busy ||
-              !changed ||
-              parsedTokens === "invalid" ||
-              parsedOutput === "invalid" ||
-              outputProblem !== null
-            }
-            onClick={() =>
-              act(
-                () =>
-                  onOverride(
-                    c.name,
-                    url.trim() === "" ? null : url.trim(),
-                    model.trim() === "" ? null : model.trim(),
-                    parsedTokens === "invalid" ? null : parsedTokens,
-                    parsedOutput === "invalid" ? null : parsedOutput,
-                    structuredValue(structured),
-                  ),
-                "上書きを保存しました",
-              )
-            }
-          >
-            上書きを保存
-          </button>
-          {overridden && (
+        <span className="ai-field-note">欄を離れると保存します</span>
+        {overridden && (
+          <div className="ai-actions">
             <button
               type="button"
               className="small-button"
@@ -409,6 +408,13 @@ function ConnectionCard({
                 setTokens("");
                 setOutput("");
                 setStructured("project");
+                sent.current = {
+                  base_url: null,
+                  model: null,
+                  context_tokens: null,
+                  output_tokens: null,
+                  structured_output: null,
+                };
                 act(
                   () => onOverride(c.name, null, null, null, null, null),
                   "上書きをやめました",
@@ -417,8 +423,8 @@ function ConnectionCard({
             >
               上書きをやめる
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </fieldset>
       {c.endpoint !== null && (
         <fieldset className="ai-key">
@@ -469,7 +475,14 @@ function ConnectionCard({
                 onClick={() => {
                   const endpoint = c.endpoint;
                   if (endpoint === null) return;
-                  act(() => onDeleteKey(endpoint), "キーを消しました");
+                  // 消したキーは戻せないので、聞いてから消す（T4-12、U4）。
+                  void confirm(
+                    `接続先 ${c.name} のキーを、この端末のキーチェーンから消しますか？`,
+                    "キーを消す",
+                  ).then((ok) => {
+                    if (ok)
+                      act(() => onDeleteKey(endpoint), "キーを消しました");
+                  });
                 }}
               >
                 キーを消す

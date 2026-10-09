@@ -25,6 +25,7 @@ import {
 } from "../bible/fields.ts";
 import { BODY_KEY, type FieldOrigin, fieldKey } from "../bible/origin.ts";
 import { SourceView } from "../bible/SourceView.tsx";
+import { useSourceGuard } from "../bible/useSourceGuard.ts";
 import {
   createConcept,
   createIdea,
@@ -211,6 +212,11 @@ export function ConceptScreen({
   const [selected, setSelected] = useState<string | null>(null);
   const [showFolded, setShowFolded] = useState(false);
   const [view, setView] = useState<"form" | "source">("form");
+  /** 企画書のソースに保存していない変更があれば、フォームへ切り替える前に聞く（T4-12、U1）。 */
+  const { onSourceUnsaved, guard } = useSourceGuard(
+    onUnsaved,
+    `${CONCEPT_FILE} に保存していない変更があります。捨てて移りますか？`,
+  );
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [draft, setDraft] = useState("");
   /** 書く時点の最新の中身（メモと企画書）。 */
@@ -651,7 +657,7 @@ export function ConceptScreen({
               <button
                 type="button"
                 aria-pressed={view === "form"}
-                onClick={() => setView("form")}
+                onClick={() => guard(() => setView("form"))}
               >
                 フォーム
               </button>
@@ -684,7 +690,7 @@ export function ConceptScreen({
           <SourceView
             label={CONCEPT_FILE}
             text={concept.text}
-            onUnsaved={onUnsaved}
+            onUnsaved={onSourceUnsaved}
             onSave={(text, seen) =>
               enqueue(() => writeEntrySource(CONCEPT_FILE, text, seen))
             }

@@ -3,13 +3,13 @@
 // 宣言は、選んだ変数のフォーム（T2-10、D061。直した項目の行だけを書く）か、`variables.yaml` のテキストで直す。
 // 変数を足す欄と、宣言の無い変数を宣言するボタンもある。
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FieldInput } from "../bible/FieldInput.tsx";
 import { type FieldChange, isComposingKey } from "../bible/fields.ts";
 import { SourceView } from "../bible/SourceView.tsx";
+import { useSourceGuard } from "../bible/useSourceGuard.ts";
 import {
   addVariable,
-  confirm,
   readVariables,
   setVariableField,
   writeVariables,
@@ -73,8 +73,6 @@ export function VariablesScreen({
   const [view, setView] = useState<"table" | "source">("table");
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
-  /** ソース表示に保存していない変更があるか（一覧に切り替える前に聞く）。 */
-  const unsaved = useRef(false);
   /** 書く時点の中身（フォームは、書く順に1つずつ書く）。 */
   const latest = useRef<VariablesData | null>(null);
   latest.current = data;
@@ -93,27 +91,11 @@ export function VariablesScreen({
     readonly type: string;
     readonly values: string;
   } | null>(null);
-  const onSourceUnsaved = useCallback(
-    (value: boolean) => {
-      unsaved.current = value;
-      onUnsaved(value);
-    },
-    [onUnsaved],
+  /** ソース表示に保存していない変更があれば、一覧に切り替える前に聞く。 */
+  const { onSourceUnsaved, guard } = useSourceGuard(
+    onUnsaved,
+    `${FILE} に保存していない変更があります。捨てて移りますか？`,
   );
-  const guard = (go: () => void) => {
-    if (!unsaved.current) {
-      go();
-      return;
-    }
-    void confirm(
-      "variables.yaml に保存していない変更があります。捨てて移りますか？",
-      "保存していない変更",
-    ).then((ok) => {
-      if (!ok) return;
-      unsaved.current = false;
-      go();
-    });
-  };
 
   // 読む（開いたとき、設定が外で変わったとき、本文が変わったとき）。
   useEffect(() => {

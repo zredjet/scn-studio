@@ -64,6 +64,7 @@ paths:
 ## 環境設定（app/src/preferences/）
 
 - AI の接続先（T3-5、D066）：一覧と書き換えはコア（`ai_connections`・`set_ai_override`・`set_ai_cloud_allowed`・`set_ai_key`・`delete_ai_key`）。キーは入力をコアへ渡すだけで、画面は受け取らない（入力欄は保存したら空にする）。クラウドの「接続を試す」は、送る中身（コアの `test_preview`）を見せてから送る。使う前に足りないもの・タイトルバーの印の判断は `preferences/connection.ts` に置き、テストを付ける（`app/test/preferences.test.ts`）。印は色だけでなく形でも分ける。URL の書き方の知らせ（パスが無い。T3-1、R193）はコアが `url_hint` で渡し、画面は出すだけ。文脈の長さの上書きの欄の読み方は `parseContextTokens`（T4-1）、返す分の上限の欄は `parseOutputTokens` と、文脈の長さ以上のときの知らせ `outputTokensProblem`（T4-10）、構造化出力の欄は `structuredChoice`・`structuredValue`、接続を試した結果の文（考えた中身を除いた・考える分で上限に達した）は `replyText`（T4-2）。
+- 「この端末での上書き」の欄は、欄を離れたとき（変換中でない Enter、選択肢を選んだとき）に保存する（T4-12、Z1。保存のボタンは無い）。保存するか（変わっていない、正しくない、保存する値）は `overrideSave`、返す分の上限の知らせは `overrideOutputProblem`。比べる先は、最後に保存を頼んだ値（接続先を取り直す前）。正しくない欄があれば保存せずにそう知らせる。キーは「キーを保存」で保存し、「キーを消す」は聞いてから消す。
 - 実行中の進み具合（T4-2）：コアが考えている間かを `ai-run-progress` の `thinking` で知らせ、文は `ai/model.ts` の `progressText`（「考えています」）。送る前の確かめに、構造化出力を付けるとき（`AiPrepared.connection.structured`）は `STRUCTURED_NOTE` を出す。
 - タスクの接続先の端末での選択（T4-1、R194）：AI実行の画面の見出しで選び、書くのはコア（`set_ai_task_connection`。決め方はコアの `ai::task_connection`）。選び直したら送る中身の確かめをやり直す。選択肢と一覧の行き先の文は `ai/model.ts` の `connectionOptions`・`placeText`（テストは `app/test/ai.test.ts`）。
 
@@ -100,10 +101,12 @@ paths:
 - メモと企画書の項目は、設定DBの画面と同じ入力欄（`bible/FieldInput.tsx`、`BodyField`）と書き換え（`set_entry_field` など。直したキーの行だけ）を使う。フロントで YAML を組み立てない。
 - 昇格はコア（`promote_idea`）が行う。章にスタブのシーンを足したら、App の `onStoryWritten` でエディタの中身を差し替える（外部の変更の読み込み直しと同じ扱い）。保存していない変更のある章は選ばせない。
 - メモの並べ方、絞り込み、昇格の欄の初めの値は `concept/ideas.ts` に置き、テストを付ける（`app/test/ideas.test.ts`）。
+- ソース表示（`bible/SourceView.tsx`）を持つ画面（設定DB、変数、企画）は、表示を切り替える前に `bible/useSourceGuard.ts` の `guard` を通し、保存していない変更を捨ててよいかを聞く（T4-12、U1）。画面を移るときは App の `leaveSettings` が聞く（`setScreen` を直に呼ぶ道を足すときは、これらの画面から通れないかを確かめる）。
 
 ## フロー図（xyflow）
 
 - ノードと辺はIRから作る。座標は自動で配置し、人が動かした位置は `layout.json` に保存する（T1-9）。
 - 辺の札（条件と選択肢）は、行き先のノードの手前に置く（`graph/edges.tsx` の `LabeledEdge`。縦の線は出元のそば）。同じ行き先の札の振り分けと、札を出すときの段の間は `graph/model.ts` に置き、テストを付ける（R190）。
 - 図からの編集（T2-9、D060）は、本文への書き足しだけ（コアの `add_stub`・`add_flow_edge`）。ノードと辺を消す操作は作らない。欄は変換を確定する Enter で足さない。
+- 「自動整列」は、その粒度に人が動かした位置があるときだけ、捨ててよいかを聞いてから並べ直す（T4-12、U4）。
 - スタブ、AI下書き、選択中の見分け方は画面モックに合わせる。

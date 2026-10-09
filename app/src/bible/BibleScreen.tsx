@@ -14,7 +14,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   addCatalogEntries,
-  confirm,
   createEntry,
   createType,
   entryUsage,
@@ -74,6 +73,7 @@ import {
   typeSourceText,
 } from "./typeform.ts";
 import { UsagePanel } from "./UsagePanel.tsx";
+import { useSourceGuard } from "./useSourceGuard.ts";
 
 /** ほかの画面からの頼み（エントリを開く、キャラクターを開く、新しいエントリを作る）。 */
 export type BibleRequest =
@@ -179,30 +179,11 @@ export function BibleScreen({
   /** 最新の設定DBの中身（書いた結果は、描き直しを待たずにここへ入れる。続けて書くときに使う）。 */
   const latest = useRef(data);
   latest.current = data;
-  /** ソース表示に保存していない変更があるか（切り替える前に聞く）。 */
-  const unsaved = useRef(false);
-  const onSourceUnsaved = useCallback(
-    (value: boolean) => {
-      unsaved.current = value;
-      onUnsaved(value);
-    },
-    [onUnsaved],
-  );
   /** ソース表示の保存していない変更を捨ててよいかを聞いてから、移る。 */
-  const guard = useCallback((go: () => void) => {
-    if (!unsaved.current) {
-      go();
-      return;
-    }
-    void confirm(
-      "ソース表示に保存していない変更があります。捨てて移りますか？",
-      "保存していない変更",
-    ).then((ok) => {
-      if (!ok) return;
-      unsaved.current = false;
-      go();
-    });
-  }, []);
+  const { onSourceUnsaved, guard } = useSourceGuard(
+    onUnsaved,
+    "ソース表示に保存していない変更があります。捨てて移りますか？",
+  );
 
   useEffect(() => {
     typeTemplates()

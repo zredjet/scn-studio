@@ -1178,7 +1178,13 @@ export function App() {
   const selectScreen = useCallback(
     (next: Screen) => {
       if (next === latest.current.screen) return;
-      leaveSettings(() => setScreen(next));
+      leaveSettings(() => {
+        // 入れかけの欄は離れたときに書くので、先にフォーカスを外してから移る（キーで切り替えるときも。T4-12）。
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
+        setScreen(next);
+      });
     },
     [leaveSettings],
   );
@@ -1548,7 +1554,8 @@ export function App() {
       listenPreviewLine((line) => onPreviewLine(line)),
       listenShowInEditor((line) => {
         void focusThisWindow();
-        showPreviewLine(line);
+        // 本体の窓がソース表示に保存していない変更を持っていれば、捨ててよいかを聞いてから移る（T4-12、U2）。
+        leaveSettings(() => showPreviewLine(line));
       }),
       onPreviewWindowClosed(() => {
         setPreviewWindow(false);
@@ -1558,7 +1565,7 @@ export function App() {
     return () => {
       for (const sub of subs) void sub.then((f) => f());
     };
-  }, [onPreviewLine, showPreviewLine]);
+  }, [onPreviewLine, showPreviewLine, leaveSettings]);
 
   // 別ウィンドウへ：本文が変わった（プレビューのデータを取り直す）。
   const summaryForWindow = previewWindow ? project?.summary : undefined;

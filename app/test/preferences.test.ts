@@ -6,7 +6,10 @@ import type { AiConnection } from "../src/core/types.ts";
 import {
   currentTest,
   indicator,
+  type OverrideDraft,
   outputTokensProblem,
+  overrideOutputProblem,
+  overrideSave,
   parseContextTokens,
   parseOutputTokens,
   readiness,
@@ -222,4 +225,140 @@ test("構造化出力の欄（T4-2）：project.toml のまま・使う・使わ
   for (const choice of ["project", "on", "off"] as const) {
     assert.equal(structuredChoice(structuredValue(choice)), choice);
   }
+});
+
+const EMPTY: OverrideDraft = {
+  url: "",
+  model: "",
+  tokens: "",
+  output: "",
+  structured: "project",
+};
+
+test("上書きの欄を離れたときに保存するか（T4-12、Z1）：変わっていなければ保存しない", () => {
+  assert.deepEqual(overrideSave(connection({}), EMPTY), { kind: "unchanged" });
+  const overridden = connection({
+    override_base_url: "http://127.0.0.1:1234/v1",
+    override_context_tokens: 32768,
+    override_structured_output: true,
+  });
+  assert.deepEqual(
+    overrideSave(overridden, {
+      ...EMPTY,
+      url: "  http://127.0.0.1:1234/v1 ",
+      tokens: "32,768",
+      structured: "on",
+    }),
+    { kind: "unchanged" },
+  );
+});
+
+test("上書きの欄を離れたときに保存するか：保存する値（空は上書きなし、前後の空白を除く）", () => {
+  assert.deepEqual(
+    overrideSave(connection({}), {
+      url: " http://127.0.0.1:1234/v1 ",
+      model: "qwen3-32b",
+      tokens: "２６２１４４",
+      output: "16384",
+      structured: "off",
+    }),
+    {
+      kind: "save",
+      values: {
+        base_url: "http://127.0.0.1:1234/v1",
+        model: "qwen3-32b",
+        context_tokens: 262144,
+        output_tokens: 16384,
+        structured_output: false,
+      },
+    },
+  );
+  // 上書きをやめた欄（空にした）は null で保存する。
+  assert.deepEqual(overrideSave(connection({ override_model: "old" }), EMPTY), {
+    kind: "save",
+    values: {
+      base_url: null,
+      model: null,
+      context_tokens: null,
+      output_tokens: null,
+      structured_output: null,
+    },
+  });
+});
+
+test("上書きの欄を離れたときに保存するか：正しくない欄、返す分の上限が文脈の長さ以上なら保存しない", () => {
+  assert.deepEqual(overrideSave(connection({}), { ...EMPTY, tokens: "abc" }), {
+    kind: "invalid",
+  });
+  assert.deepEqual(overrideSave(connection({}), { ...EMPTY, output: "0" }), {
+    kind: "invalid",
+  });
+  // 欄の文脈の長さと比べる。
+  assert.deepEqual(
+    overrideSave(connection({}), { ...EMPTY, tokens: "8192", output: "8192" }),
+    { kind: "invalid" },
+  );
+  // 文脈の長さの欄が空なら、project.toml の値と比べる。
+  assert.deepEqual(
+    overrideSave(connection({ project_context_tokens: 4096 }), {
+      ...EMPTY,
+      output: "8192",
+    }),
+    { kind: "invalid" },
+  );
+});
+
+test("返す分の上限の知らせ：保存したときに効く値で比べ、どちらの欄も空なら比べない", () => {
+  // どちらの欄も空なら、project.toml だけの食い違いでもほかの上書きを止めない。
+  assert.equal(
+    overrideOutputProblem(
+      connection({ project_context_tokens: 4096, project_output_tokens: 8192 }),
+      { tokens: "", output: "" },
+    ),
+    null,
+  );
+  // 文脈の長さの欄だけ書いたら、project.toml の返す分と比べる。
+  assert.notEqual(
+    overrideOutputProblem(connection({ project_output_tokens: 8192 }), {
+      tokens: "4096",
+      output: "",
+    }),
+    null,
+  );
+  // 上書きしていなければ今の文脈の長さと比べ、上書きしていれば比べない（欄を空にすると今の値は変わるため）。
+  assert.notEqual(
+    overrideOutputProblem(connection({ context_tokens: 8192 }), {
+      tokens: "",
+      output: "8192",
+    }),
+    null,
+  );
+  assert.equal(
+    overrideOutputProblem(
+      connection({ context_tokens: 8192, override_context_tokens: 8192 }),
+      { tokens: "", output: "8192" },
+    ),
+    null,
+  );
+});
+
+test("上書きの欄を離れたときに保存するか：最後に保存を頼んだ値があれば、それと比べる", () => {
+  const c = connection({});
+  const draft: OverrideDraft = { ...EMPTY, model: "qwen3-32b" };
+  const first = overrideSave(c, draft);
+  assert.equal(first.kind, "save");
+  const sent = first.kind === "save" ? first.values : null;
+  // 接続先を取り直す前に同じ値で離れても、2回は書かない。
+  assert.deepEqual(overrideSave(c, draft, sent), { kind: "unchanged" });
+  // 取り直す前に前の値（空）へ打ち直したら、書く。
+  assert.deepEqual(overrideSave(c, EMPTY, sent), {
+    kind: "save",
+    values: {
+      base_url: null,
+      model: null,
+      context_tokens: null,
+      output_tokens: null,
+      structured_output: null,
+    },
+  });
 });

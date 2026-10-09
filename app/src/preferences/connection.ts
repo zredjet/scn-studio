@@ -163,3 +163,92 @@ export function outputTokensProblem(
     ? `返す分の上限（${outputTokens.toLocaleString("ja-JP")}）が文脈の長さ（${contextTokens.toLocaleString("ja-JP")}）以上です。文脈に使える分が残らないので、タスクを実行できません`
     : null;
 }
+
+/** 「この端末での上書き」の欄の今の中身（T4-12）。 */
+export interface OverrideDraft {
+  readonly url: string;
+  readonly model: string;
+  readonly tokens: string;
+  readonly output: string;
+  readonly structured: StructuredChoice;
+}
+
+/** 上書きの欄の中身から、保存するときの値。 */
+export interface OverrideValues {
+  readonly base_url: string | null;
+  readonly model: string | null;
+  readonly context_tokens: number | null;
+  readonly output_tokens: number | null;
+  readonly structured_output: boolean | null;
+}
+
+/**
+ * 返す分の上限が文脈の長さ以上なら、その知らせ（T4-10、R221）。保存したときに効く値で比べる（欄が空なら
+ * project.toml の値。文脈の長さがどちらにも無ければ、今上書きしていないときだけ今の値。分からなければ比べない。
+ * 返す分の既定は文脈の長さから決まるので、返す分を書いたときだけ比べる）。どちらの欄も空なら比べない
+ * （project.toml だけの食い違いで、ほかの上書きを止めない。実行はコアが断る）。
+ */
+export function overrideOutputProblem(
+  connection: AiConnection,
+  draft: Pick<OverrideDraft, "tokens" | "output">,
+): string | null {
+  if (draft.tokens.trim() === "" && draft.output.trim() === "") return null;
+  const tokens = parseContextTokens(draft.tokens);
+  const output = parseOutputTokens(draft.output);
+  return outputTokensProblem(
+    tokens === "invalid"
+      ? null
+      : (tokens ??
+          connection.project_context_tokens ??
+          (connection.override_context_tokens === null
+            ? connection.context_tokens
+            : null)),
+    output === "invalid" ? null : (output ?? connection.project_output_tokens),
+  );
+}
+
+/**
+ * 上書きの欄を離れたときに保存するか（T4-12、Z1）。今の上書きと同じなら `unchanged`、欄が正しくないか返す分の
+ * 上限が文脈の長さ以上なら `invalid`（保存しない）、それ以外は保存する値。`sent`（最後に保存を頼んだ値）が
+ * あれば、接続先の今の上書きではなくそれと比べる（保存した後、接続先を取り直す前に、同じ値を2回書いたり、
+ * 打ち直した前の値を書きそびれたりしないように）。
+ */
+export function overrideSave(
+  connection: AiConnection,
+  draft: OverrideDraft,
+  sent: OverrideValues | null = null,
+):
+  | { readonly kind: "unchanged" }
+  | { readonly kind: "invalid" }
+  | { readonly kind: "save"; readonly values: OverrideValues } {
+  const tokens = parseContextTokens(draft.tokens);
+  const output = parseOutputTokens(draft.output);
+  if (
+    tokens === "invalid" ||
+    output === "invalid" ||
+    overrideOutputProblem(connection, draft) !== null
+  ) {
+    return { kind: "invalid" };
+  }
+  const values: OverrideValues = {
+    base_url: draft.url.trim() === "" ? null : draft.url.trim(),
+    model: draft.model.trim() === "" ? null : draft.model.trim(),
+    context_tokens: tokens,
+    output_tokens: output,
+    structured_output: structuredValue(draft.structured),
+  };
+  const base: OverrideValues = sent ?? {
+    base_url: connection.override_base_url,
+    model: connection.override_model,
+    context_tokens: connection.override_context_tokens,
+    output_tokens: connection.override_output_tokens,
+    structured_output: connection.override_structured_output,
+  };
+  const same =
+    values.base_url === base.base_url &&
+    values.model === base.model &&
+    values.context_tokens === base.context_tokens &&
+    values.output_tokens === base.output_tokens &&
+    values.structured_output === base.structured_output;
+  return same ? { kind: "unchanged" } : { kind: "save", values };
+}

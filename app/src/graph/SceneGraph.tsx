@@ -25,6 +25,7 @@ import { branchTargetText, proposalLetter, resultKey } from "../ai/model.ts";
 import {
   addFlowEdge,
   addStub,
+  confirm,
   readLayout,
   sceneGraph,
   writeLayout,
@@ -422,7 +423,26 @@ export function SceneGraph({
               ＋ スタブ
             </button>
           )}
-          <button type="button" className="small-button" onClick={arrange}>
+          <button
+            type="button"
+            className="small-button"
+            onClick={() => {
+              // 人が動かした位置があれば、捨ててよいかを聞く（T4-12、U4）。
+              const manual =
+                Object.keys(layout[level]).length > 0 ||
+                Object.keys(moved[level]).length > 0;
+              if (!manual) {
+                arrange();
+                return;
+              }
+              void confirm(
+                "この粒度で動かした位置を捨てて、自動で並べ直しますか？",
+                "自動整列",
+              ).then((ok) => {
+                if (ok) arrange();
+              });
+            }}
+          >
             自動整列
           </button>
         </div>
