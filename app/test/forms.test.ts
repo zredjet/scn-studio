@@ -1,13 +1,23 @@
-// フォームでの編集（T2-10、D061）の判断のテスト：変数の宣言の入力欄と値、型定義の項目の型の候補と選択肢。
+// フォームでの編集（T2-10、D061）の判断のテスト：変数の宣言の入力欄と値、型定義の項目の型の候補と選択肢、
+// 型を作るときの元（テンプレートと複製。T4-9）。
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  freeTypeId,
   needsOptions,
   parseOptions,
+  refillTypeForm,
   typeChoices,
+  typeSourceDefaults,
+  typeSourceOf,
+  typeSourceText,
 } from "../src/bible/typeform.ts";
-import type { EntryType, VariableRow } from "../src/core/types.ts";
+import type {
+  EntryType,
+  TypeTemplate,
+  VariableRow,
+} from "../src/core/types.ts";
 import {
   commitRange,
   declFields,
@@ -124,4 +134,104 @@ test("型定義の項目の型の候補と、選択肢", () => {
   assert.ok(typeChoices(types, "list<ref<item>>").includes("list<ref<item>>"));
   assert.deepEqual(parseOptions(" 甲、乙,甲\n 丙 ,"), ["甲", "乙", "丙"]);
   assert.ok(needsOptions("select") && !needsOptions("text"));
+});
+
+test("型を作るときの元：選択肢の値、入れておく名前とID、説明", () => {
+  assert.deepEqual(typeSourceOf("empty"), { kind: "empty" });
+  assert.deepEqual(typeSourceOf("template:place"), {
+    kind: "template",
+    id: "place",
+  });
+  assert.deepEqual(typeSourceOf("type:character"), {
+    kind: "type",
+    id: "character",
+  });
+  assert.equal(freeTypeId("place", []), "place");
+  assert.equal(freeTypeId("place", ["place", "place_2"]), "place_3");
+  assert.equal(freeTypeId("場所", []), "");
+
+  const place: TypeTemplate = {
+    id: "place",
+    name: "場所",
+    description: "舞台になる場所",
+    labels: ["呼び名", "種類"],
+    placed: true,
+  };
+  const templates: TypeTemplate[] = [place];
+  const types: EntryType[] = [
+    {
+      id: "character",
+      name: "キャラクター",
+      builtin: "character",
+      fields: [
+        {
+          key: "speech",
+          label: "口調メモ",
+          type: "longtext",
+          kind: { kind: "longtext" },
+          options: [],
+        },
+      ],
+    },
+    { id: "place", name: "場所", builtin: null, fields: [] },
+  ];
+  const taken = ["character", "place"];
+  // テンプレート：名前とID（使われていれば番号を付ける）。
+  assert.deepEqual(
+    typeSourceDefaults(typeSourceOf("template:place"), templates, types, taken),
+    { name: "場所2", id: "place_2" },
+  );
+  // 複製：「〇〇のコピー」と <ID>_copy。
+  assert.deepEqual(
+    typeSourceDefaults(typeSourceOf("type:character"), templates, types, taken),
+    { name: "キャラクターのコピー", id: "character_copy" },
+  );
+  assert.deepEqual(
+    typeSourceDefaults({ kind: "empty" }, templates, types, taken),
+    { name: "", id: "" },
+  );
+  assert.deepEqual(
+    typeSourceDefaults(typeSourceOf("template:none"), templates, types, taken),
+    { name: "", id: "" },
+  );
+  assert.equal(
+    typeSourceText(typeSourceOf("template:place"), templates, types),
+    "舞台になる場所（項目 2：呼び名・種類）",
+  );
+  assert.equal(
+    typeSourceText(typeSourceOf("type:place"), templates, types),
+    "場所 の項目を写した新しい型を作ります。元の型とはつながりません（項目なし）",
+  );
+  assert.equal(typeSourceText({ kind: "empty" }, templates, types), null);
+  // 項目が多ければ、初めの8つと数だけ。
+  const many: TypeTemplate = {
+    ...place,
+    id: "many",
+    labels: ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"],
+  };
+  assert.equal(
+    typeSourceText(typeSourceOf("template:many"), [many], types),
+    "舞台になる場所（項目 10：a・b・c・d・e・f・g・h ほか 2）",
+  );
+});
+
+test("元を選び直したとき：入れたままの欄は入れ替え、人が書き換えた欄は残す", () => {
+  const filled = { name: "場所", id: "place" };
+  const next = { name: "キャラクターのコピー", id: "character_copy" };
+  // 入れたまま：両方入れ替わる。
+  assert.deepEqual(refillTypeForm(filled, filled, next), next);
+  // 人が書き換えた名前とIDは残る。
+  assert.deepEqual(
+    refillTypeForm({ name: "舞台", id: "stage" }, filled, next),
+    { name: "舞台", id: "stage" },
+  );
+  // 元を選ぶ前に名前だけ書いた：IDだけが入る。
+  assert.deepEqual(
+    refillTypeForm(
+      { name: "脇役", id: "" },
+      { name: "", id: "" },
+      { name: "キャラクター", id: "character_2" },
+    ),
+    { name: "脇役", id: "character_2" },
+  );
 });

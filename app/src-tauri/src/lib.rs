@@ -843,19 +843,26 @@ fn edit_type(
     after_settings_write(workspace, to_json(&result, "書いた結果")?)
 }
 
-/// 型を作る（T2-10）。
+/// 型を作る（T2-10）。`source` は元にするもの（空の型、型のテンプレート、今ある型の複製。T4-9）。
 #[tauri::command]
 fn create_type(
     type_id: String,
     name: String,
+    source: scn_core::typedef::TypeSource,
     state: State<'_, AppState>,
 ) -> Result<Response, String> {
     let mut guard = locked(&state.workspace)?;
     let workspace = open_workspace(&mut guard)?;
     let file = workspace
-        .create_type(&type_id, &name)
+        .create_type(&type_id, &name, &source)
         .map_err(|e| e.to_string())?;
     after_settings_write(workspace, json!({ "kind": "created", "path": file }))
+}
+
+/// 設定DBの型のテンプレート集（「＋ 型」の元。T4-9）。作品に依らない。
+#[tauri::command]
+fn type_templates() -> Vec<scn_core::scaffold::TypeTemplateRow> {
+    scn_core::scaffold::type_template_rows()
 }
 
 /// 変数の画面の中身：`variables.yaml` の中身（無ければ null）と、変数の一覧（読み書きの位置を含む）。
@@ -3704,6 +3711,7 @@ pub fn run() {
             type_text,
             edit_type,
             create_type,
+            type_templates,
             read_ideas,
             create_idea,
             promote_idea,

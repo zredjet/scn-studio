@@ -312,6 +312,25 @@ export interface EntryType {
   readonly fields: readonly FieldDef[];
 }
 
+/** 設定DBの型のテンプレート（コアの `scaffold::TypeTemplateRow`。T4-9、D082）。 */
+export interface TypeTemplate {
+  /** 型IDの既定。 */
+  readonly id: string;
+  readonly name: string;
+  /** 何に使う型か。 */
+  readonly description: string;
+  /** 項目の名前（並びのとおり）。 */
+  readonly labels: readonly string[];
+  /** `scn new` が作品フォルダに置く型か（置かないのは汎用）。 */
+  readonly placed: boolean;
+}
+
+/** 型を作るときの元（コアの `typedef::TypeSource`。T4-9）。 */
+export type TypeSource =
+  | { readonly kind: "empty" }
+  | { readonly kind: "template"; readonly id: string }
+  | { readonly kind: "type"; readonly id: string };
+
 /** 設定DBのエントリ（読めたもの）。 */
 export interface Entry {
   readonly type_id: string;

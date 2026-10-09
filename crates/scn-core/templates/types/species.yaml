@@ -1,0 +1,12 @@
+name: 種族
+fields:
+  - { key: aliases,    label: 呼び名,             type: list<text> }
+  - { key: appearance, label: 見た目,             type: longtext }
+  - { key: lifespan,   label: 寿命,               type: text }
+  - { key: traits,     label: 性質,               type: longtext }
+  - { key: abilities,  label: 力,                 type: list<ref<ability>> }
+  - { key: weaknesses, label: 弱み,               type: longtext }
+  - { key: habitat,    label: 住むところ,         type: list<ref<place>> }
+  - { key: cultures,   label: 文化,               type: list<ref<culture>> }
+  - { key: relations,  label: ほかの種族との関係, type: longtext }
+  - { key: population, label: 数,                 type: text }

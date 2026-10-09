@@ -1396,12 +1396,19 @@ body {
   color: var(--text-2);
 }
 
-.bible-create input {
+.bible-create input,
+.bible-create select {
   min-height: 30px;
   padding: 0 8px;
   border: 1px solid var(--border-control);
   border-radius: var(--radius-control);
   font: inherit;
+}
+
+.bible-type-source {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .bible-create-buttons {

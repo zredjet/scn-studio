@@ -2,7 +2,7 @@
 
 分岐する物語（ADV・ビジュアルノベル）のための執筆ツール。Tauri製のデスクトップアプリで、対象OSはWindowsとmacOS（Linuxは対象外）。シナリオは独自のテキスト形式 `.scn` で書き、設定DB・構造グラフ・プレビュー・エクスポート・AI支援を、同じテキストから導いたデータの上に載せる。
 
-現在は**フェーズ4（ローカルのLLMと、企画・設定の生成）を、人の確認を除いて終えたところ**（T4-7、D081）。設計検討書の範囲はフェーズ3までで（人の確認を除いて完了。T3-17）、フェーズ4は人の相談と判断で足した（D080）。残りは `docs/review-for-human.md` の3節（Y1〜Y8）で人の判断を待っている（人の判断が届くまで新しい作業を始めない）。計画は `docs/plan/phase4.md`、進捗は `docs/progress.md`。フェーズ3の人の確認は、届いたときに T3-1 で取り込む。フェーズ3（支援と拡張）の計画は `docs/plan/phase3.md`、設計検討書との突き合わせは `docs/plan/design-check.md`。フェーズ2（制作に使える）の計画は `docs/plan/phase2.md`、フェーズ1（執筆の核）の計画は `docs/plan/phase1.md`、フェーズ0（形式を固める）の計画と記録は `docs/plan/phase0.md` に残している。人の確認を待っていることは `docs/review-for-human.md` にまとめている。
+現在は**フェーズ4（ローカルのLLMと、企画・設定の生成）を、人の確認を除いて終えたところ**（T4-7、D081。その後、人の追加の頼みで `scn` コマンドの説明（T4-8）と設定DBの既定の型とテンプレート集（T4-9）を足した。D082）。設計検討書の範囲はフェーズ3までで（人の確認を除いて完了。T3-17）、フェーズ4は人の相談と判断で足した（D080）。残りは `docs/review-for-human.md` の3節（Y1〜Y8）で人の判断を待っている（人の判断が届くまで新しい作業を始めない）。計画は `docs/plan/phase4.md`、進捗は `docs/progress.md`。フェーズ3の人の確認は、届いたときに T3-1 で取り込む。フェーズ3（支援と拡張）の計画は `docs/plan/phase3.md`、設計検討書との突き合わせは `docs/plan/design-check.md`。フェーズ2（制作に使える）の計画は `docs/plan/phase2.md`、フェーズ1（執筆の核）の計画は `docs/plan/phase1.md`、フェーズ0（形式を固める）の計画と記録は `docs/plan/phase0.md` に残している。人の確認を待っていることは `docs/review-for-human.md` にまとめている。
 
 ## 作業を始めるとき
 
@@ -68,7 +68,7 @@ app/                    Tauri＋React（src-tauri/ と src/）
   - `cargo run -p scn-cli -- provenance [project-dir] [--json] [-o 書き出し先]`：AI が書いた行（出自の記録で `ai`・`ai-edited` の行）と、企画書と設定DBの AI の項目（T4-3）の一覧と数を出す。`-o` で CSV（UTF-8 の BOM 付き、CRLF）に書く。終了コードは0（作品フォルダでなければ2）
   - `cargo run -p scn-cli -- ai context <タスク> [project-dir] [--scene ID] [--route 名前] [--tokens N]`：AIタスクの定義（`ai/<タスク>.yaml`）から組み立てた文脈（LLM に渡す指示と依頼）を出す（`--route` はルートの骨格の対象のルート）。LLM は呼ばない。入れた節・削った節・知らせは標準エラーに出す（`--json` でJSON）。`--tokens` は文脈の長さ（省くとタスクの接続先の `context_tokens`）。実行できない（シーンが要る、入りきらない）ときは終了コード1、無いタスクは2
   - `cargo run -p scn-cli -- graph [project-dir] [--level scene|chapter|route]`：シーン、辺、条件、変数の読み書きを、粒度ごとに一覧で出す（`--json` でJSON）。辺の文脈は、いちばん内側のもの（選択肢、条件、`@else` の枝）だけ。診断は出さず、終了コードは0（作品フォルダでなければ2）
-  - `cargo run -p scn-cli -- new <dir> [--title 作品名]`：新しい作品フォルダを作る（無いフォルダか空のフォルダに。`project.toml`、スタブの章、`CLAUDE.md`、`FORMAT.md`、`SCN.md` など）。ひな形は `crates/scn-core/templates/`
+  - `cargo run -p scn-cli -- new <dir> [--title 作品名]`：新しい作品フォルダを作る（無いフォルダか空のフォルダに。`project.toml`、スタブの章、`CLAUDE.md`、`FORMAT.md`、`SCN.md`、設定DBの13の型など）。ひな形は `crates/scn-core/templates/`（設定DBの型のテンプレートは `templates/types/`。T4-9）
   - `cargo run -p scn-cli -- format-doc [project-dir]`：作品フォルダの `FORMAT.md`（仕様書の1〜16節と作品フォルダの規約）と `SCN.md`（`docs/guide/scn.md` のコマンドの使い方）を、今のツールの版で書き直す。`--check` は書き直さずに、どちらかが古ければ終了コード1
   - コマンドやオプションを足したら、`docs/guide/scn.md` にも書く（`cargo test -p scn-cli` が、すべてのコマンドと長いオプションが説明にあることを確かめる）
   - `cargo run -p scn-cli -- export script [project-dir] [--format csv|xlsx] [--baseline] [--no-ai-drafts] [-o 書き出し先]`（`--no-ai-drafts` は AI下書きのシーンの台詞と地の文を省く。`export text`・`export renpy`・`export tyrano`・`export utage` にもある）：台本（行ID、シーン、キャラ、台詞、直前の地の文、ボイスファイル名、備考）を CSV（UTF-8 の BOM 付き、CRLF）か Excel 形式（`--format xlsx`。欄はすべて文字列）で書き出す。既定の書き出し先は作品フォルダの `export/script.csv`（Excel 形式は `export/script.xlsx`）、`-o -` で標準出力。`--baseline` で書き出した台本を収録の基準（`export/script-baseline.json`）として記録し、基準があれば、変わった台詞の備考に「再収録候補」と書いて数を標準エラーに出す。行IDの無い台詞の数も標準エラーに出す。終了コードは `ir` と同じ（エラーの診断があれば1）

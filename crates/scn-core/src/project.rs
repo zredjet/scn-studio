@@ -593,6 +593,18 @@ fn front_matter(text: &str) -> Option<(&str, usize, usize)> {
     None
 }
 
+/// 型定義のファイルの中身を、作品の読み込みと同じ読み方で読む（型のテンプレートと複製を書く前の確かめ。T4-9）。
+/// 型と、読み込みの診断（E801・E802）を返す。
+pub(crate) fn parse_entry_type(id: &str, text: &str) -> (Option<EntryType>, Vec<LoadDiagnostic>) {
+    let mut loader = Loader {
+        root: Path::new(""),
+        diags: Vec::new(),
+        entry_texts: BTreeMap::new(),
+    };
+    let entry_type = loader.entry_type_text(&format!("bible/types/{id}.yaml"), id, text);
+    (entry_type, loader.diags)
+}
+
 /// 読み込みの途中の状態。診断を集める。
 struct Loader<'a> {
     root: &'a Path,
@@ -1126,8 +1138,13 @@ impl Loader<'_> {
     fn entry_type(&mut self, path: &Path) -> Option<EntryType> {
         let text = self.read(path)?;
         let file = self.relative(path);
-        let root = self.yaml(&file, &text, &text)?;
-        let id = file_stem(path);
+        self.entry_type_text(&file, &file_stem(path), &text)
+    }
+
+    /// 型定義のファイルの中身を読む（[`parse_entry_type`] と共通）。
+    fn entry_type_text(&mut self, file: &str, id: &str, text: &str) -> Option<EntryType> {
+        let root = self.yaml(file, text, text)?;
+        let id = id.to_owned();
         let name = root
             .get("name")
             .and_then(scalar)
@@ -1138,9 +1155,9 @@ impl Loader<'_> {
                 Some("character") => Some("character".to_owned()),
                 _ => {
                     self.diag(
-                        &file,
+                        file,
                         Code::E802,
-                        key_span(&text, 0, "builtin"),
+                        key_span(text, 0, "builtin"),
                         "builtin に書けるのは character だけです。組み込みの型として扱いません",
                     );
                     None
@@ -1156,18 +1173,18 @@ impl Loader<'_> {
                     let ty = item.get("type").and_then(scalar);
                     let (Some(key), Some(ty)) = (key, ty) else {
                         self.diag(
-                            &file,
+                            file,
                             Code::E802,
-                            key_span(&text, 0, "fields"),
+                            key_span(text, 0, "fields"),
                             "fields の項目には key と type が要ります。その項目を読み飛ばします",
                         );
                         continue;
                     };
                     let Some(kind) = FieldType::parse(&ty) else {
                         self.diag(
-                            &file,
+                            file,
                             Code::E802,
-                            field_span(&text, &key),
+                            field_span(text, &key),
                             format!(
                                 "項目 {key} の型 {ty} を読めません（text・longtext・number・bool・date・select・multiselect・asset・ref<型>・list<型> のどれか）。その項目を読み飛ばします"
                             ),
@@ -1194,9 +1211,9 @@ impl Loader<'_> {
                 }
             }
             Some(_) => self.diag(
-                &file,
+                file,
                 Code::E802,
-                key_span(&text, 0, "fields"),
+                key_span(text, 0, "fields"),
                 "fields は項目の定義のリストで書きます",
             ),
         }

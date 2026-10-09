@@ -1,0 +1,12 @@
+name: アイテム
+fields:
+  - { key: aliases,     label: 呼び名,           type: list<text> }
+  - { key: kind,        label: 種類,             type: select, options: [道具, 武器, 防具, 書物, 手紙, 鍵, 形見, 食べ物, 乗り物, 記念品, その他] }
+  - { key: appearance,  label: 見た目,           type: longtext }
+  - { key: function,    label: はたらき,         type: longtext }
+  - { key: owner,       label: 持ち主,           type: ref<character> }
+  - { key: location,    label: ある場所,         type: ref<place> }
+  - { key: origin,      label: 由来,             type: longtext }
+  - { key: meaning,     label: 物語での意味,     type: longtext }
+  - { key: image,       label: 素材,             type: asset }
+  - { key: first_scene, label: 初めて出るシーン, type: ref<scene> }

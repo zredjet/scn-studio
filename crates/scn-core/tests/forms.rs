@@ -3,6 +3,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use scn_core::scaffold::type_template;
+use scn_core::typedef::TypeSource;
 use scn_core::workspace::{EntryEdit, Workspace};
 use serde_json::json;
 
@@ -187,7 +189,7 @@ fn type_fields() {
         .unwrap();
     assert!(matches!(edit, EntryEdit::Conflict { .. }), "{edit:?}");
     // 型を作って、項目を足す。
-    let file = ws.create_type("place", "場所").unwrap();
+    let file = ws.create_type("place", "場所", &TypeSource::Empty).unwrap();
     assert_eq!(file, "bible/types/place.yaml");
     let text = ws.type_text("place").unwrap();
     let edit = ws
@@ -211,8 +213,113 @@ fn type_fields() {
         .find(|t| t.id == "place")
         .unwrap();
     assert_eq!(place.fields.len(), 1);
-    assert!(ws.create_type("place", "場所").is_err());
-    assert!(ws.create_type("a/b", "x").is_err());
+    assert!(ws.create_type("place", "場所", &TypeSource::Empty).is_err());
+    assert!(ws.create_type("a/b", "x", &TypeSource::Empty).is_err());
+    let _ = fs::remove_dir_all(&root);
+}
+
+/// 完了条件（T4-9）：型のテンプレートと今ある型から、項目ごと写した新しい型を作れる。名前を替え、`builtin` は
+/// 写さない。使われている型IDと、無いテンプレート・型は断る。
+#[test]
+fn types_from_templates_and_copies() {
+    let root = copy_sample("houkago", "type-sources");
+    let mut ws = Workspace::open(&root).unwrap();
+    let field_keys = |ws: &Workspace, id: &str| -> Vec<String> {
+        ws.project()
+            .bible
+            .types
+            .iter()
+            .find(|t| t.id == id)
+            .unwrap()
+            .fields
+            .iter()
+            .map(|f| f.key.clone())
+            .collect()
+    };
+    // テンプレートから：テンプレートの中身のまま（名前だけ替える）。
+    let file = ws
+        .create_type(
+            "dungeon",
+            "ダンジョン",
+            &TypeSource::Template {
+                id: "place".to_owned(),
+            },
+        )
+        .unwrap();
+    assert_eq!(file, "bible/types/dungeon.yaml");
+    let template = type_template("place").unwrap().text;
+    assert_eq!(
+        fs::read_to_string(root.join(&file)).unwrap(),
+        template.replacen("name: 場所\n", "name: ダンジョン\n", 1)
+    );
+    assert_eq!(field_keys(&ws, "dungeon")[..2], ["aliases", "kind"]);
+    // キャラクターのテンプレートから作っても、組み込みの型（話者）にはならない。
+    ws.create_type(
+        "npc",
+        "脇役",
+        &TypeSource::Template {
+            id: "character".to_owned(),
+        },
+    )
+    .unwrap();
+    let npc = fs::read_to_string(root.join("bible/types/npc.yaml")).unwrap();
+    assert!(npc.starts_with("name: 脇役\nfields:\n"), "{npc}");
+    assert!(!npc.contains("builtin"));
+    assert_eq!(ws.project().bible.character_type(), "character");
+    assert!(field_keys(&ws, "npc").contains(&"role".to_owned()));
+    // 今ある型の複製：項目もコメントも写し、builtin を除く。元のファイルは変えない。
+    let character = fs::read_to_string(root.join("bible/types/character.yaml")).unwrap();
+    ws.create_type(
+        "rival",
+        "ライバル: 2人目",
+        &TypeSource::Type {
+            id: "character".to_owned(),
+        },
+    )
+    .unwrap();
+    let rival = fs::read_to_string(root.join("bible/types/rival.yaml")).unwrap();
+    assert!(rival.starts_with("name: \"ライバル: 2人目\"\n"), "{rival}");
+    assert!(!rival.contains("builtin"));
+    assert_eq!(field_keys(&ws, "rival"), field_keys(&ws, "character"));
+    assert_eq!(
+        fs::read_to_string(root.join("bible/types/character.yaml")).unwrap(),
+        character
+    );
+    assert!(
+        ws.project().load_diagnostics.is_empty(),
+        "{:?}",
+        ws.project().load_diagnostics
+    );
+    // 断る：使われている型ID、無いテンプレート、無い型、写せない書き方（名前をブロックで書いた型）。
+    let place = TypeSource::Template {
+        id: "place".to_owned(),
+    };
+    assert!(ws.create_type("dungeon", "x", &place).is_err());
+    assert!(ws.create_type("character", "x", &place).is_err());
+    let missing = TypeSource::Template {
+        id: "nothing".to_owned(),
+    };
+    assert!(ws.create_type("a1", "x", &missing).is_err());
+    let missing = TypeSource::Type {
+        id: "nothing".to_owned(),
+    };
+    assert!(ws.create_type("a2", "x", &missing).is_err());
+    fs::write(
+        root.join("bible/types/odd.yaml"),
+        "name: |\n  変わった名前\nfields:\n  - { key: a, label: A, type: text }\n",
+    )
+    .unwrap();
+    let error = ws
+        .create_type(
+            "a3",
+            "x",
+            &TypeSource::Type {
+                id: "odd".to_owned(),
+            },
+        )
+        .unwrap_err();
+    assert!(error.to_string().contains("ソース表示"), "{error}");
+    assert!(!root.join("bible/types/a3.yaml").exists());
     let _ = fs::remove_dir_all(&root);
 }
 

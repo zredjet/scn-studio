@@ -1,0 +1,10 @@
+name: 能力
+fields:
+  - { key: aliases, label: 呼び名,     type: list<text> }
+  - { key: kind,    label: 種類,       type: select, options: [魔法, 超能力, 技, 体質, 技能, 道具の力, その他] }
+  - { key: effect,  label: 効果,       type: longtext }
+  - { key: cost,    label: 代償・条件, type: longtext }
+  - { key: limits,  label: 限界,       type: longtext }
+  - { key: users,   label: 使い手,     type: list<ref<character>> }
+  - { key: origin,  label: 由来,       type: longtext }
+  - { key: assets,  label: 演出の素材, type: list<asset> }

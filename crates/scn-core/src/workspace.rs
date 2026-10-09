@@ -23,7 +23,8 @@ use crate::layout::{LAYOUT_FILE, LayoutError, Point, rename_layout_key, update_l
 use crate::line_id::{AssignedLineId, LineIdGenerator, assign_line_ids};
 use crate::merge::{Choice, Merge, merge_scn, merge_text};
 use crate::project::{
-    Project, ProjectError, SourceFile, load_project, scn_paths, without_bom, write_source,
+    Project, ProjectError, SourceFile, load_project, parse_entry_type, scn_paths, without_bom,
+    write_source,
 };
 use crate::provenance::{
     AI, PROVENANCE_FILE, Record, append_provenance, edited_ai_fields, edited_ai_lines,
@@ -32,7 +33,7 @@ use crate::provenance::{
 };
 use crate::rename::{RenameTarget, plan_rename};
 use crate::scaffold::CONCEPT_TEMPLATE;
-use crate::typedef::{TypeEdit, edit_type};
+use crate::typedef::{TypeEdit, TypeSource, edit_type, retitle_type};
 use crate::vardecl::{add_decl, set_decl_field};
 
 /// 開いている作品フォルダ。
@@ -2056,8 +2057,15 @@ impl Workspace {
         }
     }
 
-    /// 型を作る（`bible/types/<型>.yaml` に名前だけを書く。T2-10）。もうあれば断る。
-    pub fn create_type(&mut self, type_id: &str, name: &str) -> Result<String, ProjectError> {
+    /// 型を作る（`bible/types/<型>.yaml`。T2-10）。もうあれば断る。`source` が空の型なら名前と空の `fields:` を、
+    /// 型のテンプレートか今ある型なら、その中身を名前を替えて `builtin` を除いて写す（T4-9、D082。元とはつながら
+    /// ない）。写した中身は書く前に読み直し、元と同じ項目を読めることを確かめる。
+    pub fn create_type(
+        &mut self,
+        type_id: &str,
+        name: &str,
+        source: &TypeSource,
+    ) -> Result<String, ProjectError> {
         let file = self.type_path(type_id)?;
         let name = name.trim();
         if name.is_empty() || name.contains(['\n', '\r']) {
@@ -2069,9 +2077,27 @@ impl Workspace {
                 "型 {type_id} はもうあります"
             )));
         }
+        let text = match source {
+            TypeSource::Empty => format!("name: {}\nfields:\n", yaml_scalar(name)),
+            TypeSource::Template { id } => {
+                let template = crate::scaffold::type_template(id).ok_or_else(|| {
+                    ProjectError::Refused(format!("型のテンプレート {id} はありません"))
+                })?;
+                copied_type(template.text, type_id, name)?
+            }
+            TypeSource::Type { id } => {
+                let source_path = self.root.join(self.type_path(id)?);
+                if !source_path.is_file() {
+                    return Err(ProjectError::Refused(format!(
+                        "型 {id} の定義（bible/types/{id}.yaml）がありません"
+                    )));
+                }
+                let source_text = self.read_settings_file(&source_path)?;
+                copied_type(&source_text, type_id, name)?
+            }
+        };
         let dir = self.root.join("bible/types");
         fs::create_dir_all(&dir).map_err(|source| ProjectError::Write { path: dir, source })?;
-        let text = format!("name: {}\nfields:\n", yaml_scalar(name));
         self.write_settings_file(&file, &text)?;
         Ok(file)
     }
@@ -2792,4 +2818,25 @@ fn more_errors(project: &Project, file: &str, text: &str) -> Option<String> {
         f.text = text.to_owned();
     }
     (errors(&trial) > before).then(|| "書き足すと章の誤り（E）が増えるので、書きません".to_owned())
+}
+
+/// 型定義の中身を、型 `type_id` の名前 `name` の新しい型として写したもの（T4-9）。名前を替えて `builtin` を除き
+/// （[`retitle_type`]）、読み直して、名前が替わり、`builtin` が無く、元と同じ項目を読めることを確かめる。
+fn copied_type(source: &str, type_id: &str, name: &str) -> Result<String, ProjectError> {
+    let unsupported = || {
+        ProjectError::Refused(
+            "この型は、名前か builtin の書き方のせいで写せません。ソース表示で中身を写してください"
+                .to_owned(),
+        )
+    };
+    let Some(from) = parse_entry_type(type_id, source).0 else {
+        return Err(ProjectError::Refused(
+            "元の型の定義を YAML として読めません。直してから写してください".to_owned(),
+        ));
+    };
+    let text = retitle_type(source, name).map_err(|_| unsupported())?;
+    match parse_entry_type(type_id, &text).0 {
+        Some(to) if to.name == name && to.builtin.is_none() && to.fields == from.fields => Ok(text),
+        _ => Err(unsupported()),
+    }
 }

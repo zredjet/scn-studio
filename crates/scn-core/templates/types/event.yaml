@@ -1,0 +1,13 @@
+name: 出来事
+fields:
+  - { key: when,     label: いつ,           type: text }
+  - { key: order,    label: 年表の並び順,   type: number }
+  - { key: timing,   label: 本編との前後,   type: select, options: [本編より前, 本編の中, 本編より後] }
+  - { key: place,    label: 場所,           type: ref<place> }
+  - { key: people,   label: 関わった人物,   type: list<ref<character>> }
+  - { key: orgs,     label: 関わった組織,   type: list<ref<organization>> }
+  - { key: summary,  label: あらまし,       type: longtext }
+  - { key: cause,    label: きっかけ,       type: longtext }
+  - { key: result,   label: 結果,           type: longtext }
+  - { key: known_by, label: 知っている人物, type: list<ref<character>> }
+  - { key: scenes,   label: 描かれるシーン, type: list<ref<scene>> }

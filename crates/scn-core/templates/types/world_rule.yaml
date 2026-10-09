@@ -1,0 +1,9 @@
+name: 世界観の決まり
+fields:
+  - { key: category,     label: 分野,               type: select, options: [魔法・超常, 技術, 社会・制度, 歴史, 宗教・信仰, 自然・地理, 経済, 日常の習慣, その他] }
+  - { key: rule,         label: 決まり,             type: longtext }
+  - { key: limits,       label: できないこと・代償, type: longtext }
+  - { key: exceptions,   label: 例外,               type: longtext }
+  - { key: consequences, label: 物語への影響,       type: longtext }
+  - { key: known_by,     label: 知っている人物,     type: list<ref<character>> }
+  - { key: reveal,       label: 読み手に明かすシーン, type: ref<scene> }

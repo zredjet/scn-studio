@@ -1,0 +1,10 @@
+name: 用語
+fields:
+  - { key: reading,  label: 読み,           type: text }
+  - { key: aliases,  label: 呼び名,         type: list<text> }
+  - { key: category, label: 分類,           type: select, options: [固有名詞, 専門用語, 造語, 方言, 略語, 作中の言い回し, その他] }
+  - { key: meaning,  label: 意味,           type: longtext }
+  - { key: usage,    label: 使い方・例文,   type: longtext }
+  - { key: variants, label: 避ける書き方,   type: list<text> }
+  - { key: related,  label: 関わる用語,     type: list<ref<term>> }
+  - { key: note,     label: 書くときの注意, type: longtext }

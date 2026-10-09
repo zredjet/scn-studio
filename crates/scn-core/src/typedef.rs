@@ -8,7 +8,54 @@
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
-use crate::bible::{EditError, FieldType, newline_of, scalar_inline};
+use crate::bible::{EditError, FieldType, newline_of, scalar_inline, yaml_scalar};
+
+/// 型を作るときの元（アプリの「＋ 型」。T4-9、D082）。テンプレートと今ある型は、項目ごと写した新しい型にする
+/// （元とはつながらない）。
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum TypeSource {
+    /// 空の型（名前と空の `fields:`）。
+    Empty,
+    /// 型のテンプレート（`scaffold::TYPE_TEMPLATES` の `id`）。
+    Template { id: String },
+    /// 今ある型の複製（型ID）。
+    Type { id: String },
+}
+
+/// 型定義の中身を、名前を `name` にし、`builtin` を除いたものにする（型のテンプレートと複製から型を作る。T4-9、
+/// D082）。ほかの行（項目、コメント）はそのまま写す。名前と `builtin` は、字下げの無い `name:`・`builtin:` の行
+/// だけを扱う。`name:` の行が2つ以上あるとき、名前をブロック（`|`・`>`）で書いたときは
+/// `EditError::Unsupported`。`name:` の行が無ければ先頭に足す。先頭の BOM は写さない。書いた中身が元と同じ項目を
+/// 読めるかは、書く側（`workspace::create_type`）が読み直して確かめる。
+pub fn retitle_type(text: &str, name: &str) -> Result<String, EditError> {
+    let body = text.strip_prefix('\u{feff}').unwrap_or(text);
+    let nl = newline_of(body);
+    let name_line = format!("name: {}", yaml_scalar(name));
+    let mut out = String::with_capacity(body.len() + name_line.len());
+    let mut named = false;
+    for line in body.split_inclusive('\n') {
+        let content = line.trim_end_matches(['\r', '\n']);
+        if let Some(rest) = content.strip_prefix("name:") {
+            let value = rest.trim_start_matches([' ', '\t']);
+            if named || value.starts_with(['|', '>']) {
+                return Err(EditError::Unsupported);
+            }
+            named = true;
+            out.push_str(&name_line);
+            out.push_str(nl);
+            continue;
+        }
+        if content.starts_with("builtin:") {
+            continue;
+        }
+        out.push_str(line);
+    }
+    if !named {
+        out.insert_str(0, &format!("{name_line}{nl}"));
+    }
+    Ok(out)
+}
 
 /// 型定義の編集。
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -403,6 +450,37 @@ mod tests {
             ty: ty.to_owned(),
             options: Vec::new(),
         }
+    }
+
+    /// 型のテンプレートと複製（T4-9）：名前の行を替え、`builtin` を除き、ほかの行はそのまま写す。
+    #[test]
+    fn retitles_types() {
+        let character = "\u{feff}name: キャラクター\r\nbuiltin: character   # 組み込み\r\nfields:\r\n  - { key: speech, label: 口調メモ, type: longtext }\r\n";
+        assert_eq!(
+            retitle_type(character, "人物: 脇役").unwrap(),
+            "name: \"人物: 脇役\"\r\nfields:\r\n  - { key: speech, label: 口調メモ, type: longtext }\r\n"
+        );
+        assert_eq!(
+            retitle_type(TEXT, "仕掛け").unwrap(),
+            TEXT.replace("name: 伏線\n", "name: 仕掛け\n")
+        );
+        // 名前の行が無ければ先頭に足す。字下げのある name（項目の中など）は替えない。
+        assert_eq!(
+            retitle_type("fields:\n  - { key: name2, label: x, type: text }", "場所").unwrap(),
+            "name: 場所\nfields:\n  - { key: name2, label: x, type: text }"
+        );
+        assert_eq!(
+            retitle_type("fields: []\n  name: x\n", "場所").unwrap(),
+            "name: 場所\nfields: []\n  name: x\n"
+        );
+        assert_eq!(
+            retitle_type("name: |\n  長い\nfields:\n", "x"),
+            Err(EditError::Unsupported)
+        );
+        assert_eq!(
+            retitle_type("name: a\nname: b\n", "x"),
+            Err(EditError::Unsupported)
+        );
     }
 
     #[test]

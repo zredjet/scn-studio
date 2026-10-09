@@ -1,0 +1,7 @@
+name: 伏線
+fields:
+  - { key: setup,   label: 仕込み,     type: list<ref<scene>> }
+  - { key: payoff,  label: 回収,       type: ref<scene> }
+  - { key: hint,    label: 仕込む中身, type: longtext }
+  - { key: truth,   label: 明かすこと, type: longtext }
+  - { key: related, label: 関わる人物, type: list<ref<character>> }

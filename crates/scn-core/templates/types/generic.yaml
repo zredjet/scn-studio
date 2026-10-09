@@ -1,0 +1,10 @@
+name: 汎用
+fields:
+  - { key: aliases,  label: 呼び名,         type: list<text> }
+  - { key: category, label: 分類,           type: text }
+  - { key: summary,  label: 概要,           type: longtext }
+  - { key: details,  label: 詳細,           type: longtext }
+  - { key: related,  label: 関わるもの,     type: list<text> }
+  - { key: tags,     label: タグ,           type: list<text> }
+  - { key: scenes,   label: 出てくるシーン, type: list<ref<scene>> }
+  - { key: note,     label: メモ,           type: longtext }

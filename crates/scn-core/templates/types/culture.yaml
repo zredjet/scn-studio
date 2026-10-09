@@ -1,0 +1,10 @@
+name: 文化
+fields:
+  - { key: aliases,     label: 呼び名,         type: list<text> }
+  - { key: kind,        label: 種類,           type: select, options: [行事, 祭り, 風習, 信仰, 食, 言葉, 遊び, 芸能, 礼儀, その他] }
+  - { key: description, label: 中身,           type: longtext }
+  - { key: when,        label: 時期,           type: text }
+  - { key: place,       label: 場所,           type: ref<place> }
+  - { key: groups,      label: 担う人々,       type: list<ref<organization>> }
+  - { key: meaning,     label: 物語での意味,   type: longtext }
+  - { key: scenes,      label: 出てくるシーン, type: list<ref<scene>> }

@@ -1,0 +1,8 @@
+name: モチーフ
+fields:
+  - { key: meaning,     label: 象徴するもの,   type: longtext }
+  - { key: appearances, label: 現れ方,         type: longtext }
+  - { key: change,      label: 物語での変化,   type: longtext }
+  - { key: people,      label: 関わる人物,     type: list<ref<character>> }
+  - { key: assets,      label: 素材,           type: list<asset> }
+  - { key: scenes,      label: 出てくるシーン, type: list<ref<scene>> }

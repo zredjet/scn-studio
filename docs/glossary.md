@@ -35,6 +35,10 @@
 | 本文（エントリの） | body | フロントマターの後ろのMarkdown |
 | 紐づく変数 | character variables | キャラクターIDを名前空間にした変数 |
 | 型定義の編集 | type edit | 型の項目を足す・直す・並べ替える・消す（`typedef::TypeEdit`。アプリの `TypeEditor`） |
+| 型のテンプレート | type template | 型を作る元にする型定義のひな形（`scaffold::TYPE_TEMPLATES`、`templates/types/`）。`scn new` が汎用のほかを置く（T4-9） |
+| 型を作るときの元 | type source | 「＋ 型」で選ぶ、空の型・型のテンプレート・今ある型の複製（`typedef::TypeSource`） |
+| 複製 | copy | 今ある型の中身を写した、名前の違う新しい型（元とはつながらない。`builtin` は写さない） |
+| 役割 | role | キャラクターの型の項目（主人公・ヒロイン・ライバルなど。`select`） |
 
 ## 構造と本文
 

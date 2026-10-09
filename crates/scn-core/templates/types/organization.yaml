@@ -1,0 +1,13 @@
+name: 組織
+fields:
+  - { key: aliases,   label: 呼び名,             type: list<text> }
+  - { key: kind,      label: 種類,               type: select, options: [学校, 部活・サークル, 会社, 店, 家・一族, 国・政府, 軍・警察, 宗教, ギルド, 秘密結社, その他] }
+  - { key: purpose,   label: 目的,               type: longtext }
+  - { key: leader,    label: 長,                 type: ref<character> }
+  - { key: members,   label: 主な人,             type: list<ref<character>> }
+  - { key: base,      label: 拠点,               type: ref<place> }
+  - { key: parent,    label: 上の組織,           type: ref<organization> }
+  - { key: rules,     label: 決まり,             type: longtext }
+  - { key: history,   label: 成り立ち,           type: longtext }
+  - { key: relations, label: ほかの組織との関係, type: longtext }
+  - { key: symbol,    label: 印・制服,           type: text }

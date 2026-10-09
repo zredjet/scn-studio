@@ -7,7 +7,7 @@ use scn_core::check::check;
 use scn_core::graph::{Level, build_graph};
 use scn_core::index::build_index;
 use scn_core::scaffold::{
-    GENERATED_DOCS, claude_md, create_project, format_doc, scn_doc, stale_docs,
+    GENERATED_DOCS, TYPE_TEMPLATES, claude_md, create_project, format_doc, scn_doc, stale_docs,
     write_generated_docs,
 };
 use scn_core::{ProjectError, analyze, load_project};
@@ -69,7 +69,6 @@ fn new_project_checks_clean() {
         "style.md",
         "variables.yaml",
         "story/chapter01.scn",
-        "bible/types/character.yaml",
         "ai/provenance.jsonl",
         ".gitignore",
         ".gitattributes",
@@ -77,6 +76,17 @@ fn new_project_checks_clean() {
         assert!(dir.join(path).is_file(), "{path}");
     }
     assert!(dir.join("bible/entries/character").is_dir());
+    // 設定DBの型（T4-9）：汎用のほかのテンプレートを、そのまま置く。どれも誤りなく読め、キャラクターは組み込みの型。
+    for template in TYPE_TEMPLATES {
+        let path = dir.join(format!("bible/types/{}.yaml", template.id));
+        if template.placed {
+            assert_eq!(fs::read_to_string(&path).unwrap(), template.text);
+        } else {
+            assert!(!path.exists(), "{}", template.id);
+        }
+    }
+    assert_eq!(project.bible.types.len(), 13);
+    assert_eq!(project.bible.character_type(), "character");
     let _ = fs::remove_dir_all(&dir);
 }
 

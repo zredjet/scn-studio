@@ -26,7 +26,8 @@ pub const UNSORTED: &str = "未整理";
 pub const ADOPTED: &str = "採用";
 
 /// 伏線の型（`bible/types/foreshadow.yaml`）が無いとき、伏線への昇格で作る標準の定義（project-files 5節）。
-pub const FORESHADOW_TYPE_TEXT: &str = "name: 伏線\nfields:\n  - { key: setup,  label: 仕込み, type: list<ref<scene>> }\n  - { key: payoff, label: 回収,   type: ref<scene> }\n";
+/// 型のテンプレートの伏線と同じ（T4-9）。
+pub const FORESHADOW_TYPE_TEXT: &str = include_str!("../templates/types/foreshadow.yaml");
 
 /// 昇格先（`promoted_to`）を解いたもの。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]

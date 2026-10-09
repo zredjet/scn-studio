@@ -80,6 +80,8 @@ import type {
   SummaryDrift,
   SummaryWriteResult,
   TypeEdit,
+  TypeSource,
+  TypeTemplate,
   VariablesData,
   VariablesWritten,
   ViewMode,
@@ -320,12 +322,18 @@ export function editType(
   return invoke<BibleWritten>("edit_type", { typeId, edit, seen });
 }
 
-/** 型を作る。 */
+/** 型を作る（`source` は元にするもの。テンプレートと今ある型は項目ごと写す。T4-9）。 */
 export function createType(
   typeId: string,
   name: string,
+  source: TypeSource,
 ): Promise<BibleWritten> {
-  return invoke<BibleWritten>("create_type", { typeId, name });
+  return invoke<BibleWritten>("create_type", { typeId, name, source });
+}
+
+/** 設定DBの型のテンプレート集（T4-9）。 */
+export function typeTemplates(): Promise<TypeTemplate[]> {
+  return invoke<TypeTemplate[]>("type_templates");
 }
 
 /** 変数の宣言の1つの項目を直す（フォーム。T2-10）。`value` が null なら項目を消す。 */

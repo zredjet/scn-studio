@@ -1,0 +1,33 @@
+name: キャラクター
+builtin: character        # 組み込みの型。台詞の話者の解決に使う
+fields:
+  - { key: role,          label: 役割,             type: select, options: [主人公, ヒロイン, ヒーロー, 攻略対象, メイン, サブ, ライバル, 敵役, 黒幕, 家族, 友人, 恩師, 案内役, モブ, その他] }
+  - { key: reading,       label: 読み,             type: text }
+  - { key: aliases,       label: 呼び名,           type: list<text> }
+  - { key: first_person,  label: 一人称,           type: text }
+  - { key: second_person, label: 二人称,           type: text }
+  - { key: speech,        label: 口調メモ,         type: longtext }
+  - { key: catchphrase,   label: 口癖,             type: list<text> }
+  - { key: age,           label: 年齢,             type: text }
+  - { key: gender,        label: 性別,             type: text }
+  - { key: birthday,      label: 誕生日,           type: text }
+  - { key: height,        label: 身長,             type: text }
+  - { key: appearance,    label: 外見,             type: longtext }
+  - { key: personality,   label: 性格,             type: longtext }
+  - { key: likes,         label: 好きなもの,       type: list<text> }
+  - { key: dislikes,      label: 苦手なもの,       type: list<text> }
+  - { key: skills,        label: 得意なこと,       type: list<text> }
+  - { key: want,          label: 欲求,             type: text }
+  - { key: need,          label: 本当に必要なもの, type: text }
+  - { key: conflict,      label: 葛藤,             type: text }
+  - { key: secret,        label: 秘密,             type: longtext }
+  - { key: backstory,     label: 生い立ち,         type: longtext }
+  - { key: arc,           label: 物語での変化,     type: longtext }
+  - { key: org,           label: 所属,             type: ref<organization> }
+  - { key: home,          label: 住まい,           type: ref<place> }
+  - { key: related,       label: 関わりの深い人物, type: list<ref<character>> }
+  - { key: first_scene,   label: 初登場,           type: ref<scene> }
+  - { key: color,         label: イメージカラー,   type: text }
+  - { key: motif,         label: モチーフ,         type: text }
+  - { key: voice,         label: 声優,             type: text }
+  - { key: voice_note,    label: 演技メモ,         type: longtext }

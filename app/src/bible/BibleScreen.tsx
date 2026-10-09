@@ -6,7 +6,8 @@
 // - 書くのは入力が決まったとき（項目ごとの自動保存）。書き込みは1つずつ順に行い、それぞれ、その時点で
 //   画面が知っているファイルの中身を添える（外で変わっていれば、コアが重ねるか、書かずに知らせる）。
 // - エントリを新しく作る（「＋」）。未登録の話者の登録（T1-8）もここへ渡される。
-// - 型定義の編集（項目を足す・直す・並べ替える・消す）と、型を作る（「＋ 型」。T2-10、D061）。
+// - 型定義の編集（項目を足す・直す・並べ替える・消す）と、型を作る（「＋ 型」。T2-10、D061）。型は、空の型、
+//   型のテンプレート、今ある型の複製から作れる（項目ごと写す。T4-9、D082）。
 // - 立ち絵の差分は素材カタログから。「＋ 差分を追加」はカタログに仮素材の差分を足す（T3-6。コアの
 //   `add_catalog_entries`）。AIに渡す内容は逆引きの欄に出す（T3-6）。
 
@@ -20,6 +21,7 @@ import {
   readBible,
   setEntryBody,
   setEntryField,
+  typeTemplates,
   writeEntrySource,
 } from "../core/api.ts";
 import type {
@@ -34,6 +36,7 @@ import type {
   SceneSummary,
   SettingsWrittenExtra,
   Summary,
+  TypeTemplate,
 } from "../core/types.ts";
 import { AiDraftResult, AiDraftRun, type BibleAi } from "./AiDraftPanel.tsx";
 import {
@@ -64,6 +67,12 @@ import {
 } from "./origin.ts";
 import { SourceView } from "./SourceView.tsx";
 import { TypeEditor } from "./TypeEditor.tsx";
+import {
+  refillTypeForm,
+  typeSourceDefaults,
+  typeSourceOf,
+  typeSourceText,
+} from "./typeform.ts";
 import { UsagePanel } from "./UsagePanel.tsx";
 
 /** ほかの画面からの頼み（エントリを開く、キャラクターを開く、新しいエントリを作る）。 */
@@ -146,12 +155,19 @@ export function BibleScreen({
   const [error, setError] = useState<string | null>(null);
   /** 型定義を直している（中央に型の編集を出す）。 */
   const [editingType, setEditingType] = useState(false);
-  /** 型を作る欄。 */
+  /**
+   * 型を作る欄。`source` は元にするものの選択肢の値（`empty`・`template:<ID>`・`type:<ID>`）、`filled` は元を
+   * 選んだときに入れた名前とID（人が書き換えていなければ、元を選び直したときに入れ替える）。
+   */
   const [newType, setNewType] = useState<{
     id: string;
     name: string;
+    source: string;
+    filled: { readonly name: string; readonly id: string };
     error: string | null;
   } | null>(null);
+  /** 型のテンプレート集（T4-9）。 */
+  const [templates, setTemplates] = useState<readonly TypeTemplate[]>([]);
   /** 立ち絵の差分を足す欄（キャラクターのエントリのIDと、入れている名前）。 */
   const [newExpression, setNewExpression] = useState<{
     character: string;
@@ -186,6 +202,12 @@ export function BibleScreen({
       unsaved.current = false;
       go();
     });
+  }, []);
+
+  useEffect(() => {
+    typeTemplates()
+      .then(setTemplates)
+      .catch(() => setTemplates([]));
   }, []);
 
   // 読む（開いたとき、設定が外で変わったとき）。
@@ -463,7 +485,9 @@ export function BibleScreen({
     if (newType === null) return;
     try {
       const id = newType.id.trim();
-      applied(await createType(id, newType.name.trim()));
+      applied(
+        await createType(id, newType.name.trim(), typeSourceOf(newType.source)),
+      );
       setNewType(null);
       setTypeId(id);
       setPath(null);
@@ -520,7 +544,15 @@ export function BibleScreen({
             className="link-button"
             onClick={() =>
               setNewType(
-                newType === null ? { id: "", name: "", error: null } : null,
+                newType === null
+                  ? {
+                      id: "",
+                      name: "",
+                      source: "empty",
+                      filled: { name: "", id: "" },
+                      error: null,
+                    }
+                  : null,
               )
             }
           >
@@ -535,6 +567,59 @@ export function BibleScreen({
               guard(() => void makeType());
             }}
           >
+            <label>
+              元にするもの
+              <select
+                value={newType.source}
+                onChange={(event) => {
+                  const source = event.target.value;
+                  // 使われている型ID：定義のある型（コアが断るのと同じ。定義の無いフォルダの型IDは使える）。
+                  const next = typeSourceDefaults(
+                    typeSourceOf(source),
+                    templates,
+                    data.types,
+                    data.types.map((t) => t.id),
+                  );
+                  setNewType({
+                    ...newType,
+                    ...refillTypeForm(newType, newType.filled, next),
+                    source,
+                    filled: next,
+                    error: null,
+                  });
+                }}
+              >
+                <option value="empty">空の型</option>
+                {templates.length > 0 && (
+                  <optgroup label="テンプレート">
+                    {templates.map((t) => (
+                      <option key={t.id} value={`template:${t.id}`}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {data.types.length > 0 && (
+                  <optgroup label="今ある型を複製">
+                    {data.types.map((t) => (
+                      <option key={t.id} value={`type:${t.id}`}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+            </label>
+            {(() => {
+              const text = typeSourceText(
+                typeSourceOf(newType.source),
+                templates,
+                data.types,
+              );
+              return text === null ? null : (
+                <p className="context-faint bible-type-source">{text}</p>
+              );
+            })()}
             <label>
               名前
               <input

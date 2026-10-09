@@ -1,0 +1,11 @@
+name: 関係
+fields:
+  - { key: from,      label: 人物,             type: ref<character> }
+  - { key: to,        label: 相手,             type: ref<character> }
+  - { key: kind,      label: 関係の種類,       type: select, options: [家族, 恋人, 片思い, 幼なじみ, 友人, 親友, 仲間, 師弟, 上司と部下, ライバル, 敵対, 主従, 契約, その他] }
+  - { key: from_view, label: 人物から見た相手, type: longtext }
+  - { key: to_view,   label: 相手から見た人物, type: longtext }
+  - { key: start,     label: 始まり,           type: longtext }
+  - { key: change,    label: 物語での変化,     type: longtext }
+  - { key: secret,    label: 隠していること,   type: longtext }
+  - { key: scenes,    label: 大事なシーン,     type: list<ref<scene>> }

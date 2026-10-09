@@ -1,0 +1,13 @@
+name: 場所
+fields:
+  - { key: aliases,     label: 呼び名,             type: list<text> }
+  - { key: kind,        label: 種類,               type: select, options: [国, 地方, 町, 建物, 部屋, 屋外, 自然, 乗り物, 異界, その他] }
+  - { key: parent,      label: 上の場所,           type: ref<place> }
+  - { key: atmosphere,  label: 雰囲気,             type: longtext }
+  - { key: description, label: 様子,               type: longtext }
+  - { key: senses,      label: 音・匂い・光,       type: longtext }
+  - { key: times,       label: 時間帯・季節の違い, type: longtext }
+  - { key: residents,   label: いる人物,           type: list<ref<character>> }
+  - { key: orgs,        label: ある組織,           type: list<ref<organization>> }
+  - { key: backgrounds, label: 背景の素材,         type: list<asset> }
+  - { key: scenes,      label: 出てくるシーン,     type: list<ref<scene>> }
