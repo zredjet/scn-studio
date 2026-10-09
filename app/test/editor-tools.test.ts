@@ -5,7 +5,14 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { lineOrigin } from "../src/editor/provenance.ts";
 import { halfwidthOf } from "../src/editor/quickfix.ts";
-import { type Command, filterCommands } from "../src/shell/palette.ts";
+import {
+  type Command,
+  filterCommands,
+  keyForScreen,
+  keyLabel,
+  SCREEN_KEYS,
+  screenForKey,
+} from "../src/shell/palette.ts";
 import { routeStatText, statOfRoute } from "../src/shell/scene.ts";
 
 test("W406：全角の記号を半角に（見出しとジャンプの後ろは半角空白にする）", () => {
@@ -82,4 +89,38 @@ test("AIが書いた行の印（T3-4）：行末の行IDで出自を引く", () 
   assert.equal(lineOrigin("　行IDの無い行", origins), null);
   assert.equal(lineOrigin("^aaaa", origins), null);
   assert.equal(lineOrigin("　知らない行 ^zzzz", origins), null);
+});
+
+test("キーの書き方（T4-14、U11）：macOS は ⌘⇧、ほかは Ctrl+Shift+。修飾の無いキーはそのまま", () => {
+  assert.equal(keyLabel("Mod-P", true), "⌘P");
+  assert.equal(keyLabel("Mod-Shift-F", true), "⌘⇧F");
+  assert.equal(keyLabel("Mod-Shift-F", false), "Ctrl+Shift+F");
+  assert.equal(keyLabel("Mod-1", false), "Ctrl+1");
+  assert.equal(keyLabel("Mod-,", true), "⌘,");
+  assert.equal(keyLabel("F5", true), "F5");
+  assert.equal(keyLabel("F2", false), "F2");
+});
+
+test("画面を切り替えるキー（T4-14、U10）：左端のバーの順に 1〜9、環境設定は ,", () => {
+  assert.deepEqual(
+    SCREEN_KEYS.map(([, s]) => s),
+    [
+      "concept",
+      "text",
+      "flow",
+      "bible",
+      "assets",
+      "variables",
+      "check",
+      "ai",
+      "export",
+      "preferences",
+    ],
+  );
+  assert.equal(screenForKey("2"), "text");
+  assert.equal(screenForKey(","), "preferences");
+  assert.equal(screenForKey("0"), null);
+  assert.equal(screenForKey("p"), null);
+  assert.equal(keyForScreen("flow"), "Mod-3");
+  assert.equal(keyForScreen("preview"), null);
 });

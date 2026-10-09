@@ -25,6 +25,7 @@
 // コアと同じ規則（仕様書9節）で切り出している。
 
 import { syntaxTree } from "@codemirror/language";
+import { SearchQuery, setSearchQuery } from "@codemirror/search";
 import {
   type ChangeSet,
   EditorSelection,
@@ -395,6 +396,75 @@ const sourceGuard = EditorState.transactionFilter.of(
   },
 );
 
+/** 変更の前の文書で、`from`〜`to` にかかる行の行ID（前の空白を含む）の範囲。 */
+function idsAround(state: EditorState, from: number, to: number): IdRange[] {
+  const tree = syntaxTree(state);
+  const doc = state.doc;
+  const ids: IdRange[] = [];
+  let line = doc.lineAt(from);
+  for (;;) {
+    const id = lineIdOf(tree, line);
+    if (id !== null) ids.push(id);
+    if (line.to >= to || line.number >= doc.lines) break;
+    line = doc.line(line.number + 1);
+  }
+  return ids;
+}
+
+/**
+ * 検索と置換（ユーザーイベント `input.replace`・`input.replace.all`。T4-14、U9）では、行ID（前の空白を含む）の
+ * 文字を変えない（設計の原則5）。`changeFilter` は transactionFilter（行IDの置き直し）より先に動き、選択と効果も
+ * 写すので、置換で行を分けたり結合したりしたときは、その後に `guard`・`sourceGuard` が仕様書9節どおりに置き直す。
+ * 執筆表示でもソース表示でも同じ。
+ */
+const replaceFilter = EditorState.changeFilter.of((tr) => {
+  if (!tr.isUserEvent("input.replace")) return true;
+  const ranges: number[] = [];
+  tr.changes.iterChangedRanges((fromA, toA) => {
+    for (const id of idsAround(tr.startState, fromA, toA)) {
+      if (fromA < id.to && toA > id.from) ranges.push(id.from, id.to);
+    }
+  });
+  return ranges.length === 0 ? true : ranges;
+});
+
+/** 検索の一致が行IDにかかっていないか（執筆表示では行IDを隠すので、そこに一致を止めない）。 */
+function outsideLineIds(
+  _match: string,
+  state: EditorState,
+  from: number,
+  to: number,
+): boolean {
+  return idsAround(state, from, to).every(
+    (id) => to <= id.from || from >= id.to,
+  );
+}
+
+/**
+ * 執筆表示の検索（T4-14、U9）：検索の欄が作る問い合わせに、行IDにかかる一致を除く `test` を足す。行IDの中の一致を
+ * 選ぶと `guard` がカーソルを行IDの手前へ戻し、次の検索が同じ一致に当たり続けるため。
+ */
+const searchOutsideIds = EditorState.transactionExtender.of((tr) => {
+  const effect = tr.effects.find(
+    (e) => e.is(setSearchQuery) && e.value.test !== outsideLineIds,
+  );
+  if (effect === undefined || !effect.is(setSearchQuery)) return null;
+  const q = effect.value;
+  return {
+    effects: setSearchQuery.of(
+      new SearchQuery({
+        search: q.search,
+        caseSensitive: q.caseSensitive,
+        literal: q.literal,
+        regexp: q.regexp,
+        replace: q.replace,
+        wholeWord: q.wholeWord,
+        test: outsideLineIds,
+      }),
+    ),
+  };
+});
+
 /**
  * 写す文字（執筆表示のコピー）：選んだ範囲から行IDを外す。範囲が空なら、カーソルのある行を写す
  * （CodeMirror と同じ）。テストから直接使う。
@@ -445,8 +515,10 @@ const copyHandler = EditorView.domEventHandlers({
 
 /** 行IDを守る拡張。執筆表示（`writing`）とソース表示（`source`）で扱いが違う。 */
 export function lineIdGuard(mode: "writing" | "source" = "writing"): Extension {
-  if (mode === "source") return sourceGuard;
+  if (mode === "source") return [replaceFilter, sourceGuard];
   return [
+    replaceFilter,
+    searchOutsideIds,
     guard,
     copyHandler,
     Prec.high(keymap.of([{ key: "Delete", run: deleteForwardAtLineId }])),

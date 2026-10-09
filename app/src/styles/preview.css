@@ -7,10 +7,19 @@
 .preview-screen-body {
   display: flex;
   flex: 1;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
   background: var(--preview-bg);
   color: var(--chrome-text);
+}
+
+/* 見出しの下の本体（ADV では右にデバッグの欄。見出しは ADV と縦書きで同じ幅にする。T4-14、V10）。 */
+.preview-row {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
 }
 
 .preview-placeholder {

@@ -14,7 +14,9 @@
       {
         "title": "scn-studio（仮称）",
         "width": 1440,
-        "height": 900
+        "height": 900,
+        "minWidth": 1024,
+        "minHeight": 700
       }
     ],
     "security": {

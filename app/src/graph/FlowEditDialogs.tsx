@@ -4,6 +4,7 @@
 
 import { type KeyboardEvent, useState } from "react";
 import { isValidId, suggestSceneId } from "../concept/ideas.ts";
+import { useOverlay } from "../shell/useOverlay.ts";
 
 /** 前後の半角空白とタブを除く（全角空白は本文の一部なので残す）。 */
 function trimHalf(text: string): string {
@@ -54,6 +55,7 @@ export function StubDialog({
   const [summary, setSummary] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const overlay = useOverlay<HTMLDivElement>(onClose);
   const idProblem = !isValidId(id)
     ? "シーンIDは英数字と _ で書きます"
     : sceneIds.includes(id)
@@ -79,7 +81,14 @@ export function StubDialog({
         tabIndex={-1}
         onClick={onClose}
       />
-      <div className="rename-dialog" role="dialog" aria-label="スタブを足す">
+      <div
+        className="rename-dialog"
+        role="dialog"
+        aria-label="スタブを足す"
+        ref={overlay.ref}
+        tabIndex={-1}
+        onKeyDown={overlay.onKeyDown}
+      >
         <h2>スタブのシーンを足す</h2>
         <p className="rename-current">
           章の末尾に、見出しと要約だけのシーンを書き足します。保存していない変更のある章には足せません。
@@ -170,6 +179,7 @@ export function EdgeDialog({
   const [label, setLabel] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const overlay = useOverlay<HTMLDivElement>(onClose);
   const ready = !busy && (kind === "jump" || trimHalf(label) !== "");
   const submit = () => {
     if (!ready) return;
@@ -189,7 +199,14 @@ export function EdgeDialog({
         tabIndex={-1}
         onClick={onClose}
       />
-      <div className="rename-dialog" role="dialog" aria-label="辺を足す">
+      <div
+        className="rename-dialog"
+        role="dialog"
+        aria-label="辺を足す"
+        ref={overlay.ref}
+        tabIndex={-1}
+        onKeyDown={overlay.onKeyDown}
+      >
         <h2>
           {from} → {to} を書き足す
         </h2>

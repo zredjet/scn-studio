@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { renamePreview } from "../core/api.ts";
 import type { RenamePreview, RenameSymbol } from "../core/types.ts";
+import { useOverlay } from "./useOverlay.ts";
 
 interface Props {
   readonly symbol: RenameSymbol;
@@ -31,6 +32,7 @@ export function RenameDialog({ symbol, onApply, onClose }: Props) {
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const overlay = useOverlay<HTMLDivElement>(onClose);
   useEffect(() => {
     input.current?.focus();
     input.current?.select();
@@ -83,7 +85,14 @@ export function RenameDialog({ symbol, onApply, onClose }: Props) {
         tabIndex={-1}
         onClick={onClose}
       />
-      <div className="rename-dialog" role="dialog" aria-label="名前を変える">
+      <div
+        className="rename-dialog"
+        role="dialog"
+        aria-label="名前を変える"
+        ref={overlay.ref}
+        tabIndex={-1}
+        onKeyDown={overlay.onKeyDown}
+      >
         <h2>{symbol.label}を変える</h2>
         <p className="rename-current">
           今の名前：<code>{symbol.current}</code>
@@ -97,8 +106,7 @@ export function RenameDialog({ symbol, onApply, onClose }: Props) {
           onKeyDown={(event) => {
             // 変換を確定する Enter や Escape では動かない。
             if (event.nativeEvent.isComposing || event.keyCode === 229) return;
-            if (event.key === "Escape") onClose();
-            else if (event.key === "Enter") {
+            if (event.key === "Enter") {
               event.preventDefault();
               apply();
             }

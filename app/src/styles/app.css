@@ -103,6 +103,31 @@ body {
   color: var(--warn-text);
 }
 
+.app-error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-error p {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.error-close {
+  flex: none;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--warn-border);
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--warn-text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
 .body {
   display: flex;
   flex: 1;
@@ -4486,6 +4511,12 @@ body {
 
 .concept-ai-link {
   align-self: flex-start;
+  /* 長い名前でも枠に収める（折り返したら高さを伸ばす。T4-14、V8）。 */
+  height: auto;
+  min-height: 26px;
+  padding-block: 4px;
+  line-height: 1.5;
+  text-align: left;
 }
 
 /* 書き出しのプラグイン（T3-14） */

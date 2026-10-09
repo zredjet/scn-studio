@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SceneSummary } from "../core/types.ts";
+import { useOverlay } from "./useOverlay.ts";
 
 interface Props {
   readonly scenes: readonly SceneSummary[];
@@ -37,6 +38,7 @@ export function QuickOpen({ scenes, onSelect, onClose }: Props) {
     [scenes, query],
   );
   useEffect(() => input.current?.focus(), []);
+  const overlay = useOverlay<HTMLDivElement>(onClose);
   const pick = (scene: SceneSummary | undefined) => {
     if (scene === undefined) return;
     onSelect(scene);
@@ -51,7 +53,14 @@ export function QuickOpen({ scenes, onSelect, onClose }: Props) {
         tabIndex={-1}
         onClick={onClose}
       />
-      <div className="quick-open" role="dialog" aria-label="シーンを開く">
+      <div
+        className="quick-open"
+        role="dialog"
+        aria-label="シーンを開く"
+        ref={overlay.ref}
+        tabIndex={-1}
+        onKeyDown={overlay.onKeyDown}
+      >
         <input
           ref={input}
           value={query}
@@ -64,8 +73,7 @@ export function QuickOpen({ scenes, onSelect, onClose }: Props) {
           onKeyDown={(event) => {
             // 変換を確定する Enter や矢印では動かない。
             if (event.nativeEvent.isComposing) return;
-            if (event.key === "Escape") onClose();
-            else if (event.key === "ArrowDown") {
+            if (event.key === "ArrowDown") {
               event.preventDefault();
               setIndex((i) => Math.min(i + 1, found.length - 1));
             } else if (event.key === "ArrowUp") {

@@ -32,6 +32,8 @@ interface Props {
   /** ADV で選んだ選択肢の順（「プレビューで選んだ道」）。 */
   readonly steps: readonly RouteStep[];
   readonly persistent: PersistentValues;
+  /** AI下書き（status: ai-draft）のシーンを含めるか（プレビューの見出しの欄。T4-14、V10）。 */
+  readonly aiDrafts: boolean;
   readonly onShowInEditor: (line: PreviewLine) => void;
 }
 
@@ -90,6 +92,7 @@ export function VerticalView({
   data,
   steps,
   persistent,
+  aiDrafts,
   onShowInEditor,
 }: Props) {
   const [choices, setChoices] = useState<readonly ReadingChoice[]>([]);
@@ -98,7 +101,6 @@ export function VerticalView({
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState(true);
   /** AI下書き（status: ai-draft）のシーンを含めるか（T3-9）。 */
-  const [aiDrafts, setAiDrafts] = useState(true);
   // 入力欄の値はそのまま持ち、使うときに範囲に収める（打っている途中で値を書き換えない）。
   const [perLineText, setPerLineText] = useState("40");
   const [perPageText, setPerPageText] = useState("16");
@@ -211,14 +213,6 @@ export function VerticalView({
               onChange={(event) => setNotes(event.target.checked)}
             />
             選んだ選択肢を注記
-          </label>
-          <label className="vertical-field">
-            <input
-              type="checkbox"
-              checked={aiDrafts}
-              onChange={(event) => setAiDrafts(event.target.checked)}
-            />
-            AI下書きを含める
           </label>
           <label className="vertical-field">
             <input

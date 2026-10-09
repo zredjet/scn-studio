@@ -640,287 +640,287 @@ export function PreviewScreen({
 
   return (
     <div className="preview-screen-body">
-      <div className="preview-main">
-        <header className="preview-header">
-          <strong>プレビュー</strong>
-          <span className="preview-header-title">{title}</span>
-          <fieldset
-            className="mode-switch preview-view-switch"
-            aria-label="表示"
-          >
-            <button
-              type="button"
-              aria-pressed={view === "adv"}
-              onClick={() => setView("adv")}
-            >
-              ADV
-            </button>
-            <button
-              type="button"
-              aria-pressed={view === "vertical"}
-              onClick={() => {
-                // 縦書きで読んでいる間に、ADV のオート・スキップで道が伸びないように止める。
-                setMode("normal");
-                setView("vertical");
-              }}
-            >
-              縦書き
-            </button>
-          </fieldset>
-          <span className="flow-spacer" />
-          <label className="preview-check ai">
-            <input
-              type="checkbox"
-              checked={includeAi}
-              onChange={(event) => {
-                setIncludeAi(event.target.checked);
-                push(setIncludeAiDrafts(state, event.target.checked));
-              }}
-            />
-            AI下書きを含める
-          </label>
-          <label className="preview-check sync">
-            <input
-              type="checkbox"
-              checked={sync}
-              onChange={(event) => setSync(event.target.checked)}
-            />
-            エディタと同期
-          </label>
+      <header className="preview-header">
+        <strong>プレビュー</strong>
+        <span className="preview-header-title">{title}</span>
+        <fieldset className="mode-switch preview-view-switch" aria-label="表示">
           <button
             type="button"
-            className="preview-button"
-            aria-pressed={sound.muted}
-            title="BGM と効果音を消す（全体。この端末に覚える）"
-            onClick={() => changeSound({ ...sound, muted: !sound.muted })}
+            aria-pressed={view === "adv"}
+            onClick={() => setView("adv")}
           >
-            {sound.muted ? "ミュート中" : "ミュート"}
+            ADV
           </button>
-          <label
-            className="preview-volume"
-            title="BGM と効果音の音量（全体。素材ごとの大きさは変えない）"
-          >
-            音量
-            <input
-              className="preview-volume-range"
-              type="range"
-              min={0}
-              max={100}
-              step={5}
-              value={volumePercent(sound)}
-              onChange={(event) =>
-                changeSound(withPercent(sound, Number(event.target.value)))
-              }
-            />
-            <span className="preview-volume-value">
-              {sound.muted ? "—" : `${volumePercent(sound)}%`}
-            </span>
-          </label>
           <button
             type="button"
-            className="preview-button"
+            aria-pressed={view === "vertical"}
             onClick={() => {
-              setNotice(null);
-              restart(data, state.vars);
+              // 縦書きで読んでいる間に、ADV のオート・スキップで道が伸びないように止める。
+              setMode("normal");
+              setView("vertical");
             }}
           >
-            最初から
+            縦書き
           </button>
-          {onOpenWindow !== null && (
-            <button
-              type="button"
-              className="preview-button"
-              title="プレビューを別ウィンドウに出して、本文と並べる"
-              onClick={onOpenWindow}
-            >
-              別ウィンドウで開く
-            </button>
-          )}
-          <button type="button" className="preview-button" onClick={onClose}>
-            {closeLabel}
-          </button>
-        </header>
-        {notice !== null && !stale && (
-          <div className="preview-notice" role="status">
-            <span>{notice}</span>
-            <button
-              type="button"
-              className="preview-button"
-              onClick={() => setNotice(null)}
-            >
-              閉じる
-            </button>
-          </div>
-        )}
-        {stale && (
-          <div className="preview-stale" role="status">
-            <span>
-              本文が変わりました。プレビューは変わる前の本文のままです。
-            </span>
-            <button
-              type="button"
-              className="preview-button"
-              onClick={() => {
-                const p = program(data.ir, declared(data));
-                setRunning({ data, prog: p });
-                push(
-                  jumpTo(
-                    p,
-                    { ...state, includeAiDrafts: includeAi },
-                    state.scene,
-                  ),
-                );
-              }}
-            >
-              このシーンの頭から続ける
-            </button>
-            <button
-              type="button"
-              className="preview-button"
-              onClick={() => restart(data, state.vars)}
-            >
-              最初から
-            </button>
-          </div>
-        )}
-        {view === "vertical" ? (
-          <VerticalView
-            data={data}
-            steps={readingSteps}
-            persistent={persistent}
-            onShowInEditor={onShowInEditor}
+        </fieldset>
+        <span className="flow-spacer" />
+        <label className="preview-check ai">
+          <input
+            type="checkbox"
+            checked={includeAi}
+            onChange={(event) => {
+              setIncludeAi(event.target.checked);
+              push(setIncludeAiDrafts(state, event.target.checked));
+            }}
           />
-        ) : (
-          <>
-            <div className="preview-stage-wrap">
-              <PreviewStage
-                data={d}
-                stage={state.stage}
-                stop={stop}
-                pages={pages}
-                speakerName={speakerName}
-                brackets={brackets}
-                thought={thought}
-                stopSeq={stopSeq}
-                mode={mode}
-                advanceSeq={advanceSeq}
-                seLabel={seLabel}
-                fades={fades}
-                assetUrl={assetUrl}
-                onSe={playSe}
-                onDone={onDone}
-                onChoose={(i) => push(choose(prog, state, i))}
-                board={board}
-                inlineText={plain}
-              />
-            </div>
-            <div className="preview-controls">
+          AI下書きを含める
+        </label>
+        <label className="preview-check sync">
+          <input
+            type="checkbox"
+            checked={sync}
+            onChange={(event) => setSync(event.target.checked)}
+          />
+          エディタと同期
+        </label>
+        <button
+          type="button"
+          className="preview-button"
+          aria-pressed={sound.muted}
+          title="BGM と効果音を消す（全体。この端末に覚える）"
+          onClick={() => changeSound({ ...sound, muted: !sound.muted })}
+        >
+          {sound.muted ? "ミュート中" : "ミュート"}
+        </button>
+        <label
+          className="preview-volume"
+          title="BGM と効果音の音量（全体。素材ごとの大きさは変えない）"
+        >
+          音量
+          <input
+            className="preview-volume-range"
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={volumePercent(sound)}
+            onChange={(event) =>
+              changeSound(withPercent(sound, Number(event.target.value)))
+            }
+          />
+          <span className="preview-volume-value">
+            {sound.muted ? "—" : `${volumePercent(sound)}%`}
+          </span>
+        </label>
+        <button
+          type="button"
+          className="preview-button"
+          onClick={() => {
+            setNotice(null);
+            restart(data, state.vars);
+          }}
+        >
+          最初から
+        </button>
+        {onOpenWindow !== null && (
+          <button
+            type="button"
+            className="preview-button"
+            title="プレビューを別ウィンドウに出して、本文と並べる"
+            onClick={onOpenWindow}
+          >
+            別ウィンドウで開く
+          </button>
+        )}
+        <button type="button" className="preview-button" onClick={onClose}>
+          {closeLabel}
+        </button>
+      </header>
+      <div className="preview-row">
+        <div className="preview-main">
+          {notice !== null && !stale && (
+            <div className="preview-notice" role="status">
+              <span>{notice}</span>
               <button
                 type="button"
                 className="preview-button"
-                disabled={history.length < 2}
+                onClick={() => setNotice(null)}
+              >
+                閉じる
+              </button>
+            </div>
+          )}
+          {stale && (
+            <div className="preview-stale" role="status">
+              <span>
+                本文が変わりました。プレビューは変わる前の本文のままです。
+              </span>
+              <button
+                type="button"
+                className="preview-button"
                 onClick={() => {
-                  setHistory((h) => h.slice(0, -1));
-                  setStopSeq((n) => n + 1);
-                  setMode("normal");
+                  const p = program(data.ir, declared(data));
+                  setRunning({ data, prog: p });
+                  push(
+                    jumpTo(
+                      p,
+                      { ...state, includeAiDrafts: includeAi },
+                      state.scene,
+                    ),
+                  );
                 }}
               >
-                戻る
-              </button>
-              <button
-                type="button"
-                className="preview-button primary"
-                disabled={!canAdvance(stop)}
-                onClick={advance}
-              >
-                次へ
+                このシーンの頭から続ける
               </button>
               <button
                 type="button"
                 className="preview-button"
-                aria-pressed={mode === "auto"}
-                onClick={() =>
-                  setMode((m) => (m === "auto" ? "normal" : "auto"))
-                }
+                onClick={() => restart(data, state.vars)}
               >
-                オート
+                最初から
               </button>
-              <button
-                type="button"
-                className="preview-button"
-                aria-pressed={mode === "skip"}
-                onClick={() => {
-                  if (mode === "skip") {
+            </div>
+          )}
+          {view === "vertical" ? (
+            <VerticalView
+              data={data}
+              steps={readingSteps}
+              persistent={persistent}
+              aiDrafts={includeAi}
+              onShowInEditor={onShowInEditor}
+            />
+          ) : (
+            <>
+              <div className="preview-stage-wrap">
+                <PreviewStage
+                  data={d}
+                  stage={state.stage}
+                  stop={stop}
+                  pages={pages}
+                  speakerName={speakerName}
+                  brackets={brackets}
+                  thought={thought}
+                  stopSeq={stopSeq}
+                  mode={mode}
+                  advanceSeq={advanceSeq}
+                  seLabel={seLabel}
+                  fades={fades}
+                  assetUrl={assetUrl}
+                  onSe={playSe}
+                  onDone={onDone}
+                  onChoose={(i) => push(choose(prog, state, i))}
+                  board={board}
+                  inlineText={plain}
+                />
+              </div>
+              <div className="preview-controls">
+                <button
+                  type="button"
+                  className="preview-button"
+                  disabled={history.length < 2}
+                  onClick={() => {
+                    setHistory((h) => h.slice(0, -1));
+                    setStopSeq((n) => n + 1);
                     setMode("normal");
-                    return;
+                  }}
+                >
+                  戻る
+                </button>
+                <button
+                  type="button"
+                  className="preview-button primary"
+                  disabled={!canAdvance(stop)}
+                  onClick={advance}
+                >
+                  次へ
+                </button>
+                <button
+                  type="button"
+                  className="preview-button"
+                  aria-pressed={mode === "auto"}
+                  onClick={() =>
+                    setMode((m) => (m === "auto" ? "normal" : "auto"))
                   }
-                  // 台詞と地の文を飛ばして、次の選択肢かエンディングまで進める。
-                  push(skip(prog, state, null));
-                  setMode("skip");
-                }}
-              >
-                スキップ
-              </button>
-              <button
-                type="button"
-                className="preview-button"
-                onClick={() =>
-                  logRef.current
-                    ?.querySelector(".preview-log-section")
-                    ?.scrollIntoView({ behavior: "smooth" })
+                >
+                  オート
+                </button>
+                <button
+                  type="button"
+                  className="preview-button"
+                  aria-pressed={mode === "skip"}
+                  onClick={() => {
+                    if (mode === "skip") {
+                      setMode("normal");
+                      return;
+                    }
+                    // 台詞と地の文を飛ばして、次の選択肢かエンディングまで進める。
+                    push(skip(prog, state, null));
+                    setMode("skip");
+                  }}
+                >
+                  スキップ
+                </button>
+                <button
+                  type="button"
+                  className="preview-button"
+                  onClick={() =>
+                    logRef.current
+                      ?.querySelector(".preview-log-section")
+                      ?.scrollIntoView({ behavior: "smooth" })
+                  }
+                >
+                  ログ
+                </button>
+                <span className="flow-spacer" />
+                <span className="preview-position mono">{position}</span>
+              </div>
+              <p className="preview-info">
+                画面 {d.screen.width}×{d.screen.height} · ウィンドウ{" "}
+                {d.message_window.lines}行×{d.message_window.chars_per_line}字 ·
+                トランジション：フェードのみ再現 · 音：ファイルのある素材だけ
+              </p>
+            </>
+          )}
+        </div>
+        {view === "adv" && (
+          <div ref={logRef} className="preview-debug-wrap">
+            <DebugPanel
+              data={d}
+              scene={scene}
+              position={position}
+              vars={state.vars}
+              log={state.log}
+              warnings={warnings}
+              policy={policy}
+              speakerName={characterName}
+              inlineText={plain}
+              onPolicy={setPolicy}
+              onVariable={(key, value) => push(setVariable(state, key, value))}
+              onJump={(id) => {
+                setMode("normal");
+                push(jumpTo(prog, state, id));
+              }}
+              onRouteJump={(id) => {
+                setMode("normal");
+                routeAndStart(data, { seq: -1, kind: "scene", scene: id });
+              }}
+              onShowInEditor={() => {
+                if (line !== null) onShowInEditor(line);
+              }}
+              onShowLog={(entry) => {
+                const file = prog.scenes.get(entry.scene)?.file;
+                if (file !== undefined) {
+                  onShowInEditor({
+                    file,
+                    lineId: entry.lineId,
+                    span: entry.span,
+                  });
                 }
-              >
-                ログ
-              </button>
-              <span className="flow-spacer" />
-              <span className="preview-position mono">{position}</span>
-            </div>
-            <p className="preview-info">
-              画面 {d.screen.width}×{d.screen.height} · ウィンドウ{" "}
-              {d.message_window.lines}行×{d.message_window.chars_per_line}字 ·
-              トランジション：フェードのみ再現 · 音：ファイルのある素材だけ
-            </p>
-          </>
+              }}
+            />
+          </div>
         )}
       </div>
-      {view === "adv" && (
-        <div ref={logRef} className="preview-debug-wrap">
-          <DebugPanel
-            data={d}
-            scene={scene}
-            position={position}
-            vars={state.vars}
-            log={state.log}
-            warnings={warnings}
-            policy={policy}
-            speakerName={characterName}
-            inlineText={plain}
-            onPolicy={setPolicy}
-            onVariable={(key, value) => push(setVariable(state, key, value))}
-            onJump={(id) => {
-              setMode("normal");
-              push(jumpTo(prog, state, id));
-            }}
-            onRouteJump={(id) => {
-              setMode("normal");
-              routeAndStart(data, { seq: -1, kind: "scene", scene: id });
-            }}
-            onShowInEditor={() => {
-              if (line !== null) onShowInEditor(line);
-            }}
-            onShowLog={(entry) => {
-              const file = prog.scenes.get(entry.scene)?.file;
-              if (file !== undefined) {
-                onShowInEditor({
-                  file,
-                  lineId: entry.lineId,
-                  span: entry.span,
-                });
-              }
-            }}
-          />
-        </div>
-      )}
     </div>
   );
 }

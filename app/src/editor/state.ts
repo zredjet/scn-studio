@@ -13,6 +13,7 @@ import {
   insertNewline,
 } from "@codemirror/commands";
 import type { Diagnostic } from "@codemirror/lint";
+import { search, searchKeymap } from "@codemirror/search";
 import {
   type ChangeSet,
   type Compartment,
@@ -162,6 +163,38 @@ export const editorThemeSpec = {
     backgroundColor: "var(--accent-tint)",
     color: "var(--accent-strong)",
   },
+  // 検索と置換の欄（T4-14、U9）。基本テーマより詳細度を上げる。
+  "&.cm-editor .cm-panels": {
+    backgroundColor: "var(--panel-bg)",
+    color: "var(--ink)",
+    borderColor: "var(--border)",
+    fontFamily: "var(--font-ui)",
+    fontSize: "12px",
+  },
+  "&.cm-editor .cm-panel.cm-search": { padding: "6px 10px" },
+  "&.cm-editor .cm-panel.cm-search label": { fontSize: "12px" },
+  "&.cm-editor .cm-textfield": {
+    border: "1px solid var(--border-control)",
+    borderRadius: "var(--radius-control)",
+    backgroundColor: "var(--paper)",
+    padding: "2px 6px",
+    fontSize: "13px",
+  },
+  "&.cm-editor .cm-button": {
+    border: "1px solid var(--border-control)",
+    borderRadius: "var(--radius-control)",
+    backgroundColor: "var(--paper)",
+    backgroundImage: "none",
+    color: "var(--ink)",
+    fontSize: "12px",
+  },
+  "&.cm-editor .cm-searchMatch": {
+    backgroundColor: "var(--warn-tint)",
+    outline: "1px solid var(--warn-border)",
+  },
+  "&.cm-editor .cm-searchMatch-selected": {
+    backgroundColor: "var(--accent-tint)",
+  },
   ".cm-completionDetail": {
     marginLeft: "12px",
     fontStyle: "normal",
@@ -189,7 +222,30 @@ export const editorKeymap = [
   { key: "Enter", run: insertNewline },
   ...defaultKeymap.filter((binding) => binding.key !== "Mod-/"),
   ...historyKeymap,
+  // 検索と置換（Mod-F など。T4-14、U9）。置き換えは行IDにかからない（lineid.ts）。
+  ...searchKeymap,
 ];
+
+/** 検索と置換の欄の文言（T4-14、U9）。 */
+const SEARCH_PHRASES: Readonly<Record<string, string>> = {
+  Find: "検索",
+  Replace: "置き換え",
+  next: "次へ",
+  previous: "前へ",
+  all: "すべて",
+  "match case": "大文字と小文字を区別",
+  regexp: "正規表現",
+  "by word": "語として",
+  replace: "置き換える",
+  "replace all": "すべて置き換える",
+  close: "閉じる",
+  "current match": "今の一致",
+  "replaced $ matches": "$ か所を置き換えました",
+  "replaced match on line $": "$ 行目を置き換えました",
+  "on line": "行目",
+  "Go to line": "移る行",
+  go: "移る",
+};
 
 export { isComposing, programmatic } from "./flags.ts";
 
@@ -258,6 +314,8 @@ export function createState(
         : view.titlesCompartment.of(sceneTitles.of(view.titles)),
       view?.extra ?? [],
       history(),
+      search({ top: true }),
+      EditorState.phrases.of(SEARCH_PHRASES),
       drawSelection(),
       highlightActiveLine(),
       EditorView.lineWrapping,

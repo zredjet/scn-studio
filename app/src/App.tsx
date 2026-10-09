@@ -205,7 +205,13 @@ import { CommandPalette } from "./shell/CommandPalette.tsx";
 import { ContextPanel } from "./shell/ContextPanel.tsx";
 import { KeepAlive } from "./shell/KeepAlive.tsx";
 import { LeftBar, type Screen } from "./shell/LeftBar.tsx";
-import type { Command } from "./shell/palette.ts";
+import {
+  type Command,
+  IS_MAC,
+  keyForScreen,
+  keyLabel,
+  screenForKey,
+} from "./shell/palette.ts";
 import { QuickOpen } from "./shell/QuickOpen.tsx";
 import { RenameDialog } from "./shell/RenameDialog.tsx";
 import { StatusBar } from "./shell/StatusBar.tsx";
@@ -306,6 +312,19 @@ function saveViewPrefs(prefs: ViewPrefs): void {
   }
 }
 
+/** ステータスバーの知らせを出しておく時間（ミリ秒）。 */
+const NOTICE_MS = 8000;
+
+/**
+ * 画面を移る前に、フォーカスを外す。入れかけの欄は離れたときに書くので、キーで切り替えるとき（⌘数字、F5）も
+ * 先に書かせる（T4-12・T4-14）。
+ */
+function blurActive(): void {
+  if (document.activeElement instanceof HTMLElement) {
+    document.activeElement.blur();
+  }
+}
+
 export function App() {
   const [project, setProject] = useState<ProjectView | null>(null);
   const [screen, setScreen] = useState<Screen>("text");
@@ -348,6 +367,14 @@ export function App() {
   );
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  /** 本文の解析が失敗したときの文（解析がうまくいったら、この文の帯だけを消す。T4-14、U13）。 */
+  const parseError = useRef<string | null>(null);
+  // ステータスバーの知らせは、しばらくしたら消す（T4-14、U13）。
+  useEffect(() => {
+    if (notice === null) return;
+    const timer = setTimeout(() => setNotice(null), NOTICE_MS);
+    return () => clearTimeout(timer);
+  }, [notice]);
   const [recent, setRecent] = useState<RecentProject[]>([]);
   /** 補完の材料と、入力補助の設定（D047）。 */
   const [assist, setAssist] = useState<AssistData | null>(null);
@@ -909,10 +936,16 @@ export function App() {
           if (result.scene !== null && result.scene.scene === sceneId) {
             setScene(result.scene);
           }
-          setError(null);
+          // 消すのは解析の失敗の帯だけ（ほかの誤りは、人が閉じるか、次の誤りで替わるまで残す）。
+          const failed = parseError.current;
+          parseError.current = null;
+          if (failed !== null) setError((e) => (e === failed ? null : e));
         });
       } catch (e) {
-        whenIdle(() => setError(String(e)));
+        whenIdle(() => {
+          parseError.current = String(e);
+          setError(String(e));
+        });
       }
     },
     [showSummary, whenIdle],
@@ -1213,10 +1246,7 @@ export function App() {
     (next: Screen) => {
       if (next === latest.current.screen) return;
       leaveSettings(() => {
-        // 入れかけの欄は離れたときに書くので、先にフォーカスを外してから移る（キーで切り替えるときも。T4-12）。
-        if (document.activeElement instanceof HTMLElement) {
-          document.activeElement.blur();
-        }
+        blurActive();
         setScreen(next);
       });
     },
@@ -1506,7 +1536,10 @@ export function App() {
         return;
       }
       setPreviewRequest(request);
-      leaveSettings(() => setScreen("preview"));
+      leaveSettings(() => {
+        blurActive();
+        setScreen("preview");
+      });
     },
     [leaveSettings],
   );
@@ -1576,7 +1609,8 @@ export function App() {
       const handled = event.defaultPrevented;
       event.preventDefault();
       if (handled || event.isComposing || event.keyCode === 229) return;
-      if (latest.current.screen === "text") playAtCursor();
+      // どの画面でも、エディタの今のカーソル（無ければ今の章の初め）から再生する（T4-14、U10）。
+      if (latest.current.screen !== "preview") playAtCursor();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -1706,11 +1740,18 @@ export function App() {
       } else if (key === "f" && event.shiftKey) {
         event.preventDefault();
         updateViewPrefs((p) => ({ ...p, focus: !p.focus }));
+      } else if (!event.shiftKey && !event.altKey) {
+        // ⌘1〜⌘9（左端のバーの順）と ⌘,（環境設定）で画面を移る（T4-14、U10）。
+        const target = screenForKey(event.key);
+        if (target !== null) {
+          event.preventDefault();
+          selectScreen(target);
+        }
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [updateViewPrefs]);
+  }, [updateViewPrefs, selectScreen]);
 
   // ルートごとの文字数（ステータスバー）。本文が変わってから少し待って取り直す。
   const statSummary = project?.summary;
@@ -2831,6 +2872,7 @@ export function App() {
       id: `screen-${target}`,
       label: `画面：${label}`,
       keywords,
+      keys: keyForScreen(target) ?? undefined,
       run: () => selectScreen(target),
     });
     const toggle = (
@@ -2854,7 +2896,9 @@ export function App() {
       go("assets", "素材", "assets"),
       go("variables", "変数", "variables"),
       go("check", "検証", "check problems"),
+      go("ai", "AI実行", "ai run tasks"),
       go("export", "出力", "export"),
+      go("preferences", "環境設定", "preferences settings connection"),
       {
         id: "quick-open",
         label: "シーンを開く",
@@ -3026,9 +3070,17 @@ export function App() {
         onAi={() => selectScreen("preferences")}
       />
       {error !== null && (
-        <p className="error" role="alert">
-          {error}
-        </p>
+        <div className="error app-error" role="alert">
+          <p>{error}</p>
+          <button
+            type="button"
+            className="error-close"
+            aria-label="誤りの知らせを閉じる"
+            onClick={() => setError(null)}
+          >
+            閉じる
+          </button>
+        </div>
       )}
       <div className="body">
         {project !== null && focusing && (
@@ -3037,7 +3089,7 @@ export function App() {
             className="small-button focus-exit"
             onClick={() => updateViewPrefs((p) => ({ ...p, focus: false }))}
           >
-            集中モードを終える（⌘⇧F）
+            集中モードを終える（{keyLabel("Mod-Shift-F", IS_MAC)}）
           </button>
         )}
         {project !== null && !focusing && (

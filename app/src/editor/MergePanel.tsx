@@ -5,6 +5,7 @@
 
 import { useState } from "react";
 import type { MergeChoice, MergeView } from "../core/types.ts";
+import { useOverlay } from "../shell/useOverlay.ts";
 import { contextOf, defaultChoices, linesOf } from "./merge.ts";
 
 /** ぶつかりの前後に見せる行の数。 */
@@ -47,10 +48,18 @@ export function MergePanel({ file, view, onApply, onCancel }: Props) {
     defaultChoices(view),
   );
   const [busy, setBusy] = useState(false);
+  // Esc は「やめる」と同じ（T4-14、U12）。開いたら枠にフォーカスを入れる（Esc が届くように）。
+  const overlay = useOverlay<HTMLElement>(onCancel);
   let conflictIndex = -1;
   return (
     <div className="merge-overlay">
-      <section className="merge-panel" aria-label={`${file} のマージ`}>
+      <section
+        ref={overlay.ref}
+        className="merge-panel"
+        aria-label={`${file} のマージ`}
+        tabIndex={-1}
+        onKeyDown={overlay.onKeyDown}
+      >
         <header className="merge-head">
           <div>
             <h2>マージ：{file}</h2>

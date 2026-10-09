@@ -12,6 +12,12 @@ import {
 } from "@codemirror/commands";
 import { ensureSyntaxTree } from "@codemirror/language";
 import {
+  getSearchQuery,
+  SearchQuery,
+  search,
+  setSearchQuery,
+} from "@codemirror/search";
+import {
   EditorSelection,
   EditorState,
   type Transaction,
@@ -266,4 +272,97 @@ test("執筆表示で写すときは行IDを外す（範囲が空なら、カー
   assert.equal(copyWithoutLineIds(part), "「やあ」\n地の");
   const line = create(DOC, LINE2 + 1);
   assert.equal(copyWithoutLineIds(line), "地の文\n");
+});
+
+test("検索と置換（T4-14、U9）：置き換えは行IDにかかる分を除く（執筆表示でもソース表示でも）", () => {
+  // 「a」をすべて「x」に置き換える。行IDの ^aaaa にも当たるが、行IDは変えない。
+  const doc = "灯「a」 ^aaaa\n地の文a ^bbbb\n";
+  const hits = [...doc.matchAll(/a/g)].map((m) => ({
+    from: m.index ?? 0,
+    to: (m.index ?? 0) + 1,
+    insert: "x",
+  }));
+  for (const mode of ["writing", "source"] as const) {
+    const after = create(doc, 0, 0, mode).update({
+      changes: hits,
+      userEvent: "input.replace.all",
+    }).state;
+    assert.equal(after.sliceDoc(), "灯「x」 ^aaaa\n地の文x ^bbbb\n", mode);
+  }
+  // 行IDだけに当たる置き換えは、何も変えない。
+  const only = create(DOC, 0).update({
+    changes: { from: LINE2 - 3, to: LINE2 - 2, insert: "x" },
+    userEvent: "input.replace",
+  }).state;
+  assert.equal(only.sliceDoc(), DOC);
+});
+
+/** 置換（ユーザーイベント `input.replace.all`）で `from`〜`to` を `insert` にする。 */
+function replaced(
+  state: EditorState,
+  hits: readonly { from: number; to: number; insert: string }[],
+): string {
+  return state
+    .update({ changes: hits, userEvent: "input.replace.all" })
+    .state.sliceDoc();
+}
+
+test("置換で行を分けても結合しても、行IDは仕様書9節どおりに置き直す（執筆表示とソース表示）", () => {
+  for (const mode of ["writing", "source"] as const) {
+    // 「、」を「、改行」に：前半が元のIDを引き継ぎ、後半は行IDなし。
+    const split = "地の文、続き ^aaaa\n";
+    const at = split.indexOf("、");
+    assert.equal(
+      replaced(create(split, 0, 0, mode), [
+        { from: at, to: at + 1, insert: "、\n" },
+      ]),
+      "地の文、 ^aaaa\n続き\n",
+      mode,
+    );
+    // 行の間の改行を消す：先頭の行のIDを残し、ほかの行のIDは消す。
+    const join = "A ^aaaa\nB ^bbbb\n";
+    const nl = join.indexOf("\n");
+    const after = replaced(create(join, 0, 0, mode), [
+      { from: nl, to: nl + 1, insert: "" },
+    ]);
+    assert.equal(after.match(/\^[0-9a-z]+/g)?.join(" "), "^aaaa", mode);
+    assert.ok(after.startsWith("A"), mode);
+  }
+});
+
+test("置き換え1件でも、選択は置き換えた後の位置へ進む（行IDにかかる分だけ除く）", () => {
+  const state = create("灯「a」 ^aaaa\n", 0, 0, "source");
+  const at = "灯「".length;
+  const next = state.update({
+    changes: [
+      { from: at, to: at + 1, insert: "x" },
+      { from: at + 5, to: at + 6, insert: "x" },
+    ],
+    selection: EditorSelection.single(at + 9),
+    userEvent: "input.replace",
+  }).state;
+  assert.equal(next.sliceDoc(), "灯「x」 ^aaaa\n");
+  assert.equal(next.selection.main.head, at + 9);
+});
+
+test("執筆表示の検索は、隠れた行IDの中の一致を除く（ソース表示では除かない）", () => {
+  const doc = "地の文b ^abab\n地の文a ^bbbb\n";
+  const matches = (mode: "writing" | "source") => {
+    const base = EditorState.create({
+      doc,
+      extensions: [scn(), search(), lineIdGuard(mode)],
+    });
+    ensureSyntaxTree(base, base.doc.length, 5000);
+    const state = base.update({
+      effects: setSearchQuery.of(new SearchQuery({ search: "a" })),
+    }).state;
+    const cursor = getSearchQuery(state).getCursor(state);
+    const found: number[] = [];
+    for (let r = cursor.next(); !r.done; r = cursor.next()) {
+      found.push(r.value.from);
+    }
+    return found;
+  };
+  assert.deepEqual(matches("writing"), [doc.indexOf("地の文a") + 3]);
+  assert.equal(matches("source").length, 3);
 });

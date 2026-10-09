@@ -1,6 +1,8 @@
 // 左端のバー：画面の切り替え（docs/ui/README.md の画面の骨格）。フェーズ1で作る画面だけを出し、
 // まだ作っていない画面は押せなくする。
 
+import { IS_MAC, keyForScreen, keyLabel } from "./palette.ts";
+
 export type Screen =
   /** 企画（企画書とアイデアメモ。T2-6）。 */
   | "concept"
@@ -31,6 +33,12 @@ const ITEMS: readonly { screen: Screen; label: string; later?: string }[] = [
   { screen: "preferences", label: "環境設定" },
 ];
 
+/** 画面に移るキーの書き方（⌘1 など。T4-14）。 */
+function shortcutOf(screen: Screen): string | undefined {
+  const keys = keyForScreen(screen);
+  return keys === null ? undefined : keyLabel(keys, IS_MAC);
+}
+
 interface Props {
   readonly screen: Screen;
   /** 検証の画面に出す件数（エラーと警告）。 */
@@ -47,7 +55,7 @@ export function LeftBar({ screen, problems, onSelect }: Props) {
           type="button"
           className={item.screen === screen ? "left-item current" : "left-item"}
           disabled={item.later !== undefined}
-          title={item.later}
+          title={item.later ?? shortcutOf(item.screen)}
           aria-current={item.screen === screen ? "page" : undefined}
           onClick={() => onSelect(item.screen)}
         >
