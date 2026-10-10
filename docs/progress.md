@@ -5,8 +5,8 @@ Claude Codeは、作業を始めるときにこのファイルを読み、タス
 ## 現在の状態
 
 - フェーズ：4（ローカルのLLMと、企画・設定の生成）を、人の確認を除いて終えた（T4-7、2026-10-09、D081）。人の相談と判断（D080）で足したフェーズ。計画は `docs/plan/phase4.md`、残りは `docs/review-for-human.md` の3節（Y1〜Y9 と、画面の点検の Z1〜Z5）で人の判断を待っている。フェーズ3（支援と拡張）は、人の確認を除いて終えた（T3-17、2026-10-09）。設計検討書の範囲はそこまで。範囲の外の残り（X1〜X16）は推奨案のまま（D079）。フェーズ3の計画は `docs/plan/phase3.md`、設計検討書との突き合わせは `docs/plan/design-check.md`。フェーズ2のゲートは、条件1（書き出したRen'Pyを最後まで遊べる）を自動の範囲で満たし、人の確認（H9、2OSのIMEテスト、H1〜H17）は待ちのまま、人の指示に沿って先へ進めた（T2-11、D062）。フェーズ1のゲートも人の確認待ち（T1-13、D052）。フェーズ0のゲートは条件付きで通過した（T0-9、D040）
-- 作業中のタスク：T4-31（GitHub への公開と CI、ドキュメント。D090）。人の追加の頼みの T4-8・T4-9（D082）、T4-10（D083）、T4-11（D084）、T4-12〜T4-15（D085）、T4-16〜T4-20（D086）は済
-- 次のタスク：なし（T4-27〜T4-30 は済）。人の確かめ（H50 の後）と頼み（2026-10-10、D088・D089）で足した。人の判断（D087）で足した T4-21〜T4-26 は済（N7・N10・N11 は保留、N2・N5・N8 は作らない）。人の確認（`docs/review-for-human.md` の2節。T4-22〜T4-26 は H46〜H50）は、届いたら T3-1 で取り込む
+- 作業中のタスク：なし（T4-31 は済）。人の追加の頼みの T4-8・T4-9（D082）、T4-10（D083）、T4-11（D084）、T4-12〜T4-15（D085）、T4-16〜T4-20（D086）は済
+- 次のタスク：なし（T4-27〜T4-31 は済）。人の確かめ（H50 の後）と頼み（2026-10-10、D088・D089）で足した。人の判断（D087）で足した T4-21〜T4-26 は済（N7・N10・N11 は保留、N2・N5・N8 は作らない）。人の確認（`docs/review-for-human.md` の2節。T4-22〜T4-26 は H46〜H50）は、届いたら T3-1 で取り込む
 - 2026-10-08 から、人の指示で、人に聞かずに設計検討書の範囲（フェーズ1の残り、フェーズ2、フェーズ3）を進めている。人に確認する判断は推奨案で決め、人の環境でしか確かめられないことと一緒に `docs/review-for-human.md` にまとめている
 - T1-1（Windowsでの確認）は、Windowsの環境を用意できたときに行う（`docs/review-for-human.md` の H1。フェーズ3の T3-1 で取り込む）。中身は、フェーズ0で別途対応にした3件（`scripts/check-all.ps1`、アプリの起動、IMEテストのW1）
 
@@ -52,6 +52,11 @@ T3-17 で `docs/review-for-human.md` の3節（X1〜X16）に、推奨案を付�
 - CI：`.github/workflows/ci.yml`（macOS と Windows で `scripts/check-all`。actions/checkout v7、pnpm/action-setup v6、actions/setup-node v7（Node.js 24）、Swatinem/rust-cache v2）
 - ドキュメント：README を書き直し（概要と英語の要約、特長、画面の画像、`.scn` の例、動作環境、ソースから動かす、AI、ドキュメントの一覧、開発、ライセンス）、アプリの使い方 `docs/guide/app.md`（画面ごとの操作、保存のしかた、AI、環境設定、キーの一覧、困ったとき）と `CONTRIBUTING.md` を足した。画面の画像 `docs/images/`（6枚、JPEG）は、デバッグのビルドの .app（`pnpm -C app tauri build --debug --bundles app`）でサンプル作品を開いて撮った
 - アイコン：`app/src-tauri/icons/` を人の用意した一式に替え、元の SVG（`icon.svg`、32px 以下用の `icon-small.svg`）も置いた。SVG は Biome の対象から外した（`biome.json`。アクセシビリティの検査が画像の素材に当たるため）
+- 公開：`gh repo create zredjet/scn-studio --public`、ブランチを `master` から `main` に改名して push。トピック（visual-novel・scenario-writing・tauri・rust・renpy・japanese）
+- CI を Windows で初めて走らせて、落ちたところを直した（4回目で macOS と Windows とも成功。Windows の Rust のテストは482件で、Unix だけのテスト5件を除く）：
+  - `scn` の出すパスで区切りが混ざっていた（`samples/houkago\story/chapter01.scn`）。`join_display` で、フォルダを `/` で書いたときは `/`、ほかは `\` にそろえる（Windows だけ。ほかの OS は前と同じ）
+  - テストだけの違い：Windows は閉じたポートを断るまでに2秒ほどかかる（つながらないときのテストは本番と同じ待つ時間に）、Git の既定の `core.autocrlf=true`（gitops のテストのリポジトリで切る）、Ren'Py の写す素材の元のパスの区切り（テストの見せ方を `/` に）
+  - まとめての検査の Rust のテストを `--no-fail-fast` にした（失敗をまとめて知らせる）
 - plan-reviewer の指摘で直したこと：アプリの使い方の素材の画面の絞り方と、企画書のエンディング（フォームでなく表で見せ、直すのはソース）を実装に合わせた。サンプルで動かしたフロー図の位置 `samples/*/layout.json` を `.gitignore` に足した。画面の操作やキーを変えたら `docs/guide/app.md` も直す約束を CLAUDE.md と `.claude/rules/frontend.md` に足した
 
 ### 2026-10-10 T4-30 画面の倍率（人の頼み。D089）

@@ -642,10 +642,10 @@ T4-3 企画書と設定の出自（ファイルと項目） ─────┤
 
 **完了条件**
 
-- [ ] GitHub の公開のリポジトリに push した
-- [ ] CI が macOS と Windows で成功する
-- [ ] README・アプリの使い方・CONTRIBUTING があり、リンクが切れていない
-- [ ] `scripts/check-all` が成功する
+- [x] GitHub の公開のリポジトリに push した（https://github.com/zredjet/scn-studio）
+- [x] CI が macOS と Windows で成功する（4回目の実行。Windows で落ちたところは直した）
+- [x] README・アプリの使い方・CONTRIBUTING があり、リンクが切れていない
+- [x] `scripts/check-all` が成功する
 
 ---
 
