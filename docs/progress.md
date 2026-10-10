@@ -5,8 +5,8 @@ Claude Codeは、作業を始めるときにこのファイルを読み、タス
 ## 現在の状態
 
 - フェーズ：4（ローカルのLLMと、企画・設定の生成）を、人の確認を除いて終えた（T4-7、2026-10-09、D081）。人の相談と判断（D080）で足したフェーズ。計画は `docs/plan/phase4.md`、残りは `docs/review-for-human.md` の3節（Y1〜Y9 と、画面の点検の Z1〜Z5）で人の判断を待っている。フェーズ3（支援と拡張）は、人の確認を除いて終えた（T3-17、2026-10-09）。設計検討書の範囲はそこまで。範囲の外の残り（X1〜X16）は推奨案のまま（D079）。フェーズ3の計画は `docs/plan/phase3.md`、設計検討書との突き合わせは `docs/plan/design-check.md`。フェーズ2のゲートは、条件1（書き出したRen'Pyを最後まで遊べる）を自動の範囲で満たし、人の確認（H9、2OSのIMEテスト、H1〜H17）は待ちのまま、人の指示に沿って先へ進めた（T2-11、D062）。フェーズ1のゲートも人の確認待ち（T1-13、D052）。フェーズ0のゲートは条件付きで通過した（T0-9、D040）
-- 作業中のタスク：T4-32（GitHub Releases。v0.1.0 の下書きを作るところ）。T4-33 は済（人の確かめ H56 を除く）人の追加の頼みの T4-8・T4-9（D082）、T4-10（D083）、T4-11（D084）、T4-12〜T4-15（D085）、T4-16〜T4-20（D086）は済
-- 次のタスク：なし（T4-27〜T4-31・T4-33 は済）。人の確かめ（H50 の後）と頼み（2026-10-10、D088・D089）で足した。人の判断（D087）で足した T4-21〜T4-26 は済（N7・N10・N11 は保留、N2・N5・N8 は作らない）。人の確認（`docs/review-for-human.md` の2節。T4-22〜T4-26 は H46〜H50）は、届いたら T3-1 で取り込む
+- 作業中のタスク：なし（T4-32・T4-33 は済。人の確かめ H55・H56 と、v0.1.0 の下書きのリリースの公開は人が行う）人の追加の頼みの T4-8・T4-9（D082）、T4-10（D083）、T4-11（D084）、T4-12〜T4-15（D085）、T4-16〜T4-20（D086）は済
+- 次のタスク：なし（T4-27〜T4-33 は済）。人の確かめ（H50 の後）と頼み（2026-10-10、D088・D089）で足した。人の判断（D087）で足した T4-21〜T4-26 は済（N7・N10・N11 は保留、N2・N5・N8 は作らない）。人の確認（`docs/review-for-human.md` の2節。T4-22〜T4-26 は H46〜H50）は、届いたら T3-1 で取り込む
 - 2026-10-08 から、人の指示で、人に聞かずに設計検討書の範囲（フェーズ1の残り、フェーズ2、フェーズ3）を進めている。人に確認する判断は推奨案で決め、人の環境でしか確かめられないことと一緒に `docs/review-for-human.md` にまとめている
 - T1-1（Windowsでの確認）は、Windowsの環境を用意できたときに行う（`docs/review-for-human.md` の H1。フェーズ3の T3-1 で取り込む）。中身は、フェーズ0で別途対応にした3件（`scripts/check-all.ps1`、アプリの起動、IMEテストのW1）
 
@@ -59,6 +59,8 @@ T3-17 で `docs/review-for-human.md` の3節（X1〜X16）に、推奨案を付�
 - リリースの CI（`.github/workflows/release.yml`）：版を確かめる（`.github/scripts/version.py`）→ macOS（`tauri build --bundles app`、ad-hoc の署名を `codesign --verify` で確かめる）・Windows x64 と ARM64（x64 のランナーで `--target`、`--no-bundle` の exe を `scn-studio.exe` に）・VS Code 拡張（ubuntu）→ タグなら下書きのリリース（`SHA256SUMS.txt`、説明は `.github/release-notes.md`）。`tauri.conf.json` に ad-hoc の署名（`bundle.macOS.signingIdentity: "-"`）と著作権を足した。Windows は C のランタイムを静的にリンクし（`+crt-static`。VC++ の再頒布可能パッケージの無い機械でも動くように）、`dumpbin /dependents` で VC のランタイムの DLL に頼っていないかを確かめる
 - plan-reviewer の指摘で直したこと：Windows の `scn.exe`（と ARM64 のアプリ）が VCRUNTIME140.dll に頼っていた（`+crt-static`）。手動で動かしたときはタグを選んでもリリースを作らない。縦書きのルビの `-webkit-user-select`。リリースの手順に `Cargo.lock`。作品の `.gitattributes` で書き出したもの（`export/`）を変えない。H56 に Windows も
 - 説明：README に「ダウンロード」、CONTRIBUTING に「リリースの作り方」、CLAUDE.md のコマンドにリリース、アプリの使い方の「はじめに」
+- 試しに手動で動かして（リリースは作らない）、すべての組み方が成功した。落とした成果物で確かめたこと：ZIP の中身（フォルダに .app か exe と LICENSE）、macOS の .app の署名（`adhoc,runtime`、`codesign --verify --deep --strict` が通る、arm64）、macOS の `scn` が動く（`scn --version` が 0.1.0、`scn check samples/amayadori` が0件）、.vsix に LICENSE、Windows の exe が VC のランタイムの DLL に頼らない（`dumpbin /dependents` に vcruntime・msvcp が無い。UCRT だけ）
+- タグ `v0.1.0`（30a35a9）を push して、下書きのリリース「scn-studio 0.1.0」ができた（ファイル8つ：アプリ3・`scn` 3・.vsix・`SHA256SUMS.txt`。説明の版も埋まった）。公開は人がリリースの頁で行う（H55 の確かめの後）
 
 ### 2026-10-10 T4-31 GitHub への公開と CI、ドキュメントの整備（人の頼み。D090）
 
