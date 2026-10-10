@@ -57,6 +57,7 @@ app/                    Tauri＋React（src-tauri/ と src/）
 
 - まとめて確認：`scripts/check-all`（macOS）、`powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-all.ps1`（Windows）。Rustの書式・clippy・テスト、pnpmの依存の導入、Biome、型検査、フロントのテストを順に走らせ、1つでも失敗したらそこで止まる
 - CI：`.github/workflows/ci.yml`（GitHub Actions）が、`main` への push とプルリクエストで、上のまとめての確認を macOS と Windows で走らせる。結果は `gh run list` / `gh run view <ID> --log-failed` で見る
+- リリース：タグ `v<版>` を push すると、`.github/workflows/release.yml` が macOS（Apple Silicon）と Windows（x64・ARM64）のアプリ・`scn`・VS Code 拡張を組み、下書きのリリースを作る（公開は人が行う。版は `Cargo.toml`・`tauri.conf.json`・3つの `package.json` でそろえる。`.github/scripts/version.py` が確かめる）。手動で動かすと組むところまで。説明は `.github/release-notes.md`。手順は `CONTRIBUTING.md`
 - Rust：`cargo test --workspace` / `cargo clippy --workspace --all-targets -- -D warnings` / `cargo fmt --all`（確かめるだけなら `cargo fmt --all -- --check`）
 - パーサだけ：`cargo test -p scn-core`
   - スナップショット（`crates/scn-core/tests/snapshots/`）が合わないと、テストが失敗し、新しい結果が `*.snap.new` に出る。中身を読んで確かめてから、環境変数 `INSTA_UPDATE=always` を付けて `cargo test -p scn-core` を実行すると受け入れる（`*.snap.new` は消してから）

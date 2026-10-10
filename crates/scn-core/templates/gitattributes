@@ -1,2 +1,9 @@
+# 改行は LF にそろえる（Windows の Git の既定 core.autocrlf=true でも、取り出したファイルが CRLF にならず、
+# OS をまたいで差分とマージが改行で崩れないように。アプリと scn は CRLF も読める）
+* text=auto eol=lf
+
+# 書き出したもの（台本の CSV は CRLF などと決まった形）は、Git でも変えない
+export/** -text
+
 # 出自の記録は、ブランチを取り込むときに両方の行を残す（AI のブランチ。T3-9）
 ai/provenance.jsonl merge=union

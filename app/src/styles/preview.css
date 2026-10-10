@@ -594,8 +594,25 @@
   text-emphasis: filled sesame;
 }
 
-.vertical-page rt {
+/* ルビは親文字の右（縦書きの「上」の側）に重ね、行の並びに入れない（親文字をほかの字と同じ線にそろえる。
+   長いルビは前後の字の横へはみ出す。T4-33）。 */
+.v-ruby {
+  position: relative;
+}
+
+.v-rt {
+  position: absolute;
+  top: 50%;
+  /* 親文字の箱は行の高さぶんの幅で、字の中心にそろう。字の中心から字の幅の半分（このルビの文字の大きさで
+     1em）だけ右に置く。 */
+  left: calc(50% + 1em);
+  transform: translateY(-50%);
   font-size: 0.5em;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .vertical-info {

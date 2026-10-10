@@ -84,6 +84,25 @@ feat(T4-30): 画面の倍率を環境設定で変えられるようにする
 fix: 縦書きの通読で、ルビの後ろの改行が消える
 ```
 
+## リリースの作り方
+
+1. 版を上げる：`Cargo.toml` の `[workspace.package]`、`app/src-tauri/tauri.conf.json`、`app/package.json`・`packages/lezer-scn/package.json`・`packages/vscode-scn/package.json` の `version` をそろえる（ずれていると、リリースの CI が止まる）。
+2. `scripts/check-all` を通して（`Cargo.lock` の版も書き換わる）、`Cargo.lock` と一緒にコミットし、`main` に push する（リリースの CI は `--locked` で組むので、`Cargo.lock` が古いと止まる）。
+3. タグを付けて push する。
+
+```bash
+git tag v0.1.0
+```
+
+```bash
+git push origin v0.1.0
+```
+
+4. GitHub Actions（`.github/workflows/release.yml`）が、macOS（Apple Silicon）と Windows（x64・ARM64）のアプリとコマンド `scn`、VS Code 拡張を組み、ハッシュ（`SHA256SUMS.txt`）と説明（`.github/release-notes.md`）を付けて、**下書き**のリリースを作る。
+5. リリースの頁で中身を確かめてから「Publish release」を押す。
+
+インストーラーと署名は無い（macOS のアプリは ad-hoc の署名だけ）。組むところだけを試すときは、Actions の「Release」を手動で動かす（リリースは作らず、組んだものを成果物に置く）。
+
 ## Claude Code での開発
 
 このリポジトリは Claude Code で開発している。[`CLAUDE.md`](CLAUDE.md) は Claude Code が毎回読む指示書で、人が読んでもこのプロジェクトの約束の要約になっている。

@@ -10,7 +10,7 @@
 ![本文の画面（執筆表示）。左にシーンの一覧、中央に本文、右に今のシーンの登場キャラ・変数・素材・問題](docs/images/editor.jpg)
 
 > [!NOTE]
-> 開発中（版 0.1.0。名前は仮）。配布用のインストーラはまだ無く、ソースから作って使う。Windows はCIで検査しているが、アプリと日本語入力の実機での確認はまだ済んでいない。
+> 開発中（版 0.1.0。名前は仮）。[Releases](https://github.com/zredjet/scn-studio/releases) に ZIP を置いている（インストーラと署名は無し）。Windows はCIで検査しているが、アプリと日本語入力の実機での確認はまだ済んでいない。
 
 ## 特長
 
@@ -80,6 +80,23 @@ route: 共通
 
 - macOS と Windows（Linux は対象外）。開発と確認は主に macOS で行っている。
 - 書体は同梱しない。OS に入っている明朝体とゴシック体を使う。
+
+## ダウンロード
+
+[Releases](https://github.com/zredjet/scn-studio/releases) から、OS に合った ZIP を落として展開する。インストーラは無い。
+
+| OS | アプリ | コマンド `scn` |
+| --- | --- | --- |
+| macOS（Apple Silicon） | `scn-studio_<版>_macos_arm64.zip` | `scn_<版>_macos_arm64.zip` |
+| Windows（x64） | `scn-studio_<版>_windows_x64.zip` | `scn_<版>_windows_x64.zip` |
+| Windows（ARM64） | `scn-studio_<版>_windows_arm64.zip` | `scn_<版>_windows_arm64.zip` |
+
+VS Code 拡張は `scn-studio-vscode_<版>.vsix`。署名していないので、初めて開くときに OS が警告する。
+
+- **macOS**：開くと「開いていません」と出るので閉じ、「システム設定 → プライバシーとセキュリティ」の「このまま開く」を押す（開けなければ `xattr -dr com.apple.quarantine /Applications/scn-studio.app`）。
+- **Windows**：「Windows によって PC が保護されました」と出たら、「詳細情報」→「実行」。Windows 10 では WebView2 ランタイムが要ることがある。
+
+詳しい手順は、各リリースの説明にある。Intel の Mac の版は無い（ソースから作る）。Linux は対象外。
 
 ## ソースから動かす
 

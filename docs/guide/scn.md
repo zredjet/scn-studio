@@ -93,7 +93,7 @@ cd my-novel
 scn check
 ```
 
-作るもの：`project.toml`、`CLAUDE.md`（AI エージェント向けの指示書）、`FORMAT.md`（形式と規約）、`SCN.md`（この説明）、`concept.md`（企画書）、`style.md`（文体）、`variables.yaml`、`story/chapter01.scn`（スタブのシーン1つ）、`bible/types/`（設定DBの型：キャラクター、場所、組織、アイテム、用語、出来事、世界観の決まり、関係、伏線、種族、能力、文化、モチーフ。要らない型はファイルを消してよい）と `bible/entries/character/`、`ai/`（組み込みの AI タスク14個と出自の記録）、`.gitignore`、`.gitattributes`。作った直後の `scn check` は、スタブの行き止まりの警告（W503）が1つだけ出る。
+作るもの：`project.toml`、`CLAUDE.md`（AI エージェント向けの指示書）、`FORMAT.md`（形式と規約）、`SCN.md`（この説明）、`concept.md`（企画書）、`style.md`（文体）、`variables.yaml`、`story/chapter01.scn`（スタブのシーン1つ）、`bible/types/`（設定DBの型：キャラクター、場所、組織、アイテム、用語、出来事、世界観の決まり、関係、伏線、種族、能力、文化、モチーフ。要らない型はファイルを消してよい）と `bible/entries/character/`、`ai/`（組み込みの AI タスク15個と出自の記録）、`.gitignore`、`.gitattributes`（改行を LF にそろえる、出自の記録の取り込み方）。作った直後の `scn check` は、スタブの行き止まりの警告（W503）が1つだけ出る。
 
 アプリの「新しい作品」も同じものを作る。
 

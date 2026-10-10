@@ -30,10 +30,10 @@ cargo build -p scn-cli && pnpm -C packages/vscode-scn test:vscode   # 拡張の�
 ```sh
 pnpm -C packages/vscode-scn build
 cd packages/vscode-scn
-npx @vscode/vsce package --no-dependencies --skip-license --allow-missing-repository
+npx @vscode/vsce@4.0.0 package --no-dependencies
 code --install-extension vscode-scn-0.1.0.vsix
 ```
 
-`--no-dependencies` は、依存（`vscode-languageclient`）を `out/extension.cjs` にまとめてあるため。
+`--no-dependencies` は、依存（`vscode-languageclient`）を `out/extension.cjs` にまとめてあるため。パッケージには、このフォルダの `LICENSE`（リポジトリの `LICENSE` の写し。MIT）が入る。リポジトリの `LICENSE` を変えたら、この写しも変える。GitHub Releases にも、組んだ `.vsix` を載せている（T4-32）。
 
 開発中は、VS Code でこのフォルダを開き、「実行とデバッグ」で拡張の開発ホストを起動してもよい（`launch.json` は置いていない。「拡張機能の開発ホスト」を選ぶ）。

@@ -996,3 +996,14 @@
   - アプリのアイコンを、人の用意した案 3b「原稿用紙」（升目の紙に、かぎ括弧と分岐の印）に替えた。元の SVG も `app/src-tauri/icons/` に置く。
 - 理由：人の頼みと判断（2026-10-10）。ライセンス・CI の範囲・ブランチは推奨案のまま。X4 の推奨案（リモートのリポジトリを置くときに、`scripts/check-all` を macOS と Windows で）に沿う。
 - 影響：`docs/plan/phase4.md`（T4-31）、`docs/review-for-human.md`（X4）。Windows の `scripts/check-all.ps1` は、ここで初めて走らせる（H1 の一部を CI で確かめる。アプリの起動と日本語入力は人の確認のまま）。
+
+## D091 GitHub Releases と、作品の改行のそろえ方（2026-10-10）
+
+- 決定：
+  - v0.1.0 から GitHub Releases に、アプリ（macOS の Apple Silicon と、Windows の x64・ARM64）とコマンド `scn`（同じ3つ）を ZIP で、VS Code 拡張を .vsix で載せる。インストーラーと署名は無し（macOS のアプリは、Apple Silicon で動かすための ad-hoc の署名だけ。`tauri.conf.json` の `bundle.macOS.signingIdentity: "-"`）。Windows の ARM64 は x64 のランナーで組む（`aarch64-pc-windows-msvc`）。
+  - タグ `v<版>` の push で GitHub Actions が組み、**下書き**のリリースを作る。公開は人がリリースの頁で行う。版（Cargo・tauri.conf.json・package.json）とタグがそろっていなければ止める。手動で動かすと組むところまで（試すため）。
+  - リリースの説明に、署名の無いアプリの開き方を書く（macOS は「プライバシーとセキュリティ」の「このまま開く」か `xattr`、Windows は SmartScreen の「詳細情報 → 実行」と WebView2）。
+  - `scn new` の `.gitattributes` に `* text=auto eol=lf` を足す（Windows の Git の既定 `core.autocrlf=true` で作品のファイルが CRLF にならないように）。前に作った作品フォルダには足さない（規約に足し方を書いた）。
+  - VS Code 拡張のパッケージに LICENSE（MIT）を入れる（拡張のフォルダに写しを置く）。
+- 理由：人の頼みと判断（2026-10-10）。載せるものとリリースの作り方は推奨案、macOS は Apple Silicon だけ、Windows は x64 と ARM64（人の指定）。
+- 影響：`docs/plan/phase4.md`（T4-32）、`docs/spec/project-files.md`（`.gitattributes`）、`docs/review-for-human.md`（X3 の一部、H55）。

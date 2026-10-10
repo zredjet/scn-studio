@@ -67,11 +67,13 @@ function TokenView({ token }: { readonly token: Token }) {
     case "text":
       return <>{token.text}</>;
     case "ruby":
+      // ruby 要素は使わない：WebKit の縦書きでは親文字とルビをまとめて行の中央に置くので、親文字がルビの
+      // 幅の半分だけ行からずれる（T4-33）。ルビは親文字の右に重ねて置き、行の並びに入れない。
       return (
-        <ruby>
+        <span className="v-ruby">
           {token.base}
-          <rt>{token.reading}</rt>
-        </ruby>
+          <span className="v-rt">{token.reading}</span>
+        </span>
       );
     case "dots":
       return <span className="v-dots">{token.text}</span>;

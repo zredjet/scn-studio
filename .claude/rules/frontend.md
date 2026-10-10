@@ -61,7 +61,7 @@ paths:
 - カーソル位置から再生（T2-4、D055）は、コアの最短経路（`route`）の選択肢を `runtime.ts` の `replay` で速送りして始める。式の評価や命令の意味を変えたら、コアの `route` も同じに直し、`app/test/route.test.ts`（コアのスナップショット `route__*.snap` を速送りして、同じ変数になることを確かめる）を通す。
 - プレビューの音量とミュート（T3-1、R192）は BGM と効果音に共通で、判断は `preview/sound.ts`（テストは `app/test/sound.test.ts`）。この端末の localStorage に、人が操作したときだけ覚える（読めなくても鳴らせる）。別ウィンドウとは合わせず、開いたときに読む（下の決まりのとおり、ウィンドウどうしで状態を共有しない）。素材ごとの音量は持たない。
 - プレビューの見出しの帯（`PreviewScreen` の `head`）は作業領域の上だけに出し、ADV と縦書きで共通のもの（表示の切り替え、AI下書き、別ウィンドウ、閉じる）を同じ場所に置く。表示ごとの操作（ADV の同期・最初から・音、縦書きの道・注記・字数×行数）は `head` に渡して帯に入れる。縦書きの道の AI下書きも帯の欄に従う（T4-14、V10。見本 06・06b に合わせた。T4-19）。縦書きの帯には音の操作が無いので、縦書きの間は BGM を止める（ADV に戻ると鳴らし直す）。縦書きのステータスバーは `shell/status.ts` の `verticalStatus`。
-- 縦書きビュー（`preview/VerticalView.tsx`）は、コアの通読（`route::read`）を `preview/vertical.ts` で段落・行・ページにする。組み方（折り返し、縦中横、原稿用紙換算）は `vertical.ts` に置き、テストを付ける（`app/test/vertical.test.ts`）。
+- 縦書きビュー（`preview/VerticalView.tsx`）は、コアの通読（`route::read`）を `preview/vertical.ts` で段落・行・ページにする。組み方（折り返し、縦中横、原稿用紙換算）は `vertical.ts` に置き、テストを付ける（`app/test/vertical.test.ts`）。ルビは `ruby` 要素を使わず、親文字の右に絶対位置で重ねる（`.v-ruby`・`.v-rt`。WebKit の縦書きの `ruby` は親文字をルビの幅の半分だけ行からずらすため。T4-33）。
 - プレビューの別ウィンドウ（`preview/PreviewWindow.tsx`。ウィンドウのラベルは `preview`）とメインウィンドウは、Tauri のイベントでだけつなぐ（`core/api.ts` の `sendPreviewLine` など）。ウィンドウどうしで状態を共有しない。
 
 ## 環境設定（app/src/preferences/）

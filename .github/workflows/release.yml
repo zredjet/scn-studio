@@ -1,0 +1,190 @@
+# リリースを組む（T4-32、D091）。タグ v<版> を push すると、macOS（Apple Silicon）と Windows（x64・ARM64）の
+# アプリとコマンド scn、VS Code 拡張を組み、下書きのリリースに載せる（公開は人がリリースの頁で行う）。
+# 手動で動かす（workflow_dispatch）と、組むところまでを試し、組んだものは Actions の成果物にだけ置く。
+# インストーラーと署名は無し（macOS のアプリは ad-hoc の署名だけ。tauri.conf.json の bundle.macOS）。
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  version:
+    name: 版を確かめる
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: v
+        run: python3 .github/scripts/version.py "$GITHUB_REF_TYPE" "$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+
+  macos:
+    name: macOS（Apple Silicon）
+    needs: version
+    runs-on: macos-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release
+      - run: pnpm install --frozen-lockfile
+      - name: アプリを組む
+        run: pnpm -C app tauri build --bundles app
+      - name: scn を組む
+        run: cargo build --release --locked -p scn-cli
+      - name: ZIP にまとめる
+        run: |
+          app="scn-studio_${VERSION}_macos_arm64"
+          cli="scn_${VERSION}_macos_arm64"
+          mkdir -p "stage/$app" "stage/$cli" dist
+          cp -R target/release/bundle/macos/scn-studio.app "stage/$app/"
+          cp LICENSE "stage/$app/"
+          cp target/release/scn LICENSE "stage/$cli/"
+          codesign --verify --deep --strict "stage/$app/scn-studio.app"
+          (cd stage && ditto -c -k --sequesterRsrc --keepParent "$app" "../dist/$app.zip")
+          (cd stage && ditto -c -k --keepParent "$cli" "../dist/$cli.zip")
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist-macos
+          path: dist/*
+
+  windows:
+    name: Windows（${{ matrix.arch }}）
+    needs: version
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            target: x86_64-pc-windows-msvc
+          - arch: arm64
+            target: aarch64-pc-windows-msvc
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      # C のランタイム（VCRUNTIME140.dll）を静的にリンクする（VC++ の再頒布可能パッケージの無い Windows でも
+      # 動くように。アプリは x64 だけ tauri-build がそうするが、ARM64 と scn はしない）。--target を付けて
+      # 組むので、ビルドスクリプトには効かない。
+      RUSTFLAGS: -C target-feature=+crt-static
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: rustup toolchain install
+      - run: rustup target add ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
+      - run: pnpm install --frozen-lockfile
+      - name: アプリを組む
+        run: pnpm -C app tauri build --no-bundle --target ${{ matrix.target }}
+      - name: scn を組む
+        run: cargo build --release --locked -p scn-cli --target ${{ matrix.target }}
+      - name: VC のランタイムに頼っていないか確かめる
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $dumpbin = Get-ChildItem "$vs\VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe" | Select-Object -First 1
+          $release = "target/${{ matrix.target }}/release"
+          foreach ($exe in "$release/scn-app.exe", "$release/scn.exe") {
+            $deps = & $dumpbin.FullName /dependents $exe | Out-String
+            Write-Host $deps
+            # UCRT（api-ms-win-crt-*）は Windows 10 以降に入っているので、頼ってよい。
+            if ($deps -match '(?i)vcruntime|msvcp') {
+              Write-Error "$exe が VC のランタイムの DLL に頼っています"
+              exit 1
+            }
+          }
+      - name: ZIP にまとめる
+        shell: pwsh
+        run: |
+          $release = "target/${{ matrix.target }}/release"
+          $app = "scn-studio_${env:VERSION}_windows_${{ matrix.arch }}"
+          $cli = "scn_${env:VERSION}_windows_${{ matrix.arch }}"
+          New-Item -ItemType Directory -Force "stage/$app", "stage/$cli", dist | Out-Null
+          Copy-Item "$release/scn-app.exe" "stage/$app/scn-studio.exe"
+          Copy-Item LICENSE "stage/$app/"
+          Copy-Item "$release/scn.exe", LICENSE "stage/$cli/"
+          Compress-Archive -Path "stage/$app" -DestinationPath "dist/$app.zip"
+          Compress-Archive -Path "stage/$cli" -DestinationPath "dist/$cli.zip"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist-windows-${{ matrix.arch }}
+          path: dist/*
+
+  vscode:
+    name: VS Code 拡張
+    needs: version
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: 拡張をまとめる（esbuild）
+        run: pnpm -C packages/vscode-scn build
+      - name: パッケージにする（.vsix。LICENSE が入る）
+        working-directory: packages/vscode-scn
+        run: |
+          mkdir -p ../../dist
+          npx --yes @vscode/vsce@4.0.0 package --no-dependencies -o "../../dist/scn-studio-vscode_${VERSION}.vsix"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist-vscode
+          path: dist/*
+
+  release:
+    name: 下書きのリリースを作る
+    # 手動で動かしたときは（タグを選んでも）リリースを作らない。
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: [version, macos, windows, vscode]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: dist-*
+          merge-multiple: true
+          path: dist
+      - name: ハッシュを書く
+        run: (cd dist && sha256sum -- * > SHA256SUMS.txt && cat SHA256SUMS.txt)
+      - name: 下書きのリリースを作る
+        run: |
+          sed "s/{{VERSION}}/${VERSION}/g" .github/release-notes.md > notes.md
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --draft --verify-tag \
+            --title "scn-studio ${VERSION}" \
+            --notes-file notes.md
