@@ -622,8 +622,30 @@ T4-3 企画書と設定の出自（ファイルと項目） ─────┤
 **完了条件**
 
 - [x] 覚えた値の読み方のテストがある
-- [ ] アプリで、倍率を変えると画面全体が拡大・縮小し、起動し直しても残ることを確かめた（人の確かめ。H54）
+- [x] アプリで、倍率を変えると画面全体が拡大・縮小し、起動し直しても残ることを確かめた（人の確かめ。H54。2026-10-10）
 - [x] `scripts/check-all` が成功する
+
+---
+
+## T4-31 GitHub への公開と CI、ドキュメントの整備（人の頼み。D090）
+
+**目的**：リポジトリを GitHub に公開し（`zredjet/scn-studio`、公開、MIT）、`scripts/check-all` を macOS と Windows で自動で走らせる。初めて読む人のために README などのドキュメントを整え、アプリのアイコンを人の用意したものにする。
+
+**手順**
+
+1. 公開してよいかを確かめる（履歴に秘密の情報・個人の情報・要らないファイルが無いこと。手元だけのファイルは `.git/info/exclude` と `.gitignore` で上げない）。
+2. ライセンス（MIT）の `LICENSE` と、Cargo と package.json のライセンスの欄。
+3. GitHub Actions のワークフロー（`.github/workflows/ci.yml`）。Windows で落ちたら直す。
+4. README を書き直し、アプリの使い方（`docs/guide/app.md`）と `CONTRIBUTING.md` を足す。画面の画像（`docs/images/`）はサンプル作品で撮る。
+5. アイコンを、人の用意した一式（案 3b「原稿用紙」）に替える。
+6. ブランチを `main` にし、公開のリポジトリを作って push する。
+
+**完了条件**
+
+- [ ] GitHub の公開のリポジトリに push した
+- [ ] CI が macOS と Windows で成功する
+- [ ] README・アプリの使い方・CONTRIBUTING があり、リンクが切れていない
+- [ ] `scripts/check-all` が成功する
 
 ---
 

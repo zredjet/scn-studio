@@ -1,47 +1,181 @@
-# scn-studio（仮称）
+# <img src="app/src-tauri/icons/128x128@2x.png" width="48" height="48" alt="" align="top"> scn-studio（仮称）
 
-分岐する物語（ADV・ビジュアルノベル）のための執筆ツール。Tauri製のデスクトップアプリで、WindowsとmacOSを対象にする。
+[![CI](https://github.com/zredjet/scn-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/zredjet/scn-studio/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Claude Code（Opus 5.5）で開発している。フェーズ0（形式を固める：形式仕様v0、パーサとIR、ハイライト、アプリの土台、日本語入力のテスト）、フェーズ1（執筆の核：エディタ、設定DB、構造グラフ、検証、簡易ADVプレビュー、台本の出力、CLI）、フェーズ2（制作に使える：素材カタログ、Ren'Py への書き出し、カーソル位置から再生、縦書きビュー、企画の画面、外部エディタとのマージなど）、フェーズ3（支援と拡張：アプリ内のAI、検証の段階2、ティラノスクリプト・宴・EPUB への書き出しとプラグイン、言語サーバーと VS Code 拡張）を終えた。設計検討書の範囲はここまで。その後、人の判断で、フェーズ4（ローカルのLLMと、企画・設定の生成：タスクの接続先と文脈の長さを端末で選ぶ、考えるモデルと構造化出力、企画書と設定の下書き、項目ごとの出自、自律の企画と設定の段。後から `scn` コマンドの説明と、設定DBの既定の型とテンプレート集）を足し、人の確認を除いて終えた。各フェーズの人の確認（2OSの日本語入力、Ren'Py などで遊ぶこと、実際の LLM、VS Code など）と、範囲の外の残りをどうするかは、`docs/review-for-human.md` にまとめて人の判断を待っている。
+分岐する物語（ADV・ビジュアルノベル）のための執筆ツール。シナリオを独自のテキスト形式 `.scn` で書き、設定DB・フロー図・プレビュー・検証・書き出し・AI の支援を、同じテキストから導く。Tauri 製のデスクトップアプリ（Windows・macOS）と、同じコアを使うコマンド `scn`・言語サーバー・VS Code 拡張からなる。
 
-## 始め方
+> **English summary** — scn-studio is a desktop writing tool for branching visual-novel (ADV) scenarios. You write in a plain-text format (`.scn`), and the app derives everything else from that text: a flow graph, a character/setting database, an ADV-style and vertical-text preview, validation, and exports to Ren'Py, TyranoScript, Utage, EPUB, and voice-recording scripts. Optional AI assistance works with local LLMs (OpenAI-compatible) or Claude, and AI never overwrites human-written lines. The UI and documentation are in Japanese.
 
-1. RustとNode.jsとpnpm、TauriのOS別の前提ソフトを入れる（各公式の最新の安定版）。
-2. このフォルダで `claude` を起動し、`/model` でOpus 5.5を選ぶ。
-3. `docs/progress.md` の「次のタスク」を見て、`/phase-task <タスクID>` と入力する（例：`/phase-task T2-2`）。タスクは `docs/plan/phase2.md` の順に進める。
+![本文の画面（執筆表示）。左にシーンの一覧、中央に本文、右に今のシーンの登場キャラ・変数・素材・問題](docs/images/editor.jpg)
 
-詳しい進め方（1タスク1セッション、確認の入れ方、人の作業）は `docs/plan/phase0.md`・`docs/plan/phase1.md`・`docs/plan/phase2.md` にある。
+> [!NOTE]
+> 開発中（版 0.1.0。名前は仮）。配布用のインストーラはまだ無く、ソースから作って使う。Windows はCIで検査しているが、アプリと日本語入力の実機での確認はまだ済んでいない。
 
-## 中身
+## 特長
 
-| パス | 内容 |
+- **テキストが正**：フロー図・一覧・プレビューは、すべて `.scn` などのテキストから導く。アプリ独自のデータベースは持たないので、Git・外部のエディタ・grep・AI エージェントがそのまま使える。
+- **壊れたまま書ける**：1行の誤りで残りの解析を止めない。未定義の参照や未作成の素材は警告にとどめる。
+- **行IDで追える**：台詞や地の文の行末に付く行ID（`^k3f9`）は、編集・移動で変わらない。ボイスの収録台本、AI が書いた行の記録などが行IDで行を指す。
+- **演出は意味の名前で書く**：`@背景 屋上/夕方` のように書き、ファイルのパスやゲームエンジンの命令は書き出すときに決める。同じ原稿から複数のエンジンへ書き出せる。
+- **書く画面**：記号を隠して読みやすくする「執筆表示」とテキストそのままの「ソース表示」、補完、検索と置換、名前の変更（F2）、集中モード、日本語入力に配慮したエディタ（CodeMirror 6）。
+- **構造を見る**：シーン・章・ルートのフロー図。図からスタブや分岐を足すと、本文に書き足される。
+- **設定DB**：キャラクター・場所・伏線などを型付きのフォームで管理し、本文での登場箇所を逆引きできる。変数の宣言と読み書きの一覧もある。
+- **検証**：行き止まり、到達できないシーン、メッセージウィンドウのはみ出し、変数の読み書き、伏線。選択肢の組み合わせを自動で巡回して、選べない選択肢や着かないエンディングも探す。表記ゆれも調べる。
+- **プレビュー**：簡易のADV表示（変数・ジャンプ・選択肢・ログを見ながら）と、縦書きの通読。カーソル位置から再生（F5）できる。
+- **書き出し**：収録の台本（CSV・Excel 形式。再収録の候補つき）、素材の発注リスト、通読用のテキスト、Ren'Py、ティラノスクリプト、宴、EPUB、縦書きPDF用の印刷用HTML。テンプレートや外部コマンドで自分の形式も足せる。
+- **AI は共作者**：ローカルの LLM（LM Studio・Ollama などの OpenAI 互換）か Claude（API キー、またはログイン済みの Claude Code）につなぐ。人が書いた行は直接書き換えず、差分の提案として出す。クラウドへ送る前に中身を見せ、AI が書いた行と項目は出自として記録する。使わなくてもすべての機能が使える。
+- **コマンドとエディタ連携**：`scn` コマンド（検証・整形・書き出し・構造の一覧）、言語サーバー（`scn lsp`）、VS Code 拡張。
+
+## 画面
+
+| フロー図 | 設定DB |
 | --- | --- |
-| `CLAUDE.md` | Claude Codeが毎回読む指示書。目的、原則、作業の進め方、止まって確認する場面 |
-| `.claude/rules/` | 分野別の約束（Rust、フロントエンド、仕様書とサンプル）。該当ファイルを開いたときに読み込まれる |
-| `.claude/skills/phase-task/` | `/phase-task <タスクID>` で、調査から記録・コミットまでを一通り進める手順 |
-| `.claude/agents/plan-reviewer.md` | 差分を計画と仕様に照らすレビュー用のサブエージェント |
-| `docs/design.md` | 設計検討書（全体設計） |
-| `docs/spec/scn-format-v0.md` | `.scn` 形式の仕様（v0。T0-2で確定） |
-| `docs/spec/project-files.md` | 作品フォルダの規約（`.scn` 以外のファイル） |
-| `docs/guide/scn.md` | `scn` コマンドの使い方（入れ方、早見表、コマンドごとの説明、つまずいたとき。`scn new` が作品フォルダに `SCN.md` として置く。T4-8） |
-| `docs/glossary.md` | 用語集（日本語とコード上の名前の対応） |
-| `docs/decisions.md` | 決定記録 |
-| `docs/plan/phase0.md` | フェーズ0の作業手順（完了） |
-| `docs/plan/phase1.md` | フェーズ1の作業手順（完了。ゲートの人の確認を待っている） |
-| `docs/plan/phase2.md` | フェーズ2の作業手順（完了。ゲートの人の確認を待っている） |
-| `docs/plan/phase3.md` | フェーズ3の作業手順（人の確認を除いて完了） |
-| `docs/plan/phase4.md` | フェーズ4の作業手順（人の判断で足した。D080。人の確認を除いて完了） |
-| `docs/plan/design-check.md` | 設計検討書と作ったものの突き合わせ（T3-17） |
-| `docs/review-for-human.md` | 人の指示で推奨案で決めたことと、人の環境でしか確かめられないことの一覧（人が戻ったときに確かめる） |
-| `docs/plan/ime-test.md` | 日本語入力のテスト表 |
-| `docs/progress.md` | 進捗ログ（Claude Codeが更新する） |
-| `docs/ui/` | 画面の構成、デザイントークン、画面モック（`mockups/index.html`） |
-| `samples/houkago/` | サンプル作品「放課後の灯」。パーサの主要なテストデータ |
-| `samples/amayadori/` | フェーズ1のゲートの短編「雨宿りの駅」（T1-13。ツールとClaude Codeで書いた）。プレビューのテストの入力 |
+| ![フロー図。共通ルートから灯ルートと紬ルートへ分かれる](docs/images/flow.jpg) | ![設定DB。キャラクター「灯」のフォームと、登場シーンの逆引き](docs/images/bible.jpg) |
+| **プレビュー（ADV）** | **プレビュー（縦書き）** |
+| ![ADV形式のプレビュー。右に変数とジャンプとログ](docs/images/preview.jpg) | ![縦書きの通読。道を選び、選んだ選択肢を注記する](docs/images/vertical.jpg) |
 
-## 元の資料
+検証の画面：
 
-設計検討書と画面のデザインは、Claude上の次の資料から書き出した。内容を変えたら、このリポジトリの該当ファイルも更新する。
+![検証の画面。種類ごとの問題の一覧と、本文へ移るボタン](docs/images/check.jpg)
 
-- 設計検討書：https://claude.ai/code/artifact/cd1b47cd-6fb7-4087-84f6-6021e58a7979
-- 画面UIのキャンバス：https://claude.ai/artifact/Hwptrzm5w4rLDCujY1xotj
+画面はサンプル作品「放課後の灯」（[`samples/houkago/`](samples/houkago/)）。
+
+## `.scn` の例
+
+```text
+# 第1章 放課後
+
+## 昼休みの教室 #s011
+---
+summary: 紬が灯の様子を気にしている。主人公は放課後の屋上に呼び出される
+status: writing
+route: 共通
+---
+@背景 教室/昼
+@立ち絵 紬 真顔 右
+
+紬「湊くん。灯ちゃん、最近なにか言ってた？」 ^a1c1
+湊「なにかって？」 ^a1c2
+　五限の予鈴が鳴った。机の中に、二つ折りのメモが入っていた。 ^a1c4
+
+@選択 屋上へ行くか ^a1c6
+- すぐに行く ^a1c7
+  @設定 灯.好感度 += 2
+- 少し迷ってから行く ^a1c8
+  @設定 灯.好感度 += 1
+@end
+
+-> s012
+```
+
+- `#` は章、`##` はシーン（`#s011` がシーンID）。`---` の間はシーンのメタ情報。
+- `@` で始まる行は演出や制御（背景、立ち絵、選択肢、変数の設定、条件分岐など）。`-> s012` はジャンプ。
+- `名前「…」` は台詞（名前は設定DBのキャラクターで確かめる）。全角空白で始まる行などは地の文。
+- 行末の `^a1c1` は行ID。保存したときにツールが付ける（自分で書かなくてよい）。
+
+文法のすべては [`docs/spec/scn-format-v0.md`](docs/spec/scn-format-v0.md)、作品フォルダの構成は [`docs/spec/project-files.md`](docs/spec/project-files.md) にある。
+
+## 動作環境
+
+- macOS と Windows（Linux は対象外）。開発と確認は主に macOS で行っている。
+- 書体は同梱しない。OS に入っている明朝体とゴシック体を使う。
+
+## ソースから動かす
+
+### 要るもの
+
+- [Rust](https://rustup.rs/)（rustup で入れる。版は `rust-toolchain.toml` で固定していて、初めてビルドするときに自動で入る）
+- [Node.js](https://nodejs.org/) 24 と pnpm 12（`package.json` の `packageManager` の版。`corepack enable` で入る）
+- Tauri の OS ごとの前提（macOS は Xcode の Command Line Tools、Windows は Microsoft C++ Build Tools と WebView2）。[Tauri の案内](https://v2.tauri.app/start/prerequisites/)を参照
+
+### アプリ
+
+```bash
+pnpm install
+```
+
+```bash
+pnpm -C app tauri dev
+```
+
+開発用のビルドは、起動するとサンプル作品 `samples/houkago` を開く。別の作品フォルダを開くには、環境変数 `SCN_DEV_PROJECT` にパスを入れて起動するか、アプリの「作品フォルダを開く」（⌘O・Ctrl+O）を使う。
+
+配布用のビルド（署名なし）は次のコマンドで作る。できたものは `target/release/bundle/` に置かれる。
+
+```bash
+pnpm -C app tauri build
+```
+
+使い方は [アプリの使い方](docs/guide/app.md) にある。
+
+### コマンド `scn`
+
+```bash
+cargo install --locked --path crates/scn-cli
+```
+
+```bash
+scn new my-story --title "作品名"
+```
+
+```bash
+scn check my-story --stage 2
+```
+
+```bash
+scn export renpy my-story
+```
+
+`scn new` は作品フォルダのひな形（`project.toml`、スタブの章、設定DBの型、AI エージェント向けの `CLAUDE.md`、形式の説明 `FORMAT.md` など）を作る。コマンドの一覧と使い方は [`docs/guide/scn.md`](docs/guide/scn.md) にある。
+
+### VS Code 拡張
+
+ハイライトと言語サーバー（診断・補完・定義へ移動・名前の変更）を使う拡張。作り方と入れ方は [`packages/vscode-scn/README.md`](packages/vscode-scn/README.md) にある（マーケットプレイスには出していない）。
+
+## AI を使う
+
+AI は使わなくてもよい。使うときは、作品フォルダの `project.toml` に接続先を書く（キーは書かない）。
+
+```toml
+[ai.local]                          # ローカルの LLM（OpenAI 互換。LM Studio・Ollama・llama.cpp など）
+base_url = "http://localhost:1234/v1"
+model = "qwen3-8b"
+
+[ai.cloud]                          # Claude（Messages API）
+provider = "anthropic"
+model = "claude-sonnet-5-5"
+```
+
+- キーと、この端末での上書き（文脈の長さ、返す分の上限、考える量など）は、アプリの「環境設定 → AIの接続」で決める。キーは OS のキーチェーンに置く。
+- Claude は、API キーの代わりに、ログイン済みの Claude Code（CLI）で呼ぶこともできる。
+- クラウドの接続先は、端末ごとに送ることを許可するまで送らない。送る前に、送る中身を見せて確かめる。
+- AI のタスク（口調・設定の矛盾・表記の点検、言い換え、スタブの下書き、ルートの骨格、企画書と設定の下書き、アイデアのネタ出しなど）は、作品フォルダの `ai/*.yaml` で定義していて、直したり足したりできる。
+
+詳しくは [アプリの使い方の「AI」](docs/guide/app.md#ai) と、[`docs/spec/project-files.md`](docs/spec/project-files.md) の2節と9節にある。
+
+## ドキュメント
+
+| 文書 | 内容 |
+| --- | --- |
+| [`docs/guide/app.md`](docs/guide/app.md) | アプリの使い方（画面ごとの操作、AI、キーの一覧） |
+| [`docs/guide/scn.md`](docs/guide/scn.md) | `scn` コマンドの使い方（`scn new` が作品フォルダに `SCN.md` として置く） |
+| [`docs/spec/scn-format-v0.md`](docs/spec/scn-format-v0.md) | `.scn` の文法と意味、診断コード |
+| [`docs/spec/project-files.md`](docs/spec/project-files.md) | 作品フォルダの規約（`project.toml`、変数、素材、設定DB、企画書、AI、出力プロファイル） |
+| [`docs/design.md`](docs/design.md) | 設計検討書（全体設計） |
+| [`docs/decisions.md`](docs/decisions.md) | 決定の記録（なぜそうしたか） |
+| [`docs/glossary.md`](docs/glossary.md) | 用語集（日本語とコード上の名前） |
+| [`docs/ui/`](docs/ui/) | 画面の構成、デザイントークン、画面の見本 |
+| [`docs/plan/`](docs/plan/)・[`docs/progress.md`](docs/progress.md) | フェーズごとの計画と進捗の記録 |
+| [`docs/review-for-human.md`](docs/review-for-human.md) | 人の判断と確認を待っていること |
+| [`samples/houkago/`](samples/houkago/)・[`samples/amayadori/`](samples/amayadori/) | サンプル作品（テストの入力も兼ねる） |
+
+## 開発
+
+- まとめての検査：`scripts/check-all`（macOS）か `scripts\check-all.ps1`（Windows）。Rust の書式・clippy・テストと、フロントの Biome・型検査・テストを走らせる。GitHub Actions でも、macOS と Windows で同じものを走らせている。
+- このリポジトリは [Claude Code](https://claude.com/claude-code) で開発している。作業の約束は [`CLAUDE.md`](CLAUDE.md) と `.claude/` にある。
+- 開発への参加のしかたとリポジトリの構成は [`CONTRIBUTING.md`](CONTRIBUTING.md) にある。
+
+## ライセンス
+
+[MIT](LICENSE)。サンプル作品と画面の見本も含む。

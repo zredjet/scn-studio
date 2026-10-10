@@ -1,6 +1,7 @@
 {
   "name": "@scn-studio/lezer-scn",
   "version": "0.1.0",
+  "license": "MIT",
   "private": true,
   "description": ".scn のハイライト用のLezer文法と、CodeMirror 6の言語サポート",
   "type": "module",

@@ -5,7 +5,7 @@ Claude Codeは、作業を始めるときにこのファイルを読み、タス
 ## 現在の状態
 
 - フェーズ：4（ローカルのLLMと、企画・設定の生成）を、人の確認を除いて終えた（T4-7、2026-10-09、D081）。人の相談と判断（D080）で足したフェーズ。計画は `docs/plan/phase4.md`、残りは `docs/review-for-human.md` の3節（Y1〜Y9 と、画面の点検の Z1〜Z5）で人の判断を待っている。フェーズ3（支援と拡張）は、人の確認を除いて終えた（T3-17、2026-10-09）。設計検討書の範囲はそこまで。範囲の外の残り（X1〜X16）は推奨案のまま（D079）。フェーズ3の計画は `docs/plan/phase3.md`、設計検討書との突き合わせは `docs/plan/design-check.md`。フェーズ2のゲートは、条件1（書き出したRen'Pyを最後まで遊べる）を自動の範囲で満たし、人の確認（H9、2OSのIMEテスト、H1〜H17）は待ちのまま、人の指示に沿って先へ進めた（T2-11、D062）。フェーズ1のゲートも人の確認待ち（T1-13、D052）。フェーズ0のゲートは条件付きで通過した（T0-9、D040）
-- 作業中のタスク：なし（T4-30 は済）。人の追加の頼みの T4-8・T4-9（D082）、T4-10（D083）、T4-11（D084）、T4-12〜T4-15（D085）、T4-16〜T4-20（D086）は済
+- 作業中のタスク：T4-31（GitHub への公開と CI、ドキュメント。D090）。人の追加の頼みの T4-8・T4-9（D082）、T4-10（D083）、T4-11（D084）、T4-12〜T4-15（D085）、T4-16〜T4-20（D086）は済
 - 次のタスク：なし（T4-27〜T4-30 は済）。人の確かめ（H50 の後）と頼み（2026-10-10、D088・D089）で足した。人の判断（D087）で足した T4-21〜T4-26 は済（N7・N10・N11 は保留、N2・N5・N8 は作らない）。人の確認（`docs/review-for-human.md` の2節。T4-22〜T4-26 は H46〜H50）は、届いたら T3-1 で取り込む
 - 2026-10-08 から、人の指示で、人に聞かずに設計検討書の範囲（フェーズ1の残り、フェーズ2、フェーズ3）を進めている。人に確認する判断は推奨案で決め、人の環境でしか確かめられないことと一緒に `docs/review-for-human.md` にまとめている
 - T1-1（Windowsでの確認）は、Windowsの環境を用意できたときに行う（`docs/review-for-human.md` の H1。フェーズ3の T3-1 で取り込む）。中身は、フェーズ0で別途対応にした3件（`scripts/check-all.ps1`、アプリの起動、IMEテストのW1）
@@ -44,13 +44,23 @@ T3-17 で `docs/review-for-human.md` の3節（X1〜X16）に、推奨案を付�
 
 ## 記録
 
+### 2026-10-10 T4-31 GitHub への公開と CI、ドキュメントの整備（人の頼み。D090）
+
+- 人の判断：MIT、CI は macOS と Windows、ブランチは `main` に改名（どれも推奨案）。人の頼みで、README などのドキュメントを整え、要らないファイルを上げず、アイコンを人の用意したもの（案 3b「原稿用紙」）にした
+- 公開の前の確かめ：履歴（95 コミット）にキーやトークンは無い（テストの偽のキー `sk-ant-secret-0123456789` だけ）。作者は GitHub の noreply のアドレス。手元のパスやメールアドレスは無い。追跡しているファイルは、ソース・テスト・サンプル・資料・アイコンだけ。手元だけのファイル（`.vscode/`、`mise.toml`、`samples/houkago/layout.json`）は `.git/info/exclude` に、サンプルの書き出したもの（`export/` の下の pdf・epub・tyrano・utage・xlsx・収録の基準）は `.gitignore` に足した
+- `LICENSE`（MIT）と、Cargo（`[workspace.package]` の `license`・`repository`）と package.json の `license`（VS Code 拡張は `UNLICENSED` から MIT に）
+- CI：`.github/workflows/ci.yml`（macOS と Windows で `scripts/check-all`。actions/checkout v7、pnpm/action-setup v6、actions/setup-node v7（Node.js 24）、Swatinem/rust-cache v2）
+- ドキュメント：README を書き直し（概要と英語の要約、特長、画面の画像、`.scn` の例、動作環境、ソースから動かす、AI、ドキュメントの一覧、開発、ライセンス）、アプリの使い方 `docs/guide/app.md`（画面ごとの操作、保存のしかた、AI、環境設定、キーの一覧、困ったとき）と `CONTRIBUTING.md` を足した。画面の画像 `docs/images/`（6枚、JPEG）は、デバッグのビルドの .app（`pnpm -C app tauri build --debug --bundles app`）でサンプル作品を開いて撮った
+- アイコン：`app/src-tauri/icons/` を人の用意した一式に替え、元の SVG（`icon.svg`、32px 以下用の `icon-small.svg`）も置いた。SVG は Biome の対象から外した（`biome.json`。アクセシビリティの検査が画像の素材に当たるため）
+- plan-reviewer の指摘で直したこと：アプリの使い方の素材の画面の絞り方と、企画書のエンディング（フォームでなく表で見せ、直すのはソース）を実装に合わせた。サンプルで動かしたフロー図の位置 `samples/*/layout.json` を `.gitignore` に足した。画面の操作やキーを変えたら `docs/guide/app.md` も直す約束を CLAUDE.md と `.claude/rules/frontend.md` に足した
+
 ### 2026-10-10 T4-30 画面の倍率（人の頼み。D089）
 
 - 人の頼み：画面の文字が小さく感じるので、全体の倍率を 70%〜130% ぐらいで変えたい（見た目は崩れてもよい）
 - 環境設定の「文字と表示」の最初の行に「画面の倍率」（70%〜130%、10% ずつ。既定は 100%）。WebView のページの倍率（Tauri の `setZoom`。`core/api.ts` の `setUiZoom`）で、文字も部品もまとめて拡大・縮小する。表示の好み（この端末の localStorage）に `zoom` を足し、読み方を App から `shell/viewPrefs.ts` に移した（起動したときに `main.tsx` が描き始める前に頼むため。プレビューの別ウィンドウも開いたときに読む）。選んだら App が合わせる。権限 `core:webview:allow-set-webview-zoom` を足した
 - plan-reviewer の指摘で直したこと：`setUiZoom` を async にした（Tauri の外で呼んでも投げず、描くのを止めない）
 - テスト：`app/test/viewprefs.test.ts`（3件：選択肢、倍率の読み方（間・範囲の外・数でない）、覚えた文字の読み方（前の版で倍率が無い・壊れている））
-- 画面の確認：人の確かめ（H54）
+- 画面の確認：人の確かめ（H54）。済（2026-10-10。130% で窓の幅を小さくするとボタンが見切れるが、仕方ないとした）
 
 ### 2026-10-10 T4-29 アイデアメモのネタ出し（人の頼み。D088）
 

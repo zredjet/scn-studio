@@ -6,7 +6,12 @@
   "private": true,
   "type": "module",
   "publisher": "scn-studio",
-  "license": "UNLICENSED",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zredjet/scn-studio",
+    "directory": "packages/vscode-scn"
+  },
   "engines": {
     "vscode": "^1.100.0"
   },

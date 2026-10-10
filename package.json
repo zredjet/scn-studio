@@ -1,6 +1,7 @@
 {
   "name": "scn-studio",
   "private": true,
+  "license": "MIT",
   "packageManager": "pnpm@12.9.1",
   "scripts": {
     "lint": "biome check --error-on-warnings",

@@ -2,7 +2,7 @@
 
 分岐する物語（ADV・ビジュアルノベル）のための執筆ツール。Tauri製のデスクトップアプリで、対象OSはWindowsとmacOS（Linuxは対象外）。シナリオは独自のテキスト形式 `.scn` で書き、設定DB・構造グラフ・プレビュー・エクスポート・AI支援を、同じテキストから導いたデータの上に載せる。
 
-現在は**フェーズ4（ローカルのLLMと、企画・設定の生成）を、人の確認を除いて終えたところ**（T4-7、D081。その後、人の追加の頼みで `scn` コマンドの説明（T4-8）と設定DBの既定の型とテンプレート集（T4-9）を足した。D082。返す分の上限の上書き（T4-10、D083）と、画面の見た目と操作感の点検（T4-11、D084。報告は `docs/ui/audit.md`）と、その直し（T4-12〜T4-14）と Claude Design への頼み（T4-15、`docs/ui/design-brief.md`。D085）も足した。届いた見本 v1 を取り込み、見た目の反映 T4-16〜T4-20 を済ませた（人の確認を除く）。D086。見本の新しい機能のうち人が選んだもの（作品全体の検索、ローカルのモデルの一覧、変数の取りうる値、環境設定の頁、Claude Code（CLI））と点検の直しを T4-21〜T4-26 で済ませた（人の確認 H46〜H50 を除く）。D087。その後の人の確かめと頼みで、AI の下書きの結果を閉じること・考える量・アイデアのネタ出し（T4-27〜T4-29、D088）と画面の倍率（T4-30、D089）を足した（人の確認 H51〜H54 を除く））。設計検討書の範囲はフェーズ3までで（人の確認を除いて完了。T3-17）、フェーズ4は人の相談と判断で足した（D080）。残りは `docs/review-for-human.md` の3節（Y1〜Y9 と、画面の点検の Z1〜Z5）で人の判断を待っている（人の判断が届くまで新しい作業を始めない）。計画は `docs/plan/phase4.md`、進捗は `docs/progress.md`。フェーズ3の人の確認は、届いたときに T3-1 で取り込む。フェーズ3（支援と拡張）の計画は `docs/plan/phase3.md`、設計検討書との突き合わせは `docs/plan/design-check.md`。フェーズ2（制作に使える）の計画は `docs/plan/phase2.md`、フェーズ1（執筆の核）の計画は `docs/plan/phase1.md`、フェーズ0（形式を固める）の計画と記録は `docs/plan/phase0.md` に残している。人の確認を待っていることは `docs/review-for-human.md` にまとめている。
+現在は**フェーズ4（ローカルのLLMと、企画・設定の生成）を、人の確認を除いて終えたところ**（T4-7、D081。その後、人の追加の頼みで `scn` コマンドの説明（T4-8）と設定DBの既定の型とテンプレート集（T4-9）を足した。D082。返す分の上限の上書き（T4-10、D083）と、画面の見た目と操作感の点検（T4-11、D084。報告は `docs/ui/audit.md`）と、その直し（T4-12〜T4-14）と Claude Design への頼み（T4-15、`docs/ui/design-brief.md`。D085）も足した。届いた見本 v1 を取り込み、見た目の反映 T4-16〜T4-20 を済ませた（人の確認を除く）。D086。見本の新しい機能のうち人が選んだもの（作品全体の検索、ローカルのモデルの一覧、変数の取りうる値、環境設定の頁、Claude Code（CLI））と点検の直しを T4-21〜T4-26 で済ませた（人の確認 H46〜H50 を除く）。D087。その後の人の確かめと頼みで、AI の下書きの結果を閉じること・考える量・アイデアのネタ出し（T4-27〜T4-29、D088）と画面の倍率（T4-30、D089）を足した（人の確認 H51〜H53 を除く）。GitHub に公開し（`zredjet/scn-studio`、MIT）、CI とドキュメントを整えた（T4-31、D090））。設計検討書の範囲はフェーズ3までで（人の確認を除いて完了。T3-17）、フェーズ4は人の相談と判断で足した（D080）。残りは `docs/review-for-human.md` の3節（Y1〜Y9 と、画面の点検の Z1〜Z5）で人の判断を待っている（人の判断が届くまで新しい作業を始めない）。計画は `docs/plan/phase4.md`、進捗は `docs/progress.md`。フェーズ3の人の確認は、届いたときに T3-1 で取り込む。フェーズ3（支援と拡張）の計画は `docs/plan/phase3.md`、設計検討書との突き合わせは `docs/plan/design-check.md`。フェーズ2（制作に使える）の計画は `docs/plan/phase2.md`、フェーズ1（執筆の核）の計画は `docs/plan/phase1.md`、フェーズ0（形式を固める）の計画と記録は `docs/plan/phase0.md` に残している。人の確認を待っていることは `docs/review-for-human.md` にまとめている。
 
 ## 作業を始めるとき
 
@@ -18,6 +18,7 @@
 | 全体設計（データモデル、検証、AI、エクスポート） | `docs/design.md` |
 | 画面の構成と見た目 | `docs/ui/README.md`、`docs/ui/tokens.md`、`docs/ui/decisions-v1.md`、`docs/ui/mockups/*.html` |
 | `scn` コマンドの使い方（人と AI エージェント向けの説明。作品フォルダの `SCN.md` の元） | `docs/guide/scn.md` |
+| アプリの使い方（画面ごとの操作、キーの一覧。初めて使う人向け） | `docs/guide/app.md` |
 | 実データの例（パーサの主要なテスト入力） | `samples/houkago/` |
 
 ## 設計の原則
@@ -35,6 +36,8 @@
 
 ```
 CLAUDE.md               この文書
+README.md               初めて読む人向けの説明（CONTRIBUTING.md は開発への参加のしかた、LICENSE は MIT）
+.github/workflows/      CI（GitHub Actions。T4-31）
 docs/                   設計・仕様・計画・画面モック（.claude/rules/ に分野別の約束）
 samples/houkago/        サンプル作品「放課後の灯」（.scn・設定・変数など一式）
 samples/amayadori/      フェーズ1のゲートの短編「雨宿りの駅」（T1-13。ツールとClaude Codeで書いた。指示書は CLAUDE.template.md）
@@ -53,6 +56,7 @@ app/                    Tauri＋React（src-tauri/ と src/）
 ここには実際に動くコマンドだけを書く。コマンドを足したタスク（T0-3のスナップショット更新、T0-5のCLI、T0-7のアプリ起動など）で、この節に追記する。
 
 - まとめて確認：`scripts/check-all`（macOS）、`powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-all.ps1`（Windows）。Rustの書式・clippy・テスト、pnpmの依存の導入、Biome、型検査、フロントのテストを順に走らせ、1つでも失敗したらそこで止まる
+- CI：`.github/workflows/ci.yml`（GitHub Actions）が、`main` への push とプルリクエストで、上のまとめての確認を macOS と Windows で走らせる。結果は `gh run list` / `gh run view <ID> --log-failed` で見る
 - Rust：`cargo test --workspace` / `cargo clippy --workspace --all-targets -- -D warnings` / `cargo fmt --all`（確かめるだけなら `cargo fmt --all -- --check`）
 - パーサだけ：`cargo test -p scn-core`
   - スナップショット（`crates/scn-core/tests/snapshots/`）が合わないと、テストが失敗し、新しい結果が `*.snap.new` に出る。中身を読んで確かめてから、環境変数 `INSTA_UPDATE=always` を付けて `cargo test -p scn-core` を実行すると受け入れる（`*.snap.new` は消してから）
@@ -71,6 +75,7 @@ app/                    Tauri＋React（src-tauri/ と src/）
   - `cargo run -p scn-cli -- new <dir> [--title 作品名]`：新しい作品フォルダを作る（無いフォルダか空のフォルダに。`project.toml`、スタブの章、`CLAUDE.md`、`FORMAT.md`、`SCN.md`、設定DBの13の型など）。ひな形は `crates/scn-core/templates/`（設定DBの型のテンプレートは `templates/types/`。T4-9）
   - `cargo run -p scn-cli -- format-doc [project-dir]`：作品フォルダの `FORMAT.md`（仕様書の1〜16節と作品フォルダの規約）と `SCN.md`（`docs/guide/scn.md` のコマンドの使い方）を、今のツールの版で書き直す。`--check` は書き直さずに、どちらかが古ければ終了コード1
   - コマンドやオプションを足したら、`docs/guide/scn.md` にも書く（`cargo test -p scn-cli` が、すべてのコマンドと長いオプションが説明にあることを確かめる）
+  - アプリの画面の操作・キー・環境設定を足したり変えたりしたら、`docs/guide/app.md` も直す（テストでは照らしていない）
   - `cargo run -p scn-cli -- export script [project-dir] [--format csv|xlsx] [--baseline] [--no-ai-drafts] [-o 書き出し先]`（`--no-ai-drafts` は AI下書きのシーンの台詞と地の文を省く。`export text`・`export renpy`・`export tyrano`・`export utage` にもある）：台本（行ID、シーン、キャラ、台詞、直前の地の文、ボイスファイル名、備考）を CSV（UTF-8 の BOM 付き、CRLF）か Excel 形式（`--format xlsx`。欄はすべて文字列）で書き出す。既定の書き出し先は作品フォルダの `export/script.csv`（Excel 形式は `export/script.xlsx`）、`-o -` で標準出力。`--baseline` で書き出した台本を収録の基準（`export/script-baseline.json`）として記録し、基準があれば、変わった台詞の備考に「再収録候補」と書いて数を標準エラーに出す。行IDの無い台詞の数も標準エラーに出す。終了コードは `ir` と同じ（エラーの診断があれば1）
   - `cargo run -p scn-cli -- export orders [project-dir] [-o 書き出し先]`：発注リスト（まだファイルの無い素材の表。種別、名前、キャラ、差分、使用回数、初出、使用シーン、備考）を CSV（UTF-8 の BOM 付き、CRLF）で書き出す。既定の書き出し先は作品フォルダの `export/orders.csv`、`-o -` で標準出力。終了コードは `export script` と同じ
   - `cargo run -p scn-cli -- export text [project-dir] [--route 名前 | --ending ID] [--no-notes] [-o 書き出し先]`：道（共通・ルート・エンディング）を一本道にした通読用のテキスト（話者名なし、ルビは `｜親文字《読み》`）を書き出す。`--route` も `--ending` も無ければ、共通とすべてのルートを作品フォルダの `export/text/<道の名前>.txt` に書く。`-o -` で標準出力（1つの道のときだけ）。ルートの無い作品は「通し」として書く。まとめて書くとき、着けない道は標準エラーに知らせて書かない。終了コードは `export script` と同じで、加えて `--route`・`--ending` で指定した道が無い・着けないときは2
@@ -85,7 +90,7 @@ app/                    Tauri＋React（src-tauri/ と src/）
   - `scn` をパスの通った場所（`~/.cargo/bin`）に入れる：`cargo install --locked --path crates/scn-cli`（作品フォルダで `scn` として使うとき）
 - Ren'Py で確かめる（macOS、Ren'Py の SDK が要る。`scripts/check-all` には入らない）：`scripts/renpy-check [SDKのフォルダ]`（既定は環境変数 `RENPY_SDK` か `/Applications/renpy-8.5.2-sdk`）。両サンプルを `target/renpy-check/` に書き出し、SDK の lint と、Ren'Py の testcase（`scripts/renpy/*.rpy`）で全エンディングまで自動で遊ぶ。ゲームの窓が短い間開く
 - フロント：`pnpm install` / `pnpm lint`（Biomeの書式と静的検査）/ `pnpm fmt`（Biomeで整形と安全な修正）/ `pnpm typecheck` / `pnpm test`
-  - Biomeはルートで全体を一度に検査する（`docs/` と `samples/` は対象外）。各パッケージには `lint` を置かず、`typecheck` と `test` のスクリプトを置く。ルートの `pnpm typecheck` と `pnpm test` が、それを持つパッケージをすべて走らせる
+  - Biomeはルートで全体を一度に検査する（`docs/` と `samples/` とアイコンの `app/src-tauri/icons/` は対象外）。各パッケージには `lint` を置かず、`typecheck` と `test` のスクリプトを置く。ルートの `pnpm typecheck` と `pnpm test` が、それを持つパッケージをすべて走らせる
 - Lezer文法（`packages/lezer-scn`）：`pnpm -C packages/lezer-scn test`（文法から構文解析器を作り直してから、`node --test` でテスト）／`pnpm -C packages/lezer-scn build`（構文解析器を作るだけ）
   - 作った `src/parser.ts`・`src/parser.terms.ts` はコミットしない（`typecheck` と `test` が先に作る）
   - サンプルの行の種類の期待値（`test/expected/*.txt`）を作り直す：`UPDATE_EXPECTED=1 pnpm -C packages/lezer-scn test`。差分を読んで確かめてから受け入れる（VS Code拡張の文法のテストも、この期待値と突き合わせる）

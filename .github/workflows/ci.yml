@@ -1,0 +1,52 @@
+# まとめての検査（scripts/check-all）を macOS と Windows で走らせる（D090）。
+# Rust の版は rust-toolchain.toml、pnpm の版は package.json の packageManager に従う。
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: check-all (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Rust（rust-toolchain.toml の版を入れる）
+        run: rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: まとめての検査（macOS）
+        if: runner.os == 'macOS'
+        run: scripts/check-all
+
+      - name: まとめての検査（Windows）
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-all.ps1

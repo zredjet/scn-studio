@@ -2,6 +2,7 @@
   "name": "@scn-studio/app",
   "private": true,
   "version": "0.1.0",
+  "license": "MIT",
   "description": "scn-studio のデスクトップアプリ（Tauri＋React）",
   "type": "module",
   "scripts": {

@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!!docs", "!!samples"]
+    "includes": ["**", "!!docs", "!!samples", "!!app/src-tauri/icons"]
   },
   "formatter": {
     "indentStyle": "space",

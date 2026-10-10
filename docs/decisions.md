@@ -985,3 +985,14 @@
 - 決定：環境設定の「文字と表示」に「画面の倍率」（70%〜130%、10% ずつ。既定は 100%）を足す（T4-30）。WebView のページの倍率（Tauri の `setZoom`。ブラウザの拡大と同じ）で、文字も部品もまとめて拡大・縮小する。この端末に覚え（表示の好みと同じ localStorage）、作品ごとには持たない。プレビューの別ウィンドウは開いたときに合わせる（ウィンドウどうしで状態を共有しない）。
 - 理由：人の頼み（2026-10-10）。画面の文字が小さく感じるので、倍率で合わせたい（見た目は崩れてもよい）。文字の大きさのトークン（`--fs-*`）だけを変えると、部品の高さや欄の幅とつり合わなくなるので、ページ全体の倍率にした。CSS の `zoom` は CodeMirror とフロー図の位置の計算を狂わせることがあるので使わない。
 - 影響：`docs/plan/phase4.md`（T4-30）、権限（`core:webview:allow-set-webview-zoom`）。130% では、窓の最小の幅（1024）で見える幅が 790 ほどになり、横の欄が窮屈になる（人の確かめ H54）。
+
+## D090 GitHub への公開と CI（2026-10-10）
+
+- 決定：
+  - リポジトリを GitHub の `zredjet/scn-studio` に公開で置く。ライセンスは MIT（サンプル作品と画面の見本も含む）。既定のブランチは `main`（手元の `master` を改名した）。
+  - CI は GitHub Actions で、`scripts/check-all`（Windows は `scripts/check-all.ps1`）を macOS と Windows で走らせる（`main` への push、プルリクエスト、手動）。Linux は対象外なので走らせない。Rust は `rust-toolchain.toml`、pnpm は `packageManager`、Node.js は 24。
+  - 手元だけのファイル（`.vscode/`、`mise.toml`、サンプルで動かしたフロー図の位置）は `.git/info/exclude` で上げない。サンプルの書き出し先（`export/` の下の書き出したもの）は `.gitignore` に足した。
+  - README を書き直し、アプリの使い方（`docs/guide/app.md`）と `CONTRIBUTING.md` を足した。画面の画像は `docs/images/`（サンプル作品「放課後の灯」で撮った）。
+  - アプリのアイコンを、人の用意した案 3b「原稿用紙」（升目の紙に、かぎ括弧と分岐の印）に替えた。元の SVG も `app/src-tauri/icons/` に置く。
+- 理由：人の頼みと判断（2026-10-10）。ライセンス・CI の範囲・ブランチは推奨案のまま。X4 の推奨案（リモートのリポジトリを置くときに、`scripts/check-all` を macOS と Windows で）に沿う。
+- 影響：`docs/plan/phase4.md`（T4-31）、`docs/review-for-human.md`（X4）。Windows の `scripts/check-all.ps1` は、ここで初めて走らせる（H1 の一部を CI で確かめる。アプリの起動と日本語入力は人の確認のまま）。

@@ -33,5 +33,14 @@ packages/lezer-scn/src/parser.terms.ts
 # サンプルの書き出し先（scn export を -o なしで実行したとき）
 samples/*/export/script.csv
 samples/*/export/orders.csv
+samples/*/export/script.xlsx
+samples/*/export/script-baseline.json
 samples/*/export/renpy/
+samples/*/export/tyrano/
+samples/*/export/utage/
 samples/*/export/text/
+samples/*/export/epub/
+samples/*/export/pdf/
+
+# サンプルで動かしたフロー図の位置（作品では layout.json を残すが、サンプルには入れない）
+samples/*/layout.json
