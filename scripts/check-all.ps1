@@ -29,7 +29,7 @@ function Invoke-Step {
 
 Invoke-Step 'Rust：書式（cargo fmt --check）' 'cargo' @('fmt', '--all', '--', '--check')
 Invoke-Step 'Rust：静的検査（clippy）' 'cargo' @('clippy', '--workspace', '--all-targets', '--', '-D', 'warnings')
-Invoke-Step 'Rust：テスト' 'cargo' @('test', '--workspace')
+Invoke-Step 'Rust：テスト（失敗しても残りのテストを走らせ、まとめて知らせる）' 'cargo' @('test', '--workspace', '--no-fail-fast')
 Invoke-Step 'pnpm：依存の導入（lockfileは変えない）' 'pnpm' @('install', '--frozen-lockfile')
 Invoke-Step 'フロント：書式と静的検査（Biome）' 'pnpm' @('run', 'lint')
 Invoke-Step 'フロント：型検査（typecheck のあるパッケージ）' 'pnpm' @('run', 'typecheck')

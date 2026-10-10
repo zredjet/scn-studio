@@ -740,7 +740,7 @@ fn analyze_in_project(root: &Path, file: &Path, text: String) -> Result<Vec<Show
         }
     }
     for group in &mut groups {
-        group.file = shown_root.join(&group.file).display().to_string();
+        group.file = join_display(&shown_root, &group.file);
     }
     groups.push(Shown {
         file: file.display().to_string(),
@@ -1750,8 +1750,32 @@ fn display_path(dir: &Path, relative: &str) -> String {
     if dir == Path::new(".") {
         relative.to_owned()
     } else {
-        dir.join(relative).display().to_string()
+        join_display(dir, relative)
     }
+}
+
+/// フォルダに、プロジェクトの根からの相対パス（区切りは `/`）をつなげて見せる。区切りは混ぜない：Windows では、
+/// フォルダを `/` で書いたときだけ `/` でつなぎ、ほかは `\` にそろえる（ほかの OS は `Path::join` と同じ）。
+fn join_display(dir: &Path, relative: &str) -> String {
+    let dir = dir.display().to_string();
+    if dir.is_empty() {
+        return relative.to_owned();
+    }
+    let backslash = cfg!(windows) && !dir.contains('/');
+    let relative = if backslash {
+        relative.replace('/', "\\")
+    } else {
+        relative.to_owned()
+    };
+    let ends_with_sep = dir.ends_with('/') || (cfg!(windows) && dir.ends_with('\\'));
+    let sep = if ends_with_sep {
+        ""
+    } else if backslash {
+        "\\"
+    } else {
+        "/"
+    };
+    format!("{dir}{sep}{relative}")
 }
 
 // ---- scn check ----
@@ -2160,6 +2184,31 @@ mod tests {
 
     /// コマンドの使い方の説明（`docs/guide/scn.md`。作品フォルダの `SCN.md`。T4-8、D082）。
     const GUIDE: &str = include_str!("../../../docs/guide/scn.md");
+
+    /// 出力するパスの区切りを混ぜない（T4-31。Windows の CI で `samples/houkago\story/…` になっていた）。
+    #[test]
+    fn join_display_keeps_one_separator() {
+        assert_eq!(
+            join_display(Path::new("samples/houkago"), "story/a.scn"),
+            "samples/houkago/story/a.scn"
+        );
+        assert_eq!(
+            join_display(Path::new("dir/"), "story/a.scn"),
+            "dir/story/a.scn"
+        );
+        assert_eq!(join_display(Path::new(""), "story/a.scn"), "story/a.scn");
+        assert_eq!(display_path(Path::new("."), "story/a.scn"), "story/a.scn");
+        if cfg!(windows) {
+            assert_eq!(
+                join_display(Path::new(r"samples\houkago"), "story/a.scn"),
+                r"samples\houkago\story\a.scn"
+            );
+            assert_eq!(
+                join_display(Path::new(r"C:\"), "story/a.scn"),
+                r"C:\story\a.scn"
+            );
+        }
+    }
 
     /// 完了条件：すべてのコマンドと長いオプションが、使い方の説明にある（コマンドやオプションを足したら説明も直す）。
     #[test]

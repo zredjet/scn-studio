@@ -15,8 +15,8 @@ cargo fmt --all -- --check
 step "Rust：静的検査（clippy）"
 cargo clippy --workspace --all-targets -- -D warnings
 
-step "Rust：テスト"
-cargo test --workspace
+step "Rust：テスト（失敗しても残りのテストを走らせ、まとめて知らせる）"
+cargo test --workspace --no-fail-fast
 
 step "pnpm：依存の導入（lockfileは変えない）"
 pnpm install --frozen-lockfile
