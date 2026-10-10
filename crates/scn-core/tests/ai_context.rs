@@ -545,7 +545,7 @@ fn builtin_tasks_match_templates() {
         .map(|e| e.unwrap().file_name())
         .collect();
     names.sort();
-    assert_eq!(names.len(), 14);
+    assert_eq!(names.len(), 15);
     for name in names {
         let template = fs::read_to_string(templates.join(&name)).unwrap();
         for sample_name in ["houkago", "amayadori"] {

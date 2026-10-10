@@ -18,6 +18,7 @@ import type {
   AutoStageName,
   BranchProposal,
   FieldsWritten,
+  IdeaCandidate,
   IdeaSuggestion,
   PlotWriteResult,
   SceneSummary,
@@ -262,6 +263,8 @@ export type RunResult =
       readonly branches: readonly BranchProposal[];
       /** アイデアメモの分類案（`output: ideas`。T3-10）。 */
       readonly ideas: readonly IdeaSuggestion[];
+      /** アイデアの候補（`output: idea_candidates`。T4-29）。 */
+      readonly ideaCandidates: readonly IdeaCandidate[];
       /** 企画書・設定の下書きを書いた結果（`output: concept`・`entries`。T4-4・T4-5。ファイルごとの書いた項目と
        * 案、案を見せたときの中身）。 */
       readonly fields: readonly FieldsWritten[];
@@ -317,6 +320,10 @@ export function historyStatus(
         return result.ideas.length === 0
           ? "分類案なし"
           : `分類案 ${result.ideas.length}件`;
+      if (output === "idea_candidates")
+        return result.ideaCandidates.length === 0
+          ? "候補なし"
+          : `候補 ${result.ideaCandidates.length}件`;
       if (output === "concept" || output === "entries") {
         // 企画書・設定の下書き（T4-4・T4-5）：作ったエントリ、書いた項目、案の数。
         if (result.fields.length === 0 && result.created.length === 0)
@@ -734,4 +741,19 @@ export interface PlotAi {
     confirmedCloud: readonly string[],
   ) => void;
   readonly onCancelSummarize: () => void;
+}
+
+/** ネタ出しの数の欄（1〜10。読めなければ既定の5。T4-29）。 */
+export function ideaCount(text: string): number {
+  const plain = text
+    .trim()
+    .replace(/[０-９]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 0xfee0));
+  const n = Number(plain);
+  if (!/^\d+$/.test(plain) || !Number.isSafeInteger(n) || n < 1) return 5;
+  return Math.min(n, 10);
+}
+
+/** ネタ出しの頼みを、実行の引数（`route`）にする（T4-29）。 */
+export function ideaRequestArg(direction: string, count: number): string {
+  return JSON.stringify({ direction: direction.trim(), count });
 }

@@ -169,7 +169,7 @@ $ scn graph --level route
 
 ### `scn provenance [作品フォルダ] [--json] [-o 書き出し先]`
 
-AI が書いた行（出自の記録で `ai` か、AI が書いた後に人が直した `ai-edited` の行）と、AI が書いた企画書・設定DBの項目の一覧を出す。賞や公募で AI の使用を申告するときに使う。標準エラーに数が出る。
+AI が書いた行（出自の記録で `ai` か、AI が書いた後に人が直した `ai-edited` の行）と、AI が書いた企画書・設定DBの項目（とネタ出しで足したアイデアメモの本文）の一覧を出す。賞や公募で AI の使用を申告するときに使う。標準エラーに数が出る。
 
 ```
 $ scn provenance
@@ -203,6 +203,7 @@ AI タスクの定義（`ai/<タスク>.yaml`）から組み立てた、LLM に�
 | `branch_ideas` | 分岐案を出す | cloud |
 | `concept_questions` | 企画書とメモへの問い返し | cloud |
 | `idea_sort` | メモの分類案 | cloud |
+| `idea_brainstorm` | アイデアのネタ出し（候補から選んでメモにする） | cloud |
 | `route_skeleton` | ルート骨格を作る | cloud |
 | `draft_stub` | スタブの本文を下書き | cloud |
 | `draft_chapter` | 章を下書きまで仕上げる | cloud |

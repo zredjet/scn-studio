@@ -5526,6 +5526,47 @@ button.sb-btn:hover {
   line-height: 1.6;
 }
 
+/* ネタ出し（T4-29） */
+.idea-brainstorm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.idea-brainstorm-count {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.idea-brainstorm-count > .input {
+  width: 56px;
+}
+
+.idea-candidate {
+  flex-direction: row;
+  align-items: flex-start;
+  cursor: pointer;
+}
+
+.idea-candidate > input {
+  margin-top: 4px;
+}
+
+.idea-candidate-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.idea-candidate.is-done {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .concept-ai-link {
   align-self: flex-start;
   /* 長い名前でも枠に収める（折り返したら高さを伸ばす。T4-14、V8）。 */

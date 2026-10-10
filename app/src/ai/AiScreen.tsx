@@ -839,6 +839,25 @@ export function AiScreen({
                               </ul>
                             </div>
                           )}
+                          {task.output === "idea_candidates" && (
+                            <div className="export-info">
+                              <p>
+                                候補 {result.ideaCandidates.length}
+                                件。企画の画面の「ネタ出し」で選んで、メモにします（方向性もそこで書きます）。
+                              </p>
+                              <ul className="ai-idea-list">
+                                {result.ideaCandidates.map((c, i) => (
+                                  // biome-ignore lint/suspicious/noArrayIndexKey: 候補は回の中で順番が変わらない
+                                  <li key={i}>
+                                    {c.title !== "" && (
+                                      <strong>{c.title}：</strong>
+                                    )}
+                                    {c.body}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                           {task.output === "findings" &&
                             resultFindings.length === 0 && (
                               <p className="context-empty">

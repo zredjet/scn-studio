@@ -1,0 +1,9 @@
+name: アイデアのネタ出し
+level: propose
+model: cloud
+context: [concept, ideas, characters]
+output: idea_candidates
+prompt: |
+  企画書とアイデアメモ、キャラクターの設定を読み、作者が頼む方向性に沿ったアイデアの候補を出してください。
+  候補は、場面・展開・設定・人物の関係などの「ネタ」です。互いに違う方向にし、企画書でやらないことに書かれたものは避けてください。
+  作者が選んだ候補だけがアイデアメモになります。

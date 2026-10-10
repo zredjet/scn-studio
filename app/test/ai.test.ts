@@ -33,6 +33,8 @@ import {
   findTask,
   groupTasks,
   historyStatus,
+  ideaCount,
+  ideaRequestArg,
   isSkeleton,
   mergedTags,
   mergeFindings,
@@ -242,6 +244,7 @@ test("履歴と数の文", () => {
     branches: [],
     skeleton: [],
     ideas: [],
+    ideaCandidates: [],
     fields: [],
     created: [],
     notes: [],
@@ -414,6 +417,7 @@ test("提案：ファイルのまとまり、様子の文、採用できるも�
     branches: [],
     skeleton: [],
     ideas: [],
+    ideaCandidates: [],
     fields: [],
     created: [],
     notes: [],
@@ -438,6 +442,7 @@ test("プロットとフローへの支援の文と判断（T3-10）", () => {
     branches: [],
     skeleton: [],
     ideas: [],
+    ideaCandidates: [],
     fields: [],
     created: [],
     notes: [],
@@ -947,4 +952,17 @@ test("送る中身に考える量を付けるときの知らせ（T4-28）", () 
     effortNote("high") ?? "",
     /^考える量：高（high）を付けて送ります/,
   );
+});
+
+test("ネタ出しの数と頼み（T4-29）", () => {
+  assert.equal(ideaCount("3"), 3);
+  assert.equal(ideaCount("１０"), 10);
+  assert.equal(ideaCount("99"), 10);
+  assert.equal(ideaCount(""), 5);
+  assert.equal(ideaCount("0"), 5);
+  assert.equal(ideaCount("abc"), 5);
+  assert.deepEqual(JSON.parse(ideaRequestArg(" 紬の展開 ", 3)), {
+    direction: "紬の展開",
+    count: 3,
+  });
 });

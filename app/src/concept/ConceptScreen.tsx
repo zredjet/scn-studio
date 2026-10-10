@@ -56,6 +56,7 @@ import type {
 import { useScreenStatus } from "../shell/StatusBar.tsx";
 import { conceptStatus } from "../shell/status.ts";
 import { AiAside, type ConceptDraftAi } from "./AiAside.tsx";
+import type { IdeaBrainstormAi } from "./IdeaBrainstorm.tsx";
 import { IdeaCard } from "./IdeaCard.tsx";
 import {
   allTags,
@@ -114,6 +115,8 @@ export interface ConceptAi {
   readonly onSkeleton: (() => void) | null;
   /** 企画書の下書き（T4-4）。 */
   readonly draft: ConceptDraftAi;
+  /** ネタ出し（T4-29）。 */
+  readonly brainstorm: IdeaBrainstormAi;
 }
 
 /** 企画書のフォームの項目。 */
@@ -632,6 +635,7 @@ export function ConceptScreen({
                               promote(idea.file, promotion)
                             }
                             onOpenTarget={() => openTarget(idea)}
+                            origin={aiFields.get(fieldKey(idea.file, BODY_KEY))}
                           />
                         ))}
                         {group.status === FOLDED_STATUS &&
@@ -997,6 +1001,7 @@ export function ConceptScreen({
         onApply={applySuggestion}
         onSkeleton={ai.onSkeleton}
         draft={ai.draft}
+        brainstorm={ai.brainstorm}
       />
     </div>
   );

@@ -17,6 +17,7 @@ import type {
   Idea,
   IdeaSuggestion,
 } from "../core/types.ts";
+import { IdeaBrainstorm, type IdeaBrainstormAi } from "./IdeaBrainstorm.tsx";
 
 /** 企画書の下書き（T4-4）：タスク、最後の回の結果、案の決め方と採用・却下。 */
 export interface ConceptDraftAi {
@@ -59,6 +60,8 @@ interface Props {
   readonly onSkeleton: (() => void) | null;
   /** 企画書の下書き（T4-4）。 */
   readonly draft: ConceptDraftAi;
+  /** ネタ出し（T4-29）。 */
+  readonly brainstorm: IdeaBrainstormAi;
 }
 
 export function AiAside({
@@ -73,6 +76,7 @@ export function AiAside({
   onApply,
   onSkeleton,
   draft,
+  brainstorm,
 }: Props) {
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -138,6 +142,7 @@ export function AiAside({
           </div>
         ))}
       </section>
+      <IdeaBrainstorm ai={brainstorm} />
       <section className="concept-ai-task" aria-label="企画書の下書き">
         <h3 className="concept-ai-title">企画書の下書き</h3>
         <p className="t-small t-2">

@@ -60,6 +60,9 @@ pub enum TaskOutput {
     Concept,
     /// 設定の下書き（生成の段階。足りないエントリを作り、空いている項目に書く。T4-5）。
     Entries,
+    /// アイデアの候補（提案の段階。人が選んだものだけをアイデアメモとして足す。T4-29）。
+    #[serde(rename = "idea_candidates")]
+    IdeaCandidates,
 }
 
 impl TaskOutput {
@@ -73,6 +76,7 @@ impl TaskOutput {
             "ideas" => Some(Self::Ideas),
             "concept" => Some(Self::Concept),
             "entries" => Some(Self::Entries),
+            "idea_candidates" => Some(Self::IdeaCandidates),
             _ => None,
         }
     }
@@ -80,7 +84,9 @@ impl TaskOutput {
     fn fits(self, level: TaskLevel) -> bool {
         match level {
             TaskLevel::Review => matches!(self, Self::Findings | Self::Summary | Self::Ideas),
-            TaskLevel::Propose => matches!(self, Self::Diff | Self::Proposals),
+            TaskLevel::Propose => {
+                matches!(self, Self::Diff | Self::Proposals | Self::IdeaCandidates)
+            }
             TaskLevel::Generate => matches!(self, Self::Draft | Self::Concept | Self::Entries),
             TaskLevel::Auto => self == Self::Draft,
         }

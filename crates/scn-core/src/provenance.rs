@@ -397,13 +397,15 @@ pub fn provenance_csv(rows: &[ProvenanceRow]) -> String {
     csv_table(&PROVENANCE_COLUMNS, &table)
 }
 
-/// 項目の記録を持てるファイル（企画書と設定DBのエントリ。T4-3）。
+/// 項目の記録を持てるファイル（企画書と設定DBのエントリ。T4-3。アイデアメモ。T4-29）。
 pub fn is_field_file(file: &str) -> bool {
     let parts: Vec<&str> = file.split('/').collect();
     let safe = |p: &str| !p.is_empty() && !p.starts_with('.') && !p.contains('\\');
     match parts.as_slice() {
         ["concept.md"] => true,
         ["bible", "entries", type_id, name] => safe(type_id) && safe(name) && name.ends_with(".md"),
+        // アイデアメモ（ネタ出しで足したメモの本文。T4-29）。
+        ["ideas", name] => safe(name) && name.ends_with(".md"),
         _ => false,
     }
 }

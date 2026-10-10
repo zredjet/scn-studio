@@ -117,6 +117,7 @@ paths:
 - メモと企画書の項目は、設定DBの画面と同じ入力欄（`bible/FieldInput.tsx`、`BodyField`）と書き換え（`set_entry_field` など。直したキーの行だけ）を使う。フロントで YAML を組み立てない。
 - 昇格はコア（`promote_idea`）が行う。章にスタブのシーンを足したら、App の `onStoryWritten` でエディタの中身を差し替える（外部の変更の読み込み直しと同じ扱い）。保存していない変更のある章は選ばせない。
 - メモの並べ方、絞り込み、昇格の欄の初めの値は `concept/ideas.ts` に置き、テストを付ける（`app/test/ideas.test.ts`）。
+- ネタ出し（T4-29、D088）：`concept/IdeaBrainstorm.tsx`（企画の画面の右の欄）。方向性と数を書いて頼み（実行の `route` に `ai/model.ts` の `ideaRequestArg`。数は `ideaCount`）、候補を並べ、選んだものだけをコア（`add_ai_ideas`）でメモにする。足したメモは AI の印（本文の出自。`IdeaCard` の `origin`）。結果は「結果を閉じる」で隠す（T4-27 と同じ）。タスクの定義が無い作品では「タスクの定義を足す」（`add_task_template`）。
 - ソース表示（`bible/SourceView.tsx`）を持つ画面（設定DB、変数、企画）は、表示を切り替える前に `bible/useSourceGuard.ts` の `guard` を通し、保存していない変更を捨ててよいかを聞く（T4-12、U1）。画面を移るときは App の `leaveSettings` が聞く（`setScreen` を直に呼ぶ道を足すときは、これらの画面から通れないかを確かめる）。
 
 ## フロー図（xyflow）

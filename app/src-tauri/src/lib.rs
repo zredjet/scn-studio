@@ -197,7 +197,10 @@ fn refuse_settings_during_auto(
     root: &Path,
     path: Option<&str>,
 ) -> Result<(), String> {
-    if path.is_some_and(|p| !scn_core::provenance::is_field_file(p)) {
+    // アイデアメモも項目の記録を持てるが（T4-29）、段はメモを書かないので止めない。
+    if path.is_some_and(|p| {
+        scn_core::ideas::is_idea_path(p) || !scn_core::provenance::is_field_file(p)
+    }) {
         return Ok(());
     }
     let auto = locked(&state.auto)?;
@@ -777,7 +780,48 @@ fn create_idea(
     let (file, text) = workspace
         .create_idea(&body, &tags)
         .map_err(|e| e.to_string())?;
-    json_response(&json!({ "file": file, "text": text }))
+    // 同じ名前の古い AI の記録を打ち消せなかったわけ（T4-29。後の別の操作の知らせにしない）。
+    let provenance_problem = workspace.take_field_provenance_problem();
+    json_response(&json!({ "file": file, "text": text, "provenance_problem": provenance_problem }))
+}
+
+/// 組み込みのタスクの定義を、ひな形から作品フォルダに足す（前に作った作品で新しいタスクを使うため。T4-29）。
+#[tauri::command]
+fn add_task_template(task: String, state: State<'_, AppState>) -> Result<String, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    workspace
+        .add_task_template(&task)
+        .map_err(|e| e.to_string())
+}
+
+/// ネタ出しの候補のうち選んだものを、アイデアメモ（未整理）として足す（本文の出自は ai。T4-29）。足したメモと、
+/// 出自を書けなかったわけ。
+#[tauri::command]
+fn add_ai_ideas(
+    candidates: Vec<ai::IdeaCandidate>,
+    task: String,
+    model: String,
+    state: State<'_, AppState>,
+) -> Result<Response, String> {
+    let mut guard = locked(&state.workspace)?;
+    let workspace = open_workspace(&mut guard)?;
+    let (added, failed) = workspace.add_ai_ideas(&candidates, &task, &model);
+    // 途中で足せなかったら、足した分と一緒に、わけを返す（足した分を画面に出し、二重に足さないため）。
+    // 出自の記録の誤りはいつも受け取る（後の別の操作の知らせにしない）。
+    let provenance = workspace.take_field_provenance_problem();
+    let problem = match (failed, provenance) {
+        (Some(f), Some(p)) => Some(format!("{f}。{p}")),
+        (f, p) => f.or(p),
+    };
+    json_response(&json!({
+        "added": added
+            .iter()
+            .map(|(file, text)| json!({ "file": file, "text": text }))
+            .collect::<Vec<_>>(),
+        "ai_fields": ai_field_list(workspace),
+        "provenance_problem": problem,
+    }))
 }
 
 /// アイデアメモを昇格する（エントリかスタブのシーンを作り、メモに `promoted_to` を書く）。`seen` はフロントが
@@ -2629,6 +2673,13 @@ fn task_for(project: &Project, task: &str, route: Option<&str>) -> Result<ai::Ai
         .iter()
         .find(|t| t.id == task)
         .ok_or_else(|| format!("ai/{task}.yaml がありません"))?;
+    // ネタ出しでは、方向性と数（JSON。T4-29）。書いていなければ既定の数で頼む。
+    if definition.output == ai::TaskOutput::IdeaCandidates {
+        let request: ai::IdeaRequest = route
+            .and_then(|r| serde_json::from_str(r).ok())
+            .unwrap_or_default();
+        return Ok(ai::with_idea_request(definition, &request));
+    }
     Ok(match route.map(str::trim).filter(|r| !r.is_empty()) {
         Some(route) if ai::is_skeleton(definition) => ai::with_route(definition, route),
         // 設定の下書きでは、対象のエントリのパス（T4-5）。
@@ -3956,6 +4007,8 @@ pub fn run() {
             ai_test,
             ai_models,
             set_ai_via,
+            add_ai_ideas,
+            add_task_template,
             ai_cli_check,
             project_settings,
             set_project_settings,

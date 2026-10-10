@@ -42,8 +42,11 @@ import { type FieldOrigin, fieldOrigins } from "./bible/origin.ts";
 import { CheckScreen } from "./check/CheckScreen.tsx";
 import { countBySeverity } from "./check/group.ts";
 import { ConceptScreen } from "./concept/ConceptScreen.tsx";
+import { brainstormKey } from "./concept/IdeaBrainstorm.tsx";
 import {
+  addAiIdeas,
   addChapter,
+  addTaskTemplate,
   adoptBranchProposal,
   adoptFieldProposal,
   adoptProposals,
@@ -2775,6 +2778,7 @@ export function App() {
               branches: outcome.branches,
               skeleton: outcome.skeleton,
               ideas: outcome.ideas,
+              ideaCandidates: outcome.idea_candidates,
               fields: written?.fields ?? [],
               created: written?.created ?? [],
               notes: written?.notes ?? [],
@@ -3444,6 +3448,33 @@ export function App() {
     "draft_entries",
     (t) => t.output === "entries",
   );
+  /** ネタ出し（T4-29）：方向性と数（`route` の JSON）で実行し、選んだ候補をメモにする。 */
+  const brainstormTask = findTask(
+    aiTasks,
+    "idea_brainstorm",
+    (t) => t.output === "idea_candidates",
+  );
+  const brainstormAll =
+    brainstormTask === null ? undefined : aiResults.get(brainstormTask.task.id);
+  const brainstormResult = resultShown(brainstormAll?.run, hiddenResults)
+    ? brainstormAll
+    : undefined;
+  /** ネタ出しでメモにした候補（回と順番。T4-29）。 */
+  const [brainstormAdded, setBrainstormAdded] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const brainstormRunner = (request: string): TaskRunner => ({
+    info: brainstormTask,
+    running: aiRunState,
+    onPrepare: (task, scene) => prepareAiTask(task, scene, request),
+    onRun: (info, scene, digest) =>
+      runTask(info, scene, digest, {
+        route: request,
+        file: null,
+        newChapter: null,
+      }),
+    onCancel: cancelTaskRun,
+  });
   const entriesAll =
     entriesTask === null ? undefined : aiResults.get(entriesTask.task.id);
   const entriesResult = resultShown(entriesAll?.run, hiddenResults)
@@ -3995,6 +4026,69 @@ export function App() {
                                     ),
                               onReject: rejectField,
                               onDismiss: hideResult,
+                            },
+                            brainstorm: {
+                              available: brainstormTask !== null,
+                              runner: brainstormRunner,
+                              result:
+                                brainstormResult?.kind === "ok"
+                                  ? {
+                                      run: brainstormResult.run,
+                                      ok: true,
+                                      candidates:
+                                        brainstormResult.ideaCandidates,
+                                    }
+                                  : brainstormResult?.kind === "failed"
+                                    ? {
+                                        run: brainstormResult.run,
+                                        ok: false,
+                                        message: brainstormResult.message,
+                                      }
+                                    : null,
+                              added: brainstormAdded,
+                              onAdd: async (run, indexes) => {
+                                if (
+                                  brainstormTask === null ||
+                                  brainstormResult?.kind !== "ok" ||
+                                  brainstormResult.run !== run
+                                )
+                                  return {
+                                    count: 0,
+                                    problem:
+                                      "結果が古くなりました。もう一度頼みます",
+                                  };
+                                const candidates = indexes.flatMap((i) => {
+                                  const c = brainstormResult.ideaCandidates[i];
+                                  return c === undefined ? [] : [c];
+                                });
+                                const r = await addAiIdeas(
+                                  candidates,
+                                  brainstormTask.task.id,
+                                  brainstormResult.model,
+                                );
+                                // 足した分（前から順）に印を付ける。途中で失敗しても、足した分は一覧に出す。
+                                const done = indexes
+                                  .slice(0, r.added.length)
+                                  .map((i) => brainstormKey(run, i));
+                                setBrainstormAdded(
+                                  (s) => new Set([...s, ...done]),
+                                );
+                                setIdeasVersion((n) => n + 1);
+                                setAiFieldMap(fieldOrigins(r.ai_fields));
+                                return {
+                                  count: r.added.length,
+                                  problem: r.provenance_problem,
+                                };
+                              },
+                              onDismiss: hideResult,
+                              onAddTask: async () => {
+                                await addTaskTemplate("idea_brainstorm");
+                                setSettingsVersion((n) => n + 1);
+                                return null;
+                              },
+                              otherRunning:
+                                aiRunState !== null &&
+                                aiRunState.task !== brainstormTask?.task.id,
                             },
                           }}
                         />

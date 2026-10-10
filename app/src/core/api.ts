@@ -14,6 +14,7 @@ import type {
   AiConnectionChoice,
   AiConnections,
   AiEffort,
+  AiIdeasAdded,
   AiLines,
   AiModels,
   AiPrepared,
@@ -46,6 +47,7 @@ import type {
   FlowEdge,
   GraphLevel,
   Idea,
+  IdeaCandidate,
   IrDiagnostic,
   JsonValue,
   KeptFile,
@@ -693,6 +695,20 @@ export function setAiVia(
 /** Claude Code の CLI を確かめる（見つかった場所と版。`cli` が null なら探す。T4-26）。 */
 export function aiCliCheck(cli: string | null): Promise<AiCliCheck> {
   return invoke<AiCliCheck>("ai_cli_check", { cli });
+}
+
+/** ネタ出しの候補のうち選んだものを、アイデアメモ（未整理）として足す（本文の出自は ai。T4-29）。 */
+export function addAiIdeas(
+  candidates: readonly IdeaCandidate[],
+  task: string,
+  model: string,
+): Promise<AiIdeasAdded> {
+  return invoke<AiIdeasAdded>("add_ai_ideas", { candidates, task, model });
+}
+
+/** 組み込みのタスクの定義を、ひな形から作品フォルダに足す（T4-29）。足したパス。 */
+export function addTaskTemplate(task: string): Promise<string> {
+  return invoke<string>("add_task_template", { task });
 }
 
 /** 走っている回（「接続を試す」と AI タスクの実行）を取り消す。 */

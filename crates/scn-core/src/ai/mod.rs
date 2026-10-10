@@ -10,6 +10,7 @@
 //! Claude Code（CLI）で呼ぶ（T4-26、N3）：Messages API の接続先を、この端末では `claude -p` で呼ぶ。
 
 mod auto;
+mod brainstorm;
 mod claude_code;
 mod client;
 mod connection;
@@ -23,6 +24,7 @@ mod run;
 mod task;
 
 pub use auto::*;
+pub use brainstorm::*;
 pub use claude_code::{CLI_NAME, cli_args, cli_logged_in, cli_prompt, cli_version, find_cli};
 pub use client::*;
 pub use connection::*;

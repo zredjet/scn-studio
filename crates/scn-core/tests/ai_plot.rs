@@ -746,3 +746,177 @@ fn drift_of_multiline_summary() {
     }));
     let _ = fs::remove_dir_all(&root);
 }
+
+/// アイデアのネタ出し（T4-29）：方向性と数を依頼に書き足し、候補を読み、選んだ候補をメモにして出自を ai と記録する。
+#[test]
+fn idea_brainstorm_candidates_become_memos() {
+    let root = houkago_copy("brainstorm");
+    let project = load_project(&root).unwrap();
+    let definition = task(&project, "idea_brainstorm");
+    assert_eq!(definition.output, ai::TaskOutput::IdeaCandidates);
+    let task = ai::with_idea_request(
+        &definition,
+        &ai::IdeaRequest {
+            direction: "紬が主人公を試す展開".to_owned(),
+            count: 3,
+        },
+    );
+    let (outcome, request) = run(
+        &root,
+        &project,
+        &task,
+        None,
+        "{\"ideas\": [{\"title\": \"鍵の試験\", \"body\": \"紬が屋上の鍵をわざと置き忘れる。\", \"tags\": [\"紬\"]}, {\"body\": \"文化祭の準備で、紬が主人公にだけ嘘を言う。\", \"tags\": \"嘘\"}, {\"title\": \"空\", \"body\": \"\"}]}",
+    );
+    assert!(
+        request.contains("今回の方向性：紬が主人公を試す展開"),
+        "{request}"
+    );
+    assert!(request.contains("候補の数：3"), "{request}");
+    assert!(request.contains("## アイデアメモ"), "{request}");
+    // 本文の無い候補は読まない。タグは1つの文字列でも読む。
+    assert_eq!(
+        outcome.idea_candidates.len(),
+        2,
+        "{:?}",
+        outcome.idea_candidates
+    );
+    let first = &outcome.idea_candidates[0];
+    assert_eq!(
+        first.memo_body(),
+        "鍵の試験\n\n紬が屋上の鍵をわざと置き忘れる。"
+    );
+    assert_eq!(outcome.idea_candidates[1].tags, ["嘘"]);
+
+    // 選んだ候補だけをメモにする（未整理、タグ、本文の出自は ai）。
+    let mut ws = Workspace::open(&root).unwrap();
+    let (added, failed) = ws.add_ai_ideas(
+        &outcome.idea_candidates[..1],
+        "idea_brainstorm",
+        "test-model",
+    );
+    assert_eq!(failed, None);
+    assert_eq!(added.len(), 1);
+    let (file, text) = &added[0];
+    assert!(
+        file.starts_with("ideas/idea-") && file.ends_with(".md"),
+        "{file}"
+    );
+    assert!(
+        text.contains("status: 未整理") && text.contains("紬"),
+        "{text}"
+    );
+    assert!(
+        text.contains("鍵の試験\n\n紬が屋上の鍵をわざと置き忘れる。"),
+        "{text}"
+    );
+    let provenance = read_provenance(&root).unwrap();
+    let record = provenance.latest_fields()[&(file.as_str(), "#body")].clone();
+    assert_eq!(
+        (
+            record.origin.as_str(),
+            record.task.as_str(),
+            record.model.as_str()
+        ),
+        ("ai", "idea_brainstorm", "test-model")
+    );
+    // 人が本文を直すと ai-edited。
+    ws.set_entry_body(file, "人が書き直した本文", text).unwrap();
+    let provenance = read_provenance(&root).unwrap();
+    assert_eq!(
+        provenance.latest_fields()[&(file.as_str(), "#body")].origin,
+        "ai-edited"
+    );
+    // 消したメモの名前に人がメモを作り直したら、前の AI の記録は打ち消す。
+    fs::remove_file(root.join(file)).unwrap();
+    let (again, _) = ws.create_idea("人のメモ", &[]).unwrap();
+    assert_eq!(&again, file);
+    let provenance = read_provenance(&root).unwrap();
+    assert!(
+        provenance
+            .latest_fields()
+            .get(&(file.as_str(), "#body"))
+            .is_none_or(|r| r.origin != "ai" && r.origin != "ai-edited"),
+        "{:?}",
+        provenance.latest_fields().get(&(file.as_str(), "#body"))
+    );
+    let _ = fs::remove_dir_all(&root);
+}
+
+/// ネタ出しの数は1〜10に収め、書かなければ5。方向性が無ければそう書く（T4-29）。
+#[test]
+fn idea_request_defaults() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../samples/houkago");
+    let project = load_project(&root).unwrap();
+    let task = task(&project, "idea_brainstorm");
+    let with = |count, direction: &str| {
+        ai::with_idea_request(
+            &task,
+            &ai::IdeaRequest {
+                direction: direction.to_owned(),
+                count,
+            },
+        )
+        .prompt
+        .unwrap()
+    };
+    assert!(with(0, "").contains("候補の数：5"));
+    assert!(with(0, "").contains("今回の方向性：（指定なし"));
+    assert!(with(99, "x").contains("候補の数：10"));
+    // 1行に1つの JSON でも読む。
+    let (found, _) = ai::parse_idea_candidates(
+        "{\"title\": \"a\", \"body\": \"本文1\"}\n{\"body\": \"本文2\", \"tags\": [\"t\"]}",
+    );
+    assert_eq!(found.len(), 2);
+}
+
+/// 前に作った作品に、組み込みのタスクの定義をひな形から足す（T4-29）。あれば断る。
+#[test]
+fn add_task_template_to_older_work() {
+    let root = houkago_copy("template");
+    fs::remove_file(root.join("ai/idea_brainstorm.yaml")).unwrap();
+    let mut ws = Workspace::open(&root).unwrap();
+    assert!(
+        !ws.project()
+            .ai_tasks
+            .iter()
+            .any(|t| t.id == "idea_brainstorm")
+    );
+    assert_eq!(
+        ws.add_task_template("idea_brainstorm").unwrap(),
+        "ai/idea_brainstorm.yaml"
+    );
+    assert_eq!(
+        fs::read_to_string(root.join("ai/idea_brainstorm.yaml")).unwrap(),
+        scn_core::scaffold::task_template("idea_brainstorm").unwrap()
+    );
+    assert!(
+        ws.project()
+            .ai_tasks
+            .iter()
+            .any(|t| t.id == "idea_brainstorm")
+    );
+    assert!(ws.add_task_template("idea_brainstorm").is_err());
+    assert!(ws.add_task_template("no_such_task").is_err());
+    let _ = fs::remove_dir_all(&root);
+}
+
+/// メモを足す途中で失敗したら、そこで止め、足した分と、わけを返す（T4-29。足した分を画面に出して二重に足さない）。
+#[test]
+fn add_ai_ideas_stops_at_failure() {
+    let root = houkago_copy("partial");
+    let mut ws = Workspace::open(&root).unwrap();
+    let candidate = |body: &str| ai::IdeaCandidate {
+        title: String::new(),
+        body: body.to_owned(),
+        tags: Vec::new(),
+    };
+    let (added, failed) = ws.add_ai_ideas(
+        &[candidate("一つ目"), candidate("  "), candidate("三つ目")],
+        "idea_brainstorm",
+        "m",
+    );
+    assert_eq!(added.len(), 1);
+    assert!(failed.unwrap().starts_with("2件目のメモを足せませんでした"));
+    let _ = fs::remove_dir_all(&root);
+}

@@ -761,7 +761,8 @@ export interface AiTask {
     | "draft"
     | "ideas"
     | "concept"
-    | "entries";
+    | "entries"
+    | "idea_candidates";
   readonly scope: string | null;
   readonly branch: string | null;
   readonly checks: readonly string[];
@@ -871,6 +872,8 @@ export interface AiRunOutcome {
   readonly skeleton: readonly SkeletonScene[];
   /** アイデアメモの分類案（`output: ideas`。T3-10）。 */
   readonly ideas: readonly IdeaSuggestion[];
+  /** アイデアの候補（`output: idea_candidates`。T4-29）。足すのは別（`add_ai_ideas`）。 */
+  readonly idea_candidates: readonly IdeaCandidate[];
   /** 企画書の下書き（`output: concept`。T4-4）。書くのは別（`write_concept_draft`）。 */
   readonly concept: ConceptDraft | null;
   /** 設定の下書き（`output: entries`。T4-5）。書くのは別（`write_entries_draft`）。 */
@@ -913,6 +916,30 @@ export interface SkeletonScene {
   readonly summary: string | null;
   readonly route: string | null;
   readonly lines: readonly string[];
+}
+
+/** ネタ出しのアイデアの候補（コアの `ai::IdeaCandidate`。T4-29）。 */
+export interface IdeaCandidate {
+  readonly title: string;
+  readonly body: string;
+  readonly tags: readonly string[];
+}
+
+/** ネタ出しの頼み（コアの `ai::IdeaRequest`。T4-29）。 */
+export interface IdeaRequest {
+  readonly direction: string;
+  readonly count: number;
+}
+
+/** 候補をメモにした結果（`add_ai_ideas`）。 */
+export interface AiIdeasAdded {
+  readonly added: readonly { readonly file: string; readonly text: string }[];
+  readonly ai_fields: readonly {
+    readonly file: string;
+    readonly key: string;
+    readonly origin: string;
+  }[];
+  readonly provenance_problem: string | null;
 }
 
 /** アイデアメモの分類案（コアの `ai::IdeaSuggestion`、T3-10）。 */

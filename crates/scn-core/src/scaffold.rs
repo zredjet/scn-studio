@@ -23,7 +23,7 @@ const GUIDE: &str = include_str!("../../../docs/guide/scn.md");
 pub const GENERATED_DOCS: [&str; 2] = ["FORMAT.md", "SCN.md"];
 
 /// 作品フォルダの中に置くファイル（パスと中身）。`{{title}}` は作品名にする。
-const TEMPLATES: [(&str, &str); 23] = [
+const TEMPLATES: [(&str, &str); 24] = [
     ("project.toml", include_str!("../templates/project.toml")),
     ("CLAUDE.md", include_str!("../templates/CLAUDE.md")),
     ("concept.md", include_str!("../templates/concept.md")),
@@ -63,6 +63,10 @@ const TEMPLATES: [(&str, &str); 23] = [
         include_str!("../templates/ai/draft_stub.yaml"),
     ),
     (
+        "ai/idea_brainstorm.yaml",
+        include_str!("../templates/ai/idea_brainstorm.yaml"),
+    ),
+    (
         "ai/idea_sort.yaml",
         include_str!("../templates/ai/idea_sort.yaml"),
     ),
@@ -97,6 +101,15 @@ const TEMPLATES: [(&str, &str); 23] = [
     (".gitignore", include_str!("../templates/gitignore")),
     (".gitattributes", include_str!("../templates/gitattributes")),
 ];
+
+/// 組み込みのタスクのひな形（`ai/<タスク>.yaml`）。無ければ `None`（T4-29）。
+pub fn task_template(task: &str) -> Option<&'static str> {
+    let path = format!("ai/{task}.yaml");
+    TEMPLATES
+        .iter()
+        .find(|(p, _)| *p == path)
+        .map(|(_, text)| *text)
+}
 
 /// 設定DBの型のテンプレート（T4-9、D082）。型の名前と項目は `text`（型定義のファイルの中身）に書く。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

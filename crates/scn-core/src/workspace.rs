@@ -2705,7 +2705,79 @@ impl Workspace {
         })?;
         let file = new_idea_file(&self.root);
         self.write_settings_file(&file, &text)?;
+        // 前に同じ名前のメモが AI のものだった記録が残っていれば打ち消す（T4-29）。
+        self.reset_stale_fields(&file);
         Ok((file, text))
+    }
+
+    /// 組み込みのタスクの定義（`ai/<タスク>.yaml`）を、ひな形から作品フォルダに足す（T4-29。前に作った作品で、
+    /// 新しく足したタスクを使えるように）。もうあるときと、ひな形の無いタスクは断る。足したパス。
+    pub fn add_task_template(&mut self, task: &str) -> Result<String, ProjectError> {
+        let file = format!("ai/{task}.yaml");
+        let path = self.root.join(&file);
+        let Some(text) = crate::scaffold::task_template(task) else {
+            return Err(error(
+                &path,
+                io::ErrorKind::NotFound,
+                "組み込みのタスクではありません",
+            ));
+        };
+        if path.exists() {
+            return Err(error(
+                &path,
+                io::ErrorKind::AlreadyExists,
+                "タスクの定義はもうあります",
+            ));
+        }
+        fs::create_dir_all(self.root.join("ai")).map_err(|source| ProjectError::Write {
+            path: self.root.join("ai"),
+            source,
+        })?;
+        self.write_settings_file(&file, text)?;
+        Ok(file)
+    }
+
+    /// ネタ出しの候補のうち人が選んだものを、順にアイデアメモ（未整理）として足し、本文の出自を `ai` と記録する
+    /// （T4-29、D088）。足したメモのパスと中身と、途中で足せなかったわけ（足せなかったところで止める。足した分は
+    /// 残すので、画面に出して二重に足さないようにする）。出自を書けなかったわけは
+    /// [`Self::take_field_provenance_problem`] で受け取れる。
+    pub fn add_ai_ideas(
+        &mut self,
+        candidates: &[crate::ai::IdeaCandidate],
+        task: &str,
+        model: &str,
+    ) -> (Vec<(String, String)>, Option<String>) {
+        let mut added = Vec::new();
+        let mut problem = None;
+        for candidate in candidates {
+            let (file, text) = match self.create_idea(&candidate.memo_body(), &candidate.tags) {
+                Ok(made) => made,
+                Err(e) => {
+                    let failed = Some(format!(
+                        "{}件目のメモを足せませんでした（それより前の{}件は足しました）：{e}",
+                        added.len() + 1,
+                        added.len()
+                    ));
+                    if problem.is_some() {
+                        self.field_provenance_problem = problem;
+                    }
+                    return (added, failed);
+                }
+            };
+            if let Err(e) = self.record_ai_fields(
+                &file,
+                &[crate::provenance::BODY_KEY.to_owned()],
+                task,
+                model,
+            ) {
+                problem.get_or_insert(e);
+            }
+            added.push((file, text));
+        }
+        if problem.is_some() {
+            self.field_provenance_problem = problem;
+        }
+        (added, None)
     }
 
     /// アイデアメモを昇格する：昇格先（設定DBのエントリ、章の末尾のスタブのシーン）を作り、メモに

@@ -145,7 +145,7 @@ function ProvenanceCard({
         <div>
           <h2>AIの出自</h2>
           <p className="export-note">
-            出自の記録（ai/provenance.jsonl）で、AIが書いた行（ai）と、AIが書いた行を人が直した行（ai-edited）の一覧。企画書と設定DBの、AIが書いた項目も続けて並べます。アプリで
+            出自の記録（ai/provenance.jsonl）で、AIが書いた行（ai）と、AIが書いた行を人が直した行（ai-edited）の一覧。企画書と設定DBの、AIが書いた項目（とネタ出しで足したアイデアメモの本文）も続けて並べます。アプリで
             AI の行や項目を直して保存すると、ai-edited
             と記録します。書き出し先：export/provenance.csv
           </p>

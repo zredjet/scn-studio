@@ -279,6 +279,8 @@ pub struct RunOutcome {
     pub skeleton: Vec<SkeletonScene>,
     /// アイデアメモの分類案（`output: ideas`。T3-10）。
     pub ideas: Vec<IdeaSuggestion>,
+    /// アイデアの候補（`output: idea_candidates`。T4-29）。足すのは別（`Workspace::add_ai_ideas`）。
+    pub idea_candidates: Vec<super::brainstorm::IdeaCandidate>,
     /// 企画書の下書き（`output: concept`。T4-4）。書くのは別（`Workspace::write_concept_draft`）。
     pub concept: Option<ConceptDraft>,
     /// 設定の下書き（`output: entries`。T4-5）。書くのは別（`Workspace::write_entries_draft`）。
@@ -311,7 +313,8 @@ pub enum RunError {
 /// 実行できる段階か。自律は章を選んで `run_auto` で実行する。
 pub fn runnable(task: &AiTask) -> Result<(), String> {
     match (task.level, task.output) {
-        (TaskLevel::Review, _) | (TaskLevel::Propose, TaskOutput::Diff) => Ok(()),
+        (TaskLevel::Review, _)
+        | (TaskLevel::Propose, TaskOutput::Diff | TaskOutput::IdeaCandidates) => Ok(()),
         // 提案ノードは、対象のシーンの後に足す選択肢の案（T3-10）。
         (TaskLevel::Propose, _) if task.context.contains(&ContextItem::Scene) => Ok(()),
         (TaskLevel::Propose, _) => Err(format!(
@@ -376,6 +379,18 @@ pub fn output_schema(output: TaskOutput) -> Option<OutputSchema> {
                     "reason": text(),
                 },
                 "required": ["file"],
+            }),
+        ),
+        TaskOutput::IdeaCandidates => (
+            "ideas",
+            json!({
+                "type": "object",
+                "properties": {
+                    "title": text(),
+                    "body": text(),
+                    "tags": {"type": "array", "items": text()},
+                },
+                "required": ["body"],
             }),
         ),
         TaskOutput::Concept => return Some(concept_schema()),
@@ -470,6 +485,7 @@ pub fn run_task(
     let mut branches = Vec::new();
     let mut skeleton = Vec::new();
     let mut ideas = Vec::new();
+    let mut idea_candidates = Vec::new();
     let mut concept = None;
     let mut entries = None;
     let unread_if = |empty: bool| {
@@ -514,6 +530,12 @@ pub fn run_task(
             ideas = found;
             (Vec::new(), None, unread)
         }
+        TaskOutput::IdeaCandidates => {
+            let (found, mut unread) = super::brainstorm::parse_idea_candidates(&text);
+            unread.extend(unread_if(found.is_empty()));
+            idea_candidates = found;
+            (Vec::new(), None, unread)
+        }
         TaskOutput::Concept => {
             // 読まなかった項目のわけも、読めなかった行として見せる。
             let (draft, unread) = parse_concept_draft(&text);
@@ -542,6 +564,7 @@ pub fn run_task(
         branches,
         skeleton,
         ideas,
+        idea_candidates,
         concept,
         entries,
         unread,

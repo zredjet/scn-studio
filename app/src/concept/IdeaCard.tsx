@@ -4,8 +4,9 @@
 
 import { type KeyboardEvent, useState } from "react";
 import { BodyField } from "../bible/BibleScreen.tsx";
-import { FieldInput } from "../bible/FieldInput.tsx";
+import { FieldInput, OriginBadge } from "../bible/FieldInput.tsx";
 import { type FieldChange, isComposingKey } from "../bible/fields.ts";
+import type { FieldOrigin } from "../bible/origin.ts";
 import type {
   EntryEdit,
   EntryType,
@@ -77,6 +78,8 @@ interface Props {
   /** 昇格する。できなければ誤りの文を返す（できれば null）。 */
   readonly onPromote: (promotion: Promotion) => Promise<string | null>;
   readonly onOpenTarget: () => void;
+  /** 本文の出自（ネタ出しで足したメモ。T4-29）。 */
+  readonly origin?: FieldOrigin;
 }
 
 export function IdeaCard({
@@ -91,6 +94,7 @@ export function IdeaCard({
   onCommitBody,
   onPromote,
   onOpenTarget,
+  origin,
 }: Props) {
   const [mode, setMode] = useState<Mode | null>(null);
   const readable = idea.text !== null;
@@ -113,6 +117,7 @@ export function IdeaCard({
         <p className="idea-text">
           {idea.body.trim() === "" ? "（本文なし）" : idea.body.trim()}
         </p>
+        <OriginBadge origin={origin} />
         {idea.tags.length > 0 && (
           <span className="idea-tags">
             {idea.tags.map((tag) => (
@@ -167,6 +172,7 @@ export function IdeaCard({
             body={idea.body}
             fileText={idea.text ?? ""}
             onCommit={onCommitBody}
+            origin={origin}
           />
           {idea.promoted_to === null && (
             <div className="idea-promote">
