@@ -10,6 +10,12 @@ import type {
   SettingEdit,
 } from "../core/types.ts";
 import { IS_MAC, keyLabel } from "../shell/palette.ts";
+import {
+  DEFAULT_ZOOM,
+  type ViewPrefs,
+  ZOOM_CHOICES,
+  zoomOf,
+} from "../shell/viewPrefs.ts";
 import { keyGroups } from "./keys.ts";
 import {
   bracketAddPlan,
@@ -26,12 +32,8 @@ import {
   windowTogglePlan,
 } from "./project.ts";
 
-/** 表示の好み（この端末に覚える。App の `ViewPrefs` と同じ）。 */
-export interface ViewPrefsValue {
-  readonly focus: boolean;
-  readonly typewriter: boolean;
-  readonly gothic: boolean;
-}
+/** 表示の好み（この端末に覚える。App の `ViewPrefs`）。 */
+export type ViewPrefsValue = ViewPrefs;
 
 /** 欄の1行（見本 11 の pf-row：左にラベル、右に欄と説明）。 */
 function Row({
@@ -106,6 +108,24 @@ export function DisplayPage({
   return (
     <div className="prefs-form">
       <p className="hint">この端末に覚えます（作品ごとではありません）。</p>
+      <Row label="画面の倍率">
+        <select
+          className="select"
+          style={{ width: 200 }}
+          aria-label="画面の倍率"
+          value={view.zoom}
+          onChange={(e) => onView({ zoom: zoomOf(Number(e.target.value)) })}
+        >
+          {ZOOM_CHOICES.map((z) => (
+            <option key={z} value={z}>
+              {z}%{z === DEFAULT_ZOOM ? "（既定）" : ""}
+            </option>
+          ))}
+        </select>
+        <span className="hint">
+          文字も欄もまとめて拡大・縮小します。プレビューの別ウィンドウは開き直すと合います
+        </span>
+      </Row>
       <Row label="本文の書体">
         <select
           className="select"

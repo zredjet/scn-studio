@@ -6,8 +6,15 @@ import "./styles/components.css";
 import "./styles/app.css";
 import "./styles/preview.css";
 import { App } from "./App.tsx";
-import { isPreviewWindow } from "./core/api.ts";
+import { isPreviewWindow, setUiZoom } from "./core/api.ts";
 import { PreviewWindow } from "./preview/PreviewWindow.tsx";
+import { loadViewPrefs } from "./shell/viewPrefs.ts";
+
+// 画面の倍率（T4-30）は、描き始める前に覚えた値に合わせるよう頼む（終わるのは待たない。プレビューの別ウィンドウも
+// 開いたときに読む）。
+void setUiZoom(loadViewPrefs().zoom).catch(() => {
+  // 合わせられなくても、100% で使える（メインウィンドウは App が誤りを出す）。
+});
 
 const root = document.getElementById("root");
 if (root !== null) {

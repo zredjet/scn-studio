@@ -3,6 +3,7 @@
 
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { emitTo, listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ask, open, save } from "@tauri-apps/plugin-dialog";
 import type { PreviewData } from "./ir.ts";
@@ -1154,6 +1155,12 @@ export function routeToScene(
   persistent: PersistentValues,
 ): Promise<Route | null> {
   return invoke<Route | null>("route_to_scene", { scene, persistent });
+}
+
+/** このウィンドウの画面の倍率を変える（百分率。文字も部品もまとめて拡大・縮小する。T4-30）。Tauri の外で
+ * 呼んでも投げずに、失敗の Promise を返す。 */
+export async function setUiZoom(percent: number): Promise<void> {
+  await getCurrentWebview().setZoom(percent / 100);
 }
 
 /** プレビューの別ウィンドウのラベル（コアと同じ）。 */

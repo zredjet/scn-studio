@@ -120,6 +120,7 @@ import {
   setAiTaskConnection,
   setAiVia,
   setSceneSummary,
+  setUiZoom,
   setViewMode,
   storySearchRanges,
   summaryDrift,
@@ -270,6 +271,11 @@ import {
   type UnsavedAsk,
   type UnsavedChoice,
 } from "./shell/unsaved.ts";
+import {
+  loadViewPrefs,
+  saveViewPrefs,
+  type ViewPrefs,
+} from "./shell/viewPrefs.ts";
 import { Welcome } from "./shell/Welcome.tsx";
 import { VariablesScreen } from "./variables/VariablesScreen.tsx";
 
@@ -316,39 +322,6 @@ function withoutConflict(
   const next = new Map(map);
   next.delete(file);
   return next;
-}
-
-/** 表示の好み（集中モード、タイプライタースクロール、ゴシック体。T2-8）。この端末の WebView に覚える。 */
-interface ViewPrefs {
-  readonly focus: boolean;
-  readonly typewriter: boolean;
-  readonly gothic: boolean;
-}
-
-const VIEW_PREFS_KEY = "scn-studio.view";
-
-function loadViewPrefs(): ViewPrefs {
-  const none = { focus: false, typewriter: false, gothic: false };
-  try {
-    const raw = localStorage.getItem(VIEW_PREFS_KEY);
-    if (raw === null) return none;
-    const v = JSON.parse(raw) as Partial<ViewPrefs>;
-    return {
-      focus: v.focus === true,
-      typewriter: v.typewriter === true,
-      gothic: v.gothic === true,
-    };
-  } catch {
-    return none;
-  }
-}
-
-function saveViewPrefs(prefs: ViewPrefs): void {
-  try {
-    localStorage.setItem(VIEW_PREFS_KEY, JSON.stringify(prefs));
-  } catch {
-    // 覚えられなくても、今の表示には使える。
-  }
 }
 
 /** ステータスバーの知らせを出しておく時間（ミリ秒）。 */
@@ -540,6 +513,12 @@ export function App() {
       }),
     [],
   );
+  // 画面の倍率（T4-30）。起動したときは main.tsx が先に合わせる。
+  useEffect(() => {
+    void setUiZoom(viewPrefs.zoom).catch((e: unknown) =>
+      setError(`画面の倍率を変えられません：${String(e)}`),
+    );
+  }, [viewPrefs.zoom]);
   /** フローの画面の粒度と、`layout.json` が外で変わった回数（D048）。 */
   const [flowLevel, setFlowLevel] = useState<GraphLevel>("scene");
   /** 本文の検索と置換の欄を開く頼み（見出しの帯の検索。T4-18）。 */
