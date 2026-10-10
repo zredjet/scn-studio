@@ -35,6 +35,8 @@ fn branch_commit_diff_merge() {
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(dir.join("story")).unwrap();
     run(&dir, &["init", "-q", "-b", "main"]);
+    // Windows の Git の既定（core.autocrlf=true）で、取り出したファイルの改行が CRLF にならないように。
+    run(&dir, &["config", "core.autocrlf", "false"]);
     fs::write(dir.join("story/a.scn"), "## a #s1\n").unwrap();
     run(&dir, &["add", "-A"]);
     run(&dir, &["commit", "-q", "-m", "init"]);
@@ -89,6 +91,8 @@ fn commit_paths_and_merge_abort() {
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(dir.join("story")).unwrap();
     run(&dir, &["init", "-q", "-b", "main"]);
+    // Windows の Git の既定（core.autocrlf=true）で、取り出したファイルの改行が CRLF にならないように。
+    run(&dir, &["config", "core.autocrlf", "false"]);
     fs::write(dir.join("story/a.scn"), "## a #s1\n").unwrap();
     fs::write(dir.join("story/b.scn"), "## b #s2\n").unwrap();
     run(&dir, &["add", "-A"]);

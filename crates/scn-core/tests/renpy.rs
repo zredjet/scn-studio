@@ -23,9 +23,16 @@ fn dump(root: &Path, export: &RenpyExport, problems: &[String]) -> String {
                 out.push_str(&format!("==== {path}\n{text}"));
             }
             RenpyFile::Copy { path, from } => {
-                let from = Path::new(from)
-                    .strip_prefix(&root)
-                    .map_or_else(|_| from.clone(), |p| p.display().to_string());
+                let from = Path::new(from).strip_prefix(&root).map_or_else(
+                    |_| from.clone(),
+                    // 区切りは OS によらず `/` で見せる（Windows では `\` になるため）。
+                    |p| {
+                        p.components()
+                            .map(|c| c.as_os_str().to_string_lossy())
+                            .collect::<Vec<_>>()
+                            .join("/")
+                    },
+                );
                 out.push_str(&format!("==== {path} ← {from}\n"));
             }
         }

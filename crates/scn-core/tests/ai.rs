@@ -481,7 +481,14 @@ fn cannot_connect() {
     let addr = listener.local_addr().unwrap();
     drop(listener);
     let conn = local(Provider::OpenaiCompatible, format!("http://{addr}/v1"));
-    let error = call(&conn, None, &request()).0.unwrap_err();
+    // Windows は閉じたポートへの接続を断るまでに2秒ほどかかる（SYN を送り直す）ので、つなぐまでの時間は本番と
+    // 同じにする（短いと、断られる前に時間切れになる）。
+    let options = CallOptions {
+        connect_timeout: CallOptions::default().connect_timeout,
+        ..quick()
+    };
+    let cancel = AtomicBool::new(false);
+    let error = ai::complete(&conn, None, &request(), &options, &cancel, &mut |_| {}).unwrap_err();
     assert!(matches!(error, AiError::Connect(_)), "{error:?}");
 }
 
