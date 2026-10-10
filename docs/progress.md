@@ -57,6 +57,8 @@ T3-17 で `docs/review-for-human.md` の3節（X1〜X16）に、推奨案を付�
   - `scn` の出すパスで区切りが混ざっていた（`samples/houkago\story/chapter01.scn`）。`join_display` で、フォルダを `/` で書いたときは `/`、ほかは `\` にそろえる（Windows だけ。ほかの OS は前と同じ）
   - テストだけの違い：Windows は閉じたポートを断るまでに2秒ほどかかる（つながらないときのテストは本番と同じ待つ時間に）、Git の既定の `core.autocrlf=true`（gitops のテストのリポジトリで切る）、Ren'Py の写す素材の元のパスの区切り（テストの見せ方を `/` に）
   - まとめての検査の Rust のテストを `--no-fail-fast` にした（失敗をまとめて知らせる）
+- 公開の後、人の頼みで、アイコンの PNG（14枚）の C2PA の chunk（`caBX`）と SVG（2つ）の C2PA の `<metadata>` を除いた（画素は元と同じことを確かめた。ICO と ICNS には入っていなかった）。前のコミットの履歴には残る。claude.ai のリンクは公開しないのでそのまま（人の判断）
+- 人の確かめ H50〜H53 を「済」と記録した（前の会話での人の返事から）
 - plan-reviewer の指摘で直したこと：アプリの使い方の素材の画面の絞り方と、企画書のエンディング（フォームでなく表で見せ、直すのはソース）を実装に合わせた。サンプルで動かしたフロー図の位置 `samples/*/layout.json` を `.gitignore` に足した。画面の操作やキーを変えたら `docs/guide/app.md` も直す約束を CLAUDE.md と `.claude/rules/frontend.md` に足した
 
 ### 2026-10-10 T4-30 画面の倍率（人の頼み。D089）
